@@ -1,0 +1,100 @@
+using CoreForms.Ui.Core;
+using Graphics = CoreForms.Ui.Rendering.Graphics;
+
+namespace CoreForms.Ui.Controls.Basic;
+
+public class ComboBox : Control
+{
+    private readonly List<object> _items = new();
+    private int _selectedIndex = -1;
+    private bool _droppedDown;
+    private int _dropDownHeight = 120;
+
+    public ComboBox()
+    {
+        BackColor = Color.White;
+        Size = new Size(200, 32);
+    }
+
+    public List<object> Items => _items;
+
+    public int SelectedIndex
+    {
+        get => _selectedIndex;
+        set
+        {
+            if (_selectedIndex != value && value >= -1 && value < _items.Count)
+            {
+                _selectedIndex = value;
+                OnSelectedIndexChanged();
+                Invalidate();
+            }
+        }
+    }
+
+    public object? SelectedItem => _selectedIndex >= 0 && _selectedIndex < _items.Count
+        ? _items[_selectedIndex]
+        : null;
+
+    public int DropDownHeight
+    {
+        get => _dropDownHeight;
+        set => _dropDownHeight = value;
+    }
+
+    public override void Render(Graphics g)
+    {
+        if (!Visible) return;
+
+        g.FillRectangle(BackColor, 0, 0, Width, Height);
+        g.DrawRectangle(Color.FromArgb(128, 128, 128), 0, 0, Width, Height, 1);
+
+        var font = Font ?? Font.Default;
+        var selectedText = SelectedItem?.ToString() ?? "";
+        g.DrawString(selectedText, font, ForeColor, 3, (Height - (int)font.Size) / 2);
+
+        g.FillRectangle(SystemColors.Control, Width - 20, 0, 20, Height);
+        g.DrawLine(Color.FromArgb(100, 100, 100), Width - 10, Height / 3, Width - 5, Height / 2);
+        g.DrawLine(Color.FromArgb(100, 100, 100), Width - 5, Height / 2, Width - 10, Height * 2 / 3);
+
+        if (_droppedDown)
+        {
+            // Clear dropdown area first
+            g.FillRectangle(Color.White, 0, Height, Width, _dropDownHeight);
+            g.DrawRectangle(Color.FromArgb(128, 128, 128), 0, Height, Width, _dropDownHeight, 1);
+
+            var itemHeight = (int)font.Size + 4;
+            for (int i = 0; i < _items.Count; i++)
+            {
+                var y = Height + 2 + i * itemHeight;
+                if (y > Height + _dropDownHeight) break;
+                
+                if (i == _selectedIndex)
+                {
+                    g.FillRectangle(SystemColors.Highlight, 1, y, Width - 2, itemHeight);
+                    g.DrawString(_items[i]?.ToString() ?? "", font, SystemColors.HighlightText, 4, y + 2);
+                }
+                else
+                {
+                    g.DrawString(_items[i]?.ToString() ?? "", font, ForeColor, 4, y + 2);
+                }
+            }
+        }
+
+        base.Render(g);
+    }
+
+    protected internal override void OnMouseDown(EventArgs e)
+    {
+        _droppedDown = !_droppedDown;
+        Invalidate();
+        base.OnMouseDown(e);
+    }
+
+    protected virtual void OnSelectedIndexChanged()
+    {
+        SelectedIndexChanged?.Invoke(this, EventArgs.Empty);
+    }
+
+    public event EventHandler? SelectedIndexChanged;
+}
