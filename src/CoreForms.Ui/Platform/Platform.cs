@@ -86,6 +86,9 @@ public static class Platform
     private static extern void SDL_RaiseWindow(IntPtr window);
 
     [DllImport("SDL2", CallingConvention = CallingConvention.Cdecl)]
+    private static extern void SDL_ShowWindow(IntPtr window);
+
+    [DllImport("SDL2", CallingConvention = CallingConvention.Cdecl)]
     private static extern void SDL_StartTextInput();
 
     [DllImport("SDL2", CallingConvention = CallingConvention.Cdecl)]
@@ -109,16 +112,18 @@ public static class Platform
     private const int SDL_TEXTINPUT = 0x303;
     private const int SDL_TEXTEDITING = 0x302;
 
-    private const int SDL_WINDOWEVENT_CLOSE = 0x1;
-    private const int SDL_WINDOWEVENT_MOVED = 0x2;
+    private const int SDL_WINDOWEVENT_CLOSE = 0xE;
+    private const int SDL_WINDOWEVENT_MOVED = 0x4;
     private const int SDL_WINDOWEVENT_RESIZED = 0x5;
-    private const int SDL_WINDOWEVENT_MINIMIZED = 0x6;
+    private const int SDL_WINDOWEVENT_MINIMIZED = 0x7;
     private const int SDL_WINDOWEVENT_MAXIMIZED = 0x8;
     private const int SDL_WINDOWEVENT_RESTORED = 0x9;
-    private const int SDL_WINDOWEVENT_FOCUS_GAINED = 0x7;
-    private const int SDL_WINDOWEVENT_FOCUS_LOST = 0x8;
+    private const int SDL_WINDOWEVENT_FOCUS_GAINED = 0xC;
+    private const int SDL_WINDOWEVENT_FOCUS_LOST = 0xD;
     private const int SDL_WINDOWEVENT_ENTER = 0xA;
     private const int SDL_WINDOWEVENT_LEAVE = 0xB;
+    private const int SDL_WINDOWEVENT_SHOWN = 0x1;
+    private const int SDL_WINDOWEVENT_HIDDEN = 0x2;
 
     [StructLayout(LayoutKind.Explicit, Size = 56)]
     private struct SDL_Event
@@ -196,6 +201,7 @@ public static class Platform
 
     public static IntPtr CreateWindow(Form form)
     {
+        Console.WriteLine("[DEBUG] CreateWindow called");
         Initialize();
 
         uint flags = SDL_WINDOW_SHOWN;
@@ -205,6 +211,7 @@ public static class Platform
             flags |= SDL_WINDOW_RESIZABLE;
         }
 
+        Console.WriteLine($"[DEBUG] Creating window with flags: {flags:X}");
         _window = SDL_CreateWindow(
             form.Text,
             SDL_WINDOWPOS_CENTERED,
@@ -218,18 +225,28 @@ public static class Platform
             throw new InvalidOperationException("SDL_CreateWindow failed: " + GetSDLError());
         }
 
+        Console.WriteLine($"[DEBUG] Window created: {_window}");
         uint windowId = SDL_GetWindowID(_window);
+        Console.WriteLine($"[DEBUG] Window ID: {windowId}");
         form.WindowId = windowId;
         _windows[windowId] = form;
         _currentForm = form;
         _focusedWindow = form;
 
+        Console.WriteLine("[DEBUG] Creating renderer");
         _renderer = new SdlRenderer(_window);
+        Console.WriteLine($"[DEBUG] Renderer created: {_renderer.Handle}");
         _fontRenderer = new FontRenderer(_renderer.Handle);
+        Console.WriteLine("[DEBUG] FontRenderer created");
+        
+        // Ensure window is visible
+        SDL_ShowWindow(_window);
+        SDL_RaiseWindow(_window);
+        Console.WriteLine("[DEBUG] Window shown and raised");
         
         // Enable text input for keyboard events
         SDL_StartTextInput();
-        
+        Console.WriteLine("[DEBUG] CreateWindow completed");
         return _window;
     }
 
@@ -352,11 +369,17 @@ public static class Platform
     {
         SDL_PumpEvents();
 
+        int eventCount = 0;
         while (SDL_PollEvent(out SDL_Event e) == 1)
         {
+            eventCount++;
+            if (eventCount <= 5)
+                Console.WriteLine($"[DEBUG] Event: type={e.type}, windowID={e.windowID}");
+            
             switch (e.type)
             {
                 case SDL_QUIT:
+                    Console.WriteLine("[DEBUG] QUIT event received");
                     app.OnQuit();
                     break;
 
@@ -390,9 +413,11 @@ public static class Platform
         if (!_windows.TryGetValue(e.windowID, out var form)) return;
 
         int eventType = e.event_;
+        Console.WriteLine($"[DEBUG] WindowEvent: type={eventType}, data1={e.data1}, data2={e.data2}");
 
         if (eventType == SDL_WINDOWEVENT_CLOSE)
         {
+            Console.WriteLine("[DEBUG] Window close event");
             form.Close();
         }
         else if (eventType == SDL_WINDOWEVENT_RESIZED)
@@ -408,12 +433,14 @@ public static class Platform
         }
         else if (eventType == SDL_WINDOWEVENT_MINIMIZED)
         {
+            Console.WriteLine("[DEBUG] Window minimized");
             form.WindowState = FormWindowState.Minimized;
             form.OnWindowStateChanged();
         }
         else if (eventType == SDL_WINDOWEVENT_MAXIMIZED || eventType == SDL_WINDOWEVENT_FOCUS_LOST)
         {
             uint flags = SDL_GetWindowFlags(form.Handle);
+            Console.WriteLine($"[DEBUG] Window flags: {flags:X}");
             if ((flags & 0x8) != 0)
             {
                 form.WindowState = FormWindowState.Maximized;
@@ -432,14 +459,24 @@ public static class Platform
         }
         else if (eventType == SDL_WINDOWEVENT_RESTORED)
         {
+            Console.WriteLine("[DEBUG] Window restored");
             form.WindowState = FormWindowState.Normal;
             form.OnWindowStateChanged();
         }
         else if (eventType == SDL_WINDOWEVENT_FOCUS_GAINED)
         {
+            Console.WriteLine("[DEBUG] Window focus gained");
             _focusedWindow = form;
             form.Focused = true;
             form.OnGotFocus(EventArgs.Empty);
+        }
+        else if (eventType == 0x1) // SDL_WINDOWEVENT_SHOWN
+        {
+            Console.WriteLine("[DEBUG] Window shown");
+        }
+        else if (eventType == 0x2) // SDL_WINDOWEVENT_HIDDEN
+        {
+            Console.WriteLine("[DEBUG] Window hidden");
         }
     }
 
