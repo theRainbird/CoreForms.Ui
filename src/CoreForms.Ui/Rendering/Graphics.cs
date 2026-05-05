@@ -7,11 +7,24 @@ public class Graphics : IDisposable
     private float _offsetX;
     private float _offsetY;
     private readonly Stack<Matrix> _transforms = new();
+    private readonly Stack<Rectangle> _clipStack = new();
     private readonly List<DrawCommand> _commands = new();
     private bool _disposed;
 
     public float OffsetX => _offsetX;
     public float OffsetY => _offsetY;
+    public Rectangle? ClipBounds => _clipStack.Count > 0 ? _clipStack.Peek() : null;
+
+    public void SetClip(Rectangle rect)
+    {
+        _clipStack.Push(rect);
+    }
+
+    public void ResetClip()
+    {
+        if (_clipStack.Count > 0)
+            _clipStack.Pop();
+    }
 
     public void TranslateTransform(float dx, float dy)
     {
@@ -48,7 +61,8 @@ public class Graphics : IDisposable
             X = x + _offsetX,
             Y = y + _offsetY,
             Width = width,
-            Height = height
+            Height = height,
+            ClipBounds = ClipBounds
         });
     }
 
@@ -62,7 +76,8 @@ public class Graphics : IDisposable
             Y = y + _offsetY,
             Width = width,
             Height = height,
-            LineWidth = lineWidth
+            LineWidth = lineWidth,
+            ClipBounds = ClipBounds
         });
     }
 
@@ -75,7 +90,8 @@ public class Graphics : IDisposable
             Font = font,
             Color = color,
             X = x + _offsetX,
-            Y = y + _offsetY
+            Y = y + _offsetY,
+            ClipBounds = ClipBounds
         });
     }
 
@@ -88,7 +104,8 @@ public class Graphics : IDisposable
             X = x + _offsetX,
             Y = y + _offsetY,
             Width = width,
-            Height = height
+            Height = height,
+            ClipBounds = ClipBounds
         });
     }
 
@@ -102,7 +119,8 @@ public class Graphics : IDisposable
             Y = y1 + _offsetY,
             X2 = x2 + _offsetX,
             Y2 = y2 + _offsetY,
-            LineWidth = lineWidth
+            LineWidth = lineWidth,
+            ClipBounds = ClipBounds
         });
     }
 
@@ -154,4 +172,5 @@ public class DrawCommand
     public string? Text { get; set; }
     public Font? Font { get; set; }
     public object? Image { get; set; }
+    public Rectangle? ClipBounds { get; set; }
 }

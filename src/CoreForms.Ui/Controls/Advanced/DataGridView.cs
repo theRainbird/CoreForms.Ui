@@ -137,18 +137,20 @@ public class DataGridView : ContainerControl
         CellValueChanged?.Invoke(this, e);
     }
 
-    public override void Render(Graphics g)
+public override void Render(Graphics g)
     {
         if (!Visible) return;
-
-        g.FillRectangle(BackColor, 0, 0, Width, Height);
-        g.DrawRectangle(Color.FromArgb(180, 180, 180), 0, 0, Width, Height, 1);
 
         int headerHeight = _columnHeadersVisible ? _rowHeight : 0;
         int rowHeaderWidth = _rowHeadersVisible ? 40 : 0;
 
+        // Set clip to data area only (below header)
+        g.SetClip(new Rectangle(rowHeaderWidth, headerHeight, Width - rowHeaderWidth, Height - headerHeight));
+
+        g.FillRectangle(BackColor, 0, 0, Width, Height);
+        g.DrawRectangle(Color.FromArgb(180, 180, 180), 0, 0, Width, Height, 1);
+
         int startX = rowHeaderWidth - _horizontalScrollOffset;
-        int startY = headerHeight - _verticalScrollOffset;
 
         if (_columnHeadersVisible)
         {
@@ -171,14 +173,20 @@ public class DataGridView : ContainerControl
             }
         }
 
-        int rowStart = _verticalScrollOffset / _rowHeight;
+        // Reset clip for row headers (they need to draw in the header area too)
+        g.ResetClip();
+        
+        int rowStart = Math.Max(0, _verticalScrollOffset / _rowHeight - 1);
         int visibleRows = (Height - headerHeight) / _rowHeight + 2;
+
+        // Set clip for data rows only
+        g.SetClip(new Rectangle(rowHeaderWidth, headerHeight, Width - rowHeaderWidth, Height - headerHeight));
 
         for (int rowIdx = rowStart; rowIdx < Math.Min(_rows.Count, rowStart + visibleRows); rowIdx++)
         {
-            int y = startY + (rowIdx * _rowHeight);
+            int y = headerHeight + (rowIdx * _rowHeight) - _verticalScrollOffset;
+            if (y < headerHeight) continue;
             if (y > Height) break;
-            if (y + _rowHeight < 0) continue;
 
             bool isSelected = rowIdx == _selectedRowIndex;
             bool isAlternate = rowIdx % 2 == 1;
@@ -226,8 +234,8 @@ public class DataGridView : ContainerControl
 
         if (_allowUserToAddRows && _rows.Count > 0)
         {
-            int y = startY + (_rows.Count * _rowHeight);
-            if (y < Height - headerHeight)
+            int y = headerHeight + (_rows.Count * _rowHeight) - _verticalScrollOffset;
+            if (y < Height - headerHeight && y >= headerHeight)
             {
                 g.FillRectangle(Color.FromArgb(250, 250, 250), 0, y, Width, _rowHeight);
                 g.DrawLine(Color.FromArgb(150, 150, 150), 0, y, Width, y);
@@ -236,6 +244,31 @@ public class DataGridView : ContainerControl
             }
         }
 
+        // Draw vertical scrollbar
+        int dataHeight = Height - headerHeight;
+        int totalRowsHeight = _rows.Count * _rowHeight;
+        if (totalRowsHeight > dataHeight)
+        {
+            int scrollBarWidth = 16;
+            int scrollBarX = Width - scrollBarWidth;
+            int scrollBarY = headerHeight;
+            int scrollBarHeight = dataHeight;
+            
+            // Scrollbar background
+            g.FillRectangle(Color.FromArgb(240, 240, 240), scrollBarX, scrollBarY, scrollBarWidth, scrollBarHeight);
+            g.DrawRectangle(Color.FromArgb(180, 180, 180), scrollBarX, scrollBarY, scrollBarWidth, scrollBarHeight, 1);
+            
+            // Scroll thumb
+            float thumbHeightRatio = (float)dataHeight / totalRowsHeight;
+            int thumbHeight = Math.Max(20, (int)(scrollBarHeight * thumbHeightRatio));
+            float thumbPosRatio = (float)_verticalScrollOffset / (totalRowsHeight - dataHeight);
+            int thumbY = scrollBarY + (int)(thumbPosRatio * (scrollBarHeight - thumbHeight));
+            
+            g.FillRectangle(Color.FromArgb(190, 190, 190), scrollBarX + 2, thumbY, scrollBarWidth - 4, thumbHeight);
+            g.DrawRectangle(Color.FromArgb(150, 150, 150), scrollBarX + 2, thumbY, scrollBarWidth - 4, thumbHeight, 1);
+        }
+
+        g.ResetClip();
         base.Render(g);
     }
 
@@ -264,6 +297,22 @@ public class DataGridView : ContainerControl
         }
 
         base.OnMouseDown(e);
+    }
+
+    protected internal override void OnMouseWheel(EventArgs e)
+    {
+        var mouseArgs = e as MouseEventArgs;
+        if (mouseArgs != null)
+        {
+            _verticalScrollOffset -= mouseArgs.Delta;
+            if (_verticalScrollOffset < 0) _verticalScrollOffset = 0;
+            
+            int maxScroll = Math.Max(0, (_rows.Count * _rowHeight) - (Height - (_columnHeadersVisible ? _rowHeight : 0)));
+            if (_verticalScrollOffset > maxScroll) _verticalScrollOffset = maxScroll;
+            
+            Invalidate();
+        }
+        base.OnMouseWheel(e);
     }
 
     public void AddRow(params object[] values)

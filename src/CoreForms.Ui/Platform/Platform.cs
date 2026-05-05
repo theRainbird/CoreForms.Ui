@@ -14,6 +14,7 @@ public static class Platform
     private static FontRenderer? _fontRenderer;
     private static readonly Dictionary<uint, Form> _windows = new();
     private static Form? _focusedWindow;
+    private static Point _lastMousePosition;
 
     static Platform()
     {
@@ -107,6 +108,7 @@ public static class Platform
     private const int SDL_MOUSEBUTTONDOWN = 0x401;
     private const int SDL_MOUSEBUTTONUP = 0x402;
     private const int SDL_MOUSEMOTION = 0x400;
+    private const int SDL_MOUSEWHEEL = 0x403;
     private const int SDL_KEYDOWN = 0x300;
     private const int SDL_KEYUP = 0x301;
     private const int SDL_TEXTINPUT = 0x303;
@@ -151,13 +153,17 @@ public static class Platform
         [FieldOffset(24)]
         public int y;
         
+        // Mouse wheel event fields (different offsets!)
+        [FieldOffset(16)]
+        public int wheelX;
+        [FieldOffset(20)]
+        public int wheelY;
+        
         // Mouse motion event fields
         [FieldOffset(28)]
         public int xrel;
         [FieldOffset(32)]
         public int yrel;
-        
-        // Mouse wheel event fields (shares x/y/which with mouse button)
         
         // Window event fields
         [FieldOffset(12)]
@@ -201,7 +207,6 @@ public static class Platform
 
     public static IntPtr CreateWindow(Form form)
     {
-        Console.WriteLine("[DEBUG] CreateWindow called");
         Initialize();
 
         uint flags = SDL_WINDOW_SHOWN;
@@ -211,7 +216,6 @@ public static class Platform
             flags |= SDL_WINDOW_RESIZABLE;
         }
 
-        Console.WriteLine($"[DEBUG] Creating window with flags: {flags:X}");
         _window = SDL_CreateWindow(
             form.Text,
             SDL_WINDOWPOS_CENTERED,
@@ -225,28 +229,22 @@ public static class Platform
             throw new InvalidOperationException("SDL_CreateWindow failed: " + GetSDLError());
         }
 
-        Console.WriteLine($"[DEBUG] Window created: {_window}");
         uint windowId = SDL_GetWindowID(_window);
-        Console.WriteLine($"[DEBUG] Window ID: {windowId}");
         form.WindowId = windowId;
         _windows[windowId] = form;
         _currentForm = form;
         _focusedWindow = form;
 
-        Console.WriteLine("[DEBUG] Creating renderer");
         _renderer = new SdlRenderer(_window);
-        Console.WriteLine($"[DEBUG] Renderer created: {_renderer.Handle}");
         _fontRenderer = new FontRenderer(_renderer.Handle);
-        Console.WriteLine("[DEBUG] FontRenderer created");
         
         // Ensure window is visible
         SDL_ShowWindow(_window);
         SDL_RaiseWindow(_window);
-        Console.WriteLine("[DEBUG] Window shown and raised");
         
         // Enable text input for keyboard events
         SDL_StartTextInput();
-        Console.WriteLine("[DEBUG] CreateWindow completed");
+        
         return _window;
     }
 
@@ -369,17 +367,11 @@ public static class Platform
     {
         SDL_PumpEvents();
 
-        int eventCount = 0;
         while (SDL_PollEvent(out SDL_Event e) == 1)
         {
-            eventCount++;
-            if (eventCount <= 5)
-                Console.WriteLine($"[DEBUG] Event: type={e.type}, windowID={e.windowID}");
-            
             switch (e.type)
             {
                 case SDL_QUIT:
-                    Console.WriteLine("[DEBUG] QUIT event received");
                     app.OnQuit();
                     break;
 
@@ -396,6 +388,10 @@ public static class Platform
                     HandleMouseMotionEvent(e);
                     break;
 
+                case SDL_MOUSEWHEEL:
+                    HandleMouseWheelEvent(e);
+                    break;
+
                 case SDL_KEYDOWN:
                     HandleKeyEvent(e, true);
                     break;
@@ -406,6 +402,9 @@ public static class Platform
         {
             RenderForm(_currentForm);
         }
+        
+        // Limit to ~60 FPS to reduce CPU usage
+        SDL_Delay(16);
     }
 
     private static void HandleWindowEvent(SDL_Event e)
@@ -413,11 +412,9 @@ public static class Platform
         if (!_windows.TryGetValue(e.windowID, out var form)) return;
 
         int eventType = e.event_;
-        Console.WriteLine($"[DEBUG] WindowEvent: type={eventType}, data1={e.data1}, data2={e.data2}");
 
         if (eventType == SDL_WINDOWEVENT_CLOSE)
         {
-            Console.WriteLine("[DEBUG] Window close event");
             form.Close();
         }
         else if (eventType == SDL_WINDOWEVENT_RESIZED)
@@ -433,14 +430,12 @@ public static class Platform
         }
         else if (eventType == SDL_WINDOWEVENT_MINIMIZED)
         {
-            Console.WriteLine("[DEBUG] Window minimized");
             form.WindowState = FormWindowState.Minimized;
             form.OnWindowStateChanged();
         }
         else if (eventType == SDL_WINDOWEVENT_MAXIMIZED || eventType == SDL_WINDOWEVENT_FOCUS_LOST)
         {
             uint flags = SDL_GetWindowFlags(form.Handle);
-            Console.WriteLine($"[DEBUG] Window flags: {flags:X}");
             if ((flags & 0x8) != 0)
             {
                 form.WindowState = FormWindowState.Maximized;
@@ -459,24 +454,14 @@ public static class Platform
         }
         else if (eventType == SDL_WINDOWEVENT_RESTORED)
         {
-            Console.WriteLine("[DEBUG] Window restored");
             form.WindowState = FormWindowState.Normal;
             form.OnWindowStateChanged();
         }
         else if (eventType == SDL_WINDOWEVENT_FOCUS_GAINED)
         {
-            Console.WriteLine("[DEBUG] Window focus gained");
             _focusedWindow = form;
             form.Focused = true;
             form.OnGotFocus(EventArgs.Empty);
-        }
-        else if (eventType == 0x1) // SDL_WINDOWEVENT_SHOWN
-        {
-            Console.WriteLine("[DEBUG] Window shown");
-        }
-        else if (eventType == 0x2) // SDL_WINDOWEVENT_HIDDEN
-        {
-            Console.WriteLine("[DEBUG] Window hidden");
         }
     }
 
@@ -498,8 +483,18 @@ private static void HandleMouseMotionEvent(SDL_Event e)
         if (!_windows.TryGetValue(e.windowID, out var form)) return;
 
         var point = new Point(e.x, e.y);
+        _lastMousePosition = point;
         var args = new MouseEventArgs(MouseButtons.None, 0, point.X, point.Y, 0);
         form.OnMouseMove(args);
+    }
+
+    private static void HandleMouseWheelEvent(SDL_Event e)
+    {
+        if (!_windows.TryGetValue(e.windowID, out var form)) return;
+
+        // SDL2 wheel delta is in wheelY field (positive = up, negative = down)
+        var args = new MouseEventArgs(MouseButtons.None, 0, _lastMousePosition.X, _lastMousePosition.Y, e.wheelY);
+        form.OnMouseWheel(args);
     }
 
     private static void HandleKeyEvent(SDL_Event e, bool isDown)
@@ -538,6 +533,17 @@ private static void HandleMouseMotionEvent(SDL_Event e)
     private static void ExecuteDrawCommand(DrawCommand cmd)
     {
         if (_renderer == null) return;
+
+        // Check clip bounds
+        if (cmd.ClipBounds.HasValue)
+        {
+            var clip = cmd.ClipBounds.Value;
+            // Check if command is completely outside clip
+            if (cmd.X >= clip.X + clip.Width || cmd.Y >= clip.Y + clip.Height ||
+                (cmd.Width > 0 && cmd.X + cmd.Width <= clip.X) ||
+                (cmd.Height > 0 && cmd.Y + cmd.Height <= clip.Y))
+                return;
+        }
 
         switch (cmd.Type)
         {

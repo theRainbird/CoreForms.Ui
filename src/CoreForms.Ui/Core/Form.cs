@@ -177,6 +177,21 @@ private IntPtr _handle;
         base.OnMouseMove(e);
     }
 
+    protected internal override void OnMouseWheel(EventArgs e)
+    {
+        var args = e as MouseEventArgs;
+        if (args != null)
+        {
+            var target = GetChildAtPoint(new Point(args.X, args.Y));
+            if (target != null)
+            {
+                target.OnMouseWheel(e);
+                return;
+            }
+        }
+        base.OnMouseWheel(e);
+    }
+
     private Control? GetChildAtPoint(Point point)
     {
         for (int i = Controls.Count - 1; i >= 0; i--)
