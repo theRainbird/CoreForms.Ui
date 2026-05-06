@@ -1,6 +1,7 @@
 using CoreForms.Ui.Core;
 using CoreForms.Ui.Controls.Basic;
-using CoreForms.Ui.Controls.Advanced;
+using CoreForms.Ui.Controls.Containers;
+using CoreForms.Ui.Layout;
 
 namespace CoreForms.Ui.Demo;
 
@@ -11,135 +12,254 @@ class Program
     {
         var form = new Form
         {
-            Text = "CoreForms.Ui Demo",
+            Text = "CoreForms.Ui Demo - Dock & Anchor",
             Width = 900,
             Height = 650,
             BackColor = SystemColors.Window
         };
 
-        var label = new Label
+        var menuStrip = new CoreForms.Ui.Controls.Containers.MenuStrip();
+        menuStrip.Dock = DockStyle.Top;
+        menuStrip.Size = new Size(900, 30);
+        menuStrip.Items.Add(new CoreForms.Ui.Controls.Containers.ToolStripMenuItem("File"));
+        menuStrip.Items.Add(new CoreForms.Ui.Controls.Containers.ToolStripMenuItem("Edit"));
+        menuStrip.Items.Add(new CoreForms.Ui.Controls.Containers.ToolStripMenuItem("View"));
+
+        var statusLabel = new Label
         {
-            Text = "DataGrid Example:",
-            Location = new Point(20, 20),
-            Size = new Size(200, 25),
-            BackColor = Color.White,
+            Text = "Ready",
+            ForeColor = SystemColors.ControlText
+        };
+
+        var statusStrip = new Panel
+        {
+            BackColor = SystemColors.Control,
+            Size = new Size(900, 24)
+        };
+        statusStrip.Dock = DockStyle.Bottom;
+        statusStrip.Padding = new Padding(5, 2, 5, 2);
+        statusLabel.Location = new Point(5, 2);
+        statusLabel.Anchor = AnchorStyles.Left | AnchorStyles.Right;
+        statusStrip.Controls.Add(statusLabel);
+
+        var leftPanel = new Panel
+        {
+            BackColor = Color.FromArgb(240, 240, 240),
+            Size = new Size(180, 500)
+        };
+        leftPanel.Dock = DockStyle.Left;
+        leftPanel.BorderStyle = BorderStyle.FixedSingle;
+
+        var navLabel = new Label
+        {
+            Text = "Navigation",
+            Location = new Point(10, 10),
+            Size = new Size(150, 20),
+            BackColor = Color.FromArgb(240, 240, 240),
             ForeColor = Color.Black
         };
 
-        var dataGrid = new DataGridView
+        var navListBox = new ListBox
         {
-            Location = new Point(20, 50),
-            Size = new Size(600, 200),
+            Location = new Point(10, 35),
+            Size = new Size(150, 300)
+        };
+        navListBox.Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right;
+        navListBox.Items.Add("Home");
+        navListBox.Items.Add("Dashboard");
+        navListBox.Items.Add("Settings");
+        navListBox.Items.Add("Profile");
+        navListBox.Items.Add("Reports");
+        navListBox.Items.Add("Analytics");
+
+        leftPanel.Controls.Add(navLabel);
+        leftPanel.Controls.Add(navListBox);
+
+        var mainPanel = new Panel
+        {
+            BackColor = Color.White,
+            Size = new Size(700, 500)
+        };
+        mainPanel.Dock = DockStyle.Fill;
+
+        mainPanel.Controls.Add(CreateHeaderLabel());
+        mainPanel.Controls.Add(CreateDataGrid());
+        mainPanel.Controls.Add(CreateBottomLeftPanel());
+        mainPanel.Controls.Add(CreateBottomRightPanel());
+
+        navListBox.SelectedIndexChanged += (s, e) =>
+        {
+            statusLabel.Text = navListBox.SelectedItem?.ToString() ?? "Ready";
+        };
+
+        form.Controls.Add(menuStrip);
+        form.Controls.Add(statusStrip);
+        form.Controls.Add(leftPanel);
+        form.Controls.Add(mainPanel);
+        
+        Application.Run(form);
+    }
+
+    static Label CreateHeaderLabel()
+    {
+        var label = new Label
+        {
+            Text = "Dock & Anchor Demo",
+            Location = new Point(15, 10),
+            Size = new Size(300, 25),
+            BackColor = Color.White,
+            ForeColor = Color.FromArgb(10, 36, 99)
+        };
+        label.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
+        return label;
+    }
+
+    static Controls.Advanced.DataGridView CreateDataGrid()
+    {
+        var dataGrid = new Controls.Advanced.DataGridView
+        {
+            Location = new Point(15, 40),
+            Size = new Size(400, 200),
             ColumnHeadersVisible = true,
             RowHeadersVisible = true
         };
-
-        dataGrid.Columns.Add(new DataGridViewColumn { HeaderText = "ID", Width = 60, Name = "Id" });
-        dataGrid.Columns.Add(new DataGridViewColumn { HeaderText = "Name", Width = 150, Name = "Name" });
-        dataGrid.Columns.Add(new DataGridViewColumn { HeaderText = "Email", Width = 200, Name = "Email" });
-        dataGrid.Columns.Add(new DataGridViewColumn { HeaderText = "Status", Width = 100, Name = "Status" });
-
+        dataGrid.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right | AnchorStyles.Bottom;
+        dataGrid.Columns.Add(new Controls.Advanced.DataGridViewColumn { HeaderText = "ID", Width = 50, Name = "Id" });
+        dataGrid.Columns.Add(new Controls.Advanced.DataGridViewColumn { HeaderText = "Name", Width = 150, Name = "Name" });
+        dataGrid.Columns.Add(new Controls.Advanced.DataGridViewColumn { HeaderText = "Email", Width = 200, Name = "Email" });
+        dataGrid.Columns.Add(new Controls.Advanced.DataGridViewColumn { HeaderText = "Status", Width = 80, Name = "Status" });
         dataGrid.AddRow(1, "John Doe", "john@example.com", "Active");
         dataGrid.AddRow(2, "Jane Smith", "jane@example.com", "Active");
         dataGrid.AddRow(3, "Bob Johnson", "bob@example.com", "Inactive");
-        dataGrid.AddRow(4, "Alice Brown", "alice@example.com", "Active");
-        dataGrid.AddRow(5, "Charlie Wilson", "charlie@example.com", "Pending");
+        return dataGrid;
+    }
 
-        dataGrid.SelectionChanged += (s, e) =>
+    static Panel CreateBottomLeftPanel()
+    {
+        var panel = new Panel
         {
-            label.Text = dataGrid.SelectedValue?.ToString() ?? "No selection";
+            BackColor = SystemColors.Control,
+            Location = new Point(15, 250),
+            Size = new Size(250, 220)
         };
-
-        // Note: CellClick event example commented out due to generic event type issue
-        // dataGrid.CellClick += (s, args) => { ... }
+        panel.Anchor = AnchorStyles.Bottom | AnchorStyles.Left;
 
         var comboBox = new ComboBox
         {
-            Location = new Point(20, 270),
+            Location = new Point(5, 5),
             Size = new Size(200, 24)
         };
-
-        comboBox.Items.Add("Item 1");
-        comboBox.Items.Add("Item 2");
-        comboBox.Items.Add("Item 3");
-        comboBox.Items.Add("Item 4");
-        comboBox.Items.Add("Item 5");
-        comboBox.Items.Add("Item 6");
-        comboBox.Items.Add("Item 7");
-        comboBox.Items.Add("Item 8");
-        comboBox.Items.Add("Item 9");
-        comboBox.Items.Add("Item 10");
-        comboBox.Items.Add("Item 11");
-        comboBox.Items.Add("Item 12");
-        comboBox.Items.Add("Item 13");
+        comboBox.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
+        comboBox.Items.Add("Active");
+        comboBox.Items.Add("Inactive");
+        comboBox.Items.Add("Pending");
 
         var checkBox = new CheckBox
         {
             Text = "Show Grid Lines",
-            Location = new Point(250, 270),
+            Location = new Point(5, 35),
             Size = new Size(150, 25),
+            BackColor = SystemColors.Control,
             Checked = true
-        };
-
-        checkBox.CheckedChanged += (s, e) =>
-        {
-            dataGrid.ShowGridLines = checkBox.Checked;
         };
 
         var progressBar = new ProgressBar
         {
-            Location = new Point(20, 310),
+            Location = new Point(5, 65),
             Size = new Size(200, 20),
             Value = 50
         };
+        progressBar.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
 
-        var button = new Button
+        var addButton = new Button
         {
             Text = "Add Row",
-            Location = new Point(250, 305),
+            Location = new Point(5, 95),
             Size = new Size(100, 30)
         };
 
-        button.Click += (s, e) =>
+        var progressButton = new Button
         {
-            var random = new Random();
-            var newId = dataGrid.Rows.Count + 1;
-            dataGrid.AddRow(newId, $"New User {newId}", $"user{newId}@example.com", "Active");
+            Text = "Progress +",
+            Location = new Point(115, 95),
+            Size = new Size(100, 30)
+        };
+        progressButton.Click += (s, e) =>
+        {
+            if (progressBar.Value < 100)
+                progressBar.Value += 10;
         };
 
-        var listBox = new ListBox
+        var infoLabel = new Label
         {
-            Location = new Point(20, 350),
-            Size = new Size(200, 120)
+            Text = "Dock: Left, Right, Top, Bottom, Fill\nAnchor: TopLeft, TopLeftRight, All\nResize window to see effects!",
+            Location = new Point(5, 135),
+            Size = new Size(200, 80),
+            BackColor = SystemColors.Control,
+            ForeColor = Color.FromArgb(80, 80, 80)
         };
 
-        listBox.Items.Add("Item 1");
-        listBox.Items.Add("Item 2");
-        listBox.Items.Add("Item 3");
-        listBox.Items.Add("Item 4");
-        listBox.Items.Add("Item 5");
+        panel.Controls.Add(comboBox);
+        panel.Controls.Add(checkBox);
+        panel.Controls.Add(progressBar);
+        panel.Controls.Add(addButton);
+        panel.Controls.Add(progressButton);
+        panel.Controls.Add(infoLabel);
 
-        listBox.SelectedIndexChanged += (s, e) =>
+        return panel;
+    }
+
+    static Panel CreateBottomRightPanel()
+    {
+        var panel = new Panel
         {
-            label.Text = listBox.SelectedItem?.ToString() ?? "";
+            BackColor = Color.FromArgb(245, 245, 255),
+            Location = new Point(275, 250),
+            Size = new Size(250, 220)
         };
+        panel.Anchor = AnchorStyles.Bottom | AnchorStyles.Right;
 
-        var textBox = new TextBox
+        var dockedTopLabel = new Label
         {
-            Location = new Point(250, 350),
-            Size = new Size(200, 32),
-            Text = ""
+            Text = "Dock=Top",
+            BackColor = Color.FromArgb(200, 220, 255),
+            ForeColor = Color.Black,
+            Size = new Size(250, 22)
         };
+        dockedTopLabel.Dock = DockStyle.Top;
 
-        form.Controls.Add(label);
-        form.Controls.Add(dataGrid);
-        form.Controls.Add(comboBox);
-        form.Controls.Add(checkBox);
-        form.Controls.Add(progressBar);
-        form.Controls.Add(button);
-        form.Controls.Add(listBox);
-        form.Controls.Add(textBox);
+        var dockedBottomLabel = new Label
+        {
+            Text = "Dock=Bottom",
+            BackColor = Color.FromArgb(255, 220, 200),
+            ForeColor = Color.Black,
+            Size = new Size(250, 22)
+        };
+        dockedBottomLabel.Dock = DockStyle.Bottom;
 
-        Application.Run(form);
+        var dockedLeftLabel = new Label
+        {
+            Text = "L",
+            BackColor = Color.FromArgb(200, 255, 200),
+            ForeColor = Color.Black,
+            Size = new Size(30, 176)
+        };
+        dockedLeftLabel.Dock = DockStyle.Left;
+
+        var centerLabel = new Label
+        {
+            Text = "Dock=Fill",
+            BackColor = Color.FromArgb(255, 255, 220),
+            ForeColor = Color.Black,
+            Size = new Size(50, 50)
+        };
+        centerLabel.Dock = DockStyle.Fill;
+
+        panel.Controls.Add(dockedTopLabel);
+        panel.Controls.Add(dockedBottomLabel);
+        panel.Controls.Add(dockedLeftLabel);
+        panel.Controls.Add(centerLabel);
+
+        return panel;
     }
 }

@@ -7,7 +7,6 @@ public class FlowLayoutPanel : ContainerControl
 {
     private FlowDirection _flowDirection = FlowDirection.LeftToRight;
     private int _wrapContents = 1;
-    private int _padding = 0;
 
     public FlowLayoutPanel()
     {
@@ -25,14 +24,10 @@ public class FlowLayoutPanel : ContainerControl
         }
     }
 
-    public int Padding
+    public new int Padding
     {
-        get => _padding;
-        set
-        {
-            _padding = value;
-            LayoutChildren();
-        }
+        get => base.Padding.Left;
+        set => base.Padding = new CoreForms.Ui.Core.Padding(value);
     }
 
     public void LayoutChildren()
@@ -42,10 +37,17 @@ public class FlowLayoutPanel : ContainerControl
 
     private void LayoutControls()
     {
-        int x = _padding;
-        int y = _padding;
+        int padLeft = base.Padding.Left;
+        int padTop = base.Padding.Top;
+        int padRight = base.Padding.Right;
+        int padBottom = base.Padding.Bottom;
+
+        int x = padLeft;
+        int y = padTop;
         int rowHeight = 0;
         int maxWidth = 0;
+        int availableWidth = Width - padLeft - padRight;
+        int availableHeight = Height - padTop - padBottom;
 
         foreach (Control child in Controls)
         {
@@ -53,32 +55,41 @@ public class FlowLayoutPanel : ContainerControl
 
             if (_flowDirection == FlowDirection.LeftToRight)
             {
-                if (x + child.Width > Width - _padding && x > _padding)
+                if (x + child.Width > padLeft + availableWidth && x > padLeft)
                 {
-                    x = _padding;
-                    y += rowHeight + _padding;
+                    x = padLeft;
+                    y += rowHeight + padTop;
                     rowHeight = 0;
                 }
 
+                child._layoutDrivenBoundsChange = true;
                 child.Location = new Point(x, y);
-                x += child.Width + _padding;
+                child._layoutDrivenBoundsChange = false;
+                x += child.Width + padLeft;
                 rowHeight = Math.Max(rowHeight, child.Height);
                 maxWidth = Math.Max(maxWidth, x);
             }
             else
             {
-                if (y + child.Height > Height - _padding && y > _padding)
+                if (y + child.Height > padTop + availableHeight && y > padTop)
                 {
-                    y = _padding;
-                    x += maxWidth + _padding;
+                    y = padTop;
+                    x += maxWidth + padLeft;
                     maxWidth = 0;
                 }
 
+                child._layoutDrivenBoundsChange = true;
                 child.Location = new Point(x, y);
-                y += child.Height + _padding;
+                child._layoutDrivenBoundsChange = false;
+                y += child.Height + padTop;
                 maxWidth = Math.Max(maxWidth, child.Width);
             }
         }
+    }
+
+    protected override void OnLayout()
+    {
+        LayoutControls();
     }
 
     public override void Render(Graphics g)

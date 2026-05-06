@@ -117,6 +117,7 @@ public static class Platform
     private const int SDL_WINDOWEVENT_CLOSE = 0xE;
     private const int SDL_WINDOWEVENT_MOVED = 0x4;
     private const int SDL_WINDOWEVENT_RESIZED = 0x5;
+    private const int SDL_WINDOWEVENT_SIZE_CHANGED = 0x6;
     private const int SDL_WINDOWEVENT_MINIMIZED = 0x7;
     private const int SDL_WINDOWEVENT_MAXIMIZED = 0x8;
     private const int SDL_WINDOWEVENT_RESTORED = 0x9;
@@ -426,17 +427,28 @@ public static class Platform
     {
         if (!_windows.TryGetValue(e.windowID, out var form)) return;
 
-        int eventType = e.event_;
+        int eventType = e.event_ & 0xFF;
 
         if (eventType == SDL_WINDOWEVENT_CLOSE)
         {
             form.Close();
         }
-        else if (eventType == SDL_WINDOWEVENT_RESIZED)
+        else if (eventType == SDL_WINDOWEVENT_RESIZED || eventType == SDL_WINDOWEVENT_SIZE_CHANGED)
         {
-            form.Width = e.data1;
-            form.Height = e.data2;
-            form.OnResize(EventArgs.Empty);
+            int w = e.data1;
+            int h = e.data2;
+            if (w <= 0 || h <= 0)
+            {
+                SDL_GetWindowSize(form.Handle, out w, out h);
+            }
+            if (w > 0 && h > 0)
+            {
+                form.SuspendLayout();
+                form.Width = w;
+                form.Height = h;
+                form.ResumeLayout(true);
+                form.OnResize(EventArgs.Empty);
+            }
         }
         else if (eventType == SDL_WINDOWEVENT_MOVED)
         {
@@ -448,24 +460,10 @@ public static class Platform
             form.WindowState = FormWindowState.Minimized;
             form.OnWindowStateChanged();
         }
-        else if (eventType == SDL_WINDOWEVENT_MAXIMIZED || eventType == SDL_WINDOWEVENT_FOCUS_LOST)
+        else if (eventType == SDL_WINDOWEVENT_MAXIMIZED)
         {
-            uint flags = SDL_GetWindowFlags(form.Handle);
-            if ((flags & 0x8) != 0)
-            {
-                form.WindowState = FormWindowState.Maximized;
-                form.OnWindowStateChanged();
-            }
-            else if ((flags & 0x4) != 0)
-            {
-                form.WindowState = FormWindowState.Minimized;
-                form.OnWindowStateChanged();
-            }
-            else
-            {
-                form.Focused = false;
-                form.OnLostFocus(EventArgs.Empty);
-            }
+            form.WindowState = FormWindowState.Maximized;
+            form.OnWindowStateChanged();
         }
         else if (eventType == SDL_WINDOWEVENT_RESTORED)
         {
@@ -477,6 +475,11 @@ public static class Platform
             _focusedWindow = form;
             form.Focused = true;
             form.OnGotFocus(EventArgs.Empty);
+        }
+        else if (eventType == SDL_WINDOWEVENT_FOCUS_LOST)
+        {
+            form.Focused = false;
+            form.OnLostFocus(EventArgs.Empty);
         }
     }
 

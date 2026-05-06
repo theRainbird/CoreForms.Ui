@@ -127,23 +127,11 @@ public class Form : ContainerControl
     protected internal override void OnMouseDown(EventArgs e)
     {
         var args = e as MouseEventArgs;
-        if (args != null)
+        if (args != null && _captureControl != null)
         {
-            if (_captureControl != null)
-            {
-                var localArgs = new MouseEventArgs(args.Button, args.Clicks, args.X - _captureControl.X, args.Y - _captureControl.Y, args.Delta);
-                _captureControl.OnMouseDown(localArgs);
-                return;
-            }
-
-            var target = GetChildAtPoint(new Point(args.X, args.Y));
-            if (target != null)
-            {
-                var localArgs = new MouseEventArgs(args.Button, args.Clicks, args.X - target.X, args.Y - target.Y, args.Delta);
-                target.OnMouseDown(localArgs);
-                ActiveControl = target;
-                return;
-            }
+            var localArgs = new MouseEventArgs(args.Button, args.Clicks, args.X - _captureControl.X, args.Y - _captureControl.Y, args.Delta);
+            _captureControl.OnMouseDown(localArgs);
+            return;
         }
         base.OnMouseDown(e);
     }
@@ -151,22 +139,11 @@ public class Form : ContainerControl
     protected internal override void OnMouseUp(EventArgs e)
     {
         var args = e as MouseEventArgs;
-        if (args != null)
+        if (args != null && _captureControl != null)
         {
-            if (_captureControl != null)
-            {
-                var localArgs = new MouseEventArgs(args.Button, args.Clicks, args.X - _captureControl.X, args.Y - _captureControl.Y, args.Delta);
-                _captureControl.OnMouseUp(localArgs);
-                return;
-            }
-
-            var target = GetChildAtPoint(new Point(args.X, args.Y));
-            if (target != null)
-            {
-                var localArgs = new MouseEventArgs(args.Button, args.Clicks, args.X - target.X, args.Y - target.Y, args.Delta);
-                target.OnMouseUp(localArgs);
-                return;
-            }
+            var localArgs = new MouseEventArgs(args.Button, args.Clicks, args.X - _captureControl.X, args.Y - _captureControl.Y, args.Delta);
+            _captureControl.OnMouseUp(localArgs);
+            return;
         }
         base.OnMouseUp(e);
     }
@@ -174,58 +151,23 @@ public class Form : ContainerControl
     protected internal override void OnMouseMove(EventArgs e)
     {
         var args = e as MouseEventArgs;
-        if (args != null)
+        if (args != null && _captureControl != null)
         {
-            if (_captureControl != null)
-            {
-                var localArgs = new MouseEventArgs(args.Button, args.Clicks, args.X - _captureControl.X, args.Y - _captureControl.Y, args.Delta);
-                _captureControl.OnMouseMove(localArgs);
-                return;
-            }
-
-            var target = GetChildAtPoint(new Point(args.X, args.Y));
-            if (target != null)
-            {
-                var localArgs = new MouseEventArgs(args.Button, args.Clicks, args.X - target.X, args.Y - target.Y, args.Delta);
-                target.OnMouseMove(localArgs);
-                return;
-            }
+            var localArgs = new MouseEventArgs(args.Button, args.Clicks, args.X - _captureControl.X, args.Y - _captureControl.Y, args.Delta);
+            _captureControl.OnMouseMove(localArgs);
+            return;
         }
         base.OnMouseMove(e);
     }
 
     protected internal override void OnMouseWheel(EventArgs e)
     {
-        var args = e as MouseEventArgs;
-        if (args != null)
+        if (_captureControl != null)
         {
-            if (_captureControl != null)
-            {
-                _captureControl.OnMouseWheel(e);
-                return;
-            }
-
-            var target = GetChildAtPoint(new Point(args.X, args.Y));
-            if (target != null)
-            {
-                target.OnMouseWheel(e);
-                return;
-            }
+            _captureControl.OnMouseWheel(e);
+            return;
         }
         base.OnMouseWheel(e);
-    }
-
-    private Control? GetChildAtPoint(Point point)
-    {
-        for (int i = Controls.Count - 1; i >= 0; i--)
-        {
-            var child = Controls[i];
-            if (child.Visible && child.HitTest(point))
-            {
-                return child;
-            }
-        }
-        return null;
     }
 
     private List<Control> GetTabControls()
@@ -272,7 +214,11 @@ public class Form : ContainerControl
     }
 
     protected internal virtual void OnShown(EventArgs e) => Shown?.Invoke(this, e);
-    protected internal virtual void OnResize(EventArgs e) => Resize?.Invoke(this, e);
+    protected internal virtual void OnResize(EventArgs e)
+    {
+        PerformLayout();
+        Resize?.Invoke(this, e);
+    }
     protected internal virtual void OnFormClosing(FormClosingEventArgs e) => FormClosing?.Invoke(this, e);
     protected internal virtual void OnWindowStateChanged() { }
 

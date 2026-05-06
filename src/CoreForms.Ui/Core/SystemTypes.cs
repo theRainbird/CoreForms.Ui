@@ -49,6 +49,32 @@ public readonly struct Size
     public override string ToString() => $"[{Width}, {Height}]";
 }
 
+public struct Padding
+{
+    public int Left { get; }
+    public int Top { get; }
+    public int Right { get; }
+    public int Bottom { get; }
+
+    public Padding(int all)
+    {
+        Left = Top = Right = Bottom = all;
+    }
+
+    public Padding(int left, int top, int right, int bottom)
+    {
+        Left = left;
+        Top = top;
+        Right = right;
+        Bottom = bottom;
+    }
+
+    public int Horizontal => Left + Right;
+    public int Vertical => Top + Bottom;
+
+    public static readonly Padding Empty = new Padding(0);
+}
+
 public readonly struct Point
 {
     public int X { get; }

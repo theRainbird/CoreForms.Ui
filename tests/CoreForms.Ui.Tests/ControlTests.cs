@@ -485,6 +485,74 @@ public class ControlTests
         Assert.Equal(button1, form.ActiveControl);
     }
 
+[Fact]
+    public void ContainerControl_MouseDispatch_ShouldReachNestedChild()
+    {
+        var panel = new CoreForms.Ui.Controls.Containers.Panel();
+        panel.Size = new Size(200, 200);
+        var button = new Button { Location = new Point(10, 10), Size = new Size(100, 30) };
+        panel.Controls.Add(button);
+
+        var clicked = false;
+        button.Click += (s, e) => clicked = true;
+
+        var mouseDownArgs = new MouseEventArgs(MouseButtons.Left, 1, 50, 20, 0);
+        var mouseUpArgs = new MouseEventArgs(MouseButtons.Left, 1, 50, 20, 0);
+        panel.OnMouseDown(mouseDownArgs);
+        panel.OnMouseUp(mouseUpArgs);
+
+        Assert.True(clicked);
+    }
+
+    
+
+[Fact]
+    public void ContainerControl_MouseDispatch_ShouldReachDeeplyNestedChild()
+    {
+        var outerPanel = new CoreForms.Ui.Controls.Containers.Panel();
+        outerPanel.Size = new Size(400, 400);
+        var innerPanel = new CoreForms.Ui.Controls.Containers.Panel();
+        innerPanel.Location = new Point(50, 50);
+        innerPanel.Size = new Size(200, 200);
+        var button = new Button { Location = new Point(10, 10), Size = new Size(100, 30) };
+        innerPanel.Controls.Add(button);
+        outerPanel.Controls.Add(innerPanel);
+
+        Assert.True(outerPanel.Controls.Count == 1);
+        Assert.True(innerPanel.Controls.Count == 1);
+        Assert.True(innerPanel.Visible);
+        Assert.True(button.Visible);
+        Assert.True(innerPanel.HitTest(new Point(65, 70)));
+        Assert.True(button.HitTest(new Point(15, 20)));
+
+        var clicked = false;
+        button.Click += (s, e) => clicked = true;
+
+        var mouseDownArgs = new MouseEventArgs(MouseButtons.Left, 1, 65, 70, 0);
+        var mouseUpArgs = new MouseEventArgs(MouseButtons.Left, 1, 65, 70, 0);
+        outerPanel.OnMouseDown(mouseDownArgs);
+        outerPanel.OnMouseUp(mouseUpArgs);
+
+        Assert.True(clicked, "Button click should fire through nested dispatch");
+    }
+
+    [Fact]
+    public void ContainerControl_KeyboardDispatch_ShouldReachActiveControl()
+    {
+        var panel = new CoreForms.Ui.Controls.Containers.Panel();
+        panel.Size = new Size(200, 200);
+        var textBox = new TextBox { TabStop = true, TabIndex = 0 };
+        panel.Controls.Add(textBox);
+
+        panel.ActiveControl = textBox;
+
+        var keyPressed = false;
+        textBox.KeyDown += (s, e) => keyPressed = true;
+
+        panel.OnKeyDown(new KeyEventArgs { KeyCode = Keys.A, Modifiers = ModifierKeys.None });
+        Assert.True(keyPressed);
+    }
+
     [Fact]
     public void Form_Tab_ShouldWrapAround()
     {

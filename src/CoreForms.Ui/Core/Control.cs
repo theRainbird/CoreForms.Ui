@@ -21,6 +21,11 @@ public class Control : Component
     private bool _tabStop;
     private int _tabIndex;
     private bool _capturingMouse;
+    private Padding _padding;
+    private int _anchorRightDistance;
+    private int _anchorBottomDistance;
+    private int _layoutSuspendCount;
+    internal bool _layoutDrivenBoundsChange;
 
     public string Name
     {
@@ -157,14 +162,50 @@ public class Control : Component
     public AnchorStyles Anchor
     {
         get => _anchor;
-        set => _anchor = value;
+        set
+        {
+            if (_anchor != value)
+            {
+                _anchor = value;
+                UpdateAnchorDistances();
+                Parent?.PerformLayout();
+            }
+        }
     }
 
     public DockStyle Dock
     {
         get => _dock;
-        set => _dock = value;
+        set
+        {
+            if (_dock != value)
+            {
+                _dock = value;
+                Parent?.PerformLayout();
+            }
+        }
     }
+
+    public Padding Padding
+    {
+        get => _padding;
+        set
+        {
+            if (_padding.Left != value.Left || _padding.Top != value.Top ||
+                _padding.Right != value.Right || _padding.Bottom != value.Bottom)
+            {
+                _padding = value;
+                PerformLayout();
+            }
+        }
+    }
+
+    public Rectangle ClientRectangle => new Rectangle(
+        _padding.Left, _padding.Top,
+        Math.Max(0, _bounds.Width - _padding.Horizontal),
+        Math.Max(0, _bounds.Height - _padding.Vertical));
+
+    public Size ClientSize => ClientRectangle.Size;
 
     public bool Focused
     {
@@ -224,7 +265,7 @@ public class Control : Component
         }
     }
 
-public virtual void Render(Graphics g)
+    public virtual void Render(Graphics g)
     {
         foreach (Control child in Controls)
         {
@@ -287,9 +328,163 @@ public virtual void Render(Graphics g)
         return clientPoint;
     }
 
+    public void PerformLayout()
+    {
+        if (_layoutSuspendCount > 0) return;
+        OnLayout();
+    }
+
+    public void SuspendLayout()
+    {
+        _layoutSuspendCount++;
+    }
+
+    public void ResumeLayout()
+    {
+        ResumeLayout(true);
+    }
+
+    public void ResumeLayout(bool performLayout)
+    {
+        if (_layoutSuspendCount > 0)
+            _layoutSuspendCount--;
+        if (_layoutSuspendCount == 0 && performLayout)
+            PerformLayout();
+    }
+
+    protected virtual void OnLayout()
+    {
+        ProcessDockAndAnchor();
+    }
+
+    internal void UpdateAnchorDistances()
+    {
+        if (_parent != null)
+        {
+            _anchorRightDistance = Math.Max(0, _parent.Width - (X + Width));
+            _anchorBottomDistance = Math.Max(0, _parent.Height - (Y + Height));
+        }
+    }
+
+    private void ProcessDockAndAnchor()
+    {
+if (_controls == null || _controls.Count == 0) return;
+
+        ProcessDockLayout();
+        ProcessAnchorLayout();
+    }
+
+    private void ProcessDockLayout()
+    {
+        if (_controls == null || _controls.Count == 0) return;
+
+        int areaX = _padding.Left;
+        int areaY = _padding.Top;
+        int areaW = Math.Max(0, _bounds.Width - _padding.Horizontal);
+        int areaH = Math.Max(0, _bounds.Height - _padding.Vertical);
+
+        foreach (Control child in Controls)
+        {
+            if (child.Dock == DockStyle.None) continue;
+
+            switch (child.Dock)
+            {
+                case DockStyle.Top:
+                    child._layoutDrivenBoundsChange = true;
+                    child.Bounds = new Rectangle(areaX, areaY, areaW, child.Height);
+                    child._layoutDrivenBoundsChange = false;
+                    areaY += child.Height;
+                    areaH -= child.Height;
+                    break;
+                case DockStyle.Bottom:
+                    child._layoutDrivenBoundsChange = true;
+                    child.Bounds = new Rectangle(areaX, areaY + areaH - child.Height, areaW, child.Height);
+                    child._layoutDrivenBoundsChange = false;
+                    areaH -= child.Height;
+                    break;
+                case DockStyle.Left:
+                    child._layoutDrivenBoundsChange = true;
+                    child.Bounds = new Rectangle(areaX, areaY, child.Width, areaH);
+                    child._layoutDrivenBoundsChange = false;
+                    areaX += child.Width;
+                    areaW -= child.Width;
+                    break;
+                case DockStyle.Right:
+                    child._layoutDrivenBoundsChange = true;
+                    child.Bounds = new Rectangle(areaX + areaW - child.Width, areaY, child.Width, areaH);
+                    child._layoutDrivenBoundsChange = false;
+                    areaW -= child.Width;
+                    break;
+                case DockStyle.Fill:
+                    child._layoutDrivenBoundsChange = true;
+                    child.Bounds = new Rectangle(areaX, areaY, areaW, areaH);
+                    child._layoutDrivenBoundsChange = false;
+                    areaX = areaY = 0;
+                    areaW = areaH = 0;
+                    break;
+            }
+        }
+
+        if (areaH < 0) areaH = 0;
+        if (areaW < 0) areaW = 0;
+    }
+
+    private void ProcessAnchorLayout()
+    {
+        if (_controls == null || _controls.Count == 0) return;
+
+        int parentWidth = _bounds.Width;
+        int parentHeight = _bounds.Height;
+
+        foreach (Control child in Controls)
+        {
+            if (child.Dock != DockStyle.None) continue;
+
+            var anchor = child.Anchor;
+            if (anchor == (AnchorStyles.Top | AnchorStyles.Left)) continue;
+
+            int x = child.X;
+            int y = child.Y;
+            int w = child.Width;
+            int h = child.Height;
+
+            bool anchorLeft = (anchor & AnchorStyles.Left) != 0;
+            bool anchorRight = (anchor & AnchorStyles.Right) != 0;
+            bool anchorTop = (anchor & AnchorStyles.Top) != 0;
+            bool anchorBottom = (anchor & AnchorStyles.Bottom) != 0;
+
+            if (anchorLeft && anchorRight)
+            {
+                w = parentWidth - x - child._anchorRightDistance;
+            }
+            else if (anchorRight)
+            {
+                x = parentWidth - child._anchorRightDistance - w;
+            }
+
+            if (anchorTop && anchorBottom)
+            {
+                h = parentHeight - y - child._anchorBottomDistance;
+            }
+            else if (anchorBottom)
+            {
+                y = parentHeight - child._anchorBottomDistance - h;
+            }
+
+            child._layoutDrivenBoundsChange = true;
+            child.Bounds = new Rectangle(x, y, Math.Max(0, w), Math.Max(0, h));
+            child._layoutDrivenBoundsChange = false;
+        }
+    }
+
     protected virtual void OnBoundsChanged()
     {
         BoundsChanged?.Invoke(this, EventArgs.Empty);
+        if (!_layoutDrivenBoundsChange)
+        {
+            UpdateAnchorDistances();
+        }
+        PerformLayout();
     }
 
     public event EventHandler? BoundsChanged;
@@ -297,6 +492,7 @@ public virtual void Render(Graphics g)
     protected virtual void OnVisibleChanged()
     {
         Invalidate();
+        Parent?.PerformLayout();
     }
 
     protected virtual void OnEnabledChanged()
@@ -361,17 +557,23 @@ public class ControlCollection : IEnumerable<Control>
         {
             _controls.Add(control);
             control.Parent = _owner;
+            control.UpdateAnchorDistances();
+            _owner.PerformLayout();
         }
     }
 
     public void Remove(Control control)
     {
-        _controls.Remove(control);
+        if (_controls.Remove(control))
+        {
+            _owner.PerformLayout();
+        }
     }
 
     public void Clear()
     {
         _controls.Clear();
+        _owner.PerformLayout();
     }
 
     public IEnumerator<Control> GetEnumerator() => _controls.GetEnumerator();
