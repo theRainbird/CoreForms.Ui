@@ -1,3 +1,4 @@
+using CoreForms.Ui.Controls.Advanced;
 using CoreForms.Ui.Core;
 using CoreForms.Ui.Controls.Basic;
 using CoreForms.Ui.Controls.Containers;
@@ -97,6 +98,13 @@ class Program
         form.Controls.Add(leftPanel);
         form.Controls.Add(mainPanel);
         
+        var addButton = form.Controls.FindControl<Button>("addButton", recursive: true);
+        addButton?.Click += (sender, args) =>
+        {
+            var dataGrid = form.Controls.FindControl<DataGridView>("dataGrid", recursive: true);
+            dataGrid?.AddRow(dataGrid.Rows.Count + 1, "John Doe", "john@example.com", "Active");
+        };
+        
         Application.Run(form);
     }
 
@@ -121,7 +129,8 @@ class Program
             Location = new Point(15, 40),
             Size = new Size(400, 200),
             ColumnHeadersVisible = true,
-            RowHeadersVisible = true
+            RowHeadersVisible = true,
+            Name = "dataGrid"
         };
         dataGrid.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right | AnchorStyles.Bottom;
         dataGrid.Columns.Add(new Controls.Advanced.DataGridViewColumn { HeaderText = "ID", Width = 50, Name = "Id" });
@@ -175,7 +184,8 @@ class Program
         {
             Text = "Add Row",
             Location = new Point(5, 95),
-            Size = new Size(100, 30)
+            Size = new Size(100, 30),
+            Name = "addButton"
         };
 
         var progressButton = new Button

@@ -576,6 +576,32 @@ public class ControlCollection : IEnumerable<Control>
         _owner.PerformLayout();
     }
 
+    public Control? FindControl(string name, bool recursive = false)
+    {
+        if (string.IsNullOrEmpty(name))
+            return null;
+
+        foreach (Control control in _controls)
+        {
+            if (control.Name == name)
+                return control;
+
+            if (recursive)
+            {
+                Control? found = control.Controls.FindControl(name, true);
+                if (found != null)
+                    return found;
+            }
+        }
+
+        return null;
+    }
+
+    public T? FindControl<T>(string name, bool recursive = false) where T : Control
+    {
+        return FindControl(name, recursive) as T;
+    }
+
     public IEnumerator<Control> GetEnumerator() => _controls.GetEnumerator();
     System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator() => GetEnumerator();
 }
