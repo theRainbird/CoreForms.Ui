@@ -53,10 +53,11 @@ internal sealed class WindowContext : IDisposable
     }
 
     /// <summary>
-    /// Releases the renderer and font renderer resources.
+    /// Releases the renderer, font renderer, and icon texture resources.
     /// </summary>
     public void Dispose()
     {
+        Platform.CleanupIconTextures(Renderer.Handle);
         Renderer.Dispose();
         FontRenderer.Dispose();
     }

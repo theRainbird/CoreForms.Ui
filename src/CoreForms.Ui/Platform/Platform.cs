@@ -1,3 +1,4 @@
+using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Text;
 using CoreForms.Ui.Core;
@@ -12,9 +13,11 @@ namespace CoreForms.Ui.Platform;
 public static class Platform
 {
     private static bool _initialized;
+    private static bool _sdlImageAvailable;
     private static readonly Dictionary<uint, WindowContext> _contexts = new();
     private static Form? _focusedWindow;
     private static Point _lastMousePosition;
+    private static readonly Dictionary<(MessageBoxIcon icon, IntPtr renderer), IntPtr> _iconTextureCache = new();
 
     static Platform()
     {
@@ -27,6 +30,17 @@ public static class Platform
             if (name == "SDL2_ttf")
             {
                 return NativeLibrary.Load("libSDL2_ttf-2.0.so.0");
+            }
+            if (name == "SDL2_image")
+            {
+                try
+                {
+                    return NativeLibrary.Load("libSDL2_image-2.0.so.0");
+                }
+                catch
+                {
+                    return IntPtr.Zero;
+                }
             }
             return IntPtr.Zero;
         });
@@ -94,6 +108,25 @@ public static class Platform
 
     [DllImport("SDL2", CallingConvention = CallingConvention.Cdecl)]
     private static extern uint SDL_GetWindowID(IntPtr window);
+
+[DllImport("SDL2", CallingConvention = CallingConvention.Cdecl)]
+    private static extern IntPtr SDL_RWFromMem(byte[] mem, int size);
+
+    [DllImport("SDL2", CallingConvention = CallingConvention.Cdecl)]
+    private static extern void SDL_FreeSurface(IntPtr surface);
+
+    [DllImport("SDL2", CallingConvention = CallingConvention.Cdecl)]
+    private static extern IntPtr SDL_CreateTextureFromSurface(IntPtr renderer, IntPtr surface);
+
+    [DllImport("SDL2", CallingConvention = CallingConvention.Cdecl)]
+    private static extern void SDL_DestroyTexture(IntPtr texture);
+
+    private const int IMG_INIT_PNG = 2;
+
+    private static IntPtr _sdlImageHandle;
+    private static Func<int, int>? _imgInit;
+    private static Action? _imgQuit;
+    private static Func<IntPtr, int, IntPtr>? _imgLoadRw;
 
     private const uint SDL_INIT_VIDEO = 0x20;
     private const uint SDL_WINDOW_SHOWN = 0x4;
@@ -198,7 +231,39 @@ public static class Platform
         {
             throw new InvalidOperationException("SDL_Init failed: " + GetSDLError());
         }
+
+        TryLoadSdlImage();
+
         _initialized = true;
+    }
+
+    private static void TryLoadSdlImage()
+    {
+        try
+        {
+            _sdlImageHandle = NativeLibrary.Load("libSDL2_image-2.0.so.0");
+            if (_sdlImageHandle != IntPtr.Zero)
+            {
+                _imgInit = (Func<int, int>)Marshal.GetDelegateForFunctionPointer(
+                    NativeLibrary.GetExport(_sdlImageHandle, "IMG_Init"), typeof(Func<int, int>));
+                _imgQuit = (Action)Marshal.GetDelegateForFunctionPointer(
+                    NativeLibrary.GetExport(_sdlImageHandle, "IMG_Quit"), typeof(Action));
+                _imgLoadRw = (Func<IntPtr, int, IntPtr>)Marshal.GetDelegateForFunctionPointer(
+                    NativeLibrary.GetExport(_sdlImageHandle, "IMG_Load_RW"), typeof(Func<IntPtr, int, IntPtr>));
+                _sdlImageAvailable = _imgInit != null;
+                if (_sdlImageAvailable)
+                {
+                    _imgInit!(IMG_INIT_PNG);
+                }
+            }
+        }
+        catch
+        {
+            _sdlImageAvailable = false;
+            _imgInit = null;
+            _imgQuit = null;
+            _imgLoadRw = null;
+        }
     }
 
     [DllImport("SDL2", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
@@ -462,6 +527,97 @@ public static class Platform
         {
             SDL_SetWindowBordered(handle, bordered ? 1 : 0);
         }
+    }
+
+    /// <summary>
+    /// Loads a message box icon as an SDL texture for the specified renderer.
+    /// The texture is cached per (icon, renderer) pair and should not be manually destroyed.
+    /// </summary>
+    /// <param name="icon">The message box icon type to load.</param>
+    /// <param name="rendererHandle">The SDL renderer handle to create the texture for.</param>
+    /// <returns>The SDL texture handle, or IntPtr.Zero if the icon could not be loaded.</returns>
+    public static IntPtr LoadMessageBoxIcon(MessageBoxIcon icon, IntPtr rendererHandle)
+    {
+        if (icon == MessageBoxIcon.None)
+            return IntPtr.Zero;
+
+        if (!_sdlImageAvailable || _imgLoadRw == null)
+            return IntPtr.Zero;
+
+        var key = (icon, rendererHandle);
+        if (_iconTextureCache.TryGetValue(key, out var cached))
+            return cached;
+
+        string? resourceName = GetIconResourceName(icon);
+        if (resourceName == null)
+            return IntPtr.Zero;
+
+        var assembly = typeof(Platform).Assembly;
+        using var stream = assembly.GetManifestResourceStream(resourceName);
+        if (stream == null)
+            return IntPtr.Zero;
+
+        byte[] data = new byte[stream.Length];
+        int totalRead = 0;
+        while (totalRead < data.Length)
+        {
+            int read = stream.Read(data, totalRead, data.Length - totalRead);
+            if (read == 0) break;
+            totalRead += read;
+        }
+
+        IntPtr rwOps = SDL_RWFromMem(data, data.Length);
+        if (rwOps == IntPtr.Zero)
+            return IntPtr.Zero;
+
+        IntPtr surface = _imgLoadRw(rwOps, 1);
+        if (surface == IntPtr.Zero)
+            return IntPtr.Zero;
+
+        IntPtr texture = SDL_CreateTextureFromSurface(rendererHandle, surface);
+        SDL_FreeSurface(surface);
+
+        if (texture != IntPtr.Zero)
+        {
+            _iconTextureCache[key] = texture;
+        }
+
+        return texture;
+    }
+
+    /// <summary>
+    /// Cleans up icon textures associated with the specified renderer handle.
+    /// Called when a window is being destroyed.
+    /// </summary>
+    /// <param name="rendererHandle">The SDL renderer handle whose textures should be cleaned up.</param>
+    internal static void CleanupIconTextures(IntPtr rendererHandle)
+    {
+        var keysToRemove = new List<(MessageBoxIcon, IntPtr)>();
+        foreach (var kvp in _iconTextureCache)
+        {
+            if (kvp.Key.Item2 == rendererHandle)
+            {
+                if (kvp.Value != IntPtr.Zero)
+                    SDL_DestroyTexture(kvp.Value);
+                keysToRemove.Add(kvp.Key);
+            }
+        }
+        foreach (var key in keysToRemove)
+        {
+            _iconTextureCache.Remove(key);
+        }
+    }
+
+    private static string? GetIconResourceName(MessageBoxIcon icon)
+    {
+        return icon switch
+        {
+            MessageBoxIcon.Information => "CoreForms.Ui.Resources.Icons.info-circle.png",
+            MessageBoxIcon.Warning => "CoreForms.Ui.Resources.Icons.alert-triangle.png",
+            MessageBoxIcon.Error => "CoreForms.Ui.Resources.Icons.circle-x.png",
+            MessageBoxIcon.Question => "CoreForms.Ui.Resources.Icons.help-circle.png",
+            _ => null
+        };
     }
 
     /// <summary>

@@ -23,25 +23,29 @@ dotnet run --project samples/CoreForms.Ui.Demo  # Run demo (requires X11/display
 
 **Controls (Advanced):**
 - TabControl, TabPage, StatusStrip
+- MessageBox (modal dialog with standard button combinations, icons, localization)
 
 **Layout:**
 - FlowLayoutPanel, TableLayoutPanel
 
 **Rendering:**
 - Graphics (command-list pattern)
-- SdlRenderer (SDL2-based)
+- SdlRenderer (SDL2-based, alpha blending, image/ellipse drawing)
 - FontRenderer (SDL_ttf-based)
+- SDL2_image (PNG icon loading for MessageBox icons)
 
 **Window Management:**
 - Minimize, Maximize, Restore
 - Move, Resize
 - Focus tracking
 - GotFocus/LostFocus events
+- Multi-window support (per-window Renderer + FontRenderer via WindowContext)
+- Modal dialogs (Form.Enabled for owner disabling)
 
 ## Important Context
 
 **Platform layer uses SDL2 via P/Invoke** - Works on Linux/Windows with SDL2 installed:
-- Linux: `sudo apt install libsdl2-dev`
+- Linux: `sudo apt install libsdl2-dev libsdl2-image-dev libsdl2-ttf-2.0-0`
 - Windows: SDL2.dll in app directory
 
 **Custom type dependencies** - Avoids System.Drawing conflicts:

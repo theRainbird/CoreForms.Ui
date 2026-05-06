@@ -19,12 +19,59 @@ class Program
             BackColor = SystemColors.Window
         };
 
-        var menuStrip = new CoreForms.Ui.Controls.Containers.MenuStrip();
+        var menuStrip = new MenuStrip();
         menuStrip.Dock = DockStyle.Top;
         menuStrip.Size = new Size(900, 30);
-        menuStrip.Items.Add(new CoreForms.Ui.Controls.Containers.ToolStripMenuItem("File"));
-        menuStrip.Items.Add(new CoreForms.Ui.Controls.Containers.ToolStripMenuItem("Edit"));
-        menuStrip.Items.Add(new CoreForms.Ui.Controls.Containers.ToolStripMenuItem("View"));
+
+        var fileItem = new ToolStripMenuItem("File");
+        var fileNewItem = new ToolStripMenuItem("New");
+        fileNewItem.Click += (s, e) => MessageBox.Show("Create a new file?", "New File", MessageBoxButtons.YesNo, MessageBoxIcon.Question);
+        var fileOpenItem = new ToolStripMenuItem("Open");
+        fileOpenItem.Click += (s, e) => MessageBox.Show("Open an existing file.", "Open", MessageBoxButtons.OK, MessageBoxIcon.Information);
+        var fileSaveItem = new ToolStripMenuItem("Save");
+        fileSaveItem.Click += (s, e) => MessageBox.Show("File saved successfully!", "Save", MessageBoxButtons.OK, MessageBoxIcon.Information);
+        var fileExitItem = new ToolStripMenuItem("Exit");
+        fileExitItem.Click += (s, e) =>
+        {
+            var result = MessageBox.Show("Are you sure you want to exit?", "Exit", MessageBoxButtons.YesNo, MessageBoxIcon.Warning);
+            if (result == DialogResult.Yes)
+                Application.Exit();
+        };
+        fileItem.DropDownItems.Add(fileNewItem);
+        fileItem.DropDownItems.Add(fileOpenItem);
+        fileItem.DropDownItems.Add(fileSaveItem);
+        fileItem.DropDownItems.Add(fileExitItem);
+        menuStrip.Items.Add(fileItem);
+
+        var editItem = new ToolStripMenuItem("Edit");
+        var editUndoItem = new ToolStripMenuItem("Undo");
+        editUndoItem.Click += (s, e) => MessageBox.Show("Undo last action?", "Undo", MessageBoxButtons.OKCancel, MessageBoxIcon.Question);
+        var editRedoItem = new ToolStripMenuItem("Redo");
+        editRedoItem.Click += (s, e) => MessageBox.Show("Redo last action?", "Redo", MessageBoxButtons.OKCancel, MessageBoxIcon.Question);
+        var editDeleteItem = new ToolStripMenuItem("Delete");
+        editDeleteItem.Click += (s, e) => MessageBox.Show("Delete this item? This cannot be undone.", "Delete", MessageBoxButtons.YesNoCancel, MessageBoxIcon.Error);
+        editItem.DropDownItems.Add(editUndoItem);
+        editItem.DropDownItems.Add(editRedoItem);
+        editItem.DropDownItems.Add(editDeleteItem);
+        menuStrip.Items.Add(editItem);
+
+        var viewItem = new ToolStripMenuItem("View");
+        var viewRefreshItem = new ToolStripMenuItem("Refresh");
+        viewRefreshItem.Click += (s, e) => MessageBox.Show("View refreshed.", "Refresh", MessageBoxButtons.OK, MessageBoxIcon.Information);
+        var viewFullscreenItem = new ToolStripMenuItem("Fullscreen");
+        viewFullscreenItem.Click += (s, e) => MessageBox.Show("Toggle fullscreen mode is not yet implemented.", "Fullscreen", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+        viewItem.DropDownItems.Add(viewRefreshItem);
+        viewItem.DropDownItems.Add(viewFullscreenItem);
+        menuStrip.Items.Add(viewItem);
+
+        var helpItem = new ToolStripMenuItem("Help");
+        var helpAboutItem = new ToolStripMenuItem("About");
+        helpAboutItem.Click += (s, e) => MessageBox.Show("CoreForms.Ui Demo\nVersion 1.0\n\nA cross-platform UI framework.", "About", MessageBoxButtons.OK, MessageBoxIcon.Information);
+        var helpLicenseItem = new ToolStripMenuItem("License");
+        helpLicenseItem.Click += (s, e) => MessageBox.Show("Retry loading the license?", "License Error", MessageBoxButtons.AbortRetryIgnore, MessageBoxIcon.Error);
+        helpItem.DropDownItems.Add(helpAboutItem);
+        helpItem.DropDownItems.Add(helpLicenseItem);
+        menuStrip.Items.Add(helpItem);
 
         var statusLabel = new Label
         {
@@ -85,7 +132,7 @@ class Program
 
         mainPanel.Controls.Add(CreateHeaderLabel());
         mainPanel.Controls.Add(CreateDataGrid());
-        mainPanel.Controls.Add(CreateBottomLeftPanel());
+        mainPanel.Controls.Add(CreateBottomLeftPanel(statusLabel));
         mainPanel.Controls.Add(CreateBottomRightPanel());
 
         navListBox.SelectedIndexChanged += (s, e) =>
@@ -143,7 +190,7 @@ class Program
         return dataGrid;
     }
 
-    static Panel CreateBottomLeftPanel()
+    static Panel CreateBottomLeftPanel(Label statusLabel)
     {
         var panel = new Panel
         {
@@ -200,11 +247,27 @@ class Program
                 progressBar.Value += 10;
         };
 
+        var msgBoxButton = new Button
+        {
+            Text = "MessageBox",
+            Location = new Point(5, 130),
+            Size = new Size(210, 30)
+        };
+        msgBoxButton.Click += (s, e) =>
+        {
+            var result = MessageBox.Show(
+                "This is a test of the MessageBox.\nAll button combinations are available in the menu.\n\nClick Yes to continue, No to cancel.",
+                "MessageBox Test",
+                MessageBoxButtons.YesNo,
+                MessageBoxIcon.Information);
+            statusLabel.Text = $"MessageBox result: {result}";
+        };
+
         var infoLabel = new Label
         {
             Text = "Dock: Left, Right, Top, Bottom, Fill\nAnchor: TopLeft, TopLeftRight, All\nResize window to see effects!",
-            Location = new Point(5, 135),
-            Size = new Size(200, 80),
+            Location = new Point(5, 165),
+            Size = new Size(200, 50),
             BackColor = SystemColors.Control,
             ForeColor = Color.FromArgb(80, 80, 80)
         };
@@ -214,6 +277,7 @@ class Program
         panel.Controls.Add(progressBar);
         panel.Controls.Add(addButton);
         panel.Controls.Add(progressButton);
+        panel.Controls.Add(msgBoxButton);
         panel.Controls.Add(infoLabel);
 
         return panel;

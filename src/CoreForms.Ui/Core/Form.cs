@@ -196,6 +196,7 @@ public class Form : ContainerControl
     /// <param name="e">The event arguments.</param>
     protected internal override void OnMouseDown(EventArgs e)
     {
+        if (!Enabled) return;
         var args = e as MouseEventArgs;
         if (args != null && _captureControl != null)
         {
@@ -212,6 +213,7 @@ public class Form : ContainerControl
     /// <param name="e">The event arguments.</param>
     protected internal override void OnMouseUp(EventArgs e)
     {
+        if (!Enabled) return;
         var args = e as MouseEventArgs;
         if (args != null && _captureControl != null)
         {
@@ -228,6 +230,7 @@ public class Form : ContainerControl
     /// <param name="e">The event arguments.</param>
     protected internal override void OnMouseMove(EventArgs e)
     {
+        if (!Enabled) return;
         var args = e as MouseEventArgs;
         if (args != null && _captureControl != null)
         {
@@ -244,6 +247,7 @@ public class Form : ContainerControl
     /// <param name="e">The event arguments.</param>
     protected internal override void OnMouseWheel(EventArgs e)
     {
+        if (!Enabled) return;
         if (_captureControl != null)
         {
             _captureControl.OnMouseWheel(e);
@@ -346,6 +350,7 @@ public class Form : ContainerControl
     /// <param name="text">The input text.</param>
     protected internal override void OnTextInput(string text)
     {
+        if (!Enabled) return;
         if (ActiveControl != null)
         {
             ActiveControl.OnTextInput(text);
@@ -359,6 +364,7 @@ public class Form : ContainerControl
     /// <param name="e">A KeyEventArgs that contains the event data.</param>
     protected internal override void OnKeyDown(KeyEventArgs e)
     {
+        if (!Enabled) return;
         if (e.KeyCode == Keys.Tab)
         {
             ProcessTabKey(e.Modifiers.HasFlag(ModifierKeys.Shift));
@@ -380,6 +386,7 @@ public class Form : ContainerControl
     /// <param name="e">A KeyEventArgs that contains the event data.</param>
     protected internal override void OnKeyUp(KeyEventArgs e)
     {
+        if (!Enabled) return;
         if (ActiveControl != null)
         {
             ActiveControl.OnKeyUp(e);
@@ -394,6 +401,7 @@ public class Form : ContainerControl
     /// <param name="e">A KeyPressEventArgs that contains the event data.</param>
     protected internal override void OnKeyPress(KeyPressEventArgs e)
     {
+        if (!Enabled) return;
         if (ActiveControl != null)
         {
             ActiveControl.OnKeyPress(e);
