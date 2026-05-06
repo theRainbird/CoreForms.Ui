@@ -534,16 +534,8 @@ private static void HandleMouseMotionEvent(SDL_Event e)
     {
         if (_renderer == null) return;
 
-        // Check clip bounds
-        if (cmd.ClipBounds.HasValue)
-        {
-            var clip = cmd.ClipBounds.Value;
-            // Check if command is completely outside clip
-            if (cmd.X >= clip.X + clip.Width || cmd.Y >= clip.Y + clip.Height ||
-                (cmd.Width > 0 && cmd.X + cmd.Width <= clip.X) ||
-                (cmd.Height > 0 && cmd.Y + cmd.Height <= clip.Y))
-                return;
-        }
+        // Set clip region for this command
+        _renderer.SetClipRect(cmd.ClipBounds);
 
         switch (cmd.Type)
         {

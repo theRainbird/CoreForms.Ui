@@ -143,132 +143,141 @@ public override void Render(Graphics g)
 
         int headerHeight = _columnHeadersVisible ? _rowHeight : 0;
         int rowHeaderWidth = _rowHeadersVisible ? 40 : 0;
+        int totalContentHeight = _rows.Count * _rowHeight + (_allowUserToAddRows ? _rowHeight : 0);
+        int dataHeight = Height - headerHeight;
+        bool needVScroll = totalContentHeight > dataHeight;
+        int scrollBarWidth = needVScroll ? 16 : 0;
+        int dataWidth = Width - rowHeaderWidth - scrollBarWidth;
 
-        // Set clip to data area only (below header)
-        g.SetClip(new Rectangle(rowHeaderWidth, headerHeight, Width - rowHeaderWidth, Height - headerHeight));
+        int maxScroll = Math.Max(0, totalContentHeight - dataHeight);
+        if (_verticalScrollOffset > maxScroll) _verticalScrollOffset = maxScroll;
+        if (_verticalScrollOffset < 0) _verticalScrollOffset = 0;
+
+        int rowStart = Math.Max(0, _verticalScrollOffset / _rowHeight);
+        int rowEnd = Math.Min(_rows.Count, rowStart + (dataHeight / _rowHeight) + 2);
 
         g.FillRectangle(BackColor, 0, 0, Width, Height);
         g.DrawRectangle(Color.FromArgb(180, 180, 180), 0, 0, Width, Height, 1);
 
-        int startX = rowHeaderWidth - _horizontalScrollOffset;
-
         if (_columnHeadersVisible)
         {
-            g.FillRectangle(SystemColors.Control, 0, 0, Width, headerHeight);
-            g.DrawLine(Color.FromArgb(150, 150, 150), 0, headerHeight, Width, headerHeight);
+            g.FillRectangle(SystemColors.Control, 0, 0, Width - scrollBarWidth, headerHeight);
+            g.DrawLine(Color.FromArgb(150, 150, 150), 0, headerHeight, Width - scrollBarWidth, headerHeight);
 
-            int x = startX;
+            g.SetClip(new Rectangle(rowHeaderWidth, 0, dataWidth, headerHeight));
+            int x = rowHeaderWidth - _horizontalScrollOffset;
             for (int col = 0; col < _columns.Count; col++)
             {
                 var colWidth = _columns[col].Width;
-                if (x < Width && x + colWidth > 0)
+                if (x + colWidth > rowHeaderWidth && x < rowHeaderWidth + dataWidth)
                 {
-                    g.FillRectangle(SystemColors.Control, x, 0, colWidth, headerHeight);
-                    g.DrawRectangle(Color.FromArgb(180, 180, 180), x, 0, colWidth, headerHeight, 1);
-
-                    var font = _columns[col].HeaderCell?.Font ?? Font.Default;
-                    g.DrawString(_columns[col].HeaderText, font, Color.Black, x + 4, (headerHeight - (int)font.Size) / 2);
+                    int drawX = Math.Max(x, rowHeaderWidth);
+                    int drawWidth = Math.Min(x + colWidth, rowHeaderWidth + dataWidth) - drawX;
+                    if (drawWidth > 0)
+                    {
+                        g.DrawRectangle(Color.FromArgb(180, 180, 180), drawX, 0, drawWidth, headerHeight, 1);
+                        var font = _columns[col].HeaderCell?.Font ?? Font.Default;
+                        g.DrawString(_columns[col].HeaderText, font, Color.Black, drawX + 4, (headerHeight - (int)font.Size) / 2);
+                    }
                 }
                 x += colWidth;
             }
+            g.ResetClip();
         }
 
-        // Reset clip for row headers (they need to draw in the header area too)
-        g.ResetClip();
-        
-        int rowStart = Math.Max(0, _verticalScrollOffset / _rowHeight - 1);
-        int visibleRows = (Height - headerHeight) / _rowHeight + 2;
+        if (_rowHeadersVisible)
+        {
+            g.SetClip(new Rectangle(0, headerHeight, rowHeaderWidth, dataHeight));
+            g.FillRectangle(SystemColors.Control, 0, headerHeight, rowHeaderWidth, dataHeight);
 
-        // Set clip for data rows only
-        g.SetClip(new Rectangle(rowHeaderWidth, headerHeight, Width - rowHeaderWidth, Height - headerHeight));
+            for (int rowIdx = rowStart; rowIdx < rowEnd; rowIdx++)
+            {
+                int y = headerHeight + (rowIdx * _rowHeight) - _verticalScrollOffset;
+                bool isSelected = rowIdx == _selectedRowIndex;
+                var headerBg = isSelected ? SystemColors.Highlight : SystemColors.Control;
 
-        for (int rowIdx = rowStart; rowIdx < Math.Min(_rows.Count, rowStart + visibleRows); rowIdx++)
+                g.FillRectangle(headerBg, 0, y, rowHeaderWidth, _rowHeight);
+                g.DrawRectangle(Color.FromArgb(180, 180, 180), 0, y, rowHeaderWidth, _rowHeight, 1);
+                var font = Font.Default;
+                g.DrawString((rowIdx + 1).ToString(), font, isSelected ? SystemColors.HighlightText : Color.Black, 4, y + (_rowHeight - (int)font.Size) / 2);
+            }
+
+            if (_allowUserToAddRows)
+            {
+                int y = headerHeight + (_rows.Count * _rowHeight) - _verticalScrollOffset;
+                g.FillRectangle(SystemColors.Control, 0, y, rowHeaderWidth, _rowHeight);
+                g.DrawRectangle(Color.FromArgb(180, 180, 180), 0, y, rowHeaderWidth, _rowHeight, 1);
+            }
+
+            g.ResetClip();
+        }
+
+        g.SetClip(new Rectangle(rowHeaderWidth, headerHeight, dataWidth, dataHeight));
+
+        for (int rowIdx = rowStart; rowIdx < rowEnd; rowIdx++)
         {
             int y = headerHeight + (rowIdx * _rowHeight) - _verticalScrollOffset;
-            if (y < headerHeight) continue;
-            if (y > Height) break;
 
             bool isSelected = rowIdx == _selectedRowIndex;
             bool isAlternate = rowIdx % 2 == 1;
 
             if (isSelected)
-            {
-                g.FillRectangle(SystemColors.Highlight, rowHeaderWidth, y, Width - rowHeaderWidth, _rowHeight);
-            }
+                g.FillRectangle(SystemColors.Highlight, rowHeaderWidth, y, dataWidth, _rowHeight);
             else if (isAlternate)
-            {
-                g.FillRectangle(Color.FromArgb(245, 245, 245), rowHeaderWidth, y, Width - rowHeaderWidth, _rowHeight);
-            }
+                g.FillRectangle(Color.FromArgb(245, 245, 245), rowHeaderWidth, y, dataWidth, _rowHeight);
 
-            if (_rowHeadersVisible)
-            {
-                var headerBg = isSelected ? SystemColors.Highlight : SystemColors.Control;
-                g.FillRectangle(headerBg, 0, y, rowHeaderWidth, _rowHeight);
-                g.DrawRectangle(Color.FromArgb(180, 180, 180), 0, y, rowHeaderWidth, _rowHeight, 1);
-
-                var font = Font.Default;
-                var headerText = (rowIdx + 1).ToString();
-                g.DrawString(headerText, font, isSelected ? SystemColors.HighlightText : Color.Black, 4, y + (_rowHeight - (int)font.Size) / 2);
-            }
-
-            int x = startX;
+            int x = rowHeaderWidth - _horizontalScrollOffset;
             for (int col = 0; col < _columns.Count; col++)
             {
                 var colWidth = _columns[col].Width;
-                if (x < Width && x + colWidth > rowHeaderWidth)
+                if (x + colWidth > rowHeaderWidth && x < rowHeaderWidth + dataWidth)
                 {
-                    g.DrawLine(Color.FromArgb(220, 220, 220), x, y, x, y + _rowHeight);
+                    int drawX = Math.Max(x, rowHeaderWidth);
+                    int drawWidth = Math.Min(x + colWidth, rowHeaderWidth + dataWidth) - drawX;
+                    if (drawWidth > 0)
+                    {
+                        g.DrawLine(Color.FromArgb(220, 220, 220), drawX, y, drawX, y + _rowHeight);
 
-                    var cell = _rows[rowIdx].Cells.Count > col ? _rows[rowIdx].Cells[col] : null;
-                    var text = cell?.Value?.ToString() ?? "";
-                    var textColor = isSelected ? SystemColors.HighlightText : Color.Black;
-
-                    var font = Font.Default;
-                    g.DrawString(text, font, textColor, x + 4, y + (_rowHeight - (int)font.Size) / 2);
+                        var cell = _rows[rowIdx].Cells.Count > col ? _rows[rowIdx].Cells[col] : null;
+                        var text = cell?.Value?.ToString() ?? "";
+                        var textColor = isSelected ? SystemColors.HighlightText : Color.Black;
+                        var font = Font.Default;
+                        g.DrawString(text, font, textColor, drawX + 4, y + (_rowHeight - (int)font.Size) / 2);
+                    }
                 }
                 x += colWidth;
             }
 
-            g.DrawLine(Color.FromArgb(180, 180, 180), 0, y + _rowHeight, Width, y + _rowHeight);
+            g.DrawLine(Color.FromArgb(180, 180, 180), rowHeaderWidth, y + _rowHeight, rowHeaderWidth + dataWidth, y + _rowHeight);
         }
 
-        if (_allowUserToAddRows && _rows.Count > 0)
+        if (_allowUserToAddRows)
         {
             int y = headerHeight + (_rows.Count * _rowHeight) - _verticalScrollOffset;
-            if (y < Height - headerHeight && y >= headerHeight)
-            {
-                g.FillRectangle(Color.FromArgb(250, 250, 250), 0, y, Width, _rowHeight);
-                g.DrawLine(Color.FromArgb(150, 150, 150), 0, y, Width, y);
-                var font = Font.Default;
-                g.DrawString("Add new row...", font, Color.FromArgb(150, 150, 150), 4, (y + _rowHeight - (int)font.Size) / 2);
-            }
+            g.FillRectangle(Color.FromArgb(250, 250, 250), rowHeaderWidth, y, dataWidth, _rowHeight);
+            g.DrawLine(Color.FromArgb(150, 150, 150), rowHeaderWidth, y, rowHeaderWidth + dataWidth, y);
+            g.DrawString("*", Font.Default, Color.FromArgb(150, 150, 150), rowHeaderWidth + 4, y + (_rowHeight - 12) / 2);
         }
 
-        // Draw vertical scrollbar
-        int dataHeight = Height - headerHeight;
-        int totalRowsHeight = _rows.Count * _rowHeight;
-        if (totalRowsHeight > dataHeight)
+        g.ResetClip();
+
+        if (needVScroll)
         {
-            int scrollBarWidth = 16;
             int scrollBarX = Width - scrollBarWidth;
             int scrollBarY = headerHeight;
-            int scrollBarHeight = dataHeight;
-            
-            // Scrollbar background
-            g.FillRectangle(Color.FromArgb(240, 240, 240), scrollBarX, scrollBarY, scrollBarWidth, scrollBarHeight);
-            g.DrawRectangle(Color.FromArgb(180, 180, 180), scrollBarX, scrollBarY, scrollBarWidth, scrollBarHeight, 1);
-            
-            // Scroll thumb
-            float thumbHeightRatio = (float)dataHeight / totalRowsHeight;
-            int thumbHeight = Math.Max(20, (int)(scrollBarHeight * thumbHeightRatio));
-            float thumbPosRatio = (float)_verticalScrollOffset / (totalRowsHeight - dataHeight);
-            int thumbY = scrollBarY + (int)(thumbPosRatio * (scrollBarHeight - thumbHeight));
-            
+            g.FillRectangle(Color.FromArgb(240, 240, 240), scrollBarX, scrollBarY, scrollBarWidth, dataHeight);
+            g.DrawRectangle(Color.FromArgb(180, 180, 180), scrollBarX, scrollBarY, scrollBarWidth, dataHeight, 1);
+
+            float thumbHeightRatio = (float)dataHeight / totalContentHeight;
+            int thumbHeight = Math.Max(20, (int)(dataHeight * thumbHeightRatio));
+            int maxScrollVal = Math.Max(1, totalContentHeight - dataHeight);
+            float thumbPosRatio = (float)_verticalScrollOffset / maxScrollVal;
+            int thumbY = scrollBarY + (int)(thumbPosRatio * (dataHeight - thumbHeight));
+
             g.FillRectangle(Color.FromArgb(190, 190, 190), scrollBarX + 2, thumbY, scrollBarWidth - 4, thumbHeight);
             g.DrawRectangle(Color.FromArgb(150, 150, 150), scrollBarX + 2, thumbY, scrollBarWidth - 4, thumbHeight, 1);
         }
 
-        g.ResetClip();
         base.Render(g);
     }
 
@@ -304,11 +313,12 @@ public override void Render(Graphics g)
         var mouseArgs = e as MouseEventArgs;
         if (mouseArgs != null)
         {
-            _verticalScrollOffset -= mouseArgs.Delta;
-            if (_verticalScrollOffset < 0) _verticalScrollOffset = 0;
-            
-            int maxScroll = Math.Max(0, (_rows.Count * _rowHeight) - (Height - (_columnHeadersVisible ? _rowHeight : 0)));
-            if (_verticalScrollOffset > maxScroll) _verticalScrollOffset = maxScroll;
+            _verticalScrollOffset -= mouseArgs.Delta * _rowHeight;
+            int headerHeight = _columnHeadersVisible ? _rowHeight : 0;
+            int totalContentHeight = _rows.Count * _rowHeight + (_allowUserToAddRows ? _rowHeight : 0);
+            int dataHeight = Height - headerHeight;
+            int maxScroll = Math.Max(0, totalContentHeight - dataHeight);
+            _verticalScrollOffset = Math.Max(0, Math.Min(_verticalScrollOffset, maxScroll));
             
             Invalidate();
         }

@@ -17,7 +17,11 @@ public class Graphics : IDisposable
 
     public void SetClip(Rectangle rect)
     {
-        _clipStack.Push(rect);
+        _clipStack.Push(new Rectangle(
+            (int)(rect.X + _offsetX),
+            (int)(rect.Y + _offsetY),
+            rect.Width,
+            rect.Height));
     }
 
     public void ResetClip()

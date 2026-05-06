@@ -35,6 +35,12 @@ public class SdlRenderer : IDisposable
     private static extern int SDL_RenderDrawLine(IntPtr renderer, int x1, int y1, int x2, int y2);
 
     [DllImport("SDL2", CallingConvention = CallingConvention.Cdecl)]
+    private static extern int SDL_RenderSetClipRect(IntPtr renderer, ref SDL_Rect rect);
+
+    [DllImport("SDL2", CallingConvention = CallingConvention.Cdecl)]
+    private static extern int SDL_RenderSetClipRect(IntPtr renderer, IntPtr rect);
+
+    [DllImport("SDL2", CallingConvention = CallingConvention.Cdecl)]
     private static extern IntPtr SDL_CreateFont(string path);
 
     [StructLayout(LayoutKind.Sequential)]
@@ -86,6 +92,19 @@ public class SdlRenderer : IDisposable
     {
         SDL_SetRenderDrawColor(_renderer, color.R, color.G, color.B, color.A);
         SDL_RenderDrawLine(_renderer, (int)x1, (int)y1, (int)x2, (int)y2);
+    }
+
+    public void SetClipRect(Core.Rectangle? rect)
+    {
+        if (rect.HasValue)
+        {
+            var sdlRect = new SDL_Rect { x = (int)rect.Value.X, y = (int)rect.Value.Y, w = (int)rect.Value.Width, h = (int)rect.Value.Height };
+            SDL_RenderSetClipRect(_renderer, ref sdlRect);
+        }
+        else
+        {
+            SDL_RenderSetClipRect(_renderer, IntPtr.Zero);
+        }
     }
 
     public void Present()
