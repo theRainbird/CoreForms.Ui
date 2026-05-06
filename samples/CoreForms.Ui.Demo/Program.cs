@@ -69,7 +69,13 @@ class Program
         {
             Text = "Show Grid Lines",
             Location = new Point(250, 270),
-            Size = new Size(150, 25)
+            Size = new Size(150, 25),
+            Checked = true
+        };
+
+        checkBox.CheckedChanged += (s, e) =>
+        {
+            dataGrid.ShowGridLines = checkBox.Checked;
         };
 
         var progressBar = new ProgressBar

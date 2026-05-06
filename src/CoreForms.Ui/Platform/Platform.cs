@@ -546,7 +546,7 @@ private static void HandleMouseMotionEvent(SDL_Event e)
                 _renderer.DrawRectangle(cmd.Color, cmd.X, cmd.Y, cmd.Width, cmd.Height);
                 break;
             case DrawCommandType.DrawLine:
-                _renderer.DrawLine(cmd.Color, cmd.X, cmd.Y, cmd.X2, cmd.Y2);
+                _renderer.DrawLine(cmd.Color, cmd.X, cmd.Y, cmd.X2, cmd.Y2, cmd.LineWidth);
                 break;
             case DrawCommandType.DrawString:
                 if (!string.IsNullOrEmpty(cmd.Text) && cmd.Font != null)

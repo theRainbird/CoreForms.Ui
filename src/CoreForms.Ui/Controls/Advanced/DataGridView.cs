@@ -19,6 +19,7 @@ public class DataGridView : ContainerControl
     private bool _multiSelect;
     private bool _columnHeadersVisible = true;
     private bool _rowHeadersVisible = true;
+    private bool _showGridLines = true;
     private DataGridViewSelectionMode _selectionMode = DataGridViewSelectionMode.RowHeaderSelect;
     private int _verticalScrollOffset;
     private int _horizontalScrollOffset;
@@ -100,6 +101,16 @@ public class DataGridView : ContainerControl
         set
         {
             _rowHeadersVisible = value;
+            Invalidate();
+        }
+    }
+
+    public bool ShowGridLines
+    {
+        get => _showGridLines;
+        set
+        {
+            _showGridLines = value;
             Invalidate();
         }
     }
@@ -225,6 +236,35 @@ public override void Render(Graphics g)
                 g.FillRectangle(SystemColors.Highlight, rowHeaderWidth, y, dataWidth, _rowHeight);
             else if (isAlternate)
                 g.FillRectangle(Color.FromArgb(245, 245, 245), rowHeaderWidth, y, dataWidth, _rowHeight);
+        }
+
+        if (_showGridLines)
+        {
+            for (int rowIdx = rowStart; rowIdx < rowEnd; rowIdx++)
+            {
+                int y = headerHeight + (rowIdx * _rowHeight) - _verticalScrollOffset;
+
+                g.DrawLine(Color.FromArgb(180, 180, 180), rowHeaderWidth, y + _rowHeight, rowHeaderWidth + dataWidth, y + _rowHeight);
+
+                int x = rowHeaderWidth - _horizontalScrollOffset;
+                for (int col = 0; col < _columns.Count; col++)
+                {
+                    var colWidth = _columns[col].Width;
+                    if (x + colWidth > rowHeaderWidth && x < rowHeaderWidth + dataWidth)
+                    {
+                        int drawX = Math.Max(x, rowHeaderWidth);
+                        g.DrawLine(Color.FromArgb(220, 220, 220), drawX, y, drawX, y + _rowHeight);
+                    }
+                    x += colWidth;
+                }
+            }
+        }
+
+        for (int rowIdx = rowStart; rowIdx < rowEnd; rowIdx++)
+        {
+            int y = headerHeight + (rowIdx * _rowHeight) - _verticalScrollOffset;
+            bool isSelected = rowIdx == _selectedRowIndex;
+            var textColor = isSelected ? SystemColors.HighlightText : Color.Black;
 
             int x = rowHeaderWidth - _horizontalScrollOffset;
             for (int col = 0; col < _columns.Count; col++)
@@ -236,19 +276,14 @@ public override void Render(Graphics g)
                     int drawWidth = Math.Min(x + colWidth, rowHeaderWidth + dataWidth) - drawX;
                     if (drawWidth > 0)
                     {
-                        g.DrawLine(Color.FromArgb(220, 220, 220), drawX, y, drawX, y + _rowHeight);
-
                         var cell = _rows[rowIdx].Cells.Count > col ? _rows[rowIdx].Cells[col] : null;
                         var text = cell?.Value?.ToString() ?? "";
-                        var textColor = isSelected ? SystemColors.HighlightText : Color.Black;
                         var font = Font.Default;
                         g.DrawString(text, font, textColor, drawX + 4, y + (_rowHeight - (int)font.Size) / 2);
                     }
                 }
                 x += colWidth;
             }
-
-            g.DrawLine(Color.FromArgb(180, 180, 180), rowHeaderWidth, y + _rowHeight, rowHeaderWidth + dataWidth, y + _rowHeight);
         }
 
         if (_allowUserToAddRows)

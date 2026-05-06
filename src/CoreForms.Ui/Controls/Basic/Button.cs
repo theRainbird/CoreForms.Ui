@@ -47,7 +47,6 @@ public class Button : Control
     {
         _isPressed = false;
         base.OnMouseUp(e);
-        OnClick(EventArgs.Empty);
     }
 
     protected override void OnMouseEnter(EventArgs e)
@@ -61,10 +60,6 @@ public class Button : Control
         _isHovered = false;
         base.OnMouseLeave(e);
     }
-
-    public new event EventHandler? Click;
-
-    protected internal virtual void OnClick(EventArgs e) => Click?.Invoke(this, e);
 
     public void PerformClick()
     {

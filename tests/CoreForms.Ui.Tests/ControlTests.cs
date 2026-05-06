@@ -107,6 +107,56 @@ public class ControlTests
     }
 
     [Fact]
+    public void CheckBox_OnMouseUp_ShouldToggleChecked()
+    {
+        var checkBox = new CheckBox { Text = "Agree" };
+        Assert.False(checkBox.Checked);
+
+        checkBox.OnMouseUp(EventArgs.Empty);
+        Assert.True(checkBox.Checked);
+
+        checkBox.OnMouseUp(EventArgs.Empty);
+        Assert.False(checkBox.Checked);
+    }
+
+    [Fact]
+    public void CheckBox_OnMouseUp_ShouldFireCheckedChanged()
+    {
+        var checkBox = new CheckBox { Text = "Agree" };
+        var changedCount = 0;
+        checkBox.CheckedChanged += (s, e) => changedCount++;
+
+        checkBox.OnMouseUp(EventArgs.Empty);
+        Assert.Equal(1, changedCount);
+
+        checkBox.OnMouseUp(EventArgs.Empty);
+        Assert.Equal(2, changedCount);
+    }
+
+    [Fact]
+    public void RadioButton_OnMouseUp_ShouldSetChecked()
+    {
+        var radioButton = new RadioButton { Text = "Option 1" };
+        Assert.False(radioButton.Checked);
+
+        radioButton.OnMouseUp(EventArgs.Empty);
+        Assert.True(radioButton.Checked);
+    }
+
+    [Fact]
+    public void Button_OnMouseUp_ShouldFireClick()
+    {
+        var button = new Button { Text = "Click Me" };
+        var clicked = false;
+        button.Click += (s, e) => clicked = true;
+
+        button.OnMouseDown(EventArgs.Empty);
+        button.OnMouseUp(EventArgs.Empty);
+
+        Assert.True(clicked);
+    }
+
+    [Fact]
     public void RadioButton_Checked_ShouldAffectGroup()
     {
         var panel = new CoreForms.Ui.Controls.Containers.Panel();

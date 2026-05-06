@@ -35,7 +35,9 @@ public class CheckBox : Control
 
         if (_checked)
         {
-            g.DrawString("✓", new Font("Arial", 12), Color.Black, 0, (Height - 16) / 2);
+            var boxY = (Height - 16) / 2f;
+            g.DrawLine(Color.Black, 3, boxY + 8, 6, boxY + 11, 3);
+            g.DrawLine(Color.Black, 6, boxY + 11, 13, boxY + 4, 3);
         }
 
         var font = Font ?? Font.Default;

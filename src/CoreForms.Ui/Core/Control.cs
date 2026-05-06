@@ -242,7 +242,11 @@ public class Control : Component
     protected virtual void OnMouseLeave(EventArgs e) => MouseLeave?.Invoke(this, e);
     protected internal virtual void OnMouseMove(EventArgs e) => MouseMove?.Invoke(this, e);
     protected internal virtual void OnMouseDown(EventArgs e) => MouseDown?.Invoke(this, e);
-    protected internal virtual void OnMouseUp(EventArgs e) => MouseUp?.Invoke(this, e);
+    protected internal virtual void OnMouseUp(EventArgs e)
+    {
+        MouseUp?.Invoke(this, e);
+        OnClick(EventArgs.Empty);
+    }
     protected internal virtual void OnMouseWheel(EventArgs e) => MouseWheel?.Invoke(this, e);
     protected internal virtual void OnKeyDown(KeyEventArgs e) => KeyDown?.Invoke(this, e);
     protected internal virtual void OnKeyPress(KeyPressEventArgs e) => KeyPress?.Invoke(this, e);
