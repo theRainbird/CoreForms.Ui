@@ -1,5 +1,5 @@
 using System.Runtime.InteropServices;
-using System.Runtime.CompilerServices;
+using System.Text;
 using CoreForms.Ui.Core;
 using CoreForms.Ui.Rendering;
 
@@ -395,6 +395,14 @@ public static class Platform
                 case SDL_KEYDOWN:
                     HandleKeyEvent(e, true);
                     break;
+
+                case SDL_KEYUP:
+                    HandleKeyEvent(e, false);
+                    break;
+
+                case SDL_TEXTINPUT:
+                    HandleTextInputEvent(e);
+                    break;
             }
         }
 
@@ -503,14 +511,84 @@ private static void HandleMouseMotionEvent(SDL_Event e)
 
         var args = new KeyEventArgs
         {
-            KeyCode = (Keys)e.keysymSym,
-            Modifiers = ModifierKeys.None
+            KeyCode = MapKeyCode(e.keysymSym),
+            Modifiers = MapModifierKeys(e.keysymMod)
         };
 
         if (isDown)
             _focusedWindow.OnKeyDown(args);
         else
             _focusedWindow.OnKeyUp(args);
+    }
+
+    private const uint SDLK_SCANCODE_MASK = 0x40000000;
+
+    private static Keys MapKeyCode(int sdlKey)
+    {
+        if ((sdlKey & SDLK_SCANCODE_MASK) == 0)
+        {
+            if (sdlKey == 127)
+                return Keys.Delete;
+            if (sdlKey >= 0 && sdlKey <= 127)
+                return (Keys)sdlKey;
+            return Keys.None;
+        }
+
+        return sdlKey switch
+        {
+            0x40000050 => Keys.Left,
+            0x40000052 => Keys.Up,
+            0x4000004F => Keys.Right,
+            0x40000051 => Keys.Down,
+            0x4000004A => Keys.Home,
+            0x4000004D => Keys.End,
+            0x4000004B => Keys.PageUp,
+            0x4000004E => Keys.PageDown,
+            0x40000049 => Keys.Insert,
+            0x4000003A => Keys.F1,
+            0x4000003B => Keys.F2,
+            0x4000003C => Keys.F3,
+            0x4000003D => Keys.F4,
+            0x4000003E => Keys.F5,
+            0x4000003F => Keys.F6,
+            0x40000040 => Keys.F7,
+            0x40000041 => Keys.F8,
+            0x40000042 => Keys.F9,
+            0x40000043 => Keys.F10,
+            0x40000044 => Keys.F11,
+            0x40000045 => Keys.F12,
+            _ => Keys.None
+        };
+    }
+
+    private static ModifierKeys MapModifierKeys(ushort sdlMod)
+    {
+        var modifiers = ModifierKeys.None;
+        if ((sdlMod & 0x01) != 0 || (sdlMod & 0x02) != 0)
+            modifiers |= ModifierKeys.Shift;
+        if ((sdlMod & 0x40) != 0 || (sdlMod & 0x80) != 0)
+            modifiers |= ModifierKeys.Control;
+        if ((sdlMod & 0x0100) != 0 || (sdlMod & 0x0200) != 0)
+            modifiers |= ModifierKeys.Alt;
+        return modifiers;
+    }
+
+    private static void HandleTextInputEvent(SDL_Event e)
+    {
+        if (_focusedWindow == null) return;
+
+        var bytes = MemoryMarshal.AsBytes(MemoryMarshal.CreateReadOnlySpan(ref e, 1));
+        int len = 0;
+        for (int i = 12; i < 12 + 32 && i < bytes.Length; i++)
+        {
+            if (bytes[i] == 0) break;
+            len++;
+        }
+        if (len > 0)
+        {
+            var text = Encoding.UTF8.GetString(bytes.Slice(12, len));
+            _focusedWindow.OnTextInput(text);
+        }
     }
 
     private static void RenderForm(Form form)

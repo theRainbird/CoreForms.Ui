@@ -39,7 +39,11 @@ public class ListBox : Control
         if (!Visible) return;
 
         g.FillRectangle(BackColor, 0, 0, Width, Height);
-        g.DrawRectangle(Color.FromArgb(128, 128, 128), 0, 0, Width, Height, 1);
+
+        if (Focused)
+            g.DrawRectangle(SystemColors.Highlight, 0, 0, Width, Height, 2);
+        else
+            g.DrawRectangle(Color.FromArgb(128, 128, 128), 0, 0, Width, Height, 1);
 
         var font = Font ?? Font.Default;
         var itemHeight = (int)font.Size + 4;
@@ -81,6 +85,42 @@ public class ListBox : Control
         }
 
         base.OnMouseDown(e);
+    }
+
+    protected internal override void OnKeyDown(KeyEventArgs e)
+    {
+        switch (e.KeyCode)
+        {
+            case Keys.Up:
+                if (_selectedIndex > 0)
+                {
+                    SelectedIndex--;
+                    e.Handled = true;
+                }
+                break;
+            case Keys.Down:
+                if (_selectedIndex < _items.Count - 1)
+                {
+                    SelectedIndex++;
+                    e.Handled = true;
+                }
+                break;
+            case Keys.Home:
+                if (_items.Count > 0)
+                {
+                    SelectedIndex = 0;
+                    e.Handled = true;
+                }
+                break;
+            case Keys.End:
+                if (_items.Count > 0)
+                {
+                    SelectedIndex = _items.Count - 1;
+                    e.Handled = true;
+                }
+                break;
+        }
+        base.OnKeyDown(e);
     }
 
     protected virtual void OnSelectedIndexChanged()

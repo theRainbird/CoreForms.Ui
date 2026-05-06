@@ -85,6 +85,28 @@ public class TabControl : ContainerControl
         SelectedIndexChanged?.Invoke(this, EventArgs.Empty);
     }
 
+    protected internal override void OnKeyDown(KeyEventArgs e)
+    {
+        switch (e.KeyCode)
+        {
+            case Keys.Left:
+                if (_selectedIndex > 0)
+                {
+                    SelectedIndex--;
+                    e.Handled = true;
+                }
+                break;
+            case Keys.Right:
+                if (_selectedIndex < _tabPages.Count - 1)
+                {
+                    SelectedIndex++;
+                    e.Handled = true;
+                }
+                break;
+        }
+        base.OnKeyDown(e);
+    }
+
     public event EventHandler? SelectedIndexChanged;
 }
 

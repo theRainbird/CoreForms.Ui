@@ -168,7 +168,11 @@ public override void Render(Graphics g)
         int rowEnd = Math.Min(_rows.Count, rowStart + (dataHeight / _rowHeight) + 2);
 
         g.FillRectangle(BackColor, 0, 0, Width, Height);
-        g.DrawRectangle(Color.FromArgb(180, 180, 180), 0, 0, Width, Height, 1);
+
+        if (Focused)
+            g.DrawRectangle(SystemColors.Highlight, 0, 0, Width, Height, 2);
+        else
+            g.DrawRectangle(Color.FromArgb(180, 180, 180), 0, 0, Width, Height, 1);
 
         if (_columnHeadersVisible)
         {
@@ -332,6 +336,7 @@ public override void Render(Graphics g)
                 _selectedRowIndex = row;
                 _selectedColumnIndex = col;
                 OnCellClick(new DataGridViewCellEventArgs(col, row));
+                OnSelectionChanged();
                 Invalidate();
             }
             else if (row >= _rows.Count && _allowUserToAddRows)
@@ -341,6 +346,112 @@ public override void Render(Graphics g)
         }
 
         base.OnMouseDown(e);
+    }
+
+    protected internal override void OnKeyDown(KeyEventArgs e)
+    {
+        switch (e.KeyCode)
+        {
+            case Keys.Up:
+                if (_selectedRowIndex > 0)
+                {
+                    _selectedRowIndex--;
+                    EnsureRowVisible(_selectedRowIndex);
+                    OnSelectionChanged();
+                    Invalidate();
+                    e.Handled = true;
+                }
+                break;
+            case Keys.Down:
+                if (_selectedRowIndex < _rows.Count - 1)
+                {
+                    _selectedRowIndex++;
+                    EnsureRowVisible(_selectedRowIndex);
+                    OnSelectionChanged();
+                    Invalidate();
+                    e.Handled = true;
+                }
+                break;
+            case Keys.Left:
+                if (_selectedColumnIndex > 0)
+                {
+                    _selectedColumnIndex--;
+                    OnSelectionChanged();
+                    Invalidate();
+                    e.Handled = true;
+                }
+                break;
+            case Keys.Right:
+                if (_selectedColumnIndex < _columns.Count - 1)
+                {
+                    _selectedColumnIndex++;
+                    OnSelectionChanged();
+                    Invalidate();
+                    e.Handled = true;
+                }
+                break;
+            case Keys.Home:
+                if (_rows.Count > 0)
+                {
+                    _selectedRowIndex = 0;
+                    _selectedColumnIndex = 0;
+                    _verticalScrollOffset = 0;
+                    _horizontalScrollOffset = 0;
+                    OnSelectionChanged();
+                    Invalidate();
+                    e.Handled = true;
+                }
+                break;
+            case Keys.End:
+                if (_rows.Count > 0)
+                {
+                    _selectedRowIndex = _rows.Count - 1;
+                    _selectedColumnIndex = _columns.Count > 0 ? _columns.Count - 1 : 0;
+                    EnsureRowVisible(_selectedRowIndex);
+                    OnSelectionChanged();
+                    Invalidate();
+                    e.Handled = true;
+                }
+                break;
+            case Keys.PageUp:
+                if (_rows.Count > 0 && _selectedRowIndex > 0)
+                {
+                    int headerHeight = _columnHeadersVisible ? _rowHeight : 0;
+                    int visibleRows = (Height - headerHeight) / _rowHeight;
+                    _selectedRowIndex = Math.Max(0, _selectedRowIndex - visibleRows);
+                    EnsureRowVisible(_selectedRowIndex);
+                    OnSelectionChanged();
+                    Invalidate();
+                    e.Handled = true;
+                }
+                break;
+            case Keys.PageDown:
+                if (_rows.Count > 0 && _selectedRowIndex < _rows.Count - 1)
+                {
+                    int headerHeight = _columnHeadersVisible ? _rowHeight : 0;
+                    int visibleRows = (Height - headerHeight) / _rowHeight;
+                    _selectedRowIndex = Math.Min(_rows.Count - 1, _selectedRowIndex + visibleRows);
+                    EnsureRowVisible(_selectedRowIndex);
+                    OnSelectionChanged();
+                    Invalidate();
+                    e.Handled = true;
+                }
+                break;
+        }
+        base.OnKeyDown(e);
+    }
+
+    private void EnsureRowVisible(int rowIndex)
+    {
+        int headerHeight = _columnHeadersVisible ? _rowHeight : 0;
+        int dataHeight = Height - headerHeight;
+        int rowTop = rowIndex * _rowHeight;
+        int rowBottom = rowTop + _rowHeight;
+
+        if (rowTop < _verticalScrollOffset)
+            _verticalScrollOffset = rowTop;
+        else if (rowBottom > _verticalScrollOffset + dataHeight)
+            _verticalScrollOffset = rowBottom - dataHeight;
     }
 
     protected internal override void OnMouseWheel(EventArgs e)

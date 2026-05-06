@@ -3,18 +3,21 @@ namespace CoreForms.Ui.Core;
 public class ContainerControl : Control
 {
     private Control? _activeControl;
-    private bool _focused;
 
     public Control? ActiveControl
     {
         get => _activeControl;
-        set => _activeControl = value;
-    }
-
-    public bool Focused
-    {
-        get => _focused;
-        set => _focused = value;
+        set
+        {
+            if (_activeControl != value)
+            {
+                if (_activeControl != null)
+                    _activeControl.Focused = false;
+                _activeControl = value;
+                if (_activeControl != null)
+                    _activeControl.Focused = true;
+            }
+        }
     }
 
     protected internal override void OnMouseDown(EventArgs e)

@@ -10,7 +10,6 @@ public class Form : ContainerControl
     private bool _topMost;
     private FormBorderStyle _formBorderStyle = FormBorderStyle.Sizable;
 private IntPtr _handle;
-    private bool _focused;
 
     public IntPtr Handle => _handle;
     public uint WindowId { get; internal set; }
@@ -42,23 +41,12 @@ private IntPtr _handle;
     public FormBorderStyle FormBorderStyle
     {
         get => _formBorderStyle;
-        set
-        {
-            _formBorderStyle = value;
-        }
-    }
-
-    public new bool Focused
-    {
-        get => _focused;
-        internal set => _focused = value;
+        set => _formBorderStyle = value;
     }
 
     public event EventHandler? Shown;
     public event EventHandler? Resize;
     public event EventHandler? FormClosing;
-    public event EventHandler? GotFocus;
-    public event EventHandler? LostFocus;
     public event EventHandler<TextInputEventArgs>? TextInput;
 
     public override void Create()
@@ -139,6 +127,7 @@ private IntPtr _handle;
             {
                 var localArgs = new MouseEventArgs(args.Button, args.Clicks, args.X - target.X, args.Y - target.Y, args.Delta);
                 target.OnMouseDown(localArgs);
+                ActiveControl = target;
                 return;
             }
         }
@@ -209,9 +198,55 @@ private IntPtr _handle;
     protected internal virtual void OnResize(EventArgs e) => Resize?.Invoke(this, e);
     protected internal virtual void OnFormClosing(FormClosingEventArgs e) => FormClosing?.Invoke(this, e);
     protected internal virtual void OnWindowStateChanged() { }
-    protected internal virtual void OnGotFocus(EventArgs e) => GotFocus?.Invoke(this, e);
-    protected internal virtual void OnLostFocus(EventArgs e) => LostFocus?.Invoke(this, e);
-    protected internal virtual void OnTextInput(string text) => TextInput?.Invoke(this, new TextInputEventArgs(text));
+
+    protected internal override void OnGotFocus(EventArgs e)
+    {
+        base.OnGotFocus(e);
+    }
+
+    protected internal override void OnLostFocus(EventArgs e)
+    {
+        base.OnLostFocus(e);
+    }
+
+    protected internal override void OnTextInput(string text)
+    {
+        if (ActiveControl != null)
+        {
+            ActiveControl.OnTextInput(text);
+        }
+        TextInput?.Invoke(this, new TextInputEventArgs(text));
+    }
+
+    protected internal override void OnKeyDown(KeyEventArgs e)
+    {
+        if (ActiveControl != null)
+        {
+            ActiveControl.OnKeyDown(e);
+            if (e.Handled) return;
+        }
+        base.OnKeyDown(e);
+    }
+
+    protected internal override void OnKeyUp(KeyEventArgs e)
+    {
+        if (ActiveControl != null)
+        {
+            ActiveControl.OnKeyUp(e);
+            if (e.Handled) return;
+        }
+        base.OnKeyUp(e);
+    }
+
+    protected internal override void OnKeyPress(KeyPressEventArgs e)
+    {
+        if (ActiveControl != null)
+        {
+            ActiveControl.OnKeyPress(e);
+            if (e.Handled) return;
+        }
+        base.OnKeyPress(e);
+    }
 
     private void UpdateTitle()
     {

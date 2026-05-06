@@ -1,5 +1,6 @@
 using CoreForms.Ui.Core;
 using CoreForms.Ui.Controls.Basic;
+using CoreForms.Ui.Controls.Advanced;
 using Xunit;
 
 namespace CoreForms.Ui.Tests;
@@ -12,8 +13,8 @@ public class ControlTests
         var control = new Label();
         Assert.Equal(0, control.X);
         Assert.Equal(0, control.Y);
-        Assert.Equal(100, control.Width);
-        Assert.Equal(20, control.Height);
+        Assert.Equal(150, control.Width);
+        Assert.Equal(28, control.Height);
     }
 
     [Fact]
@@ -194,5 +195,275 @@ public class ControlTests
         comboBox.Items.Add("Choice 2");
 
         Assert.Equal(2, comboBox.Items.Count);
+    }
+
+    [Fact]
+    public void CheckBox_OnKeyDown_Space_ShouldToggleChecked()
+    {
+        var checkBox = new CheckBox { Text = "Agree" };
+        Assert.False(checkBox.Checked);
+
+        checkBox.OnKeyDown(new KeyEventArgs { KeyCode = Keys.Space, Modifiers = ModifierKeys.None });
+        Assert.True(checkBox.Checked);
+
+        checkBox.OnKeyDown(new KeyEventArgs { KeyCode = Keys.Space, Modifiers = ModifierKeys.None });
+        Assert.False(checkBox.Checked);
+    }
+
+    [Fact]
+    public void CheckBox_OnKeyDown_Space_ShouldSetHandled()
+    {
+        var checkBox = new CheckBox();
+        var args = new KeyEventArgs { KeyCode = Keys.Space, Modifiers = ModifierKeys.None };
+        checkBox.OnKeyDown(args);
+        Assert.True(args.Handled);
+    }
+
+    [Fact]
+    public void Button_OnKeyDown_Enter_ShouldFireClick()
+    {
+        var button = new Button { Text = "Click Me" };
+        var clicked = false;
+        button.Click += (s, e) => clicked = true;
+
+        button.OnKeyDown(new KeyEventArgs { KeyCode = Keys.Enter, Modifiers = ModifierKeys.None });
+        Assert.True(clicked);
+    }
+
+    [Fact]
+    public void Button_OnKeyDown_Space_ShouldFireClick()
+    {
+        var button = new Button { Text = "Click Me" };
+        var clicked = false;
+        button.Click += (s, e) => clicked = true;
+
+        button.OnKeyDown(new KeyEventArgs { KeyCode = Keys.Space, Modifiers = ModifierKeys.None });
+        Assert.True(clicked);
+    }
+
+    [Fact]
+    public void Button_OnKeyDown_Enter_ShouldSetHandled()
+    {
+        var button = new Button();
+        var args = new KeyEventArgs { KeyCode = Keys.Enter, Modifiers = ModifierKeys.None };
+        button.OnKeyDown(args);
+        Assert.True(args.Handled);
+    }
+
+    [Fact]
+    public void RadioButton_OnKeyDown_Space_ShouldSetChecked()
+    {
+        var radioButton = new RadioButton { Text = "Option 1" };
+        Assert.False(radioButton.Checked);
+
+        radioButton.OnKeyDown(new KeyEventArgs { KeyCode = Keys.Space, Modifiers = ModifierKeys.None });
+        Assert.True(radioButton.Checked);
+    }
+
+    [Fact]
+    public void ListBox_OnKeyDown_Down_ShouldMoveSelection()
+    {
+        var listBox = new ListBox();
+        listBox.Items.Add("A");
+        listBox.Items.Add("B");
+        listBox.Items.Add("C");
+        listBox.SelectedIndex = 0;
+
+        listBox.OnKeyDown(new KeyEventArgs { KeyCode = Keys.Down, Modifiers = ModifierKeys.None });
+        Assert.Equal(1, listBox.SelectedIndex);
+    }
+
+    [Fact]
+    public void ListBox_OnKeyDown_Up_ShouldMoveSelection()
+    {
+        var listBox = new ListBox();
+        listBox.Items.Add("A");
+        listBox.Items.Add("B");
+        listBox.Items.Add("C");
+        listBox.SelectedIndex = 2;
+
+        listBox.OnKeyDown(new KeyEventArgs { KeyCode = Keys.Up, Modifiers = ModifierKeys.None });
+        Assert.Equal(1, listBox.SelectedIndex);
+    }
+
+    [Fact]
+    public void ListBox_OnKeyDown_Home_ShouldMoveToFirst()
+    {
+        var listBox = new ListBox();
+        listBox.Items.Add("A");
+        listBox.Items.Add("B");
+        listBox.Items.Add("C");
+        listBox.SelectedIndex = 2;
+
+        listBox.OnKeyDown(new KeyEventArgs { KeyCode = Keys.Home, Modifiers = ModifierKeys.None });
+        Assert.Equal(0, listBox.SelectedIndex);
+    }
+
+    [Fact]
+    public void ListBox_OnKeyDown_End_ShouldMoveToLast()
+    {
+        var listBox = new ListBox();
+        listBox.Items.Add("A");
+        listBox.Items.Add("B");
+        listBox.Items.Add("C");
+        listBox.SelectedIndex = 0;
+
+        listBox.OnKeyDown(new KeyEventArgs { KeyCode = Keys.End, Modifiers = ModifierKeys.None });
+        Assert.Equal(2, listBox.SelectedIndex);
+    }
+
+    [Fact]
+    public void Control_Focused_ShouldFireGotFocusEvent()
+    {
+        var control = new Label();
+        var gotFocus = false;
+        control.GotFocus += (s, e) => gotFocus = true;
+
+        control.Focused = true;
+        Assert.True(gotFocus);
+    }
+
+    [Fact]
+    public void Control_Focused_ShouldFireLostFocusEvent()
+    {
+        var control = new Label();
+        control.Focused = true;
+        var lostFocus = false;
+        control.LostFocus += (s, e) => lostFocus = true;
+
+        control.Focused = false;
+        Assert.True(lostFocus);
+    }
+
+    [Fact]
+    public void ContainerControl_ActiveControl_ShouldSetFocused()
+    {
+        var panel = new CoreForms.Ui.Controls.Containers.Panel();
+        var label = new Label();
+        panel.Controls.Add(label);
+
+        panel.ActiveControl = label;
+        Assert.True(label.Focused);
+
+        panel.ActiveControl = null;
+        Assert.False(label.Focused);
+    }
+
+    [Fact]
+    public void ContainerControl_ActiveControl_ChangeShouldUnfocusOld()
+    {
+        var panel = new CoreForms.Ui.Controls.Containers.Panel();
+        var label1 = new Label();
+        var label2 = new Label();
+        panel.Controls.Add(label1);
+        panel.Controls.Add(label2);
+
+        panel.ActiveControl = label1;
+        Assert.True(label1.Focused);
+
+        panel.ActiveControl = label2;
+        Assert.False(label1.Focused);
+        Assert.True(label2.Focused);
+    }
+
+    [Fact]
+    public void DataGridView_OnKeyDown_Down_ShouldMoveSelection()
+    {
+        var grid = new CoreForms.Ui.Controls.Advanced.DataGridView();
+        grid.Columns.Add(new CoreForms.Ui.Controls.Advanced.DataGridViewColumn { HeaderText = "Col1" });
+        grid.AddRow("A1");
+        grid.AddRow("A2");
+        grid.AddRow("A3");
+        grid.SelectedRowIndex = 0;
+
+        grid.OnKeyDown(new KeyEventArgs { KeyCode = Keys.Down, Modifiers = ModifierKeys.None });
+        Assert.Equal(1, grid.SelectedRowIndex);
+    }
+
+    [Fact]
+    public void DataGridView_OnKeyDown_Up_ShouldMoveSelection()
+    {
+        var grid = new CoreForms.Ui.Controls.Advanced.DataGridView();
+        grid.Columns.Add(new CoreForms.Ui.Controls.Advanced.DataGridViewColumn { HeaderText = "Col1" });
+        grid.AddRow("A1");
+        grid.AddRow("A2");
+        grid.AddRow("A3");
+        grid.SelectedRowIndex = 2;
+
+        grid.OnKeyDown(new KeyEventArgs { KeyCode = Keys.Up, Modifiers = ModifierKeys.None });
+        Assert.Equal(1, grid.SelectedRowIndex);
+    }
+
+    [Fact]
+    public void TabControl_OnKeyDown_Right_ShouldSwitchTab()
+    {
+        var tabControl = new CoreForms.Ui.Controls.Advanced.TabControl();
+        tabControl.TabPages.Add(new CoreForms.Ui.Controls.Advanced.TabPage { Text = "Tab1" });
+        tabControl.TabPages.Add(new CoreForms.Ui.Controls.Advanced.TabPage { Text = "Tab2" });
+
+        Assert.Equal(0, tabControl.SelectedIndex);
+
+        tabControl.OnKeyDown(new KeyEventArgs { KeyCode = Keys.Right, Modifiers = ModifierKeys.None });
+        Assert.Equal(1, tabControl.SelectedIndex);
+    }
+
+    [Fact]
+    public void TabControl_OnKeyDown_Left_ShouldSwitchTab()
+    {
+        var tabControl = new CoreForms.Ui.Controls.Advanced.TabControl();
+        tabControl.TabPages.Add(new CoreForms.Ui.Controls.Advanced.TabPage { Text = "Tab1" });
+        tabControl.TabPages.Add(new CoreForms.Ui.Controls.Advanced.TabPage { Text = "Tab2" });
+        tabControl.SelectedIndex = 1;
+
+        tabControl.OnKeyDown(new KeyEventArgs { KeyCode = Keys.Left, Modifiers = ModifierKeys.None });
+        Assert.Equal(0, tabControl.SelectedIndex);
+    }
+
+    [Fact]
+    public void ComboBox_OnKeyDown_Down_ShouldMoveSelection()
+    {
+        var comboBox = new ComboBox();
+        comboBox.Items.Add("Item 1");
+        comboBox.Items.Add("Item 2");
+        comboBox.Items.Add("Item 3");
+        comboBox.SelectedIndex = 0;
+
+        comboBox.OnKeyDown(new KeyEventArgs { KeyCode = Keys.Down, Modifiers = ModifierKeys.None });
+        Assert.Equal(1, comboBox.SelectedIndex);
+    }
+
+    [Fact]
+    public void ComboBox_OnKeyDown_Up_ShouldMoveSelection()
+    {
+        var comboBox = new ComboBox();
+        comboBox.Items.Add("Item 1");
+        comboBox.Items.Add("Item 2");
+        comboBox.Items.Add("Item 3");
+        comboBox.SelectedIndex = 2;
+
+        comboBox.OnKeyDown(new KeyEventArgs { KeyCode = Keys.Up, Modifiers = ModifierKeys.None });
+        Assert.Equal(1, comboBox.SelectedIndex);
+    }
+
+    [Fact]
+    public void TextBox_OnKeyDown_Backspace_ShouldDeleteChar()
+    {
+        var textBox = new TextBox();
+        textBox.Text = "Hello";
+        textBox.SelectionStart = 5;
+
+        textBox.OnKeyDown(new KeyEventArgs { KeyCode = Keys.Back, Modifiers = ModifierKeys.None });
+        Assert.Equal("Hell", textBox.Text);
+    }
+
+    [Fact]
+    public void TextBox_OnTextInput_ShouldInsertChar()
+    {
+        var textBox = new TextBox();
+        textBox.Text = "Hllo";
+        textBox.SelectionStart = 1;
+
+        textBox.OnTextInput("e");
+        Assert.Equal("Hello", textBox.Text);
     }
 }

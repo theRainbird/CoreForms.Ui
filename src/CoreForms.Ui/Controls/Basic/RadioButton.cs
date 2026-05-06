@@ -72,6 +72,16 @@ public class RadioButton : Control
         base.OnClick(e);
     }
 
+    protected internal override void OnKeyDown(KeyEventArgs e)
+    {
+        if (e.KeyCode == Keys.Space)
+        {
+            Checked = true;
+            e.Handled = true;
+        }
+        base.OnKeyDown(e);
+    }
+
     protected virtual void OnCheckedChanged()
     {
         CheckedChanged?.Invoke(this, EventArgs.Empty);

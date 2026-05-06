@@ -47,7 +47,11 @@ public class ComboBox : Control
         if (!Visible) return;
 
         g.FillRectangle(BackColor, 0, 0, Width, Height);
-        g.DrawRectangle(Color.FromArgb(128, 128, 128), 0, 0, Width, Height, 1);
+
+        if (Focused)
+            g.DrawRectangle(SystemColors.Highlight, 0, 0, Width, Height, 2);
+        else
+            g.DrawRectangle(Color.FromArgb(128, 128, 128), 0, 0, Width, Height, 1);
 
         var font = Font ?? Font.Default;
         var selectedText = SelectedItem?.ToString() ?? "";
@@ -114,6 +118,39 @@ public class ComboBox : Control
         _droppedDown = !_droppedDown;
         Invalidate();
         base.OnMouseDown(e);
+    }
+
+    protected internal override void OnKeyDown(KeyEventArgs e)
+    {
+        switch (e.KeyCode)
+        {
+            case Keys.Down:
+                if (_selectedIndex < _items.Count - 1)
+                {
+                    SelectedIndex++;
+                    e.Handled = true;
+                }
+                break;
+            case Keys.Up:
+                if (_selectedIndex > 0)
+                {
+                    SelectedIndex--;
+                    e.Handled = true;
+                }
+                break;
+            case Keys.Enter:
+            case Keys.Space:
+                _droppedDown = !_droppedDown;
+                Invalidate();
+                e.Handled = true;
+                break;
+            case Keys.Escape:
+                _droppedDown = false;
+                Invalidate();
+                e.Handled = true;
+                break;
+        }
+        base.OnKeyDown(e);
     }
 
     protected virtual void OnSelectedIndexChanged()

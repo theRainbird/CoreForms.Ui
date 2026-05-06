@@ -116,6 +116,13 @@ class Program
             label.Text = listBox.SelectedItem?.ToString() ?? "";
         };
 
+        var textBox = new TextBox
+        {
+            Location = new Point(250, 350),
+            Size = new Size(200, 32),
+            Text = ""
+        };
+
         form.Controls.Add(label);
         form.Controls.Add(dataGrid);
         form.Controls.Add(comboBox);
@@ -123,6 +130,7 @@ class Program
         form.Controls.Add(progressBar);
         form.Controls.Add(button);
         form.Controls.Add(listBox);
+        form.Controls.Add(textBox);
 
         Application.Run(form);
     }

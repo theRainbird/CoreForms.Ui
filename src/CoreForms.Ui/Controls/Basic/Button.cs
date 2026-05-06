@@ -12,7 +12,6 @@ public class Button : Control
     {
         BackColor = SystemColors.Control;
         Size = new Size(120, 40);
-        TabStop = true;
     }
 
     public override void Render(Rendering.Graphics g)
@@ -27,6 +26,11 @@ public class Button : Control
 
         g.FillRectangle(bgColor, 0, 0, Width, Height);
         g.DrawRectangle(Color.FromArgb(128, 128, 128), 0, 0, Width, Height, 1);
+
+        if (Focused)
+        {
+            g.DrawRectangle(SystemColors.Highlight, 2, 2, Width - 4, Height - 4, 1);
+        }
 
         var font = Font ?? Font.Default;
         var textSize = Text.Length * (int)font.Size * 0.6f;
@@ -61,10 +65,18 @@ public class Button : Control
         base.OnMouseLeave(e);
     }
 
+    protected internal override void OnKeyDown(KeyEventArgs e)
+    {
+        if (e.KeyCode == Keys.Enter || e.KeyCode == Keys.Space)
+        {
+            PerformClick();
+            e.Handled = true;
+        }
+        base.OnKeyDown(e);
+    }
+
     public void PerformClick()
     {
         OnClick(EventArgs.Empty);
     }
-
-    public bool TabStop { get; set; }
 }

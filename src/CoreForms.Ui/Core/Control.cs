@@ -17,6 +17,9 @@ public class Control : Component
     private string _text = string.Empty;
     private AnchorStyles _anchor = AnchorStyles.Top | AnchorStyles.Left;
     private DockStyle _dock = DockStyle.None;
+    private bool _focused;
+    private bool _tabStop;
+    private int _tabIndex;
 
     public string Name
     {
@@ -162,6 +165,34 @@ public class Control : Component
         set => _dock = value;
     }
 
+    public bool Focused
+    {
+        get => _focused;
+        internal set
+        {
+            if (_focused != value)
+            {
+                _focused = value;
+                if (value)
+                    OnGotFocus(EventArgs.Empty);
+                else
+                    OnLostFocus(EventArgs.Empty);
+            }
+        }
+    }
+
+    public bool TabStop
+    {
+        get => _tabStop;
+        set => _tabStop = value;
+    }
+
+    public int TabIndex
+    {
+        get => _tabIndex;
+        set => _tabIndex = value;
+    }
+
     public ControlCollection Controls => _controls ??= new ControlCollection(this);
 
     public virtual void Create()
@@ -235,6 +266,8 @@ public class Control : Component
     public event EventHandler? KeyDown;
     public event EventHandler? KeyPress;
     public event EventHandler? KeyUp;
+    public event EventHandler? GotFocus;
+    public event EventHandler? LostFocus;
 
     protected virtual void OnClick(EventArgs e) => Click?.Invoke(this, e);
     protected virtual void OnDoubleClick(EventArgs e) => DoubleClick?.Invoke(this, e);
@@ -251,6 +284,9 @@ public class Control : Component
     protected internal virtual void OnKeyDown(KeyEventArgs e) => KeyDown?.Invoke(this, e);
     protected internal virtual void OnKeyPress(KeyPressEventArgs e) => KeyPress?.Invoke(this, e);
     protected internal virtual void OnKeyUp(KeyEventArgs e) => KeyUp?.Invoke(this, e);
+    protected internal virtual void OnTextInput(string text) { }
+    protected internal virtual void OnGotFocus(EventArgs e) => GotFocus?.Invoke(this, e);
+    protected internal virtual void OnLostFocus(EventArgs e) => LostFocus?.Invoke(this, e);
 }
 
 public class ControlCollection : IEnumerable<Control>
