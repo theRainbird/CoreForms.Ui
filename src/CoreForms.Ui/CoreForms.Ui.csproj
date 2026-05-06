@@ -13,13 +13,18 @@
   </ItemGroup>
 
   <ItemGroup>
-    <EmbeddedResource Include="Resources\Icons\*.bmp" />
+    <EmbeddedResource Include="Resources\Icons\*.svg" />
   </ItemGroup>
 
   <ItemGroup>
     <AssemblyAttribute Include="System.Runtime.CompilerServices.InternalsVisibleTo">
       <_Parameter1>CoreForms.Ui.Tests</_Parameter1>
     </AssemblyAttribute>
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="SkiaSharp.NativeAssets.Linux" Version="2.88.9" />
+    <PackageReference Include="Svg.Skia" Version="4.6.0" />
   </ItemGroup>
 
 </Project>

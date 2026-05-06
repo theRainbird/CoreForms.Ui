@@ -3,6 +3,8 @@ using System.Runtime.InteropServices;
 using System.Text;
 using CoreForms.Ui.Core;
 using CoreForms.Ui.Rendering;
+using SkiaSharp;
+using Svg.Skia;
 
 namespace CoreForms.Ui.Platform;
 
@@ -98,19 +100,28 @@ public static class Platform
     private static extern uint SDL_GetWindowID(IntPtr window);
 
 [DllImport("SDL2", CallingConvention = CallingConvention.Cdecl)]
-    private static extern IntPtr SDL_RWFromMem(byte[] mem, int size);
-
-    [DllImport("SDL2", CallingConvention = CallingConvention.Cdecl)]
-    private static extern void SDL_FreeSurface(IntPtr surface);
-
-    [DllImport("SDL2", CallingConvention = CallingConvention.Cdecl)]
-    private static extern IntPtr SDL_CreateTextureFromSurface(IntPtr renderer, IntPtr surface);
-
-    [DllImport("SDL2", CallingConvention = CallingConvention.Cdecl)]
     private static extern void SDL_DestroyTexture(IntPtr texture);
 
     [DllImport("SDL2", CallingConvention = CallingConvention.Cdecl)]
-    private static extern IntPtr SDL_LoadBMP_RW(IntPtr src, int freesrc);
+    private static extern IntPtr SDL_CreateTexture(IntPtr renderer, uint format, int access, int w, int h);
+
+    [DllImport("SDL2", CallingConvention = CallingConvention.Cdecl)]
+    private static extern int SDL_UpdateTexture(IntPtr texture, IntPtr rect, IntPtr pixels, int pitch);
+
+    [DllImport("SDL2", CallingConvention = CallingConvention.Cdecl)]
+    private static extern int SDL_LockTexture(IntPtr texture, IntPtr rect, out IntPtr pixels, out int pitch);
+
+    [DllImport("SDL2", CallingConvention = CallingConvention.Cdecl)]
+    private static extern void SDL_UnlockTexture(IntPtr texture);
+
+    [DllImport("SDL2", CallingConvention = CallingConvention.Cdecl)]
+    private static extern int SDL_SetTextureBlendMode(IntPtr texture, int blendMode);
+
+    private const int SDL_BLENDMODE_BLEND = 1;
+    private const int SDL_TEXTUREACCESS_STREAMING = 1;
+
+    private const uint SDL_PIXELFORMAT_ARGB8888 = 0x16362004;
+    private const uint SDL_PIXELFORMAT_ABGR8888 = 0x16772004;
 
     private const uint SDL_INIT_VIDEO = 0x20;
     private const uint SDL_WINDOW_SHOWN = 0x4;
@@ -484,13 +495,14 @@ public static class Platform
 
     /// <summary>
     /// Loads a message box icon as an SDL texture for the specified renderer.
-    /// Uses BMP format via native SDL2 (no external dependencies required).
+    /// Uses Svg.Skia for resolution-independent SVG icons with alpha transparency.
     /// The texture is cached per (icon, renderer) pair and should not be manually destroyed.
     /// </summary>
     /// <param name="icon">The message box icon type to load.</param>
     /// <param name="rendererHandle">The SDL renderer handle to create the texture for.</param>
+    /// <param name="size">The desired icon size in pixels. Default is 48.</param>
     /// <returns>The SDL texture handle, or IntPtr.Zero if the icon could not be loaded.</returns>
-    public static IntPtr LoadMessageBoxIcon(MessageBoxIcon icon, IntPtr rendererHandle)
+    public static IntPtr LoadMessageBoxIcon(MessageBoxIcon icon, IntPtr rendererHandle, int size = 48)
     {
         if (icon == MessageBoxIcon.None)
             return IntPtr.Zero;
@@ -503,31 +515,7 @@ public static class Platform
         if (resourceName == null)
             return IntPtr.Zero;
 
-        var assembly = typeof(Platform).Assembly;
-        using var stream = assembly.GetManifestResourceStream(resourceName);
-        if (stream == null)
-            return IntPtr.Zero;
-
-        byte[] data = new byte[stream.Length];
-        int totalRead = 0;
-        while (totalRead < data.Length)
-        {
-            int read = stream.Read(data, totalRead, data.Length - totalRead);
-            if (read == 0) break;
-            totalRead += read;
-        }
-
-        IntPtr rwOps = SDL_RWFromMem(data, data.Length);
-        if (rwOps == IntPtr.Zero)
-            return IntPtr.Zero;
-
-        IntPtr surface = SDL_LoadBMP_RW(rwOps, 1);
-        if (surface == IntPtr.Zero)
-            return IntPtr.Zero;
-
-        IntPtr texture = SDL_CreateTextureFromSurface(rendererHandle, surface);
-        SDL_FreeSurface(surface);
-
+        IntPtr texture = LoadSvgResource(resourceName, rendererHandle, size);
         if (texture != IntPtr.Zero)
         {
             _iconTextureCache[key] = texture;
@@ -536,14 +524,96 @@ public static class Platform
         return texture;
     }
 
+/// <summary>
+    /// Loads an SVG resource from an embedded resource and renders it to an SDL texture
+    /// at the specified pixel size with full alpha transparency support.
+    /// Uses Svg.Skia for pure C# SVG rasterization — no native dependencies beyond SDL2/SkiaSharp.
+    /// </summary>
+    /// <param name="resourceName">The manifest resource name of the SVG file.</param>
+    /// <param name="rendererHandle">The SDL renderer handle to create the texture for.</param>
+    /// <param name="size">The desired width/height in pixels.</param>
+    /// <returns>The SDL texture handle, or IntPtr.Zero if loading failed.</returns>
+    public static IntPtr LoadSvgResource(string resourceName, IntPtr rendererHandle, int size)
+    {
+        try
+        {
+            var assembly = typeof(Platform).Assembly;
+            using var stream = assembly.GetManifestResourceStream(resourceName);
+            if (stream == null)
+                return IntPtr.Zero;
+
+            using var svg = new SKSvg();
+            if (svg.Load(stream) == null)
+                return IntPtr.Zero;
+
+            var picture = svg.Picture;
+            if (picture == null)
+                return IntPtr.Zero;
+
+            using var surface = SKSurface.Create(new SKImageInfo(size, size, SKColorType.Bgra8888, SKAlphaType.Premul));
+            if (surface == null)
+                return IntPtr.Zero;
+
+            var canvas = surface.Canvas;
+            canvas.Clear(SKColors.Transparent);
+
+            if (picture.CullRect.Width > 0 && picture.CullRect.Height > 0)
+            {
+                float scaleX = size / picture.CullRect.Width;
+                float scaleY = size / picture.CullRect.Height;
+                float scale = Math.Min(scaleX, scaleY);
+                float offsetX = (size - picture.CullRect.Width * scale) / 2f;
+                float offsetY = (size - picture.CullRect.Height * scale) / 2f;
+                canvas.Translate(offsetX, offsetY);
+                canvas.Scale(scale, scale);
+            }
+
+            canvas.DrawPicture(picture);
+            canvas.Flush();
+
+            using var image = surface.Snapshot();
+
+            IntPtr texture = SDL_CreateTexture(rendererHandle, SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_STREAMING, size, size);
+            if (texture == IntPtr.Zero)
+                return IntPtr.Zero;
+
+            SDL_SetTextureBlendMode(texture, SDL_BLENDMODE_BLEND);
+
+            IntPtr lockedPixels;
+            int lockedPitch;
+            if (SDL_LockTexture(texture, IntPtr.Zero, out lockedPixels, out lockedPitch) < 0)
+            {
+                SDL_DestroyTexture(texture);
+                return IntPtr.Zero;
+            }
+
+            try
+            {
+                var info = new SKImageInfo(size, size, SKColorType.Bgra8888, SKAlphaType.Premul);
+                image.ReadPixels(info, lockedPixels, lockedPitch);
+            }
+            finally
+            {
+                SDL_UnlockTexture(texture);
+            }
+
+            return texture;
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[SVG] EXCEPTION: {ex.GetType().Name}: {ex.Message}");
+            return IntPtr.Zero;
+        }
+    }
+
     private static string? GetIconResourceName(MessageBoxIcon icon)
     {
         return icon switch
         {
-            MessageBoxIcon.Information => "CoreForms.Ui.Resources.Icons.info-circle.bmp",
-            MessageBoxIcon.Warning => "CoreForms.Ui.Resources.Icons.alert-triangle.bmp",
-            MessageBoxIcon.Error => "CoreForms.Ui.Resources.Icons.circle-x.bmp",
-            MessageBoxIcon.Question => "CoreForms.Ui.Resources.Icons.help-circle.bmp",
+            MessageBoxIcon.Information => "CoreForms.Ui.Resources.Icons.info-circle.svg",
+            MessageBoxIcon.Warning => "CoreForms.Ui.Resources.Icons.alert-triangle.svg",
+            MessageBoxIcon.Error => "CoreForms.Ui.Resources.Icons.circle-x.svg",
+            MessageBoxIcon.Question => "CoreForms.Ui.Resources.Icons.help-circle.svg",
             _ => null
         };
     }

@@ -33,7 +33,7 @@ dotnet run --project samples/CoreForms.Ui.Demo  # Run demo (requires X11/display
 - Graphics (command-list pattern)
 - SdlRenderer (SDL2-based, alpha blending, image/ellipse/triangle drawing)
 - FontRenderer (SDL_ttf-based)
-- SDL_LoadBMP_RW for BMP icon loading (no SDL2_image dependency)
+- SVG icon support via Svg.Skia (resolution-independent, alpha transparency)
 
 **Window Management:**
 - Minimize, Maximize, Restore
@@ -52,7 +52,7 @@ dotnet run --project samples/CoreForms.Ui.Demo  # Run demo (requires X11/display
 **Platform layer uses SDL2 via P/Invoke** - Works on Linux/Windows with SDL2 installed:
 - Linux: `sudo apt install libsdl2-dev libsdl2-ttf-2.0-0`
 - Windows: SDL2.dll in app directory
-- No SDL2_image required - icons use BMP format loaded via native SDL2
+- No native build step required — SVG rendering uses managed Svg.Skia library
 
 **Custom type dependencies** - Avoids System.Drawing conflicts:
 - Custom `Color`, `Font`, `Point`, `Size`, `Rectangle` in `Core/SystemTypes.cs`
@@ -61,16 +61,23 @@ dotnet run --project samples/CoreForms.Ui.Demo  # Run demo (requires X11/display
 
 **Headless limitation** - Demo won't show window without X11/display server.
 
+**Cross-Platform Rule:**
+- All new code must work on both Linux and Windows
+- Native libraries must be available for both platforms (SkiaSharp bundles native libs automatically)
+- P/Invoke must resolve native libraries for both platforms
+- File paths, directory separators, and line endings must be cross-platform compatible
+
 ## Architecture
 - Controls inherit from `CoreForms.Ui.Core.Control`
 - Graphics uses command-list pattern for platform-independent rendering
 - Platform abstraction with SDL2 via direct P/Invoke
+- SVG icons: embedded resources → Svg.Skia parse/rasterize → RGBA pixels → SDL_CreateTexture + SDL_UpdateTexture
 
 ## Code Conventions
 
-**XML-Summary Kommentare:**
-- Alle Klassen, Properties, Events und Methoden in der Codebasis (außer Unit Tests) müssen XML-Summary Kommentare haben
-- XML-Summaries müssen Parameter (`<param name="...">`) und ggf. geworfene Exceptions (`<exception cref="...">`) enthalten
-- Properties müssen den Verwendungszweck dokumentieren
-- Events müssen beschreiben, wann sie ausgelöst werden
-- Methoden müssen die Funktionalität und Parameter beschreiben
+**XML Summary Comments:**
+- All classes, properties, events, and methods in the codebase (except unit tests) must have XML summary comments
+- XML summaries must include parameters (`<param name="...">`) and thrown exceptions (`<exception cref="...">`) where applicable
+- Properties must document their intended purpose
+- Events must describe when they are raised
+- Methods must describe their functionality and parameters
