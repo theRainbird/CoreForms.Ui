@@ -4,6 +4,7 @@ namespace CoreForms.Ui.Rendering;
 
 /// <summary>
 /// Provides SDL2-based rendering implementation for the graphics system.
+/// Each window has its own SdlRenderer instance tied to its native window.
 /// </summary>
 public class SdlRenderer : IDisposable
 {
@@ -53,10 +54,34 @@ public class SdlRenderer : IDisposable
     private static extern int SDL_RenderSetClipRect(IntPtr renderer, IntPtr rect);
 
     [DllImport("SDL2", CallingConvention = CallingConvention.Cdecl)]
+    private static extern int SDL_SetRenderDrawBlendMode(IntPtr renderer, BlendMode blendMode);
+
+    [DllImport("SDL2", CallingConvention = CallingConvention.Cdecl)]
     private static extern IntPtr SDL_CreateFont(string path);
 
     [DllImport("SDL2", CallingConvention = CallingConvention.Cdecl)]
     private static extern int SDL_RenderGeometry(IntPtr renderer, IntPtr texture, SDL_Vertex[] vertices, int num_vertices, int[] indices, int num_indices);
+
+    [DllImport("SDL2", CallingConvention = CallingConvention.Cdecl)]
+    private static extern int SDL_RenderCopy(IntPtr renderer, IntPtr texture, IntPtr srcrect, ref SDL_Rect dstrect);
+
+    [DllImport("SDL2", CallingConvention = CallingConvention.Cdecl)]
+    private static extern void SDL_DestroyTexture(IntPtr texture);
+
+    [DllImport("SDL2", CallingConvention = CallingConvention.Cdecl)]
+    private static extern int SDL_QueryTexture(IntPtr texture, out uint format, out int access, out int w, out int h);
+
+    /// <summary>
+    /// SDL blend modes for alpha compositing.
+    /// </summary>
+    private enum BlendMode : uint
+    {
+        SDL_BLENDMODE_NONE = 0,
+        SDL_BLENDMODE_BLEND = 1,
+        SDL_BLENDMODE_ADD = 2,
+        SDL_BLENDMODE_MOD = 4,
+        SDL_BLENDMODE_MUL = 8
+    }
 
     [StructLayout(LayoutKind.Sequential)]
     private struct SDL_Rect
@@ -119,12 +144,14 @@ public class SdlRenderer : IDisposable
     /// <param name="color">The clear color.</param>
     public void Clear(Core.Color color)
     {
+        SDL_SetRenderDrawBlendMode(_renderer, BlendMode.SDL_BLENDMODE_BLEND);
         SDL_SetRenderDrawColor(_renderer, color.R, color.G, color.B, color.A);
         SDL_RenderClear(_renderer);
     }
 
     /// <summary>
     /// Fills a rectangle with the specified color.
+    /// Supports alpha blending when the color has transparency.
     /// </summary>
     /// <param name="color">The fill color.</param>
     /// <param name="x">The x-coordinate.</param>
@@ -133,6 +160,10 @@ public class SdlRenderer : IDisposable
     /// <param name="height">The height.</param>
     public void FillRectangle(Core.Color color, float x, float y, float width, float height)
     {
+        if (color.A < 255)
+        {
+            SDL_SetRenderDrawBlendMode(_renderer, BlendMode.SDL_BLENDMODE_BLEND);
+        }
         SDL_SetRenderDrawColor(_renderer, color.R, color.G, color.B, color.A);
         var rect = new SDL_Rect { x = (int)x, y = (int)y, w = (int)width, h = (int)height };
         SDL_RenderFillRect(_renderer, ref rect);
@@ -203,7 +234,6 @@ public class SdlRenderer : IDisposable
         if (lineWidth >= 3f)
         {
             var endColor = sdlColor;
-            var endR = (float)x1; var endRY = (float)y1;
             var cap1 = new SDL_Vertex[]
             {
                 new() { position = new SDL_FPoint { x = x1 + nx, y = y1 + ny }, color = endColor, tex_coord = tc },
@@ -248,6 +278,70 @@ public class SdlRenderer : IDisposable
 
         SDL_SetRenderDrawColor(_renderer, color.R, color.G, color.B, color.A);
         SDL_RenderGeometry(_renderer, IntPtr.Zero, vertices, vertices.Length, indices, indices.Length);
+    }
+
+    /// <summary>
+    /// Fills an ellipse within the specified bounding rectangle using triangle fan approximation.
+    /// </summary>
+    /// <param name="color">The fill color.</param>
+    /// <param name="x">The x-coordinate of the bounding rectangle.</param>
+    /// <param name="y">The y-coordinate of the bounding rectangle.</param>
+    /// <param name="width">The width of the bounding rectangle.</param>
+    /// <param name="height">The height of the bounding rectangle.</param>
+    public void FillEllipse(Core.Color color, float x, float y, float width, float height)
+    {
+        SDL_SetRenderDrawBlendMode(_renderer, color.A < 255 ? BlendMode.SDL_BLENDMODE_BLEND : BlendMode.SDL_BLENDMODE_NONE);
+        SDL_SetRenderDrawColor(_renderer, color.R, color.G, color.B, color.A);
+
+        float cx = x + width / 2f;
+        float cy = y + height / 2f;
+        float rx = width / 2f;
+        float ry = height / 2f;
+
+        const int segments = 32;
+        var sdlColor = new SDL_Color { r = color.R, g = color.G, b = color.B, a = color.A };
+        var tc = new SDL_FPoint { x = 0, y = 0 };
+        var center = new SDL_Vertex { position = new SDL_FPoint { x = cx, y = cy }, color = sdlColor, tex_coord = tc };
+
+        for (int i = 0; i < segments; i++)
+        {
+            float angle1 = 2.0f * MathF.PI * i / segments;
+            float angle2 = 2.0f * MathF.PI * (i + 1) / segments;
+
+            var v1 = new SDL_Vertex
+            {
+                position = new SDL_FPoint { x = cx + rx * MathF.Cos(angle1), y = cy + ry * MathF.Sin(angle1) },
+                color = sdlColor,
+                tex_coord = tc
+            };
+            var v2 = new SDL_Vertex
+            {
+                position = new SDL_FPoint { x = cx + rx * MathF.Cos(angle2), y = cy + ry * MathF.Sin(angle2) },
+                color = sdlColor,
+                tex_coord = tc
+            };
+
+            var triVertices = new SDL_Vertex[] { center, v1, v2 };
+            var triIndices = new int[] { 0, 1, 2 };
+            SDL_RenderGeometry(_renderer, IntPtr.Zero, triVertices, 3, triIndices, 3);
+        }
+    }
+
+    /// <summary>
+    /// Draws an image (SDL texture) at the specified location and size.
+    /// </summary>
+    /// <param name="image">The image object (IntPtr SDL texture, or other supported type).</param>
+    /// <param name="x">The x-coordinate.</param>
+    /// <param name="y">The y-coordinate.</param>
+    /// <param name="width">The width.</param>
+    /// <param name="height">The height.</param>
+    public void DrawImage(object image, float x, float y, float width, float height)
+    {
+        if (image is IntPtr texturePtr && texturePtr != IntPtr.Zero)
+        {
+            var dstRect = new SDL_Rect { x = (int)x, y = (int)y, w = (int)width, h = (int)height };
+            SDL_RenderCopy(_renderer, texturePtr, IntPtr.Zero, ref dstRect);
+        }
     }
 
     /// <summary>

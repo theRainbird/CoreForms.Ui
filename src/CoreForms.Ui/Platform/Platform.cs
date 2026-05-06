@@ -7,15 +7,12 @@ namespace CoreForms.Ui.Platform;
 
 /// <summary>
 /// Provides the platform abstraction layer using SDL2 for window management, rendering, and input handling.
+/// Supports multiple simultaneous windows, each with its own renderer and font renderer.
 /// </summary>
 public static class Platform
 {
     private static bool _initialized;
-    private static IntPtr _window;
-    private static Form? _currentForm;
-    private static SdlRenderer? _renderer;
-    private static FontRenderer? _fontRenderer;
-    private static readonly Dictionary<uint, Form> _windows = new();
+    private static readonly Dictionary<uint, WindowContext> _contexts = new();
     private static Form? _focusedWindow;
     private static Point _lastMousePosition;
 
@@ -210,7 +207,17 @@ public static class Platform
     private static string GetSDLError()
     {
         var ptr = SDL_GetError();
-        return ptr == IntPtr.Zero ? "Unknown error" : Marshal.PtrToStringAnsi(ptr);
+        return ptr == IntPtr.Zero ? "Unknown error" : Marshal.PtrToStringAnsi(ptr)!;
+    }
+
+    /// <summary>
+    /// Gets the WindowContext for the specified window ID, or null if not found.
+    /// </summary>
+    /// <param name="windowId">The SDL2 window ID.</param>
+    /// <returns>The WindowContext, or null if not found.</returns>
+    internal static WindowContext? GetWindowContext(uint windowId)
+    {
+        return _contexts.TryGetValue(windowId, out var ctx) ? ctx : null;
     }
 
     /// <summary>
@@ -230,7 +237,7 @@ public static class Platform
             flags |= SDL_WINDOW_RESIZABLE;
         }
 
-        _window = SDL_CreateWindow(
+        var window = SDL_CreateWindow(
             form.Text,
             SDL_WINDOWPOS_CENTERED,
             SDL_WINDOWPOS_CENTERED,
@@ -238,48 +245,53 @@ public static class Platform
             form.Height > 0 ? form.Height : 600,
             flags);
 
-        if (_window == IntPtr.Zero)
+        if (window == IntPtr.Zero)
         {
             throw new InvalidOperationException("SDL_CreateWindow failed: " + GetSDLError());
         }
 
-        uint windowId = SDL_GetWindowID(_window);
+        uint windowId = SDL_GetWindowID(window);
         form.WindowId = windowId;
-        _windows[windowId] = form;
-        _currentForm = form;
+
+        var renderer = new SdlRenderer(window);
+        var fontRenderer = new FontRenderer(renderer.Handle);
+
+        var ctx = new WindowContext(window, windowId, form, renderer, fontRenderer);
+        _contexts[windowId] = ctx;
         _focusedWindow = form;
 
-        _renderer = new SdlRenderer(_window);
-        _fontRenderer = new FontRenderer(_renderer.Handle);
+        SDL_ShowWindow(window);
+        SDL_RaiseWindow(window);
 
-        // Ensure window is visible
-        SDL_ShowWindow(_window);
-        SDL_RaiseWindow(_window);
-
-        // Enable text input for keyboard events
         SDL_StartTextInput();
 
-        return _window;
+        return window;
     }
 
     /// <summary>
-    /// Destroys the window with the specified handle.
+    /// Destroys the window with the specified handle and releases its rendering resources.
     /// </summary>
     /// <param name="handle">The native window handle.</param>
     public static void DestroyWindow(IntPtr handle)
     {
-        if (handle != IntPtr.Zero)
+        if (handle == IntPtr.Zero) return;
+
+        uint windowId = SDL_GetWindowID(handle);
+        if (_contexts.TryGetValue(windowId, out var ctx))
         {
-            uint windowId = SDL_GetWindowID(handle);
-            _windows.Remove(windowId);
-            if (_focusedWindow != null && _windows.Count > 0)
+            _contexts.Remove(windowId);
+
+            if (_focusedWindow == ctx.Form)
             {
-                _focusedWindow = _windows.Values.FirstOrDefault();
+                _focusedWindow = _contexts.Count > 0
+                    ? _contexts.Values.FirstOrDefault()?.Form
+                    : null;
             }
-            _renderer?.Dispose();
-            _fontRenderer?.Dispose();
-            SDL_DestroyWindow(handle);
+
+            ctx.Dispose();
         }
+
+        SDL_DestroyWindow(handle);
     }
 
     /// <summary>
@@ -425,16 +437,18 @@ public static class Platform
     public static Form? FocusedWindow => _focusedWindow;
 
     /// <summary>
-    /// Measures the dimensions of text using the current font renderer.
+    /// Measures the dimensions of text using the font renderer of the specified window.
+    /// Falls back to the first available window context if windowId is not specified.
     /// </summary>
     /// <param name="text">The text to measure.</param>
     /// <param name="font">The font to use.</param>
     /// <returns>A tuple containing the width and height.</returns>
     public static (int width, int height) MeasureText(string text, Core.Font font)
     {
-        if (_fontRenderer == null)
+        var ctx = _contexts.Values.FirstOrDefault();
+        if (ctx == null)
             return (0, 0);
-        return _fontRenderer.MeasureText(text, font);
+        return ctx.FontRenderer.MeasureText(text, font);
     }
 
     /// <summary>
@@ -451,7 +465,7 @@ public static class Platform
     }
 
     /// <summary>
-    /// Processes all pending SDL events.
+    /// Processes all pending SDL events and renders all active windows.
     /// </summary>
     /// <param name="app">The application instance.</param>
     public static void ProcessEvents(Application app)
@@ -497,18 +511,18 @@ public static class Platform
             }
         }
 
-        if (_currentForm != null && _renderer != null)
+        foreach (var ctx in _contexts.Values)
         {
-            RenderForm(_currentForm);
+            RenderForm(ctx);
         }
 
-        // Limit to ~60 FPS to reduce CPU usage
         SDL_Delay(16);
     }
 
     private static void HandleWindowEvent(SDL_Event e)
     {
-        if (!_windows.TryGetValue(e.windowID, out var form)) return;
+        if (!_contexts.TryGetValue(e.windowID, out var ctx)) return;
+        var form = ctx.Form;
 
         int eventType = e.event_ & 0xFF;
 
@@ -522,7 +536,7 @@ public static class Platform
             int h = e.data2;
             if (w <= 0 || h <= 0)
             {
-                SDL_GetWindowSize(form.Handle, out w, out h);
+                SDL_GetWindowSize(ctx.WindowHandle, out w, out h);
             }
             if (w > 0 && h > 0)
             {
@@ -568,7 +582,8 @@ public static class Platform
 
     private static void HandleMouseButtonEvent(SDL_Event e, bool isDown)
     {
-        if (!_windows.TryGetValue(e.windowID, out var form)) return;
+        if (!_contexts.TryGetValue(e.windowID, out var ctx)) return;
+        var form = ctx.Form;
 
         var point = new Point(e.x, e.y);
         var args = new MouseEventArgs(MouseButtons.Left, e.clicks, point.X, point.Y, 0);
@@ -581,7 +596,8 @@ public static class Platform
 
     private static void HandleMouseMotionEvent(SDL_Event e)
     {
-        if (!_windows.TryGetValue(e.windowID, out var form)) return;
+        if (!_contexts.TryGetValue(e.windowID, out var ctx)) return;
+        var form = ctx.Form;
 
         var point = new Point(e.x, e.y);
         _lastMousePosition = point;
@@ -591,9 +607,9 @@ public static class Platform
 
     private static void HandleMouseWheelEvent(SDL_Event e)
     {
-        if (!_windows.TryGetValue(e.windowID, out var form)) return;
+        if (!_contexts.TryGetValue(e.windowID, out var ctx)) return;
+        var form = ctx.Form;
 
-        // SDL2 wheel delta is in wheelY field (positive = up, negative = down)
         var args = new MouseEventArgs(MouseButtons.None, 0, _lastMousePosition.X, _lastMousePosition.Y, e.wheelY);
         form.OnMouseWheel(args);
     }
@@ -684,18 +700,20 @@ public static class Platform
         }
     }
 
-    private static void RenderForm(Form form)
+    private static void RenderForm(WindowContext ctx)
     {
-        if (_renderer == null) return;
+        var form = ctx.Form;
+        var renderer = ctx.Renderer;
+        var fontRenderer = ctx.FontRenderer;
 
-        _renderer.Clear(form.BackColor);
+        renderer.Clear(form.BackColor);
 
         using var g = new Graphics();
         form.Render(g);
 
         foreach (var cmd in g.GetCommands())
         {
-            ExecuteDrawCommand(cmd);
+            ExecuteDrawCommand(cmd, renderer, fontRenderer);
         }
 
         using var gOverlay = new Graphics();
@@ -703,38 +721,44 @@ public static class Platform
 
         foreach (var cmd in gOverlay.GetCommands())
         {
-            ExecuteDrawCommand(cmd);
+            ExecuteDrawCommand(cmd, renderer, fontRenderer);
         }
 
-        _renderer.Present();
+        renderer.Present();
     }
 
-    private static void ExecuteDrawCommand(DrawCommand cmd)
+    private static void ExecuteDrawCommand(DrawCommand cmd, SdlRenderer renderer, FontRenderer fontRenderer)
     {
-        if (_renderer == null) return;
-
-        // Set clip region for this command
-        _renderer.SetClipRect(cmd.ClipBounds);
+        renderer.SetClipRect(cmd.ClipBounds);
 
         switch (cmd.Type)
         {
             case DrawCommandType.FillRectangle:
-                _renderer.FillRectangle(cmd.Color, cmd.X, cmd.Y, cmd.Width, cmd.Height);
+                renderer.FillRectangle(cmd.Color, cmd.X, cmd.Y, cmd.Width, cmd.Height);
                 break;
             case DrawCommandType.DrawRectangle:
-                _renderer.DrawRectangle(cmd.Color, cmd.X, cmd.Y, cmd.Width, cmd.Height);
+                renderer.DrawRectangle(cmd.Color, cmd.X, cmd.Y, cmd.Width, cmd.Height);
                 break;
             case DrawCommandType.DrawLine:
-                _renderer.DrawLine(cmd.Color, cmd.X, cmd.Y, cmd.X2, cmd.Y2, cmd.LineWidth);
+                renderer.DrawLine(cmd.Color, cmd.X, cmd.Y, cmd.X2, cmd.Y2, cmd.LineWidth);
                 break;
             case DrawCommandType.DrawString:
                 if (!string.IsNullOrEmpty(cmd.Text) && cmd.Font != null)
                 {
-                    _fontRenderer?.DrawText(cmd.Text, cmd.Font, cmd.Color, cmd.X, cmd.Y);
+                    fontRenderer.DrawText(cmd.Text, cmd.Font, cmd.Color, cmd.X, cmd.Y);
                 }
                 break;
             case DrawCommandType.FillTriangle:
-                _renderer.FillTriangle(cmd.Color, cmd.X, cmd.Y, cmd.X2, cmd.Y2, cmd.X3, cmd.Y3);
+                renderer.FillTriangle(cmd.Color, cmd.X, cmd.Y, cmd.X2, cmd.Y2, cmd.X3, cmd.Y3);
+                break;
+            case DrawCommandType.FillEllipse:
+                renderer.FillEllipse(cmd.Color, cmd.X, cmd.Y, cmd.Width, cmd.Height);
+                break;
+            case DrawCommandType.DrawImage:
+                if (cmd.Image != null)
+                {
+                    renderer.DrawImage(cmd.Image, cmd.X, cmd.Y, cmd.Width, cmd.Height);
+                }
                 break;
         }
     }
