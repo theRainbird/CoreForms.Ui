@@ -3,7 +3,7 @@ using CoreForms.Ui.Core;
 
 namespace CoreForms.Ui.Rendering;
 
-public class    FontRenderer : IDisposable
+public class FontRenderer : IDisposable
 {
     private IntPtr _renderer;
     private bool _disposed;
@@ -135,6 +135,24 @@ public class    FontRenderer : IDisposable
         }
 
         return fonts[0];
+    }
+
+    [DllImport("SDL2_ttf", CallingConvention = CallingConvention.Cdecl)]
+    private static extern int TTF_SizeUTF8(IntPtr font, string text, out int w, out int h);
+
+    public (int width, int height) MeasureText(string text, Core.Font font)
+    {
+        if (string.IsNullOrEmpty(text))
+            return (0, 0);
+
+        var fontPath = GetFontPath(font.Name);
+        var fontPtr = GetOrLoadFont(fontPath, (int)font.Size);
+
+        if (fontPtr == IntPtr.Zero)
+            return ((int)(text.Length * font.Size * 0.6f), (int)font.Size);
+
+        TTF_SizeUTF8(fontPtr, text, out int w, out int h);
+        return (w, h);
     }
 
     public void Dispose()

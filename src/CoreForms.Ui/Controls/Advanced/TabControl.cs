@@ -13,6 +13,7 @@ public class TabControl : ContainerControl
     {
         Size = new Size(400, 300);
         BackColor = SystemColors.Control;
+        TabStop = true;
     }
 
     public List<TabPage> TabPages => _tabPages;

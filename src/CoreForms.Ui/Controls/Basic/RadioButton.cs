@@ -11,6 +11,7 @@ public class RadioButton : Control
     public RadioButton()
     {
         Size = new Size(200, 28);
+        TabStop = true;
     }
 
     public bool Checked

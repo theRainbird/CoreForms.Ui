@@ -355,6 +355,13 @@ public static class Platform
 
     public static Form? FocusedWindow => _focusedWindow;
 
+    public static (int width, int height) MeasureText(string text, Core.Font font)
+    {
+        if (_fontRenderer == null)
+            return (0, 0);
+        return _fontRenderer.MeasureText(text, font);
+    }
+
     public static void SetBordered(IntPtr handle, bool bordered)
     {
         if (handle != IntPtr.Zero)

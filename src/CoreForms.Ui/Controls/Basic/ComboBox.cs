@@ -14,6 +14,7 @@ public class ComboBox : Control
     {
         BackColor = Color.White;
         Size = new Size(200, 32);
+        TabStop = true;
     }
 
     public List<object> Items => _items;
@@ -49,7 +50,7 @@ public class ComboBox : Control
         g.FillRectangle(BackColor, 0, 0, Width, Height);
 
         if (Focused)
-            g.DrawRectangle(SystemColors.Highlight, 0, 0, Width, Height, 2);
+            g.DrawRectangle(Color.FromArgb(0, 120, 215), 0, 0, Width, Height, 2);
         else
             g.DrawRectangle(Color.FromArgb(128, 128, 128), 0, 0, Width, Height, 1);
 

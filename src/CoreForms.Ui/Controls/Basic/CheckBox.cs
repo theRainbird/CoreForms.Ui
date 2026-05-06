@@ -10,6 +10,7 @@ public class CheckBox : Control
     public CheckBox()
     {
         Size = new Size(200, 28);
+        TabStop = true;
     }
 
     public bool Checked

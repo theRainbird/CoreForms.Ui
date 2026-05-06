@@ -12,6 +12,7 @@ public class Button : Control
     {
         BackColor = SystemColors.Control;
         Size = new Size(120, 40);
+        TabStop = true;
     }
 
     public override void Render(Rendering.Graphics g)
@@ -29,7 +30,7 @@ public class Button : Control
 
         if (Focused)
         {
-            g.DrawRectangle(SystemColors.Highlight, 2, 2, Width - 4, Height - 4, 1);
+            g.DrawRectangle(Color.FromArgb(0, 120, 215), 0, 0, Width, Height, 2);
         }
 
         var font = Font ?? Font.Default;

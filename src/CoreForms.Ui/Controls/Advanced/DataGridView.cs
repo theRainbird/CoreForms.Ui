@@ -28,6 +28,7 @@ public class DataGridView : ContainerControl
     {
         BackColor = Color.White;
         Size = new Size(400, 200);
+        TabStop = true;
     }
 
     public DataGridViewColumnCollection Columns => _columns;
@@ -168,11 +169,7 @@ public override void Render(Graphics g)
         int rowEnd = Math.Min(_rows.Count, rowStart + (dataHeight / _rowHeight) + 2);
 
         g.FillRectangle(BackColor, 0, 0, Width, Height);
-
-        if (Focused)
-            g.DrawRectangle(SystemColors.Highlight, 0, 0, Width, Height, 2);
-        else
-            g.DrawRectangle(Color.FromArgb(180, 180, 180), 0, 0, Width, Height, 1);
+        g.DrawRectangle(Color.FromArgb(180, 180, 180), 0, 0, Width, Height, 1);
 
         if (_columnHeadersVisible)
         {
@@ -316,6 +313,9 @@ public override void Render(Graphics g)
             g.FillRectangle(Color.FromArgb(190, 190, 190), scrollBarX + 2, thumbY, scrollBarWidth - 4, thumbHeight);
             g.DrawRectangle(Color.FromArgb(150, 150, 150), scrollBarX + 2, thumbY, scrollBarWidth - 4, thumbHeight, 1);
         }
+
+        if (Focused)
+            g.DrawRectangle(Color.FromArgb(0, 120, 215), 0, 0, Width, Height, 2);
 
         base.Render(g);
     }

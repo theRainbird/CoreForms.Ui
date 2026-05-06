@@ -194,6 +194,49 @@ private IntPtr _handle;
         return null;
     }
 
+    private List<Control> GetTabControls()
+    {
+        var tabs = new List<(Control control, int order)>();
+        for (int i = 0; i < Controls.Count; i++)
+        {
+            var child = Controls[i];
+            if (child.Visible && child.Enabled && child.TabStop)
+            {
+                tabs.Add((child, i));
+            }
+        }
+        tabs.Sort((a, b) =>
+        {
+            int cmp = a.control.TabIndex.CompareTo(b.control.TabIndex);
+            return cmp != 0 ? cmp : a.order.CompareTo(b.order);
+        });
+        return tabs.ConvertAll(t => t.control);
+    }
+
+    private void ProcessTabKey(bool shift)
+    {
+        var tabs = GetTabControls();
+        if (tabs.Count == 0) return;
+
+        int currentIndex = tabs.IndexOf(ActiveControl!);
+        int nextIndex;
+
+        if (currentIndex < 0)
+        {
+            nextIndex = shift ? tabs.Count - 1 : 0;
+        }
+        else if (shift)
+        {
+            nextIndex = currentIndex > 0 ? currentIndex - 1 : tabs.Count - 1;
+        }
+        else
+        {
+            nextIndex = currentIndex < tabs.Count - 1 ? currentIndex + 1 : 0;
+        }
+
+        ActiveControl = tabs[nextIndex];
+    }
+
     protected internal virtual void OnShown(EventArgs e) => Shown?.Invoke(this, e);
     protected internal virtual void OnResize(EventArgs e) => Resize?.Invoke(this, e);
     protected internal virtual void OnFormClosing(FormClosingEventArgs e) => FormClosing?.Invoke(this, e);
@@ -220,6 +263,13 @@ private IntPtr _handle;
 
     protected internal override void OnKeyDown(KeyEventArgs e)
     {
+        if (e.KeyCode == Keys.Tab)
+        {
+            ProcessTabKey(e.Modifiers.HasFlag(ModifierKeys.Shift));
+            e.Handled = true;
+            return;
+        }
+
         if (ActiveControl != null)
         {
             ActiveControl.OnKeyDown(e);

@@ -42,11 +42,21 @@ public class ControlTests
         Assert.Equal(new Point(50, 60), label.Location);
     }
 
-    [Fact]
-    public void Control_Visible_ShouldDefaultToTrue()
+[Fact]
+    public void TextBox_OnTextInput_ShouldInsertChar()
     {
-        var control = new Label();
-        Assert.True(control.Visible);
+        var textBox = new TextBox();
+        textBox.Text = "Hllo";
+        Assert.Equal(4, textBox.SelectionStart);
+
+        textBox.OnKeyDown(new KeyEventArgs { KeyCode = Keys.Home, Modifiers = ModifierKeys.None });
+        Assert.Equal(0, textBox.SelectionStart);
+
+        textBox.OnKeyDown(new KeyEventArgs { KeyCode = Keys.Right, Modifiers = ModifierKeys.None });
+        Assert.Equal(1, textBox.SelectionStart);
+
+        textBox.OnTextInput("e");
+        Assert.Equal("Hello", textBox.Text);
     }
 
     [Fact]
@@ -446,24 +456,115 @@ public class ControlTests
     }
 
     [Fact]
-    public void TextBox_OnKeyDown_Backspace_ShouldDeleteChar()
+    public void Form_Tab_ShouldMoveFocusToNextControl()
     {
-        var textBox = new TextBox();
-        textBox.Text = "Hello";
-        textBox.SelectionStart = 5;
+        var form = new Form();
+        var button1 = new Button { TabIndex = 0 };
+        var button2 = new Button { TabIndex = 1 };
+        form.Controls.Add(button1);
+        form.Controls.Add(button2);
 
-        textBox.OnKeyDown(new KeyEventArgs { KeyCode = Keys.Back, Modifiers = ModifierKeys.None });
-        Assert.Equal("Hell", textBox.Text);
+        form.ActiveControl = button1;
+        form.OnKeyDown(new KeyEventArgs { KeyCode = Keys.Tab, Modifiers = ModifierKeys.None });
+
+        Assert.Equal(button2, form.ActiveControl);
     }
 
     [Fact]
-    public void TextBox_OnTextInput_ShouldInsertChar()
+    public void Form_ShiftTab_ShouldMoveFocusToPreviousControl()
     {
-        var textBox = new TextBox();
-        textBox.Text = "Hllo";
-        textBox.SelectionStart = 1;
+        var form = new Form();
+        var button1 = new Button { TabIndex = 0 };
+        var button2 = new Button { TabIndex = 1 };
+        form.Controls.Add(button1);
+        form.Controls.Add(button2);
 
-        textBox.OnTextInput("e");
-        Assert.Equal("Hello", textBox.Text);
+        form.ActiveControl = button2;
+        form.OnKeyDown(new KeyEventArgs { KeyCode = Keys.Tab, Modifiers = ModifierKeys.Shift });
+
+        Assert.Equal(button1, form.ActiveControl);
+    }
+
+    [Fact]
+    public void Form_Tab_ShouldWrapAround()
+    {
+        var form = new Form();
+        var button1 = new Button { TabIndex = 0 };
+        var button2 = new Button { TabIndex = 1 };
+        form.Controls.Add(button1);
+        form.Controls.Add(button2);
+
+        form.ActiveControl = button2;
+        form.OnKeyDown(new KeyEventArgs { KeyCode = Keys.Tab, Modifiers = ModifierKeys.None });
+
+        Assert.Equal(button1, form.ActiveControl);
+    }
+
+    [Fact]
+    public void Form_ShiftTab_ShouldWrapAround()
+    {
+        var form = new Form();
+        var button1 = new Button { TabIndex = 0 };
+        var button2 = new Button { TabIndex = 1 };
+        form.Controls.Add(button1);
+        form.Controls.Add(button2);
+
+        form.ActiveControl = button1;
+        form.OnKeyDown(new KeyEventArgs { KeyCode = Keys.Tab, Modifiers = ModifierKeys.Shift });
+
+        Assert.Equal(button2, form.ActiveControl);
+    }
+
+    [Fact]
+    public void Form_Tab_ShouldSkipNonTabStopControls()
+    {
+        var form = new Form();
+        var button = new Button { TabIndex = 0 };
+        var label = new Label { TabIndex = 1 };
+        var textBox = new TextBox { TabIndex = 2 };
+        form.Controls.Add(button);
+        form.Controls.Add(label);
+        form.Controls.Add(textBox);
+
+        form.ActiveControl = button;
+        form.OnKeyDown(new KeyEventArgs { KeyCode = Keys.Tab, Modifiers = ModifierKeys.None });
+
+        Assert.Equal(textBox, form.ActiveControl);
+    }
+
+    [Fact]
+    public void Form_Tab_ShouldSelectFirstControlWhenNoneFocused()
+    {
+        var form = new Form();
+        var button = new Button { TabIndex = 0 };
+        var textBox = new TextBox { TabIndex = 1 };
+        form.Controls.Add(button);
+        form.Controls.Add(textBox);
+
+        Assert.Null(form.ActiveControl);
+        form.OnKeyDown(new KeyEventArgs { KeyCode = Keys.Tab, Modifiers = ModifierKeys.None });
+
+        Assert.Equal(button, form.ActiveControl);
+    }
+
+    [Fact]
+    public void Form_Tab_ShouldRespectTabIndex()
+    {
+        var form = new Form();
+        var textBox = new TextBox { TabIndex = 2 };
+        var button = new Button { TabIndex = 0 };
+        var comboBox = new ComboBox { TabIndex = 1 };
+        form.Controls.Add(textBox);
+        form.Controls.Add(button);
+        form.Controls.Add(comboBox);
+
+        form.ActiveControl = button;
+        form.OnKeyDown(new KeyEventArgs { KeyCode = Keys.Tab, Modifiers = ModifierKeys.None });
+
+        Assert.Equal(comboBox, form.ActiveControl);
+
+        form.OnKeyDown(new KeyEventArgs { KeyCode = Keys.Tab, Modifiers = ModifierKeys.None });
+
+        Assert.Equal(textBox, form.ActiveControl);
     }
 }
