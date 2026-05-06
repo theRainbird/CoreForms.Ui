@@ -3,6 +3,9 @@ using CoreForms.Ui.Core;
 
 namespace CoreForms.Ui.Rendering;
 
+/// <summary>
+/// Provides font rendering using SDL_ttf.
+/// </summary>
 public class FontRenderer : IDisposable
 {
     private IntPtr _renderer;
@@ -21,7 +24,7 @@ public class FontRenderer : IDisposable
     [DllImport("SDL2_ttf", CallingConvention = CallingConvention.Cdecl)]
     private static extern IntPtr TTF_RenderUTF8_Blended(IntPtr font, string text, SDLColor fg);
 
-    [DllImport("SDL2_ttf", CallingConvention = CallingConvention.Cdecl)]
+    [DllImport("SDL2", CallingConvention = CallingConvention.Cdecl)]
     private static extern void SDL_DestroyTexture(IntPtr texture);
 
     [DllImport("SDL2", CallingConvention = CallingConvention.Cdecl)]
@@ -42,6 +45,10 @@ public class FontRenderer : IDisposable
         public byte a;
     }
 
+    /// <summary>
+    /// Initializes a new FontRenderer for the specified renderer.
+    /// </summary>
+    /// <param name="renderer">The SDL renderer handle.</param>
     public FontRenderer(IntPtr renderer)
     {
         _renderer = renderer;
@@ -55,6 +62,14 @@ public class FontRenderer : IDisposable
         }
     }
 
+    /// <summary>
+    /// Draws text at the specified location.
+    /// </summary>
+    /// <param name="text">The text to draw.</param>
+    /// <param name="font">The font to use.</param>
+    /// <param name="color">The text color.</param>
+    /// <param name="x">The x-coordinate.</param>
+    /// <param name="y">The y-coordinate.</param>
     public void DrawText(string text, Core.Font font, Core.Color color, float x, float y)
     {
         if (string.IsNullOrEmpty(text)) return;
@@ -140,6 +155,12 @@ public class FontRenderer : IDisposable
     [DllImport("SDL2_ttf", CallingConvention = CallingConvention.Cdecl)]
     private static extern int TTF_SizeUTF8(IntPtr font, string text, out int w, out int h);
 
+    /// <summary>
+    /// Measures the dimensions of the specified text.
+    /// </summary>
+    /// <param name="text">The text to measure.</param>
+    /// <param name="font">The font to use.</param>
+    /// <returns>A tuple containing the width and height.</returns>
     public (int width, int height) MeasureText(string text, Core.Font font)
     {
         if (string.IsNullOrEmpty(text))
@@ -155,6 +176,9 @@ public class FontRenderer : IDisposable
         return (w, h);
     }
 
+    /// <summary>
+    /// Releases all resources used by this FontRenderer.
+    /// </summary>
     public void Dispose()
     {
         if (!_disposed)

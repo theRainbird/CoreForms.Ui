@@ -5,6 +5,9 @@ using CoreForms.Ui.Rendering;
 
 namespace CoreForms.Ui.Platform;
 
+/// <summary>
+/// Provides the platform abstraction layer using SDL2 for window management, rendering, and input handling.
+/// </summary>
 public static class Platform
 {
     private static bool _initialized;
@@ -135,11 +138,11 @@ public static class Platform
         public uint type;
         [FieldOffset(4)]
         public uint timestamp;
-        
+
         // Common fields
         [FieldOffset(8)]
         public uint windowID;
-        
+
         // Mouse button event fields
         [FieldOffset(12)]
         public uint which;
@@ -153,19 +156,19 @@ public static class Platform
         public int x;
         [FieldOffset(24)]
         public int y;
-        
+
         // Mouse wheel event fields (different offsets!)
         [FieldOffset(16)]
         public int wheelX;
         [FieldOffset(20)]
         public int wheelY;
-        
+
         // Mouse motion event fields
         [FieldOffset(28)]
         public int xrel;
         [FieldOffset(32)]
         public int yrel;
-        
+
         // Window event fields
         [FieldOffset(12)]
         public int event_;
@@ -173,7 +176,7 @@ public static class Platform
         public int data1;
         [FieldOffset(20)]
         public int data2;
-        
+
         // Key event fields
         [FieldOffset(16)]
         public int keysymScancode;
@@ -185,10 +188,14 @@ public static class Platform
         public uint keysymUnused;
     }
 
+    /// <summary>
+    /// Initializes the SDL2 subsystem.
+    /// </summary>
+    /// <exception cref="InvalidOperationException">Thrown when SDL initialization fails.</exception>
     public static void Initialize()
     {
         if (_initialized) return;
-        
+
         int result = SDL_Init(SDL_INIT_VIDEO);
         if (result < 0)
         {
@@ -206,6 +213,12 @@ public static class Platform
         return ptr == IntPtr.Zero ? "Unknown error" : Marshal.PtrToStringAnsi(ptr);
     }
 
+    /// <summary>
+    /// Creates a new window for the specified form.
+    /// </summary>
+    /// <param name="form">The form to create a window for.</param>
+    /// <returns>The native window handle.</returns>
+    /// <exception cref="InvalidOperationException">Thrown when window creation fails.</exception>
     public static IntPtr CreateWindow(Form form)
     {
         Initialize();
@@ -238,17 +251,21 @@ public static class Platform
 
         _renderer = new SdlRenderer(_window);
         _fontRenderer = new FontRenderer(_renderer.Handle);
-        
+
         // Ensure window is visible
         SDL_ShowWindow(_window);
         SDL_RaiseWindow(_window);
-        
+
         // Enable text input for keyboard events
         SDL_StartTextInput();
-        
+
         return _window;
     }
 
+    /// <summary>
+    /// Destroys the window with the specified handle.
+    /// </summary>
+    /// <param name="handle">The native window handle.</param>
     public static void DestroyWindow(IntPtr handle)
     {
         if (handle != IntPtr.Zero)
@@ -265,6 +282,11 @@ public static class Platform
         }
     }
 
+    /// <summary>
+    /// Sets the title of the window with the specified handle.
+    /// </summary>
+    /// <param name="handle">The native window handle.</param>
+    /// <param name="title">The new title.</param>
     public static void SetWindowTitle(IntPtr handle, string title)
     {
         if (handle != IntPtr.Zero)
@@ -273,6 +295,10 @@ public static class Platform
         }
     }
 
+    /// <summary>
+    /// Minimizes the window with the specified handle.
+    /// </summary>
+    /// <param name="handle">The native window handle.</param>
     public static void MinimizeWindow(IntPtr handle)
     {
         if (handle != IntPtr.Zero)
@@ -281,6 +307,10 @@ public static class Platform
         }
     }
 
+    /// <summary>
+    /// Maximizes the window with the specified handle.
+    /// </summary>
+    /// <param name="handle">The native window handle.</param>
     public static void MaximizeWindow(IntPtr handle)
     {
         if (handle != IntPtr.Zero)
@@ -289,6 +319,10 @@ public static class Platform
         }
     }
 
+    /// <summary>
+    /// Restores the window with the specified handle to its normal state.
+    /// </summary>
+    /// <param name="handle">The native window handle.</param>
     public static void RestoreWindow(IntPtr handle)
     {
         if (handle != IntPtr.Zero)
@@ -297,6 +331,12 @@ public static class Platform
         }
     }
 
+    /// <summary>
+    /// Moves the window to the specified position.
+    /// </summary>
+    /// <param name="handle">The native window handle.</param>
+    /// <param name="x">The new x-coordinate.</param>
+    /// <param name="y">The new y-coordinate.</param>
     public static void MoveWindow(IntPtr handle, int x, int y)
     {
         if (handle != IntPtr.Zero)
@@ -305,6 +345,12 @@ public static class Platform
         }
     }
 
+    /// <summary>
+    /// Resizes the window to the specified dimensions.
+    /// </summary>
+    /// <param name="handle">The native window handle.</param>
+    /// <param name="width">The new width.</param>
+    /// <param name="height">The new height.</param>
     public static void ResizeWindow(IntPtr handle, int width, int height)
     {
         if (handle != IntPtr.Zero)
@@ -313,6 +359,11 @@ public static class Platform
         }
     }
 
+    /// <summary>
+    /// Gets the position of the window.
+    /// </summary>
+    /// <param name="handle">The native window handle.</param>
+    /// <returns>A tuple containing the x and y coordinates.</returns>
     public static (int x, int y) GetWindowPosition(IntPtr handle)
     {
         if (handle != IntPtr.Zero)
@@ -323,6 +374,11 @@ public static class Platform
         return (0, 0);
     }
 
+    /// <summary>
+    /// Gets the size of the window.
+    /// </summary>
+    /// <param name="handle">The native window handle.</param>
+    /// <returns>A tuple containing the width and height.</returns>
     public static (int width, int height) GetWindowSize(IntPtr handle)
     {
         if (handle != IntPtr.Zero)
@@ -333,6 +389,11 @@ public static class Platform
         return (0, 0);
     }
 
+    /// <summary>
+    /// Gets the window state of the window.
+    /// </summary>
+    /// <param name="handle">The native window handle.</param>
+    /// <returns>The current window state.</returns>
     public static FormWindowState GetWindowState(IntPtr handle)
     {
         if (handle != IntPtr.Zero)
@@ -346,6 +407,10 @@ public static class Platform
         return FormWindowState.Normal;
     }
 
+    /// <summary>
+    /// Brings the window to the front of the z-order.
+    /// </summary>
+    /// <param name="handle">The native window handle.</param>
     public static void BringToFront(IntPtr handle)
     {
         if (handle != IntPtr.Zero)
@@ -354,8 +419,17 @@ public static class Platform
         }
     }
 
+    /// <summary>
+    /// Gets the currently focused window.
+    /// </summary>
     public static Form? FocusedWindow => _focusedWindow;
 
+    /// <summary>
+    /// Measures the dimensions of text using the current font renderer.
+    /// </summary>
+    /// <param name="text">The text to measure.</param>
+    /// <param name="font">The font to use.</param>
+    /// <returns>A tuple containing the width and height.</returns>
     public static (int width, int height) MeasureText(string text, Core.Font font)
     {
         if (_fontRenderer == null)
@@ -363,6 +437,11 @@ public static class Platform
         return _fontRenderer.MeasureText(text, font);
     }
 
+    /// <summary>
+    /// Sets whether the window has borders.
+    /// </summary>
+    /// <param name="handle">The native window handle.</param>
+    /// <param name="bordered">Whether the window should have borders.</param>
     public static void SetBordered(IntPtr handle, bool bordered)
     {
         if (handle != IntPtr.Zero)
@@ -371,6 +450,10 @@ public static class Platform
         }
     }
 
+    /// <summary>
+    /// Processes all pending SDL events.
+    /// </summary>
+    /// <param name="app">The application instance.</param>
     public static void ProcessEvents(Application app)
     {
         SDL_PumpEvents();
@@ -418,7 +501,7 @@ public static class Platform
         {
             RenderForm(_currentForm);
         }
-        
+
         // Limit to ~60 FPS to reduce CPU usage
         SDL_Delay(16);
     }
@@ -496,7 +579,7 @@ public static class Platform
             form.OnMouseUp(args);
     }
 
-private static void HandleMouseMotionEvent(SDL_Event e)
+    private static void HandleMouseMotionEvent(SDL_Event e)
     {
         if (!_windows.TryGetValue(e.windowID, out var form)) return;
 

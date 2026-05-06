@@ -3,18 +3,27 @@ using CoreForms.Ui.Rendering;
 
 namespace CoreForms.Ui.Layout;
 
+/// <summary>
+/// A layout panel that arranges child controls in rows and columns.
+/// </summary>
 public class TableLayoutPanel : ContainerControl
 {
     private int _rowCount = 2;
     private int _columnCount = 2;
     private readonly List<TableLayoutStyle> _styles = new();
 
+    /// <summary>
+    /// Initializes a new instance of TableLayoutPanel.
+    /// </summary>
     public TableLayoutPanel()
     {
         Size = new Size(300, 200);
         BackColor = SystemColors.Control;
     }
 
+    /// <summary>
+    /// Gets or sets the number of rows in the table.
+    /// </summary>
     public int RowCount
     {
         get => _rowCount;
@@ -25,6 +34,9 @@ public class TableLayoutPanel : ContainerControl
         }
     }
 
+    /// <summary>
+    /// Gets or sets the number of columns in the table.
+    /// </summary>
     public int ColumnCount
     {
         get => _columnCount;
@@ -35,6 +47,9 @@ public class TableLayoutPanel : ContainerControl
         }
     }
 
+    /// <summary>
+    /// Performs layout of child controls.
+    /// </summary>
     public void LayoutChildren()
     {
         LayoutControls();
@@ -67,11 +82,18 @@ public class TableLayoutPanel : ContainerControl
         }
     }
 
+    /// <summary>
+    /// Called when the control needs to perform layout.
+    /// </summary>
     protected override void OnLayout()
     {
         LayoutControls();
     }
 
+    /// <summary>
+    /// Renders the control, its background, and grid lines.
+    /// </summary>
+    /// <param name="g">The Graphics object to use for rendering.</param>
     public override void Render(Graphics g)
     {
         if (!Visible) return;

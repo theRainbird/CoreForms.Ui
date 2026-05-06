@@ -3,6 +3,9 @@ using Graphics = CoreForms.Ui.Rendering.Graphics;
 
 namespace CoreForms.Ui.Controls.Basic;
 
+/// <summary>
+/// A control that presents a drop-down list of items.
+/// </summary>
 public class ComboBox : Control
 {
     private readonly List<object> _items = new();
@@ -11,6 +14,9 @@ public class ComboBox : Control
     private int _dropDownHeight = 120;
     private int _scrollOffset;
 
+    /// <summary>
+    /// Initializes a new instance of ComboBox.
+    /// </summary>
     public ComboBox()
     {
         BackColor = Color.White;
@@ -18,8 +24,14 @@ public class ComboBox : Control
         TabStop = true;
     }
 
+    /// <summary>
+    /// Gets the collection of items in the combo box.
+    /// </summary>
     public List<object> Items => _items;
 
+    /// <summary>
+    /// Gets or sets the index of the selected item.
+    /// </summary>
     public int SelectedIndex
     {
         get => _selectedIndex;
@@ -34,16 +46,26 @@ public class ComboBox : Control
         }
     }
 
+    /// <summary>
+    /// Gets the selected item.
+    /// </summary>
     public object? SelectedItem => _selectedIndex >= 0 && _selectedIndex < _items.Count
         ? _items[_selectedIndex]
         : null;
 
+    /// <summary>
+    /// Gets or sets the height of the drop-down list.
+    /// </summary>
     public int DropDownHeight
     {
         get => _dropDownHeight;
         set => _dropDownHeight = value;
     }
 
+    /// <summary>
+    /// Renders the combo box with its text and dropdown button.
+    /// </summary>
+    /// <param name="g">The Graphics object to use for rendering.</param>
     public override void Render(Graphics g)
     {
         if (!Visible) return;
@@ -77,6 +99,10 @@ public class ComboBox : Control
         base.Render(g);
     }
 
+    /// <summary>
+    /// Renders the dropdown list when visible.
+    /// </summary>
+    /// <param name="g">The Graphics object to use for rendering.</param>
     public override void RenderOverlay(Graphics g)
     {
         if (!Visible || !_droppedDown) return;
@@ -133,6 +159,11 @@ public class ComboBox : Control
         base.RenderOverlay(g);
     }
 
+    /// <summary>
+    /// Tests whether the specified point is within the control bounds (including dropdown).
+    /// </summary>
+    /// <param name="point">The point to test.</param>
+    /// <returns>True if the point is within bounds; otherwise, false.</returns>
     public override bool HitTest(Point point)
     {
         if (Bounds.Contains(point))
@@ -148,6 +179,10 @@ public class ComboBox : Control
         return false;
     }
 
+    /// <summary>
+    /// Raises the LostFocus event and closes the dropdown.
+    /// </summary>
+    /// <param name="e">The event arguments.</param>
     protected internal override void OnLostFocus(EventArgs e)
     {
         if (_droppedDown)
@@ -160,6 +195,10 @@ public class ComboBox : Control
         base.OnLostFocus(e);
     }
 
+    /// <summary>
+    /// Raises the MouseDown event to handle clicks.
+    /// </summary>
+    /// <param name="e">The event arguments.</param>
     protected internal override void OnMouseDown(EventArgs e)
     {
         if (_droppedDown)
@@ -201,6 +240,10 @@ public class ComboBox : Control
         base.OnMouseDown(e);
     }
 
+    /// <summary>
+    /// Raises the MouseWheel event to handle scrolling.
+    /// </summary>
+    /// <param name="e">The event arguments.</param>
     protected internal override void OnMouseWheel(EventArgs e)
     {
         if (_droppedDown)
@@ -219,6 +262,10 @@ public class ComboBox : Control
         base.OnMouseWheel(e);
     }
 
+    /// <summary>
+    /// Raises the KeyDown event to handle keyboard navigation.
+    /// </summary>
+    /// <param name="e">A KeyEventArgs that contains the event data.</param>
     protected internal override void OnKeyDown(KeyEventArgs e)
     {
         switch (e.KeyCode)
@@ -323,10 +370,16 @@ public class ComboBox : Control
         Invalidate();
     }
 
+    /// <summary>
+    /// Raises the SelectedIndexChanged event.
+    /// </summary>
     protected virtual void OnSelectedIndexChanged()
     {
         SelectedIndexChanged?.Invoke(this, EventArgs.Empty);
     }
 
+    /// <summary>
+    /// Occurs when the selected index changes.
+    /// </summary>
     public event EventHandler? SelectedIndexChanged;
 }

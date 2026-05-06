@@ -2,6 +2,9 @@ using System.Drawing;
 
 namespace CoreForms.Ui.Core;
 
+/// <summary>
+/// Represents a window or dialog in the application.
+/// </summary>
 public class Form : ContainerControl
 {
     private string _title = string.Empty;
@@ -12,15 +15,28 @@ public class Form : ContainerControl
     private IntPtr _handle;
     private Control? _captureControl;
 
+    /// <summary>
+    /// Gets the native window handle.
+    /// </summary>
     public IntPtr Handle => _handle;
+
+    /// <summary>
+    /// Gets or sets the SDL window ID.
+    /// </summary>
     public uint WindowId { get; internal set; }
 
+    /// <summary>
+    /// Gets or sets the control that is capturing mouse input.
+    /// </summary>
     public Control? CaptureControl
     {
         get => _captureControl;
         set => _captureControl = value;
     }
 
+    /// <summary>
+    /// Gets or sets the title displayed in the window's title bar.
+    /// </summary>
     public string Title
     {
         get => _title;
@@ -31,6 +47,9 @@ public class Form : ContainerControl
         }
     }
 
+    /// <summary>
+    /// Gets or sets the current window state (normal, minimized, or maximized).
+    /// </summary>
     public FormWindowState WindowState
     {
         get => _windowState;
@@ -45,23 +64,47 @@ public class Form : ContainerControl
         }
     }
 
+    /// <summary>
+    /// Gets or sets the border style of the form.
+    /// </summary>
     public FormBorderStyle FormBorderStyle
     {
         get => _formBorderStyle;
         set => _formBorderStyle = value;
     }
 
+    /// <summary>
+    /// Occurs when the form is first shown.
+    /// </summary>
     public event EventHandler? Shown;
+
+    /// <summary>
+    /// Occurs when the form is resized.
+    /// </summary>
     public event EventHandler? Resize;
+
+    /// <summary>
+    /// Occurs when the form is closing.
+    /// </summary>
     public event EventHandler? FormClosing;
+
+    /// <summary>
+    /// Occurs when text input is received.
+    /// </summary>
     public event EventHandler<TextInputEventArgs>? TextInput;
 
+    /// <summary>
+    /// Creates the form and all its child controls.
+    /// </summary>
     public override void Create()
     {
         _handle = Platform.Platform.CreateWindow(this);
         base.Create();
     }
 
+    /// <summary>
+    /// Shows the form and registers it with the application.
+    /// </summary>
     public void Show()
     {
         Application.Instance.RegisterForm(this);
@@ -69,6 +112,9 @@ public class Form : ContainerControl
         OnShown(EventArgs.Empty);
     }
 
+    /// <summary>
+    /// Closes the form.
+    /// </summary>
     public void Close()
     {
         OnFormClosing(new FormClosingEventArgs(CloseReason.UserClosing, false));
@@ -76,6 +122,9 @@ public class Form : ContainerControl
         Platform.Platform.DestroyWindow(_handle);
     }
 
+    /// <summary>
+    /// Minimizes the form to the taskbar.
+    /// </summary>
     public void Minimize()
     {
         if (_handle != IntPtr.Zero)
@@ -84,6 +133,9 @@ public class Form : ContainerControl
         }
     }
 
+    /// <summary>
+    /// Maximizes the form to fill the screen.
+    /// </summary>
     public void Maximize()
     {
         if (_handle != IntPtr.Zero)
@@ -92,6 +144,9 @@ public class Form : ContainerControl
         }
     }
 
+    /// <summary>
+    /// Restores the form to its previous size after being minimized or maximized.
+    /// </summary>
     public void Restore()
     {
         if (_handle != IntPtr.Zero)
@@ -100,6 +155,9 @@ public class Form : ContainerControl
         }
     }
 
+    /// <summary>
+    /// Brings the form to the front of the z-order.
+    /// </summary>
     public void BringToFront()
     {
         if (_handle != IntPtr.Zero)
@@ -108,6 +166,11 @@ public class Form : ContainerControl
         }
     }
 
+    /// <summary>
+    /// Moves the form to the specified screen coordinates.
+    /// </summary>
+    /// <param name="x">The new x-coordinate.</param>
+    /// <param name="y">The new y-coordinate.</param>
     public void Move(int x, int y)
     {
         if (_handle != IntPtr.Zero)
@@ -116,6 +179,11 @@ public class Form : ContainerControl
         }
     }
 
+    /// <summary>
+    /// Resizes the form to the specified dimensions.
+    /// </summary>
+    /// <param name="width">The new width.</param>
+    /// <param name="height">The new height.</param>
     public void SetSize(int width, int height)
     {
         if (_handle != IntPtr.Zero)
@@ -124,6 +192,10 @@ public class Form : ContainerControl
         }
     }
 
+    /// <summary>
+    /// Raises the MouseDown event for the capturing control.
+    /// </summary>
+    /// <param name="e">The event arguments.</param>
     protected internal override void OnMouseDown(EventArgs e)
     {
         var args = e as MouseEventArgs;
@@ -136,6 +208,10 @@ public class Form : ContainerControl
         base.OnMouseDown(e);
     }
 
+    /// <summary>
+    /// Raises the MouseUp event for the capturing control.
+    /// </summary>
+    /// <param name="e">The event arguments.</param>
     protected internal override void OnMouseUp(EventArgs e)
     {
         var args = e as MouseEventArgs;
@@ -148,6 +224,10 @@ public class Form : ContainerControl
         base.OnMouseUp(e);
     }
 
+    /// <summary>
+    /// Raises the MouseMove event for the capturing control.
+    /// </summary>
+    /// <param name="e">The event arguments.</param>
     protected internal override void OnMouseMove(EventArgs e)
     {
         var args = e as MouseEventArgs;
@@ -160,6 +240,10 @@ public class Form : ContainerControl
         base.OnMouseMove(e);
     }
 
+    /// <summary>
+    /// Raises the MouseWheel event for the capturing control.
+    /// </summary>
+    /// <param name="e">The event arguments.</param>
     protected internal override void OnMouseWheel(EventArgs e)
     {
         if (_captureControl != null)
@@ -213,25 +297,55 @@ public class Form : ContainerControl
         ActiveControl = tabs[nextIndex];
     }
 
+    /// <summary>
+    /// Raises the Shown event.
+    /// </summary>
+    /// <param name="e">An EventArgs that contains the event data.</param>
     protected internal virtual void OnShown(EventArgs e) => Shown?.Invoke(this, e);
+
+    /// <summary>
+    /// Raises the Resize event.
+    /// </summary>
+    /// <param name="e">An EventArgs that contains the event data.</param>
     protected internal virtual void OnResize(EventArgs e)
     {
         PerformLayout();
         Resize?.Invoke(this, e);
     }
+
+    /// <summary>
+    /// Raises the FormClosing event.
+    /// </summary>
+    /// <param name="e">A FormClosingEventArgs that contains the event data.</param>
     protected internal virtual void OnFormClosing(FormClosingEventArgs e) => FormClosing?.Invoke(this, e);
+
+    /// <summary>
+    /// Called when the window state changes.
+    /// </summary>
     protected internal virtual void OnWindowStateChanged() { }
 
+    /// <summary>
+    /// Raises the GotFocus event.
+    /// </summary>
+    /// <param name="e">An EventArgs that contains the event data.</param>
     protected internal override void OnGotFocus(EventArgs e)
     {
         base.OnGotFocus(e);
     }
 
+    /// <summary>
+    /// Raises the LostFocus event.
+    /// </summary>
+    /// <param name="e">An EventArgs that contains the event data.</param>
     protected internal override void OnLostFocus(EventArgs e)
     {
         base.OnLostFocus(e);
     }
 
+    /// <summary>
+    /// Raises the TextInput event, routing to the active control.
+    /// </summary>
+    /// <param name="text">The input text.</param>
     protected internal override void OnTextInput(string text)
     {
         if (ActiveControl != null)
@@ -241,6 +355,10 @@ public class Form : ContainerControl
         TextInput?.Invoke(this, new TextInputEventArgs(text));
     }
 
+    /// <summary>
+    /// Raises the KeyDown event, handling Tab key navigation.
+    /// </summary>
+    /// <param name="e">A KeyEventArgs that contains the event data.</param>
     protected internal override void OnKeyDown(KeyEventArgs e)
     {
         if (e.KeyCode == Keys.Tab)
@@ -258,6 +376,10 @@ public class Form : ContainerControl
         base.OnKeyDown(e);
     }
 
+    /// <summary>
+    /// Raises the KeyUp event, routing to the active control.
+    /// </summary>
+    /// <param name="e">A KeyEventArgs that contains the event data.</param>
     protected internal override void OnKeyUp(KeyEventArgs e)
     {
         if (ActiveControl != null)
@@ -268,6 +390,10 @@ public class Form : ContainerControl
         base.OnKeyUp(e);
     }
 
+    /// <summary>
+    /// Raises the KeyPress event, routing to the active control.
+    /// </summary>
+    /// <param name="e">A KeyPressEventArgs that contains the event data.</param>
     protected internal override void OnKeyPress(KeyPressEventArgs e)
     {
         if (ActiveControl != null)
@@ -312,26 +438,73 @@ public class Form : ContainerControl
     }
 }
 
+/// <summary>
+/// Specifies the state of a form window.
+/// </summary>
 public enum FormWindowState
 {
+    /// <summary>
+    /// A normal, resizable window.
+    /// </summary>
     Normal,
+
+    /// <summary>
+    /// A minimized (minimized to taskbar) window.
+    /// </summary>
     Minimized,
+
+    /// <summary>
+    /// A maximized (filling the screen) window.
+    /// </summary>
     Maximized
 }
 
+/// <summary>
+/// Specifies the border style of a form.
+/// </summary>
 public enum FormBorderStyle
 {
+    /// <summary>
+    /// No border.
+    /// </summary>
     None,
+
+    /// <summary>
+    /// A single-line border that cannot be resized.
+    /// </summary>
     FixedSingle,
+
+    /// <summary>
+    /// A dialog-style border that cannot be resized.
+    /// </summary>
     FixedDialog,
+
+    /// <summary>
+    /// A resizable border (default).
+    /// </summary>
     Sizable,
+
+    /// <summary>
+    /// A fixed 3D border.
+    /// </summary>
     Fixed3D
 }
 
+/// <summary>
+/// Provides data for the FormClosing event.
+/// </summary>
 public class FormClosingEventArgs : CancelEventArgs
 {
+    /// <summary>
+    /// Gets the reason for the form closing.
+    /// </summary>
     public CloseReason CloseReason { get; }
 
+    /// <summary>
+    /// Initializes a new instance of FormClosingEventArgs.
+    /// </summary>
+    /// <param name="closeReason">The reason for closing.</param>
+    /// <param name="cancel">Whether to cancel the close operation.</param>
     public FormClosingEventArgs(CloseReason closeReason, bool cancel)
         : base(cancel)
     {
@@ -339,13 +512,43 @@ public class FormClosingEventArgs : CancelEventArgs
     }
 }
 
+/// <summary>
+/// Specifies the reason for closing a form.
+/// </summary>
 public enum CloseReason
 {
+    /// <summary>
+    /// No reason specified.
+    /// </summary>
     None,
+
+    /// <summary>
+    /// The form is closing due to another form being closed.
+    /// </summary>
     FormClosing,
+
+    /// <summary>
+    /// The user closed the form (e.g., clicked the close button).
+    /// </summary>
     UserClosing,
+
+    /// <summary>
+    /// The application is exiting.
+    /// </summary>
     ApplicationExitCall,
+
+    /// <summary>
+    /// An MDI child form is closing.
+    /// </summary>
     MdiFormClosing,
+
+    /// <summary>
+    /// The Windows task manager is closing the application.
+    /// </summary>
     TaskManagerClosing,
+
+    /// <summary>
+    /// Windows is shutting down.
+    /// </summary>
     WindowsShutDown
 }

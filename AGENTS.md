@@ -55,3 +55,12 @@ dotnet run --project samples/CoreForms.Ui.Demo  # Run demo (requires X11/display
 - Controls inherit from `CoreForms.Ui.Core.Control`
 - Graphics uses command-list pattern for platform-independent rendering
 - Platform abstraction with SDL2 via direct P/Invoke
+
+## Code Conventions
+
+**XML-Summary Kommentare:**
+- Alle Klassen, Properties, Events und Methoden in der Codebasis (außer Unit Tests) müssen XML-Summary Kommentare haben
+- XML-Summaries müssen Parameter (`<param name="...">`) und ggf. geworfene Exceptions (`<exception cref="...">`) enthalten
+- Properties müssen den Verwendungszweck dokumentieren
+- Events müssen beschreiben, wann sie ausgelöst werden
+- Methoden müssen die Funktionalität und Parameter beschreiben

@@ -3,6 +3,9 @@ using Graphics = CoreForms.Ui.Rendering.Graphics;
 
 namespace CoreForms.Ui.Controls.Basic;
 
+/// <summary>
+/// A control that displays a visual indicator of progress.
+/// </summary>
 public class ProgressBar : Control
 {
     private int _minimum;
@@ -10,11 +13,17 @@ public class ProgressBar : Control
     private int _value;
     private Orientation _orientation = Orientation.Horizontal;
 
+    /// <summary>
+    /// Initializes a new instance of ProgressBar.
+    /// </summary>
     public ProgressBar()
     {
         Size = new Size(200, 28);
     }
 
+    /// <summary>
+    /// Gets or sets the minimum value.
+    /// </summary>
     public int Minimum
     {
         get => _minimum;
@@ -26,6 +35,9 @@ public class ProgressBar : Control
         }
     }
 
+    /// <summary>
+    /// Gets or sets the maximum value.
+    /// </summary>
     public int Maximum
     {
         get => _maximum;
@@ -37,6 +49,9 @@ public class ProgressBar : Control
         }
     }
 
+    /// <summary>
+    /// Gets or sets the current value.
+    /// </summary>
     public int Value
     {
         get => _value;
@@ -53,6 +68,9 @@ public class ProgressBar : Control
         }
     }
 
+    /// <summary>
+    /// Gets or sets the orientation of the progress bar.
+    /// </summary>
     public Orientation Orientation
     {
         get => _orientation;
@@ -63,6 +81,10 @@ public class ProgressBar : Control
         }
     }
 
+    /// <summary>
+    /// Renders the progress bar with its filled portion.
+    /// </summary>
+    /// <param name="g">The Graphics object to use for rendering.</param>
     public override void Render(Graphics g)
     {
         if (!Visible) return;
@@ -90,16 +112,32 @@ public class ProgressBar : Control
         base.Render(g);
     }
 
+    /// <summary>
+    /// Raises the ValueChanged event.
+    /// </summary>
     protected virtual void OnValueChanged()
     {
         ValueChanged?.Invoke(this, EventArgs.Empty);
     }
 
+    /// <summary>
+    /// Occurs when the value changes.
+    /// </summary>
     public event EventHandler? ValueChanged;
 }
 
+/// <summary>
+/// Specifies the orientation of the progress bar.
+/// </summary>
 public enum Orientation
 {
+    /// <summary>
+    /// Horizontal orientation (left to right).
+    /// </summary>
     Horizontal,
+
+    /// <summary>
+    /// Vertical orientation (bottom to top).
+    /// </summary>
     Vertical
 }

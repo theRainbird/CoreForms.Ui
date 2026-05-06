@@ -3,6 +3,9 @@ using Graphics = CoreForms.Ui.Rendering.Graphics;
 
 namespace CoreForms.Ui.Controls.Basic;
 
+/// <summary>
+/// A control that allows the user to enter text.
+/// </summary>
 public class TextBox : Control
 {
     private string _text = string.Empty;
@@ -11,6 +14,9 @@ public class TextBox : Control
     private int _selectionLength;
     private static readonly int CursorBlinkInterval = 530;
 
+    /// <summary>
+    /// Initializes a new instance of TextBox.
+    /// </summary>
     public TextBox()
     {
         BackColor = Color.White;
@@ -19,6 +25,9 @@ public class TextBox : Control
         TabStop = true;
     }
 
+    /// <summary>
+    /// Gets or sets the text in the text box.
+    /// </summary>
     public new string Text
     {
         get => _text;
@@ -36,18 +45,27 @@ public class TextBox : Control
         }
     }
 
+    /// <summary>
+    /// Gets or sets the starting position of the selected text.
+    /// </summary>
     public int SelectionStart
     {
         get => _selectionLength > 0 ? Math.Min(_selectionAnchor, _cursorPosition) : _cursorPosition;
         set => _selectionAnchor = value;
     }
 
+    /// <summary>
+    /// Gets or sets the number of selected characters.
+    /// </summary>
     public int SelectionLength
     {
         get => _selectionLength;
         set => _selectionLength = value;
     }
 
+    /// <summary>
+    /// Gets the selected text.
+    /// </summary>
     public string SelectedText
     {
         get
@@ -69,6 +87,10 @@ public class TextBox : Control
         return measured.width;
     }
 
+    /// <summary>
+    /// Renders the text box with its text, selection, and cursor.
+    /// </summary>
+    /// <param name="g">The Graphics object to use for rendering.</param>
     public override void Render(Rendering.Graphics g)
     {
         if (!Visible) return;
@@ -117,12 +139,19 @@ public class TextBox : Control
         base.Render(g);
     }
 
+    /// <summary>
+    /// Raises the TextChanged event.
+    /// </summary>
     protected override void OnTextChanged()
     {
         base.OnTextChanged();
         TextChanged?.Invoke(this, EventArgs.Empty);
     }
 
+    /// <summary>
+    /// Raises the MouseDown event and sets cursor position.
+    /// </summary>
+    /// <param name="e">The event arguments.</param>
     protected internal override void OnMouseDown(EventArgs e)
     {
         var mouseArgs = e as MouseEventArgs;
@@ -152,6 +181,10 @@ public class TextBox : Control
         base.OnMouseDown(e);
     }
 
+    /// <summary>
+    /// Raises the KeyDown event to handle text editing.
+    /// </summary>
+    /// <param name="e">A KeyEventArgs that contains the event data.</param>
     protected internal override void OnKeyDown(KeyEventArgs e)
     {
         if (e.Modifiers.HasFlag(ModifierKeys.Control))
@@ -225,7 +258,7 @@ public class TextBox : Control
                 }
                 e.Handled = true;
                 break;
-case Keys.Right:
+            case Keys.Right:
                 if (_selectionLength > 0 && !shift)
                 {
                     _cursorPosition = Math.Max(_selectionAnchor, _cursorPosition);
@@ -295,6 +328,10 @@ case Keys.Right:
         _selectionLength = 0;
     }
 
+    /// <summary>
+    /// Raises the TextInput event to insert typed text.
+    /// </summary>
+    /// <param name="text">The input text.</param>
     protected internal override void OnTextInput(string text)
     {
         if (string.IsNullOrEmpty(text)) return;
@@ -309,5 +346,8 @@ case Keys.Right:
         OnTextChanged();
     }
 
+    /// <summary>
+    /// Occurs when the text changes.
+    /// </summary>
     public event EventHandler? TextChanged;
 }

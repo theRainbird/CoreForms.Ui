@@ -3,18 +3,31 @@ using Graphics = CoreForms.Ui.Rendering.Graphics;
 
 namespace CoreForms.Ui.Controls.Containers;
 
+/// <summary>
+/// A menu strip that displays a menu bar with menu items.
+/// </summary>
 public class MenuStrip : ContainerControl
 {
     private readonly List<ToolStripMenuItem> _items = new();
 
+    /// <summary>
+    /// Initializes a new instance of MenuStrip.
+    /// </summary>
     public MenuStrip()
     {
         Size = new Size(400, 24);
         BackColor = SystemColors.Control;
     }
 
+    /// <summary>
+    /// Gets the collection of menu items.
+    /// </summary>
     public List<ToolStripMenuItem> Items => _items;
 
+    /// <summary>
+    /// Renders the menu strip with its items.
+    /// </summary>
+    /// <param name="g">The Graphics object to use for rendering.</param>
     public override void Render(Graphics g)
     {
         if (!Visible) return;
@@ -35,6 +48,9 @@ public class MenuStrip : ContainerControl
     }
 }
 
+/// <summary>
+/// Represents a menu item in a MenuStrip.
+/// </summary>
 public class ToolStripMenuItem : Component
 {
     private string _text = string.Empty;
@@ -43,51 +59,86 @@ public class ToolStripMenuItem : Component
     private readonly List<ToolStripMenuItem> _dropDownItems = new();
     private int _width;
 
+    /// <summary>
+    /// Initializes a new instance of ToolStripMenuItem.
+    /// </summary>
+    /// <param name="text">The menu item text.</param>
     public ToolStripMenuItem(string text)
     {
         _text = text;
     }
 
+    /// <summary>
+    /// Gets or sets the text of the menu item.
+    /// </summary>
     public string Text
     {
         get => _text;
         set => _text = value;
     }
 
+    /// <summary>
+    /// Gets or sets whether the menu item is selected.
+    /// </summary>
     public bool IsSelected
     {
         get => _isSelected;
         set => _isSelected = value;
     }
 
+    /// <summary>
+    /// Gets or sets whether the dropdown is visible.
+    /// </summary>
     public bool IsDropDownVisible
     {
         get => _isDropDownVisible;
         set => _isDropDownVisible = value;
     }
 
+    /// <summary>
+    /// Gets the collection of dropdown items.
+    /// </summary>
     public List<ToolStripMenuItem> DropDownItems => _dropDownItems;
 
+    /// <summary>
+    /// Occurs when the menu item is clicked.
+    /// </summary>
     public event EventHandler? Click;
 
+    /// <summary>
+    /// Raises the Click event.
+    /// </summary>
     public void OnClick()
     {
         Click?.Invoke(this, EventArgs.Empty);
     }
 }
 
+/// <summary>
+/// A toolbar that displays a collection of tool strip items.
+/// </summary>
 public class ToolStrip : ContainerControl
 {
     private readonly List<ToolStripItem> _items = new();
 
+    /// <summary>
+    /// Initializes a new instance of ToolStrip.
+    /// </summary>
     public ToolStrip()
     {
         Size = new Size(400, 28);
         BackColor = SystemColors.Control;
     }
 
+    /// <summary>
+    /// Gets the collection of tool strip items.
+    /// </summary>
     public List<ToolStripItem> Items => _items;
 
+    /// <summary>
+    /// Renders the tool strip with its items.
+    /// </summary>
+    /// <param name="g">The Graphics object to use for rendering.</param>
     public override void Render(Graphics g)
     {
         if (!Visible) return;
@@ -123,21 +174,56 @@ public class ToolStrip : ContainerControl
     }
 }
 
+/// <summary>
+/// Base class for items in a ToolStrip.
+/// </summary>
 public class ToolStripItem : Component
 {
+    /// <summary>
+    /// Gets or sets the text of the item.
+    /// </summary>
     public string Text { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Gets or sets the width of the item.
+    /// </summary>
     public int Width { get; set; } = 24;
+
+    /// <summary>
+    /// Gets or sets whether the item is enabled.
+    /// </summary>
     public bool Enabled { get; set; } = true;
+
+    /// <summary>
+    /// Gets or sets whether the mouse is hovering over the item.
+    /// </summary>
     public bool IsHovered { get; set; }
+
+    /// <summary>
+    /// Gets or sets whether the item is pressed.
+    /// </summary>
     public bool IsPressed { get; set; }
 }
 
+/// <summary>
+/// Represents a button in a ToolStrip.
+/// </summary>
 public class ToolStripButton : ToolStripItem
 {
+    /// <summary>
+    /// Gets or sets whether the button acts as a toggle button.
+    /// </summary>
     public bool IsToggle { get; set; }
+
+    /// <summary>
+    /// Gets or sets whether the button is checked.
+    /// </summary>
     public bool Checked { get; set; }
 }
 
+/// <summary>
+/// Represents a separator in a ToolStrip.
+/// </summary>
 public class ToolStripSeparator : ToolStripItem
 {
 }

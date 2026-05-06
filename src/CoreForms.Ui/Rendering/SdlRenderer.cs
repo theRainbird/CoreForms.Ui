@@ -2,12 +2,18 @@ using System.Runtime.InteropServices;
 
 namespace CoreForms.Ui.Rendering;
 
+/// <summary>
+/// Provides SDL2-based rendering implementation for the graphics system.
+/// </summary>
 public class SdlRenderer : IDisposable
 {
     private IntPtr _renderer;
     private IntPtr _window;
     private bool _disposed;
 
+    /// <summary>
+    /// Gets the native SDL renderer handle.
+    /// </summary>
     public IntPtr Handle => _renderer;
 
     [DllImport("SDL2", CallingConvention = CallingConvention.Cdecl)]
@@ -85,12 +91,17 @@ public class SdlRenderer : IDisposable
         public SDL_FPoint tex_coord;
     }
 
+    /// <summary>
+    /// Initializes a new SdlRenderer for the specified window.
+    /// </summary>
+    /// <param name="window">The native window handle.</param>
+    /// <exception cref="InvalidOperationException">Thrown when SDL renderer creation fails.</exception>
     public SdlRenderer(IntPtr window)
     {
         SDL_SetHint("SDL_RENDER_LINE_METHOD", "2");
         _window = window;
         _renderer = SDL_CreateRenderer(window, -1, 0);
-        
+
         if (_renderer == IntPtr.Zero)
         {
             var errorPtr = SDL_GetError();
@@ -102,12 +113,24 @@ public class SdlRenderer : IDisposable
     [DllImport("SDL2", CallingConvention = CallingConvention.Cdecl)]
     private static extern IntPtr SDL_GetError();
 
+    /// <summary>
+    /// Clears the renderer with the specified color.
+    /// </summary>
+    /// <param name="color">The clear color.</param>
     public void Clear(Core.Color color)
     {
         SDL_SetRenderDrawColor(_renderer, color.R, color.G, color.B, color.A);
         SDL_RenderClear(_renderer);
     }
 
+    /// <summary>
+    /// Fills a rectangle with the specified color.
+    /// </summary>
+    /// <param name="color">The fill color.</param>
+    /// <param name="x">The x-coordinate.</param>
+    /// <param name="y">The y-coordinate.</param>
+    /// <param name="width">The width.</param>
+    /// <param name="height">The height.</param>
     public void FillRectangle(Core.Color color, float x, float y, float width, float height)
     {
         SDL_SetRenderDrawColor(_renderer, color.R, color.G, color.B, color.A);
@@ -115,6 +138,14 @@ public class SdlRenderer : IDisposable
         SDL_RenderFillRect(_renderer, ref rect);
     }
 
+    /// <summary>
+    /// Draws a rectangle outline.
+    /// </summary>
+    /// <param name="color">The outline color.</param>
+    /// <param name="x">The x-coordinate.</param>
+    /// <param name="y">The y-coordinate.</param>
+    /// <param name="width">The width.</param>
+    /// <param name="height">The height.</param>
     public void DrawRectangle(Core.Color color, float x, float y, float width, float height)
     {
         SDL_SetRenderDrawColor(_renderer, color.R, color.G, color.B, color.A);
@@ -122,6 +153,15 @@ public class SdlRenderer : IDisposable
         SDL_RenderDrawRect(_renderer, ref rect);
     }
 
+    /// <summary>
+    /// Draws a line between two points.
+    /// </summary>
+    /// <param name="color">The line color.</param>
+    /// <param name="x1">The x-coordinate of the start point.</param>
+    /// <param name="y1">The y-coordinate of the start point.</param>
+    /// <param name="x2">The x-coordinate of the end point.</param>
+    /// <param name="y2">The y-coordinate of the end point.</param>
+    /// <param name="lineWidth">The line width.</param>
     public void DrawLine(Core.Color color, float x1, float y1, float x2, float y2, float lineWidth = 1f)
     {
         SDL_SetRenderDrawColor(_renderer, color.R, color.G, color.B, color.A);
@@ -182,6 +222,16 @@ public class SdlRenderer : IDisposable
         }
     }
 
+    /// <summary>
+    /// Draws a filled triangle.
+    /// </summary>
+    /// <param name="color">The fill color.</param>
+    /// <param name="x1">The x-coordinate of the first vertex.</param>
+    /// <param name="y1">The y-coordinate of the first vertex.</param>
+    /// <param name="x2">The x-coordinate of the second vertex.</param>
+    /// <param name="y2">The y-coordinate of the second vertex.</param>
+    /// <param name="x3">The x-coordinate of the third vertex.</param>
+    /// <param name="y3">The y-coordinate of the third vertex.</param>
     public void FillTriangle(Core.Color color, float x1, float y1, float x2, float y2, float x3, float y3)
     {
         var sdlColor = new SDL_Color { r = color.R, g = color.G, b = color.B, a = color.A };
@@ -200,6 +250,10 @@ public class SdlRenderer : IDisposable
         SDL_RenderGeometry(_renderer, IntPtr.Zero, vertices, vertices.Length, indices, indices.Length);
     }
 
+    /// <summary>
+    /// Sets the clipping rectangle.
+    /// </summary>
+    /// <param name="rect">The clipping rectangle, or null to disable clipping.</param>
     public void SetClipRect(Core.Rectangle? rect)
     {
         if (rect.HasValue)
@@ -213,11 +267,17 @@ public class SdlRenderer : IDisposable
         }
     }
 
+    /// <summary>
+    /// Presents the rendered frame to the display.
+    /// </summary>
     public void Present()
     {
         SDL_RenderPresent(_renderer);
     }
 
+    /// <summary>
+    /// Releases all resources used by this SdlRenderer.
+    /// </summary>
     public void Dispose()
     {
         if (!_disposed)

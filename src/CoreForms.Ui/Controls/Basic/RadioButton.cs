@@ -3,17 +3,26 @@ using Graphics = CoreForms.Ui.Rendering.Graphics;
 
 namespace CoreForms.Ui.Controls.Basic;
 
+/// <summary>
+/// A control that allows selecting one option from a group of options.
+/// </summary>
 public class RadioButton : Control
 {
     private bool _checked;
     private RadioButton? _group;
 
+    /// <summary>
+    /// Initializes a new instance of RadioButton.
+    /// </summary>
     public RadioButton()
     {
         Size = new Size(200, 28);
         TabStop = true;
     }
 
+    /// <summary>
+    /// Gets or sets whether the radio button is checked.
+    /// </summary>
     public bool Checked
     {
         get => _checked;
@@ -47,6 +56,10 @@ public class RadioButton : Control
         }
     }
 
+    /// <summary>
+    /// Renders the radio button with its circle and text.
+    /// </summary>
+    /// <param name="g">The Graphics object to use for rendering.</param>
     public override void Render(Rendering.Graphics g)
     {
         if (!Visible) return;
@@ -67,12 +80,20 @@ public class RadioButton : Control
         base.Render(g);
     }
 
+    /// <summary>
+    /// Raises the Click event and sets the checked state.
+    /// </summary>
+    /// <param name="e">The event arguments.</param>
     protected override void OnClick(EventArgs e)
     {
         Checked = true;
         base.OnClick(e);
     }
 
+    /// <summary>
+    /// Raises the KeyDown event to handle Space key.
+    /// </summary>
+    /// <param name="e">A KeyEventArgs that contains the event data.</param>
     protected internal override void OnKeyDown(KeyEventArgs e)
     {
         if (e.KeyCode == Keys.Space)
@@ -83,10 +104,16 @@ public class RadioButton : Control
         base.OnKeyDown(e);
     }
 
+    /// <summary>
+    /// Raises the CheckedChanged event.
+    /// </summary>
     protected virtual void OnCheckedChanged()
     {
         CheckedChanged?.Invoke(this, EventArgs.Empty);
     }
 
+    /// <summary>
+    /// Occurs when the checked state changes.
+    /// </summary>
     public event EventHandler? CheckedChanged;
 }

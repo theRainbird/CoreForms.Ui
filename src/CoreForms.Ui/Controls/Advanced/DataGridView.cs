@@ -3,6 +3,9 @@ using Graphics = CoreForms.Ui.Rendering.Graphics;
 
 namespace CoreForms.Ui.Controls.Advanced;
 
+/// <summary>
+/// A control that displays data in a grid format with rows and columns.
+/// </summary>
 public class DataGridView : ContainerControl
 {
     private readonly DataGridViewColumnCollection _columns = new();
@@ -24,6 +27,9 @@ public class DataGridView : ContainerControl
     private int _verticalScrollOffset;
     private int _horizontalScrollOffset;
 
+    /// <summary>
+    /// Initializes a new instance of DataGridView.
+    /// </summary>
     public DataGridView()
     {
         BackColor = Color.White;
@@ -31,9 +37,19 @@ public class DataGridView : ContainerControl
         TabStop = true;
     }
 
+    /// <summary>
+    /// Gets the collection of columns.
+    /// </summary>
     public DataGridViewColumnCollection Columns => _columns;
+
+    /// <summary>
+    /// Gets the collection of rows.
+    /// </summary>
     public DataGridViewRowCollection Rows => _rows;
 
+    /// <summary>
+    /// Gets or sets the index of the selected row.
+    /// </summary>
     public int SelectedRowIndex
     {
         get => _selectedRowIndex;
@@ -48,6 +64,9 @@ public class DataGridView : ContainerControl
         }
     }
 
+    /// <summary>
+    /// Gets or sets the index of the selected column.
+    /// </summary>
     public int SelectedColumnIndex
     {
         get => _selectedColumnIndex;
@@ -62,30 +81,45 @@ public class DataGridView : ContainerControl
         }
     }
 
+    /// <summary>
+    /// Gets or sets whether the user can add rows.
+    /// </summary>
     public bool AllowUserToAddRows
     {
         get => _allowUserToAddRows;
         set => _allowUserToAddRows = value;
     }
 
+    /// <summary>
+    /// Gets or sets whether the user can delete rows.
+    /// </summary>
     public bool AllowUserToDeleteRows
     {
         get => _allowUserToDeleteRows;
         set => _allowUserToDeleteRows = value;
     }
 
+    /// <summary>
+    /// Gets or sets whether the grid is read-only.
+    /// </summary>
     public bool ReadOnly
     {
         get => _readOnly;
         set => _readOnly = value;
     }
 
+    /// <summary>
+    /// Gets or sets whether multiple rows can be selected.
+    /// </summary>
     public bool MultiSelect
     {
         get => _multiSelect;
         set => _multiSelect = value;
     }
 
+    /// <summary>
+    /// Gets or sets whether column headers are visible.
+    /// </summary>
     public bool ColumnHeadersVisible
     {
         get => _columnHeadersVisible;
@@ -96,6 +130,9 @@ public class DataGridView : ContainerControl
         }
     }
 
+    /// <summary>
+    /// Gets or sets whether row headers are visible.
+    /// </summary>
     public bool RowHeadersVisible
     {
         get => _rowHeadersVisible;
@@ -106,6 +143,9 @@ public class DataGridView : ContainerControl
         }
     }
 
+    /// <summary>
+    /// Gets or sets whether grid lines are shown.
+    /// </summary>
     public bool ShowGridLines
     {
         get => _showGridLines;
@@ -116,40 +156,75 @@ public class DataGridView : ContainerControl
         }
     }
 
+    /// <summary>
+    /// Gets or sets the selection mode.
+    /// </summary>
     public DataGridViewSelectionMode SelectionMode
     {
         get => _selectionMode;
         set => _selectionMode = value;
     }
 
+    /// <summary>
+    /// Gets the selected row.
+    /// </summary>
     public DataGridViewRow? SelectedRow => _selectedRowIndex >= 0 && _selectedRowIndex < _rows.Count
         ? _rows[_selectedRowIndex]
         : null;
 
+    /// <summary>
+    /// Gets the value of the selected cell.
+    /// </summary>
     public object? SelectedValue => SelectedRow != null && _selectedColumnIndex >= 0 && _selectedColumnIndex < _columns.Count
         ? SelectedRow.Cells[_selectedColumnIndex]?.Value
         : null;
 
+    /// <summary>
+    /// Occurs when the selection changes.
+    /// </summary>
     public event EventHandler? SelectionChanged;
+
+    /// <summary>
+    /// Occurs when a cell is clicked.
+    /// </summary>
     public event EventHandler? CellClick;
+
+    /// <summary>
+    /// Occurs when a cell value changes.
+    /// </summary>
     public event EventHandler<DataGridViewCellEventArgs>? CellValueChanged;
 
+    /// <summary>
+    /// Raises the SelectionChanged event.
+    /// </summary>
     protected virtual void OnSelectionChanged()
     {
         SelectionChanged?.Invoke(this, EventArgs.Empty);
     }
 
+    /// <summary>
+    /// Raises the CellClick event.
+    /// </summary>
+    /// <param name="e">The event arguments.</param>
     protected virtual void OnCellClick(DataGridViewCellEventArgs e)
     {
         CellClick?.Invoke(this, e);
     }
 
+    /// <summary>
+    /// Raises the CellValueChanged event.
+    /// </summary>
+    /// <param name="e">The event arguments.</param>
     protected virtual void OnCellValueChanged(DataGridViewCellEventArgs e)
     {
         CellValueChanged?.Invoke(this, e);
     }
 
-public override void Render(Graphics g)
+    /// <summary>
+    /// Renders the DataGridView with all its elements.
+    /// </summary>
+    /// <param name="g">The Graphics object to use for rendering.</param>
+    public override void Render(Graphics g)
     {
         if (!Visible) return;
 
@@ -320,6 +395,10 @@ public override void Render(Graphics g)
         base.Render(g);
     }
 
+    /// <summary>
+    /// Raises the MouseDown event and selects a cell.
+    /// </summary>
+    /// <param name="e">The event arguments.</param>
     protected internal override void OnMouseDown(EventArgs e)
     {
         var mouseArgs = e as MouseEventArgs;
@@ -348,6 +427,10 @@ public override void Render(Graphics g)
         base.OnMouseDown(e);
     }
 
+    /// <summary>
+    /// Raises the KeyDown event to handle navigation.
+    /// </summary>
+    /// <param name="e">A KeyEventArgs that contains the event data.</param>
     protected internal override void OnKeyDown(KeyEventArgs e)
     {
         switch (e.KeyCode)
@@ -454,6 +537,10 @@ public override void Render(Graphics g)
             _verticalScrollOffset = rowBottom - dataHeight;
     }
 
+    /// <summary>
+    /// Raises the MouseWheel event to handle vertical scrolling.
+    /// </summary>
+    /// <param name="e">The event arguments.</param>
     protected internal override void OnMouseWheel(EventArgs e)
     {
         var mouseArgs = e as MouseEventArgs;
@@ -465,12 +552,16 @@ public override void Render(Graphics g)
             int dataHeight = Height - headerHeight;
             int maxScroll = Math.Max(0, totalContentHeight - dataHeight);
             _verticalScrollOffset = Math.Max(0, Math.Min(_verticalScrollOffset, maxScroll));
-            
+
             Invalidate();
         }
         base.OnMouseWheel(e);
     }
 
+    /// <summary>
+    /// Adds a new row with the specified values.
+    /// </summary>
+    /// <param name="values">The values for the new row.</param>
     public void AddRow(params object[] values)
     {
         var row = new DataGridViewRow();
@@ -483,6 +574,9 @@ public override void Render(Graphics g)
         Invalidate();
     }
 
+    /// <summary>
+    /// Clears all rows from the grid.
+    /// </summary>
     public void Clear()
     {
         _rows.Clear();
@@ -492,86 +586,195 @@ public override void Render(Graphics g)
     }
 }
 
+/// <summary>
+/// Provides a collection for DataGridView columns.
+/// </summary>
 public class DataGridViewColumnCollection
 {
     private readonly List<DataGridViewColumn> _columns = new();
 
+    /// <summary>
+    /// Gets the number of columns.
+    /// </summary>
     public int Count => _columns.Count;
 
+    /// <summary>
+    /// Gets the column at the specified index.
+    /// </summary>
+    /// <param name="index">The index.</param>
     public DataGridViewColumn this[int index] => _columns[index];
 
+    /// <summary>
+    /// Adds a column to the collection.
+    /// </summary>
+    /// <param name="column">The column to add.</param>
     public void Add(DataGridViewColumn column)
     {
         _columns.Add(column);
     }
 
+    /// <summary>
+    /// Removes a column from the collection.
+    /// </summary>
+    /// <param name="column">The column to remove.</param>
     public void Remove(DataGridViewColumn column)
     {
         _columns.Remove(column);
     }
 
+    /// <summary>
+    /// Removes all columns from the collection.
+    /// </summary>
     public void Clear()
     {
         _columns.Clear();
     }
 }
 
+/// <summary>
+/// Provides a collection for DataGridView rows.
+/// </summary>
 public class DataGridViewRowCollection
 {
     private readonly List<DataGridViewRow> _rows = new();
 
+    /// <summary>
+    /// Gets the number of rows.
+    /// </summary>
     public int Count => _rows.Count;
 
+    /// <summary>
+    /// Gets the row at the specified index.
+    /// </summary>
+    /// <param name="index">The index.</param>
     public DataGridViewRow this[int index] => _rows[index];
 
+    /// <summary>
+    /// Adds a row to the collection.
+    /// </summary>
+    /// <param name="row">The row to add.</param>
     public void Add(DataGridViewRow row)
     {
         _rows.Add(row);
     }
 
+    /// <summary>
+    /// Removes a row from the collection.
+    /// </summary>
+    /// <param name="row">The row to remove.</param>
     public void Remove(DataGridViewRow row)
     {
         _rows.Remove(row);
     }
 
+    /// <summary>
+    /// Removes all rows from the collection.
+    /// </summary>
     public void Clear()
     {
         _rows.Clear();
     }
 }
 
+/// <summary>
+/// Represents a column in a DataGridView.
+/// </summary>
 public class DataGridViewColumn
 {
+    /// <summary>
+    /// Gets or sets the name of the column.
+    /// </summary>
     public string Name { get; set; } = "";
+
+    /// <summary>
+    /// Gets or sets the header text.
+    /// </summary>
     public string HeaderText { get; set; } = "";
+
+    /// <summary>
+    /// Gets or sets the width of the column.
+    /// </summary>
     public int Width { get; set; } = 100;
+
+    /// <summary>
+    /// Gets or sets the header cell.
+    /// </summary>
     public DataGridViewHeaderCell? HeaderCell { get; set; }
+
+    /// <summary>
+    /// Gets or sets whether the column is read-only.
+    /// </summary>
     public bool ReadOnly { get; set; }
+
+    /// <summary>
+    /// Gets or sets the type of values in the column.
+    /// </summary>
     public Type? ValueType { get; set; }
 }
 
+/// <summary>
+/// Represents a row in a DataGridView.
+/// </summary>
 public class DataGridViewRow
 {
+    /// <summary>
+    /// Gets the collection of cells in the row.
+    /// </summary>
     public List<DataGridViewCell> Cells { get; } = new();
 }
 
+/// <summary>
+/// Represents a cell in a DataGridView.
+/// </summary>
 public class DataGridViewCell
 {
+    /// <summary>
+    /// Gets or sets the value of the cell.
+    /// </summary>
     public object? Value { get; set; }
+
+    /// <summary>
+    /// Gets or sets the style of the cell.
+    /// </summary>
     public string? Style { get; set; }
 }
 
+/// <summary>
+/// Represents a header cell in a DataGridView column.
+/// </summary>
 public class DataGridViewHeaderCell
 {
+    /// <summary>
+    /// Gets or sets the text of the header cell.
+    /// </summary>
     public string Text { get; set; } = "";
+
+    /// <summary>
+    /// Gets or sets the font of the header cell.
+    /// </summary>
     public Font? Font { get; set; }
 }
 
+/// <summary>
+/// Provides data for cell click events.
+/// </summary>
 public class DataGridViewCellEventArgs : EventArgs
 {
+    /// <summary>
+    /// Gets the column index of the cell.
+    /// </summary>
     public int ColumnIndex { get; }
+
+    /// <summary>
+    /// Gets the row index of the cell.
+    /// </summary>
     public int RowIndex { get; }
 
+    /// <summary>
+    /// Initializes a new instance of DataGridViewCellEventArgs.
+    /// </summary>
+    /// <param name="columnIndex">The column index.</param>
+    /// <param name="rowIndex">The row index.</param>
     public DataGridViewCellEventArgs(int columnIndex, int rowIndex)
     {
         ColumnIndex = columnIndex;
@@ -579,11 +782,33 @@ public class DataGridViewCellEventArgs : EventArgs
     }
 }
 
+/// <summary>
+/// Specifies the selection mode of a DataGridView.
+/// </summary>
 public enum DataGridViewSelectionMode
 {
+    /// <summary>
+    /// Selection by clicking the row header.
+    /// </summary>
     RowHeaderSelect,
+
+    /// <summary>
+    /// Selection by clicking the column header.
+    /// </summary>
     ColumnHeaderSelect,
+
+    /// <summary>
+    /// Full row selection.
+    /// </summary>
     FullRowSelect,
+
+    /// <summary>
+    /// Full column selection.
+    /// </summary>
     FullColumnSelect,
+
+    /// <summary>
+    /// Cell selection only.
+    /// </summary>
     CellSelect
 }

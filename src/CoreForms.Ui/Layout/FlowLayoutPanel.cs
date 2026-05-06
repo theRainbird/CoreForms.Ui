@@ -3,17 +3,26 @@ using CoreForms.Ui.Rendering;
 
 namespace CoreForms.Ui.Layout;
 
+/// <summary>
+/// A layout panel that arranges child controls in a flow direction (left-to-right or top-down).
+/// </summary>
 public class FlowLayoutPanel : ContainerControl
 {
     private FlowDirection _flowDirection = FlowDirection.LeftToRight;
     private int _wrapContents = 1;
 
+    /// <summary>
+    /// Initializes a new instance of FlowLayoutPanel.
+    /// </summary>
     public FlowLayoutPanel()
     {
         Size = new Size(300, 200);
         BackColor = SystemColors.Control;
     }
 
+    /// <summary>
+    /// Gets or sets the direction in which child controls are arranged.
+    /// </summary>
     public FlowDirection FlowDirection
     {
         get => _flowDirection;
@@ -24,12 +33,18 @@ public class FlowLayoutPanel : ContainerControl
         }
     }
 
+    /// <summary>
+    /// Gets or sets the padding (all sides) for child controls.
+    /// </summary>
     public new int Padding
     {
         get => base.Padding.Left;
         set => base.Padding = new CoreForms.Ui.Core.Padding(value);
     }
 
+    /// <summary>
+    /// Performs layout of child controls.
+    /// </summary>
     public void LayoutChildren()
     {
         LayoutControls();
@@ -87,11 +102,18 @@ public class FlowLayoutPanel : ContainerControl
         }
     }
 
+    /// <summary>
+    /// Called when the control needs to perform layout.
+    /// </summary>
     protected override void OnLayout()
     {
         LayoutControls();
     }
 
+    /// <summary>
+    /// Renders the control and its background.
+    /// </summary>
+    /// <param name="g">The Graphics object to use for rendering.</param>
     public override void Render(Graphics g)
     {
         if (!Visible) return;

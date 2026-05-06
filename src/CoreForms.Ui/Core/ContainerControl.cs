@@ -2,10 +2,16 @@ using CoreForms.Ui.Core;
 
 namespace CoreForms.Ui.Core;
 
+/// <summary>
+/// A control that can contain other controls.
+/// </summary>
 public class ContainerControl : Control
 {
     private Control? _activeControl;
 
+    /// <summary>
+    /// Gets or sets the currently active control within the container.
+    /// </summary>
     public Control? ActiveControl
     {
         get => _activeControl;
@@ -22,6 +28,11 @@ public class ContainerControl : Control
         }
     }
 
+    /// <summary>
+    /// Gets the child control at the specified point.
+    /// </summary>
+    /// <param name="point">The point to test.</param>
+    /// <returns>The child control at the specified point, or null if none found.</returns>
     protected Control? GetChildAtPoint(Point point)
     {
         for (int i = Controls.Count - 1; i >= 0; i--)
@@ -35,6 +46,10 @@ public class ContainerControl : Control
         return null;
     }
 
+    /// <summary>
+    /// Raises the MouseDown event, routing to the appropriate child control.
+    /// </summary>
+    /// <param name="e">The event arguments.</param>
     protected internal override void OnMouseDown(EventArgs e)
     {
         var args = e as MouseEventArgs;
@@ -52,6 +67,10 @@ public class ContainerControl : Control
         base.OnMouseDown(e);
     }
 
+    /// <summary>
+    /// Raises the MouseUp event, routing to the appropriate child control.
+    /// </summary>
+    /// <param name="e">The event arguments.</param>
     protected internal override void OnMouseUp(EventArgs e)
     {
         var args = e as MouseEventArgs;
@@ -68,6 +87,10 @@ public class ContainerControl : Control
         base.OnMouseUp(e);
     }
 
+    /// <summary>
+    /// Raises the MouseMove event, routing to the appropriate child control.
+    /// </summary>
+    /// <param name="e">The event arguments.</param>
     protected internal override void OnMouseMove(EventArgs e)
     {
         var args = e as MouseEventArgs;
@@ -84,6 +107,10 @@ public class ContainerControl : Control
         base.OnMouseMove(e);
     }
 
+    /// <summary>
+    /// Raises the MouseWheel event, routing to the appropriate child control.
+    /// </summary>
+    /// <param name="e">The event arguments.</param>
     protected internal override void OnMouseWheel(EventArgs e)
     {
         var args = e as MouseEventArgs;
@@ -99,6 +126,10 @@ public class ContainerControl : Control
         base.OnMouseWheel(e);
     }
 
+    /// <summary>
+    /// Raises the KeyDown event, routing to the active control.
+    /// </summary>
+    /// <param name="e">A KeyEventArgs that contains the event data.</param>
     protected internal override void OnKeyDown(KeyEventArgs e)
     {
         if (ActiveControl != null)
@@ -109,6 +140,10 @@ public class ContainerControl : Control
         base.OnKeyDown(e);
     }
 
+    /// <summary>
+    /// Raises the KeyUp event, routing to the active control.
+    /// </summary>
+    /// <param name="e">A KeyEventArgs that contains the event data.</param>
     protected internal override void OnKeyUp(KeyEventArgs e)
     {
         if (ActiveControl != null)
@@ -119,6 +154,10 @@ public class ContainerControl : Control
         base.OnKeyUp(e);
     }
 
+    /// <summary>
+    /// Raises the KeyPress event, routing to the active control.
+    /// </summary>
+    /// <param name="e">A KeyPressEventArgs that contains the event data.</param>
     protected internal override void OnKeyPress(KeyPressEventArgs e)
     {
         if (ActiveControl != null)
@@ -129,6 +168,10 @@ public class ContainerControl : Control
         base.OnKeyPress(e);
     }
 
+    /// <summary>
+    /// Raises the TextInput event, routing to the active control.
+    /// </summary>
+    /// <param name="text">The input text.</param>
     protected internal override void OnTextInput(string text)
     {
         if (ActiveControl != null)

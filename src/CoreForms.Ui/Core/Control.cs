@@ -2,6 +2,9 @@ using CoreForms.Ui.Rendering;
 
 namespace CoreForms.Ui.Core;
 
+/// <summary>
+/// Base class for all UI controls, providing properties, methods, and events for visual elements.
+/// </summary>
 public class Control : Component
 {
     private string _name = string.Empty;
@@ -27,12 +30,18 @@ public class Control : Component
     private int _layoutSuspendCount;
     internal bool _layoutDrivenBoundsChange;
 
+    /// <summary>
+    /// Gets or sets the name of the control.
+    /// </summary>
     public string Name
     {
         get => _name;
         set => _name = value;
     }
 
+    /// <summary>
+    /// Gets or sets the parent control of this control.
+    /// </summary>
     public Control? Parent
     {
         get => _parent;
@@ -47,6 +56,9 @@ public class Control : Component
         }
     }
 
+    /// <summary>
+    /// Gets or sets the bounds (position and size) of the control.
+    /// </summary>
     public Rectangle Bounds
     {
         get => _bounds;
@@ -60,48 +72,72 @@ public class Control : Component
         }
     }
 
+    /// <summary>
+    /// Gets or sets the x-coordinate of the control's left edge.
+    /// </summary>
     public int X
     {
         get => _bounds.X;
         set => Bounds = new Rectangle(value, _bounds.Y, _bounds.Width, _bounds.Height);
     }
 
+    /// <summary>
+    /// Gets or sets the y-coordinate of the control's top edge.
+    /// </summary>
     public int Y
     {
         get => _bounds.Y;
         set => Bounds = new Rectangle(_bounds.X, value, _bounds.Width, _bounds.Height);
     }
 
+    /// <summary>
+    /// Gets or sets the width of the control.
+    /// </summary>
     public int Width
     {
         get => _bounds.Width;
         set => Bounds = new Rectangle(_bounds.X, _bounds.Y, value, _bounds.Height);
     }
 
+    /// <summary>
+    /// Gets or sets the height of the control.
+    /// </summary>
     public int Height
     {
         get => _bounds.Height;
         set => Bounds = new Rectangle(_bounds.X, _bounds.Y, _bounds.Width, value);
     }
 
+    /// <summary>
+    /// Gets or sets the location (x and y coordinates) of the control's upper-left corner.
+    /// </summary>
     public Point Location
     {
         get => new Point(_bounds.X, _bounds.Y);
         set => Bounds = new Rectangle(value.X, value.Y, _bounds.Width, _bounds.Height);
     }
 
+    /// <summary>
+    /// Gets or sets the size (width and height) of the control.
+    /// </summary>
     public Size Size
     {
         get => _bounds.Size;
         set => Bounds = new Rectangle(_bounds.X, _bounds.Y, value.Width, value.Height);
     }
 
+    /// <summary>
+    /// Gets or sets the preferred size of the control.
+    /// </summary>
     public Size PreferredSize
     {
         get => _preferredSize;
         set => _preferredSize = value;
     }
 
+    /// <summary>
+    /// Gets or sets whether the control is visible.
+    /// </summary>
     public bool Visible
     {
         get => _visible;
@@ -115,6 +151,9 @@ public class Control : Component
         }
     }
 
+    /// <summary>
+    /// Gets or sets whether the control can respond to user interaction.
+    /// </summary>
     public bool Enabled
     {
         get => _enabled;
@@ -128,24 +167,36 @@ public class Control : Component
         }
     }
 
+    /// <summary>
+    /// Gets or sets the background color of the control.
+    /// </summary>
     public Color BackColor
     {
         get => _backColor;
         set => _backColor = value;
     }
 
+    /// <summary>
+    /// Gets or sets the foreground color of the control.
+    /// </summary>
     public Color ForeColor
     {
         get => _foreColor;
         set => _foreColor = value;
     }
 
+    /// <summary>
+    /// Gets or sets the font used by the control.
+    /// </summary>
     public Font? Font
     {
         get => _font;
         set => _font = value;
     }
 
+    /// <summary>
+    /// Gets or sets the text displayed by the control.
+    /// </summary>
     public string Text
     {
         get => _text;
@@ -159,6 +210,9 @@ public class Control : Component
         }
     }
 
+    /// <summary>
+    /// Gets or sets which edges of the control are anchored to its parent.
+    /// </summary>
     public AnchorStyles Anchor
     {
         get => _anchor;
@@ -173,6 +227,9 @@ public class Control : Component
         }
     }
 
+    /// <summary>
+    /// Gets or sets which edge of the parent container the control is docked to.
+    /// </summary>
     public DockStyle Dock
     {
         get => _dock;
@@ -186,6 +243,9 @@ public class Control : Component
         }
     }
 
+    /// <summary>
+    /// Gets or sets the padding within the control.
+    /// </summary>
     public Padding Padding
     {
         get => _padding;
@@ -200,13 +260,22 @@ public class Control : Component
         }
     }
 
+    /// <summary>
+    /// Gets the client rectangle of the control (bounds minus padding).
+    /// </summary>
     public Rectangle ClientRectangle => new Rectangle(
         _padding.Left, _padding.Top,
         Math.Max(0, _bounds.Width - _padding.Horizontal),
         Math.Max(0, _bounds.Height - _padding.Vertical));
 
+    /// <summary>
+    /// Gets the client size of the control.
+    /// </summary>
     public Size ClientSize => ClientRectangle.Size;
 
+    /// <summary>
+    /// Gets whether the control currently has input focus.
+    /// </summary>
     public bool Focused
     {
         get => _focused;
@@ -223,18 +292,27 @@ public class Control : Component
         }
     }
 
+    /// <summary>
+    /// Gets or sets whether the control can receive focus via tab navigation.
+    /// </summary>
     public bool TabStop
     {
         get => _tabStop;
         set => _tabStop = value;
     }
 
+    /// <summary>
+    /// Gets or sets the index in the tab order of the control.
+    /// </summary>
     public int TabIndex
     {
         get => _tabIndex;
         set => _tabIndex = value;
     }
 
+    /// <summary>
+    /// Gets or sets whether the control is capturing mouse input.
+    /// </summary>
     public bool CapturingMouse
     {
         get => _capturingMouse;
@@ -255,8 +333,14 @@ public class Control : Component
         }
     }
 
+    /// <summary>
+    /// Gets the collection of child controls.
+    /// </summary>
     public ControlCollection Controls => _controls ??= new ControlCollection(this);
 
+    /// <summary>
+    /// Creates the control and all its child controls.
+    /// </summary>
     public virtual void Create()
     {
         foreach (Control child in Controls)
@@ -265,6 +349,10 @@ public class Control : Component
         }
     }
 
+    /// <summary>
+    /// Renders the control and its children using the specified graphics object.
+    /// </summary>
+    /// <param name="g">The Graphics object to use for rendering.</param>
     public virtual void Render(Graphics g)
     {
         foreach (Control child in Controls)
@@ -279,6 +367,10 @@ public class Control : Component
         }
     }
 
+    /// <summary>
+    /// Renders overlay elements (like dropdowns) on top of other controls.
+    /// </summary>
+    /// <param name="g">The Graphics object to use for rendering.</param>
     public virtual void RenderOverlay(Graphics g)
     {
         foreach (Control child in Controls)
@@ -293,14 +385,25 @@ public class Control : Component
         }
     }
 
+    /// <summary>
+    /// Invalidates the entire control, forcing a repaint.
+    /// </summary>
     public virtual void Invalidate()
     {
     }
 
+    /// <summary>
+    /// Invalidates the specified region of the control.
+    /// </summary>
+    /// <param name="rect">The rectangle to invalidate.</param>
     public virtual void Invalidate(Rectangle rect)
     {
     }
 
+    /// <summary>
+    /// Searches for the parent Form of this control.
+    /// </summary>
+    /// <returns>The parent Form, or null if no parent Form exists.</returns>
     public Form? FindForm()
     {
         Control? current = this;
@@ -313,37 +416,65 @@ public class Control : Component
         return null;
     }
 
+    /// <summary>
+    /// Tests whether the specified point is within the bounds of the control.
+    /// </summary>
+    /// <param name="point">The point to test.</param>
+    /// <returns>True if the point is within the control's bounds; otherwise, false.</returns>
     public virtual bool HitTest(Point point)
     {
         return Bounds.Contains(point);
     }
 
+    /// <summary>
+    /// Converts screen coordinates to client coordinates.
+    /// </summary>
+    /// <param name="screenPoint">A point in screen coordinates.</param>
+    /// <returns>A point in client coordinates.</returns>
     public Point PointToClient(Point screenPoint)
     {
         return screenPoint;
     }
 
+    /// <summary>
+    /// Converts client coordinates to screen coordinates.
+    /// </summary>
+    /// <param name="clientPoint">A point in client coordinates.</param>
+    /// <returns>A point in screen coordinates.</returns>
     public Point PointToScreen(Point clientPoint)
     {
         return clientPoint;
     }
 
+    /// <summary>
+    /// Forces the control to perform layout of its child controls.
+    /// </summary>
     public void PerformLayout()
     {
         if (_layoutSuspendCount > 0) return;
         OnLayout();
     }
 
+    /// <summary>
+    /// Temporarily suspends layout operations.
+    /// </summary>
     public void SuspendLayout()
     {
         _layoutSuspendCount++;
     }
 
+    /// <summary>
+    /// Resumes normal layout operations.
+    /// </summary>
     public void ResumeLayout()
     {
         ResumeLayout(true);
     }
 
+    /// <summary>
+    /// Resumes normal layout operations, optionally performing layout immediately.
+    /// </summary>
+    /// <param name="performLayout">Whether to perform layout immediately.</param>
     public void ResumeLayout(bool performLayout)
     {
         if (_layoutSuspendCount > 0)
@@ -352,6 +483,9 @@ public class Control : Component
             PerformLayout();
     }
 
+    /// <summary>
+    /// Called when the control needs to arrange its child controls.
+    /// </summary>
     protected virtual void OnLayout()
     {
         ProcessDockAndAnchor();
@@ -477,6 +611,9 @@ if (_controls == null || _controls.Count == 0) return;
         }
     }
 
+    /// <summary>
+    /// Called when the bounds of the control change.
+    /// </summary>
     protected virtual void OnBoundsChanged()
     {
         BoundsChanged?.Invoke(this, EventArgs.Empty);
@@ -487,70 +624,221 @@ if (_controls == null || _controls.Count == 0) return;
         PerformLayout();
     }
 
+    /// <summary>
+    /// Occurs when the control's bounds change.
+    /// </summary>
     public event EventHandler? BoundsChanged;
 
+    /// <summary>
+    /// Called when the visibility of the control changes.
+    /// </summary>
     protected virtual void OnVisibleChanged()
     {
         Invalidate();
         Parent?.PerformLayout();
     }
 
+    /// <summary>
+    /// Called when the enabled state of the control changes.
+    /// </summary>
     protected virtual void OnEnabledChanged()
     {
     }
 
+    /// <summary>
+    /// Called when the text of the control changes.
+    /// </summary>
     protected virtual void OnTextChanged()
     {
     }
 
+    /// <summary>
+    /// Occurs when the control is clicked.
+    /// </summary>
     public event EventHandler? Click;
+
+    /// <summary>
+    /// Occurs when the control is double-clicked.
+    /// </summary>
     public event EventHandler? DoubleClick;
+
+    /// <summary>
+    /// Occurs when the mouse cursor enters the control.
+    /// </summary>
     public event EventHandler? MouseEnter;
+
+    /// <summary>
+    /// Occurs when the mouse cursor leaves the control.
+    /// </summary>
     public event EventHandler? MouseLeave;
+
+    /// <summary>
+    /// Occurs when the mouse cursor moves over the control.
+    /// </summary>
     public event EventHandler? MouseMove;
+
+    /// <summary>
+    /// Occurs when a mouse button is pressed over the control.
+    /// </summary>
     public event EventHandler? MouseDown;
+
+    /// <summary>
+    /// Occurs when a mouse button is released over the control.
+    /// </summary>
     public event EventHandler? MouseUp;
+
+    /// <summary>
+    /// Occurs when the mouse wheel is rotated.
+    /// </summary>
     public event EventHandler? MouseWheel;
+
+    /// <summary>
+    /// Occurs when a key is pressed while the control has focus.
+    /// </summary>
     public event EventHandler? KeyDown;
+
+    /// <summary>
+    /// Occurs when a character key is pressed while the control has focus.
+    /// </summary>
     public event EventHandler? KeyPress;
+
+    /// <summary>
+    /// Occurs when a key is released while the control has focus.
+    /// </summary>
     public event EventHandler? KeyUp;
+
+    /// <summary>
+    /// Occurs when the control receives focus.
+    /// </summary>
     public event EventHandler? GotFocus;
+
+    /// <summary>
+    /// Occurs when the control loses focus.
+    /// </summary>
     public event EventHandler? LostFocus;
 
+    /// <summary>
+    /// Raises the Click event.
+    /// </summary>
+    /// <param name="e">An EventArgs that contains the event data.</param>
     protected virtual void OnClick(EventArgs e) => Click?.Invoke(this, e);
+
+    /// <summary>
+    /// Raises the DoubleClick event.
+    /// </summary>
+    /// <param name="e">An EventArgs that contains the event data.</param>
     protected virtual void OnDoubleClick(EventArgs e) => DoubleClick?.Invoke(this, e);
+
+    /// <summary>
+    /// Raises the MouseEnter event.
+    /// </summary>
+    /// <param name="e">An EventArgs that contains the event data.</param>
     protected virtual void OnMouseEnter(EventArgs e) => MouseEnter?.Invoke(this, e);
+
+    /// <summary>
+    /// Raises the MouseLeave event.
+    /// </summary>
+    /// <param name="e">An EventArgs that contains the event data.</param>
     protected virtual void OnMouseLeave(EventArgs e) => MouseLeave?.Invoke(this, e);
+
+    /// <summary>
+    /// Raises the MouseMove event.
+    /// </summary>
+    /// <param name="e">An EventArgs that contains the event data.</param>
     protected internal virtual void OnMouseMove(EventArgs e) => MouseMove?.Invoke(this, e);
+
+    /// <summary>
+    /// Raises the MouseDown event.
+    /// </summary>
+    /// <param name="e">An EventArgs that contains the event data.</param>
     protected internal virtual void OnMouseDown(EventArgs e) => MouseDown?.Invoke(this, e);
+
+    /// <summary>
+    /// Raises the MouseUp event.
+    /// </summary>
+    /// <param name="e">An EventArgs that contains the event data.</param>
     protected internal virtual void OnMouseUp(EventArgs e)
     {
         MouseUp?.Invoke(this, e);
         OnClick(EventArgs.Empty);
     }
+
+    /// <summary>
+    /// Raises the MouseWheel event.
+    /// </summary>
+    /// <param name="e">An EventArgs that contains the event data.</param>
     protected internal virtual void OnMouseWheel(EventArgs e) => MouseWheel?.Invoke(this, e);
+
+    /// <summary>
+    /// Raises the KeyDown event.
+    /// </summary>
+    /// <param name="e">A KeyEventArgs that contains the event data.</param>
     protected internal virtual void OnKeyDown(KeyEventArgs e) => KeyDown?.Invoke(this, e);
+
+    /// <summary>
+    /// Raises the KeyPress event.
+    /// </summary>
+    /// <param name="e">A KeyPressEventArgs that contains the event data.</param>
     protected internal virtual void OnKeyPress(KeyPressEventArgs e) => KeyPress?.Invoke(this, e);
+
+    /// <summary>
+    /// Raises the KeyUp event.
+    /// </summary>
+    /// <param name="e">A KeyEventArgs that contains the event data.</param>
     protected internal virtual void OnKeyUp(KeyEventArgs e) => KeyUp?.Invoke(this, e);
+
+    /// <summary>
+    /// Called when text input is received.
+    /// </summary>
+    /// <param name="text">The input text.</param>
     protected internal virtual void OnTextInput(string text) { }
+
+    /// <summary>
+    /// Raises the GotFocus event.
+    /// </summary>
+    /// <param name="e">An EventArgs that contains the event data.</param>
     protected internal virtual void OnGotFocus(EventArgs e) => GotFocus?.Invoke(this, e);
+
+    /// <summary>
+    /// Raises the LostFocus event.
+    /// </summary>
+    /// <param name="e">An EventArgs that contains the event data.</param>
     protected internal virtual void OnLostFocus(EventArgs e) => LostFocus?.Invoke(this, e);
 }
 
+/// <summary>
+/// Provides a collection for managing child controls.
+/// </summary>
 public class ControlCollection : IEnumerable<Control>
 {
     private readonly Control _owner;
     private readonly List<Control> _controls = new();
 
+    /// <summary>
+    /// Initializes a new instance of ControlCollection for the specified owner.
+    /// </summary>
+    /// <param name="owner">The owner control that owns this collection.</param>
     public ControlCollection(Control owner)
     {
         _owner = owner;
     }
 
+    /// <summary>
+    /// Gets the number of controls in the collection.
+    /// </summary>
     public int Count => _controls.Count;
 
+    /// <summary>
+    /// Gets the control at the specified index.
+    /// </summary>
+    /// <param name="index">The index of the control to retrieve.</param>
+    /// <returns>The control at the specified index.</returns>
     public Control this[int index] => _controls[index];
 
+    /// <summary>
+    /// Adds a control to the collection.
+    /// </summary>
+    /// <param name="control">The control to add.</param>
     public void Add(Control control)
     {
         if (!_controls.Contains(control))
@@ -562,6 +850,10 @@ public class ControlCollection : IEnumerable<Control>
         }
     }
 
+    /// <summary>
+    /// Removes a control from the collection.
+    /// </summary>
+    /// <param name="control">The control to remove.</param>
     public void Remove(Control control)
     {
         if (_controls.Remove(control))
@@ -570,12 +862,21 @@ public class ControlCollection : IEnumerable<Control>
         }
     }
 
+    /// <summary>
+    /// Removes all controls from the collection.
+    /// </summary>
     public void Clear()
     {
         _controls.Clear();
         _owner.PerformLayout();
     }
 
+    /// <summary>
+    /// Finds a control by its name.
+    /// </summary>
+    /// <param name="name">The name of the control to find.</param>
+    /// <param name="recursive">Whether to search child containers recursively.</param>
+    /// <returns>The control with the specified name, or null if not found.</returns>
     public Control? FindControl(string name, bool recursive = false)
     {
         if (string.IsNullOrEmpty(name))
@@ -597,31 +898,91 @@ public class ControlCollection : IEnumerable<Control>
         return null;
     }
 
+    /// <summary>
+    /// Finds a control by its name, cast to the specified type.
+    /// </summary>
+    /// <typeparam name="T">The type of control to find.</typeparam>
+    /// <param name="name">The name of the control to find.</param>
+    /// <param name="recursive">Whether to search child containers recursively.</param>
+    /// <returns>The control cast to the specified type, or null if not found.</returns>
     public T? FindControl<T>(string name, bool recursive = false) where T : Control
     {
         return FindControl(name, recursive) as T;
     }
 
+    /// <summary>
+    /// Returns an enumerator that iterates through the collection.
+    /// </summary>
+    /// <returns>An enumerator for the collection.</returns>
     public IEnumerator<Control> GetEnumerator() => _controls.GetEnumerator();
+
     System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator() => GetEnumerator();
 }
 
+/// <summary>
+/// Specifies which edges of a control are anchored to its parent.
+/// </summary>
 [Flags]
 public enum AnchorStyles
 {
+    /// <summary>
+    /// No edge is anchored.
+    /// </summary>
     None = 0,
+
+    /// <summary>
+    /// The top edge is anchored.
+    /// </summary>
     Top = 1,
+
+    /// <summary>
+    /// The bottom edge is anchored.
+    /// </summary>
     Bottom = 2,
+
+    /// <summary>
+    /// The left edge is anchored.
+    /// </summary>
     Left = 4,
+
+    /// <summary>
+    /// The right edge is anchored.
+    /// </summary>
     Right = 8
 }
 
+/// <summary>
+/// Specifies which edge of a control is docked to its parent.
+/// </summary>
 public enum DockStyle
 {
+    /// <summary>
+    /// No docking.
+    /// </summary>
     None,
+
+    /// <summary>
+    /// The control is docked to the top edge of its parent.
+    /// </summary>
     Top,
+
+    /// <summary>
+    /// The control is docked to the bottom edge of its parent.
+    /// </summary>
     Bottom,
+
+    /// <summary>
+    /// The control is docked to the left edge of its parent.
+    /// </summary>
     Left,
+
+    /// <summary>
+    /// The control is docked to the right edge of its parent.
+    /// </summary>
     Right,
+
+    /// <summary>
+    /// The control fills the remaining space in its parent.
+    /// </summary>
     Fill
 }

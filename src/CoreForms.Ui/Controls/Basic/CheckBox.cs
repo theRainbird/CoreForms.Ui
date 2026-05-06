@@ -3,16 +3,25 @@ using Graphics = CoreForms.Ui.Rendering.Graphics;
 
 namespace CoreForms.Ui.Controls.Basic;
 
+/// <summary>
+/// A control that can be checked or unchecked.
+/// </summary>
 public class CheckBox : Control
 {
     private bool _checked;
 
+    /// <summary>
+    /// Initializes a new instance of CheckBox.
+    /// </summary>
     public CheckBox()
     {
         Size = new Size(200, 28);
         TabStop = true;
     }
 
+    /// <summary>
+    /// Gets or sets whether the check box is checked.
+    /// </summary>
     public bool Checked
     {
         get => _checked;
@@ -27,6 +36,10 @@ public class CheckBox : Control
         }
     }
 
+    /// <summary>
+    /// Renders the check box with its checkbox and text.
+    /// </summary>
+    /// <param name="g">The Graphics object to use for rendering.</param>
     public override void Render(Rendering.Graphics g)
     {
         if (!Visible) return;
@@ -47,12 +60,20 @@ public class CheckBox : Control
         base.Render(g);
     }
 
+    /// <summary>
+    /// Raises the Click event and toggles the checked state.
+    /// </summary>
+    /// <param name="e">The event arguments.</param>
     protected override void OnClick(EventArgs e)
     {
         Checked = !Checked;
         base.OnClick(e);
     }
 
+    /// <summary>
+    /// Raises the KeyDown event to handle Space key.
+    /// </summary>
+    /// <param name="e">A KeyEventArgs that contains the event data.</param>
     protected internal override void OnKeyDown(KeyEventArgs e)
     {
         if (e.KeyCode == Keys.Space)
@@ -63,10 +84,16 @@ public class CheckBox : Control
         base.OnKeyDown(e);
     }
 
+    /// <summary>
+    /// Raises the CheckedChanged event.
+    /// </summary>
     protected virtual void OnCheckedChanged()
     {
         CheckedChanged?.Invoke(this, EventArgs.Empty);
     }
 
+    /// <summary>
+    /// Occurs when the checked state changes.
+    /// </summary>
     public event EventHandler? CheckedChanged;
 }

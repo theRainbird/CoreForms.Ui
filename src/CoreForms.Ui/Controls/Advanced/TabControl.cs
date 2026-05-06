@@ -3,12 +3,18 @@ using Graphics = CoreForms.Ui.Rendering.Graphics;
 
 namespace CoreForms.Ui.Controls.Advanced;
 
+/// <summary>
+/// A control that displays tab pages that can be selected by the user.
+/// </summary>
 public class TabControl : ContainerControl
 {
     private readonly List<TabPage> _tabPages = new();
     private int _selectedIndex = 0;
     private int _tabHeight = 24;
 
+    /// <summary>
+    /// Initializes a new instance of TabControl.
+    /// </summary>
     public TabControl()
     {
         Size = new Size(400, 300);
@@ -16,8 +22,14 @@ public class TabControl : ContainerControl
         TabStop = true;
     }
 
+    /// <summary>
+    /// Gets the collection of tab pages.
+    /// </summary>
     public List<TabPage> TabPages => _tabPages;
 
+    /// <summary>
+    /// Gets or sets the index of the selected tab page.
+    /// </summary>
     public int SelectedIndex
     {
         get => _selectedIndex;
@@ -32,16 +44,26 @@ public class TabControl : ContainerControl
         }
     }
 
+    /// <summary>
+    /// Gets the selected tab page.
+    /// </summary>
     public TabPage? SelectedTab => _selectedIndex >= 0 && _selectedIndex < _tabPages.Count
         ? _tabPages[_selectedIndex]
         : null;
 
+    /// <summary>
+    /// Gets or sets the height of the tab headers.
+    /// </summary>
     public int TabHeight
     {
         get => _tabHeight;
         set => _tabHeight = value;
     }
 
+    /// <summary>
+    /// Renders the tab control with its tab headers and selected page.
+    /// </summary>
+    /// <param name="g">The Graphics object to use for rendering.</param>
     public override void Render(Graphics g)
     {
         if (!Visible) return;
@@ -81,11 +103,18 @@ public class TabControl : ContainerControl
         base.Render(g);
     }
 
+    /// <summary>
+    /// Raises the SelectedIndexChanged event.
+    /// </summary>
     protected virtual void OnSelectedIndexChanged()
     {
         SelectedIndexChanged?.Invoke(this, EventArgs.Empty);
     }
 
+    /// <summary>
+    /// Raises the KeyDown event to handle tab navigation.
+    /// </summary>
+    /// <param name="e">A KeyEventArgs that contains the event data.</param>
     protected internal override void OnKeyDown(KeyEventArgs e)
     {
         switch (e.KeyCode)
@@ -108,11 +137,20 @@ public class TabControl : ContainerControl
         base.OnKeyDown(e);
     }
 
+    /// <summary>
+    /// Occurs when the selected tab index changes.
+    /// </summary>
     public event EventHandler? SelectedIndexChanged;
 }
 
+/// <summary>
+/// Represents a single tab page in a TabControl.
+/// </summary>
 public class TabPage : ContainerControl
 {
+    /// <summary>
+    /// Initializes a new instance of TabPage.
+    /// </summary>
     public TabPage()
     {
         Size = new Size(400, 250);
@@ -121,12 +159,19 @@ public class TabPage : ContainerControl
 
     private string _text = "Tab";
 
+    /// <summary>
+    /// Gets or sets the text of the tab page (displayed in the tab header).
+    /// </summary>
     public string Text
     {
         get => _text;
         set => _text = value;
     }
 
+    /// <summary>
+    /// Renders the tab page with its background.
+    /// </summary>
+    /// <param name="g">The Graphics object to use for rendering.</param>
     public override void Render(Graphics g)
     {
         if (!Visible) return;
@@ -137,11 +182,17 @@ public class TabPage : ContainerControl
     }
 }
 
+/// <summary>
+/// A status strip that displays information at the bottom of a form.
+/// </summary>
 public class StatusStrip : ContainerControl
 {
     private string _text = string.Empty;
     private readonly List<ToolStripStatusLabel> _items = new();
 
+    /// <summary>
+    /// Initializes a new instance of StatusStrip.
+    /// </summary>
     public StatusStrip()
     {
         Size = new Size(400, 24);
@@ -149,14 +200,24 @@ public class StatusStrip : ContainerControl
         Dock = DockStyle.Bottom;
     }
 
+    /// <summary>
+    /// Gets the collection of status labels.
+    /// </summary>
     public List<ToolStripStatusLabel> Items => _items;
 
+    /// <summary>
+    /// Gets or sets the text displayed in the status strip.
+    /// </summary>
     public string Text
     {
         get => _text;
         set => _text = value;
     }
 
+    /// <summary>
+    /// Renders the status strip with its items.
+    /// </summary>
+    /// <param name="g">The Graphics object to use for rendering.</param>
     public override void Render(Graphics g)
     {
         if (!Visible) return;
@@ -185,24 +246,36 @@ public class StatusStrip : ContainerControl
     }
 }
 
+/// <summary>
+/// Represents a label in a StatusStrip.
+/// </summary>
 public class ToolStripStatusLabel : Component
 {
     private string _text = string.Empty;
     private Color _foreColor = SystemColors.ControlText;
     private Font? _font;
 
+    /// <summary>
+    /// Gets or sets the text of the status label.
+    /// </summary>
     public string Text
     {
         get => _text;
         set => _text = value;
     }
 
+    /// <summary>
+    /// Gets or sets the foreground color of the status label.
+    /// </summary>
     public Color ForeColor
     {
         get => _foreColor;
         set => _foreColor = value;
     }
 
+    /// <summary>
+    /// Gets or sets the font of the status label.
+    /// </summary>
     public Font? Font
     {
         get => _font;

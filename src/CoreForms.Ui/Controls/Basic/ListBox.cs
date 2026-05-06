@@ -3,11 +3,17 @@ using Graphics = CoreForms.Ui.Rendering.Graphics;
 
 namespace CoreForms.Ui.Controls.Basic;
 
+/// <summary>
+/// A control that displays a list of items from which the user can select.
+/// </summary>
 public class ListBox : Control
 {
     private readonly List<object> _items = new();
     private int _selectedIndex = -1;
 
+    /// <summary>
+    /// Initializes a new instance of ListBox.
+    /// </summary>
     public ListBox()
     {
         BackColor = Color.White;
@@ -15,8 +21,14 @@ public class ListBox : Control
         TabStop = true;
     }
 
+    /// <summary>
+    /// Gets the collection of items in the list box.
+    /// </summary>
     public List<object> Items => _items;
 
+    /// <summary>
+    /// Gets or sets the index of the selected item.
+    /// </summary>
     public int SelectedIndex
     {
         get => _selectedIndex;
@@ -31,10 +43,17 @@ public class ListBox : Control
         }
     }
 
+    /// <summary>
+    /// Gets the selected item.
+    /// </summary>
     public object? SelectedItem => _selectedIndex >= 0 && _selectedIndex < _items.Count
         ? _items[_selectedIndex]
         : null;
 
+    /// <summary>
+    /// Renders the list box with its items.
+    /// </summary>
+    /// <param name="g">The Graphics object to use for rendering.</param>
     public override void Render(Rendering.Graphics g)
     {
         if (!Visible) return;
@@ -70,6 +89,10 @@ public class ListBox : Control
         base.Render(g);
     }
 
+    /// <summary>
+    /// Raises the MouseDown event and selects an item.
+    /// </summary>
+    /// <param name="e">The event arguments.</param>
     protected internal override void OnMouseDown(EventArgs e)
     {
         var mouseArgs = e as MouseEventArgs;
@@ -88,6 +111,10 @@ public class ListBox : Control
         base.OnMouseDown(e);
     }
 
+    /// <summary>
+    /// Raises the KeyDown event to handle navigation.
+    /// </summary>
+    /// <param name="e">A KeyEventArgs that contains the event data.</param>
     protected internal override void OnKeyDown(KeyEventArgs e)
     {
         switch (e.KeyCode)
@@ -124,10 +151,16 @@ public class ListBox : Control
         base.OnKeyDown(e);
     }
 
+    /// <summary>
+    /// Raises the SelectedIndexChanged event.
+    /// </summary>
     protected virtual void OnSelectedIndexChanged()
     {
         SelectedIndexChanged?.Invoke(this, EventArgs.Empty);
     }
 
+    /// <summary>
+    /// Occurs when the selected index changes.
+    /// </summary>
     public event EventHandler? SelectedIndexChanged;
 }
