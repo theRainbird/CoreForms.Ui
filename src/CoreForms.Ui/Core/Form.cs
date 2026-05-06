@@ -1,3 +1,5 @@
+using CoreForms.Ui.Controls.Containers;
+
 namespace CoreForms.Ui.Core;
 
 /// <summary>
@@ -359,7 +361,7 @@ public class Form : ContainerControl
     }
 
     /// <summary>
-    /// Raises the KeyDown event, handling Tab key navigation.
+    /// Raises the KeyDown event, handling Tab key navigation and Alt+mnemonic activation.
     /// </summary>
     /// <param name="e">A KeyEventArgs that contains the event data.</param>
     protected internal override void OnKeyDown(KeyEventArgs e)
@@ -370,6 +372,32 @@ public class Form : ContainerControl
             ProcessTabKey(e.Modifiers.HasFlag(ModifierKeys.Shift));
             e.Handled = true;
             return;
+        }
+
+        if (e.Modifiers.HasFlag(ModifierKeys.Alt) || e.KeyCode == Keys.Menu)
+        {
+            foreach (Control control in Controls)
+            {
+                if (control is MenuStrip menuStrip)
+                {
+                    if (e.KeyCode == Keys.Menu)
+                    {
+                        menuStrip.MenuMode = !menuStrip.MenuMode;
+                        e.Handled = true;
+                        return;
+                    }
+
+                    if (e.KeyCode != Keys.None && e.KeyCode != Keys.Menu)
+                    {
+                        char keyChar = (char)e.KeyCode;
+                        if (menuStrip.ProcessMnemonic(keyChar))
+                        {
+                            e.Handled = true;
+                            return;
+                        }
+                    }
+                }
+            }
         }
 
         if (ActiveControl != null)

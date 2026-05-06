@@ -3,7 +3,7 @@
 ## Build & Run
 ```bash
 dotnet build                    # Build all projects
-dotnet test                     # Run tests (12 passing)
+dotnet test                     # Run tests (89 passing)
 dotnet run --project samples/CoreForms.Ui.Demo  # Run demo (requires X11/display)
 ```
 
@@ -24,15 +24,16 @@ dotnet run --project samples/CoreForms.Ui.Demo  # Run demo (requires X11/display
 **Controls (Advanced):**
 - TabControl, TabPage, StatusStrip
 - MessageBox (modal dialog with standard button combinations, icons, localization)
+- DataGridView
 
 **Layout:**
 - FlowLayoutPanel, TableLayoutPanel
 
 **Rendering:**
 - Graphics (command-list pattern)
-- SdlRenderer (SDL2-based, alpha blending, image/ellipse drawing)
+- SdlRenderer (SDL2-based, alpha blending, image/ellipse/triangle drawing)
 - FontRenderer (SDL_ttf-based)
-- SDL2_image (PNG icon loading for MessageBox icons)
+- SDL_LoadBMP_RW for BMP icon loading (no SDL2_image dependency)
 
 **Window Management:**
 - Minimize, Maximize, Restore
@@ -42,11 +43,16 @@ dotnet run --project samples/CoreForms.Ui.Demo  # Run demo (requires X11/display
 - Multi-window support (per-window Renderer + FontRenderer via WindowContext)
 - Modal dialogs (Form.Enabled for owner disabling)
 
+**Menus:**
+- MenuStrip with dropdown menus, keyboard navigation, Alt+mnemonic activation
+- ToolStripMenuItem with mnemonic support (`&File` → Alt+F opens File menu)
+
 ## Important Context
 
 **Platform layer uses SDL2 via P/Invoke** - Works on Linux/Windows with SDL2 installed:
-- Linux: `sudo apt install libsdl2-dev libsdl2-image-dev libsdl2-ttf-2.0-0`
+- Linux: `sudo apt install libsdl2-dev libsdl2-ttf-2.0-0`
 - Windows: SDL2.dll in app directory
+- No SDL2_image required - icons use BMP format loaded via native SDL2
 
 **Custom type dependencies** - Avoids System.Drawing conflicts:
 - Custom `Color`, `Font`, `Point`, `Size`, `Rectangle` in `Core/SystemTypes.cs`

@@ -334,6 +334,17 @@ public class Control : Component
     }
 
     /// <summary>
+    /// Processes a mnemonic key character, activating the appropriate control.
+    /// Override this to handle mnemonic keys (e.g., Alt+F for File menu).
+    /// </summary>
+    /// <param name="charCode">The character code of the pressed key.</param>
+    /// <returns>True if the mnemonic was processed; otherwise, false.</returns>
+    public virtual bool ProcessMnemonic(char charCode)
+    {
+        return false;
+    }
+
+    /// <summary>
     /// Gets the collection of child controls.
     /// </summary>
     public ControlCollection Controls => _controls ??= new ControlCollection(this);

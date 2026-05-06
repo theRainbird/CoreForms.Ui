@@ -23,14 +23,14 @@ class Program
         menuStrip.Dock = DockStyle.Top;
         menuStrip.Size = new Size(900, 30);
 
-        var fileItem = new ToolStripMenuItem("File");
-        var fileNewItem = new ToolStripMenuItem("New");
+        var fileItem = new ToolStripMenuItem("&File");
+        var fileNewItem = new ToolStripMenuItem("&New");
         fileNewItem.Click += (s, e) => MessageBox.Show("Create a new file?", "New File", MessageBoxButtons.YesNo, MessageBoxIcon.Question);
-        var fileOpenItem = new ToolStripMenuItem("Open");
+        var fileOpenItem = new ToolStripMenuItem("&Open");
         fileOpenItem.Click += (s, e) => MessageBox.Show("Open an existing file.", "Open", MessageBoxButtons.OK, MessageBoxIcon.Information);
-        var fileSaveItem = new ToolStripMenuItem("Save");
+        var fileSaveItem = new ToolStripMenuItem("&Save");
         fileSaveItem.Click += (s, e) => MessageBox.Show("File saved successfully!", "Save", MessageBoxButtons.OK, MessageBoxIcon.Information);
-        var fileExitItem = new ToolStripMenuItem("Exit");
+        var fileExitItem = new ToolStripMenuItem("E&xit");
         fileExitItem.Click += (s, e) =>
         {
             var result = MessageBox.Show("Are you sure you want to exit?", "Exit", MessageBoxButtons.YesNo, MessageBoxIcon.Warning);
@@ -43,20 +43,20 @@ class Program
         fileItem.DropDownItems.Add(fileExitItem);
         menuStrip.Items.Add(fileItem);
 
-        var editItem = new ToolStripMenuItem("Edit");
-        var editUndoItem = new ToolStripMenuItem("Undo");
+        var editItem = new ToolStripMenuItem("&Edit");
+        var editUndoItem = new ToolStripMenuItem("&Undo");
         editUndoItem.Click += (s, e) => MessageBox.Show("Undo last action?", "Undo", MessageBoxButtons.OKCancel, MessageBoxIcon.Question);
-        var editRedoItem = new ToolStripMenuItem("Redo");
+        var editRedoItem = new ToolStripMenuItem("&Redo");
         editRedoItem.Click += (s, e) => MessageBox.Show("Redo last action?", "Redo", MessageBoxButtons.OKCancel, MessageBoxIcon.Question);
-        var editDeleteItem = new ToolStripMenuItem("Delete");
+        var editDeleteItem = new ToolStripMenuItem("&Delete");
         editDeleteItem.Click += (s, e) => MessageBox.Show("Delete this item? This cannot be undone.", "Delete", MessageBoxButtons.YesNoCancel, MessageBoxIcon.Error);
         editItem.DropDownItems.Add(editUndoItem);
         editItem.DropDownItems.Add(editRedoItem);
         editItem.DropDownItems.Add(editDeleteItem);
         menuStrip.Items.Add(editItem);
 
-        var viewItem = new ToolStripMenuItem("View");
-        var viewRefreshItem = new ToolStripMenuItem("Refresh");
+        var viewItem = new ToolStripMenuItem("&View");
+        var viewRefreshItem = new ToolStripMenuItem("&Refresh");
         viewRefreshItem.Click += (s, e) => MessageBox.Show("View refreshed.", "Refresh", MessageBoxButtons.OK, MessageBoxIcon.Information);
         var viewFullscreenItem = new ToolStripMenuItem("Fullscreen");
         viewFullscreenItem.Click += (s, e) => MessageBox.Show("Toggle fullscreen mode is not yet implemented.", "Fullscreen", MessageBoxButtons.OK, MessageBoxIcon.Warning);
@@ -64,8 +64,8 @@ class Program
         viewItem.DropDownItems.Add(viewFullscreenItem);
         menuStrip.Items.Add(viewItem);
 
-        var helpItem = new ToolStripMenuItem("Help");
-        var helpAboutItem = new ToolStripMenuItem("About");
+        var helpItem = new ToolStripMenuItem("&Help");
+        var helpAboutItem = new ToolStripMenuItem("&About");
         helpAboutItem.Click += (s, e) => MessageBox.Show("CoreForms.Ui Demo\nVersion 1.0\n\nA cross-platform UI framework.", "About", MessageBoxButtons.OK, MessageBoxIcon.Information);
         var helpLicenseItem = new ToolStripMenuItem("License");
         helpLicenseItem.Click += (s, e) => MessageBox.Show("Retry loading the license?", "License Error", MessageBoxButtons.AbortRetryIgnore, MessageBoxIcon.Error);

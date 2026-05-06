@@ -92,11 +92,6 @@ internal class MessageBoxForm : Form
             int iconY = padding + 4;
             g.DrawImage(_iconTexture, padding, iconY, _iconSize, _iconSize);
         }
-        else if (_icon != MessageBoxIcon.None)
-        {
-            int iconY = padding + 4;
-            DrawFallbackIcon(g, padding, iconY);
-        }
 
         var font = Font ?? Font.Default;
         int textX = padding + iconAreaWidth;
@@ -110,29 +105,6 @@ internal class MessageBoxForm : Form
         }
 
         base.Render(g);
-    }
-
-    private void DrawFallbackIcon(Graphics g, int x, int y)
-    {
-        switch (_icon)
-        {
-            case MessageBoxIcon.Information:
-                g.FillEllipse(Color.FromArgb(0, 120, 215), x, y, _iconSize, _iconSize);
-                g.DrawString("i", new Font("DejaVu Sans", 24, FontStyle.Bold), Color.White, x + 16, y + 6);
-                break;
-            case MessageBoxIcon.Warning:
-                g.FillTriangle(Color.FromArgb(255, 185, 0), x + 24, y + 4, x + 4, y + 40, x + 44, y + 40);
-                g.DrawString("!", new Font("DejaVu Sans", 24, FontStyle.Bold), Color.White, x + 18, y + 10);
-                break;
-            case MessageBoxIcon.Error:
-                g.FillEllipse(Color.FromArgb(220, 53, 69), x, y, _iconSize, _iconSize);
-                g.DrawString("X", new Font("DejaVu Sans", 20, FontStyle.Bold), Color.White, x + 14, y + 8);
-                break;
-            case MessageBoxIcon.Question:
-                g.FillEllipse(Color.FromArgb(0, 120, 215), x, y, _iconSize, _iconSize);
-                g.DrawString("?", new Font("DejaVu Sans", 24, FontStyle.Bold), Color.White, x + 15, y + 4);
-                break;
-        }
     }
 
     private void CreateButtons(int padding, int buttonRowHeight)

@@ -591,6 +591,11 @@ public enum Keys
     Space = 32,
 
     /// <summary>
+    /// The MENU key (Alt key).
+    /// </summary>
+    Menu = 18,
+
+    /// <summary>
     /// The PAGE UP key.
     /// </summary>
     PageUp = 33,

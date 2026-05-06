@@ -13,7 +13,6 @@ namespace CoreForms.Ui.Platform;
 public static class Platform
 {
     private static bool _initialized;
-    private static bool _sdlImageAvailable;
     private static readonly Dictionary<uint, WindowContext> _contexts = new();
     private static Form? _focusedWindow;
     private static Point _lastMousePosition;
@@ -30,17 +29,6 @@ public static class Platform
             if (name == "SDL2_ttf")
             {
                 return NativeLibrary.Load("libSDL2_ttf-2.0.so.0");
-            }
-            if (name == "SDL2_image")
-            {
-                try
-                {
-                    return NativeLibrary.Load("libSDL2_image-2.0.so.0");
-                }
-                catch
-                {
-                    return IntPtr.Zero;
-                }
             }
             return IntPtr.Zero;
         });
@@ -121,12 +109,8 @@ public static class Platform
     [DllImport("SDL2", CallingConvention = CallingConvention.Cdecl)]
     private static extern void SDL_DestroyTexture(IntPtr texture);
 
-    private const int IMG_INIT_PNG = 2;
-
-    private static IntPtr _sdlImageHandle;
-    private static Func<int, int>? _imgInit;
-    private static Action? _imgQuit;
-    private static Func<IntPtr, int, IntPtr>? _imgLoadRw;
+    [DllImport("SDL2", CallingConvention = CallingConvention.Cdecl)]
+    private static extern IntPtr SDL_LoadBMP_RW(IntPtr src, int freesrc);
 
     private const uint SDL_INIT_VIDEO = 0x20;
     private const uint SDL_WINDOW_SHOWN = 0x4;
@@ -232,38 +216,7 @@ public static class Platform
             throw new InvalidOperationException("SDL_Init failed: " + GetSDLError());
         }
 
-        TryLoadSdlImage();
-
         _initialized = true;
-    }
-
-    private static void TryLoadSdlImage()
-    {
-        try
-        {
-            _sdlImageHandle = NativeLibrary.Load("libSDL2_image-2.0.so.0");
-            if (_sdlImageHandle != IntPtr.Zero)
-            {
-                _imgInit = (Func<int, int>)Marshal.GetDelegateForFunctionPointer(
-                    NativeLibrary.GetExport(_sdlImageHandle, "IMG_Init"), typeof(Func<int, int>));
-                _imgQuit = (Action)Marshal.GetDelegateForFunctionPointer(
-                    NativeLibrary.GetExport(_sdlImageHandle, "IMG_Quit"), typeof(Action));
-                _imgLoadRw = (Func<IntPtr, int, IntPtr>)Marshal.GetDelegateForFunctionPointer(
-                    NativeLibrary.GetExport(_sdlImageHandle, "IMG_Load_RW"), typeof(Func<IntPtr, int, IntPtr>));
-                _sdlImageAvailable = _imgInit != null;
-                if (_sdlImageAvailable)
-                {
-                    _imgInit!(IMG_INIT_PNG);
-                }
-            }
-        }
-        catch
-        {
-            _sdlImageAvailable = false;
-            _imgInit = null;
-            _imgQuit = null;
-            _imgLoadRw = null;
-        }
     }
 
     [DllImport("SDL2", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
@@ -531,6 +484,7 @@ public static class Platform
 
     /// <summary>
     /// Loads a message box icon as an SDL texture for the specified renderer.
+    /// Uses BMP format via native SDL2 (no external dependencies required).
     /// The texture is cached per (icon, renderer) pair and should not be manually destroyed.
     /// </summary>
     /// <param name="icon">The message box icon type to load.</param>
@@ -539,9 +493,6 @@ public static class Platform
     public static IntPtr LoadMessageBoxIcon(MessageBoxIcon icon, IntPtr rendererHandle)
     {
         if (icon == MessageBoxIcon.None)
-            return IntPtr.Zero;
-
-        if (!_sdlImageAvailable || _imgLoadRw == null)
             return IntPtr.Zero;
 
         var key = (icon, rendererHandle);
@@ -570,7 +521,7 @@ public static class Platform
         if (rwOps == IntPtr.Zero)
             return IntPtr.Zero;
 
-        IntPtr surface = _imgLoadRw(rwOps, 1);
+        IntPtr surface = SDL_LoadBMP_RW(rwOps, 1);
         if (surface == IntPtr.Zero)
             return IntPtr.Zero;
 
@@ -583,6 +534,18 @@ public static class Platform
         }
 
         return texture;
+    }
+
+    private static string? GetIconResourceName(MessageBoxIcon icon)
+    {
+        return icon switch
+        {
+            MessageBoxIcon.Information => "CoreForms.Ui.Resources.Icons.info-circle.bmp",
+            MessageBoxIcon.Warning => "CoreForms.Ui.Resources.Icons.alert-triangle.bmp",
+            MessageBoxIcon.Error => "CoreForms.Ui.Resources.Icons.circle-x.bmp",
+            MessageBoxIcon.Question => "CoreForms.Ui.Resources.Icons.help-circle.bmp",
+            _ => null
+        };
     }
 
     /// <summary>
@@ -606,18 +569,6 @@ public static class Platform
         {
             _iconTextureCache.Remove(key);
         }
-    }
-
-    private static string? GetIconResourceName(MessageBoxIcon icon)
-    {
-        return icon switch
-        {
-            MessageBoxIcon.Information => "CoreForms.Ui.Resources.Icons.info-circle.png",
-            MessageBoxIcon.Warning => "CoreForms.Ui.Resources.Icons.alert-triangle.png",
-            MessageBoxIcon.Error => "CoreForms.Ui.Resources.Icons.circle-x.png",
-            MessageBoxIcon.Question => "CoreForms.Ui.Resources.Icons.help-circle.png",
-            _ => null
-        };
     }
 
     /// <summary>
