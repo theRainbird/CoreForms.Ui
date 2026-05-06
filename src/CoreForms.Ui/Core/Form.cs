@@ -9,10 +9,17 @@ public class Form : ContainerControl
     private FormWindowState _windowState = FormWindowState.Normal;
     private bool _topMost;
     private FormBorderStyle _formBorderStyle = FormBorderStyle.Sizable;
-private IntPtr _handle;
+    private IntPtr _handle;
+    private Control? _captureControl;
 
     public IntPtr Handle => _handle;
     public uint WindowId { get; internal set; }
+
+    public Control? CaptureControl
+    {
+        get => _captureControl;
+        set => _captureControl = value;
+    }
 
     public string Title
     {
@@ -122,6 +129,13 @@ private IntPtr _handle;
         var args = e as MouseEventArgs;
         if (args != null)
         {
+            if (_captureControl != null)
+            {
+                var localArgs = new MouseEventArgs(args.Button, args.Clicks, args.X - _captureControl.X, args.Y - _captureControl.Y, args.Delta);
+                _captureControl.OnMouseDown(localArgs);
+                return;
+            }
+
             var target = GetChildAtPoint(new Point(args.X, args.Y));
             if (target != null)
             {
@@ -139,6 +153,13 @@ private IntPtr _handle;
         var args = e as MouseEventArgs;
         if (args != null)
         {
+            if (_captureControl != null)
+            {
+                var localArgs = new MouseEventArgs(args.Button, args.Clicks, args.X - _captureControl.X, args.Y - _captureControl.Y, args.Delta);
+                _captureControl.OnMouseUp(localArgs);
+                return;
+            }
+
             var target = GetChildAtPoint(new Point(args.X, args.Y));
             if (target != null)
             {
@@ -155,6 +176,13 @@ private IntPtr _handle;
         var args = e as MouseEventArgs;
         if (args != null)
         {
+            if (_captureControl != null)
+            {
+                var localArgs = new MouseEventArgs(args.Button, args.Clicks, args.X - _captureControl.X, args.Y - _captureControl.Y, args.Delta);
+                _captureControl.OnMouseMove(localArgs);
+                return;
+            }
+
             var target = GetChildAtPoint(new Point(args.X, args.Y));
             if (target != null)
             {
@@ -171,6 +199,12 @@ private IntPtr _handle;
         var args = e as MouseEventArgs;
         if (args != null)
         {
+            if (_captureControl != null)
+            {
+                _captureControl.OnMouseWheel(e);
+                return;
+            }
+
             var target = GetChildAtPoint(new Point(args.X, args.Y));
             if (target != null)
             {
@@ -186,7 +220,7 @@ private IntPtr _handle;
         for (int i = Controls.Count - 1; i >= 0; i--)
         {
             var child = Controls[i];
-            if (child.Visible && child.Bounds.Contains(point))
+            if (child.Visible && child.HitTest(point))
             {
                 return child;
             }

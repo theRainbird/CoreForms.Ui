@@ -128,6 +128,22 @@ public class Graphics : IDisposable
         });
     }
 
+    public void FillTriangle(Color color, float x1, float y1, float x2, float y2, float x3, float y3)
+    {
+        _commands.Add(new DrawCommand
+        {
+            Type = DrawCommandType.FillTriangle,
+            Color = color,
+            X = x1 + _offsetX,
+            Y = y1 + _offsetY,
+            X2 = x2 + _offsetX,
+            Y2 = y2 + _offsetY,
+            X3 = x3 + _offsetX,
+            Y3 = y3 + _offsetY,
+            ClipBounds = ClipBounds
+        });
+    }
+
     public void Dispose()
     {
         if (!_disposed)
@@ -159,7 +175,8 @@ public enum DrawCommandType
     DrawString,
     FillEllipse,
     DrawLine,
-    DrawImage
+    DrawImage,
+    FillTriangle
 }
 
 public class DrawCommand
@@ -172,6 +189,8 @@ public class DrawCommand
     public float Height { get; set; }
     public float X2 { get; set; }
     public float Y2 { get; set; }
+    public float X3 { get; set; }
+    public float Y3 { get; set; }
     public float LineWidth { get; set; } = 1f;
     public string? Text { get; set; }
     public Font? Font { get; set; }

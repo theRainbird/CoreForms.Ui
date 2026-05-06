@@ -612,6 +612,14 @@ private static void HandleMouseMotionEvent(SDL_Event e)
             ExecuteDrawCommand(cmd);
         }
 
+        using var gOverlay = new Graphics();
+        form.RenderOverlay(gOverlay);
+
+        foreach (var cmd in gOverlay.GetCommands())
+        {
+            ExecuteDrawCommand(cmd);
+        }
+
         _renderer.Present();
     }
 
@@ -638,6 +646,9 @@ private static void HandleMouseMotionEvent(SDL_Event e)
                 {
                     _fontRenderer?.DrawText(cmd.Text, cmd.Font, cmd.Color, cmd.X, cmd.Y);
                 }
+                break;
+            case DrawCommandType.FillTriangle:
+                _renderer.FillTriangle(cmd.Color, cmd.X, cmd.Y, cmd.X2, cmd.Y2, cmd.X3, cmd.Y3);
                 break;
         }
     }

@@ -20,6 +20,7 @@ public class Control : Component
     private bool _focused;
     private bool _tabStop;
     private int _tabIndex;
+    private bool _capturingMouse;
 
     public string Name
     {
@@ -193,6 +194,26 @@ public class Control : Component
         set => _tabIndex = value;
     }
 
+    public bool CapturingMouse
+    {
+        get => _capturingMouse;
+        set
+        {
+            if (_capturingMouse != value)
+            {
+                _capturingMouse = value;
+                var form = FindForm();
+                if (form != null)
+                {
+                    if (value)
+                        form.CaptureControl = this;
+                    else if (form.CaptureControl == this)
+                        form.CaptureControl = null;
+                }
+            }
+        }
+    }
+
     public ControlCollection Controls => _controls ??= new ControlCollection(this);
 
     public virtual void Create()
@@ -203,7 +224,7 @@ public class Control : Component
         }
     }
 
-    public virtual void Render(Graphics g)
+public virtual void Render(Graphics g)
     {
         foreach (Control child in Controls)
         {
@@ -217,12 +238,43 @@ public class Control : Component
         }
     }
 
+    public virtual void RenderOverlay(Graphics g)
+    {
+        foreach (Control child in Controls)
+        {
+            if (child.Visible)
+            {
+                g.Save();
+                g.TranslateTransform(child.X, child.Y);
+                child.RenderOverlay(g);
+                g.Restore();
+            }
+        }
+    }
+
     public virtual void Invalidate()
     {
     }
 
     public virtual void Invalidate(Rectangle rect)
     {
+    }
+
+    public Form? FindForm()
+    {
+        Control? current = this;
+        while (current != null)
+        {
+            if (current is Form form)
+                return form;
+            current = current.Parent;
+        }
+        return null;
+    }
+
+    public virtual bool HitTest(Point point)
+    {
+        return Bounds.Contains(point);
     }
 
     public Point PointToClient(Point screenPoint)

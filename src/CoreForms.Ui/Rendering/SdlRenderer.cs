@@ -182,6 +182,24 @@ public class SdlRenderer : IDisposable
         }
     }
 
+    public void FillTriangle(Core.Color color, float x1, float y1, float x2, float y2, float x3, float y3)
+    {
+        var sdlColor = new SDL_Color { r = color.R, g = color.G, b = color.B, a = color.A };
+        var tc = new SDL_FPoint { x = 0, y = 0 };
+
+        var vertices = new SDL_Vertex[]
+        {
+            new() { position = new SDL_FPoint { x = x1, y = y1 }, color = sdlColor, tex_coord = tc },
+            new() { position = new SDL_FPoint { x = x2, y = y2 }, color = sdlColor, tex_coord = tc },
+            new() { position = new SDL_FPoint { x = x3, y = y3 }, color = sdlColor, tex_coord = tc },
+        };
+
+        var indices = new int[] { 0, 1, 2 };
+
+        SDL_SetRenderDrawColor(_renderer, color.R, color.G, color.B, color.A);
+        SDL_RenderGeometry(_renderer, IntPtr.Zero, vertices, vertices.Length, indices, indices.Length);
+    }
+
     public void SetClipRect(Core.Rectangle? rect)
     {
         if (rect.HasValue)

@@ -64,6 +64,14 @@ class Program
         comboBox.Items.Add("Item 3");
         comboBox.Items.Add("Item 4");
         comboBox.Items.Add("Item 5");
+        comboBox.Items.Add("Item 6");
+        comboBox.Items.Add("Item 7");
+        comboBox.Items.Add("Item 8");
+        comboBox.Items.Add("Item 9");
+        comboBox.Items.Add("Item 10");
+        comboBox.Items.Add("Item 11");
+        comboBox.Items.Add("Item 12");
+        comboBox.Items.Add("Item 13");
 
         var checkBox = new CheckBox
         {
