@@ -88,6 +88,8 @@ public static class MessageBox
 
     private static DialogResult ShowCore(Form? owner, string text, string caption, MessageBoxButtons buttons, MessageBoxIcon icon, MessageBoxDefaultButton defaultButton)
     {
+        Console.WriteLine($"[MessageBox] ShowCore: owner='{owner?.Text}' focusedWindow='{Platform.Platform.FocusedWindow?.Text}'");
+
         if (owner != null)
         {
             owner.Enabled = false;
@@ -99,11 +101,14 @@ public static class MessageBox
             mb.Show();
             mb.LoadIconTexture();
 
+            Console.WriteLine($"[MessageBox] Dialog shown, entering loop. DialogResult={mb.DialogResult}");
+
             while (mb.DialogResult == DialogResult.None)
             {
                 Platform.Platform.ProcessEvents(Application.Instance);
             }
 
+            Console.WriteLine($"[MessageBox] Loop exited. DialogResult={mb.DialogResult}");
             return mb.DialogResult;
         }
         finally

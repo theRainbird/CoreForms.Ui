@@ -1,4 +1,5 @@
 using CoreForms.Ui.Controls.Containers;
+using System;
 
 namespace CoreForms.Ui.Core;
 
@@ -113,8 +114,8 @@ public class Form : ContainerControl
     /// </summary>
     public void Show()
     {
-        Application.Instance.RegisterForm(this);
         Create();
+        Application.Instance.RegisterForm(this);
         OnShown(EventArgs.Empty);
     }
 
@@ -124,11 +125,12 @@ public class Form : ContainerControl
     public void Close()
     {
         if (_handle == IntPtr.Zero)
+        {
+            Console.WriteLine($"[Form.Close] handle is Zero, skipping. form='{Text}'");
             return;
-        OnFormClosing(new FormClosingEventArgs(CloseReason.UserClosing, false));
-        Application.Instance.UnregisterForm(this);
+        }
+        Console.WriteLine($"[Form.Close] form='{Text}' handle={_handle}");
         Platform.Platform.DestroyWindow(_handle);
-        _handle = IntPtr.Zero;
     }
 
     /// <summary>
@@ -310,6 +312,32 @@ public class Form : ContainerControl
         ActiveControl = tabs[nextIndex];
     }
 
+    private bool ProcessArrowKey(Keys key)
+    {
+        if (ActiveControl == null) return false;
+
+        var tabs = GetTabControls();
+        if (tabs.Count == 0) return false;
+
+        int currentIndex = tabs.IndexOf(ActiveControl);
+        if (currentIndex < 0) return false;
+
+        int nextIndex = key switch
+        {
+            Keys.Left or Keys.Up => currentIndex > 0 ? currentIndex - 1 : tabs.Count - 1,
+            Keys.Right or Keys.Down => currentIndex < tabs.Count - 1 ? currentIndex + 1 : 0,
+            _ => currentIndex
+        };
+
+        if (nextIndex != currentIndex)
+        {
+            ActiveControl = tabs[nextIndex];
+            return true;
+        }
+
+        return false;
+    }
+
     /// <summary>
     /// Raises the Shown event.
     /// </summary>
@@ -375,12 +403,23 @@ public class Form : ContainerControl
     /// <param name="e">A KeyEventArgs that contains the event data.</param>
     protected internal override void OnKeyDown(KeyEventArgs e)
     {
+        Console.WriteLine($"[Form.OnKeyDown] form='{Text}' Enabled={Enabled} KeyCode={e.KeyCode} ActiveControl='{ActiveControl?.Text}'");
         if (!Enabled) return;
         if (e.KeyCode == Keys.Tab)
         {
             ProcessTabKey(e.Modifiers.HasFlag(ModifierKeys.Shift));
             e.Handled = true;
             return;
+        }
+
+        if (e.KeyCode == Keys.Left || e.KeyCode == Keys.Right ||
+            e.KeyCode == Keys.Up || e.KeyCode == Keys.Down)
+        {
+            if (ProcessArrowKey(e.KeyCode))
+            {
+                e.Handled = true;
+                return;
+            }
         }
 
         if (e.Modifiers.HasFlag(ModifierKeys.Alt) || e.KeyCode == Keys.Menu)

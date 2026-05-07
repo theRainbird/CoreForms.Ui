@@ -75,11 +75,14 @@ public static class Platform
         var handle = new IntPtr(windowId);
         form.SetHandle(handle);
 
+        Console.WriteLine($"[Platform] CreateWindow: id={windowId} form='{form.Text}' focusedWindow='{_focusedWindow?.Text}'");
+
         window.Load += () =>
         {
             try
             {
                 ctx.InitializeRenderer();
+                Console.WriteLine($"[Platform] Renderer initialized for window id={windowId}");
             }
             catch (Exception ex)
             {
@@ -95,6 +98,7 @@ public static class Platform
             {
                 keyboard.KeyDown += (kb, key, keyCode) =>
                 {
+                    Console.WriteLine($"[Platform] KeyDown: key={key} focusedWindow='{_focusedWindow?.Text}' windowId={windowId}");
                     if (_focusedWindow == null) return;
                     var args = new KeyEventArgs
                     {
@@ -120,6 +124,10 @@ public static class Platform
                     if (_focusedWindow == null) return;
                     _focusedWindow.OnTextInput(ch.ToString());
                 };
+            }
+            else
+            {
+                Console.WriteLine($"[Platform] WARNING: No keyboard for window id={windowId}");
             }
 
             if (mouse != null)
@@ -173,13 +181,13 @@ public static class Platform
 
             window.Closing += () =>
             {
-                if (!_contexts.ContainsKey(windowId))
-                    return;
-                form.Close();
+                Console.WriteLine($"[Platform] Closing event for window id={windowId} form='{form.Text}'");
+                ctx.IsClosing = true;
             };
 
             window.FocusChanged += focused =>
             {
+                Console.WriteLine($"[Platform] FocusChanged: focused={focused} windowId={windowId} form='{form.Text}'");
                 if (focused)
                 {
                     _focusedWindow = form;
@@ -212,42 +220,61 @@ public static class Platform
 
     /// <summary>
     /// Destroys the window with the specified handle and releases its rendering resources.
+    /// Called when a form is programmatically closed (e.g., MessageBox button click).
+    /// The GL context is still valid here, so we can do full cleanup.
     /// </summary>
     /// <param name="handle">The window handle identifier.</param>
     public static void DestroyWindow(IntPtr handle)
     {
         uint windowId = (uint)handle;
-        if (_contexts.TryGetValue(windowId, out var ctx))
+        if (!_contexts.TryGetValue(windowId, out var ctx))
+            return;
+
+        Console.WriteLine($"[Platform] DestroyWindow: id={windowId} form='{ctx.Form.Text}'");
+
+        CleanupWindowOnClose(windowId, ctx, ctx.Form, glCleanup: true);
+
+        try { ctx.Window.IsVisible = false; } catch { }
+        try { ctx.Window.Close(); } catch { }
+    }
+
+    /// <summary>
+    /// Performs cleanup for a closing window. When glCleanup is true, GL resources are
+    /// cleaned up (safe for programmatic close). When false, only non-GL cleanup is done
+    /// (safe for deferred cleanup from the Closing event).
+    /// </summary>
+    private static void CleanupWindowOnClose(uint windowId, WindowContext ctx, Form form, bool glCleanup)
+    {
+        ctx.IsClosing = true;
+        _contexts.Remove(windowId);
+
+        if (_focusedWindow == form)
         {
-            ctx.IsClosing = true;
-
-            _contexts.Remove(windowId);
-
-            if (_focusedWindow == ctx.Form)
-            {
-                _focusedWindow = _contexts.Count > 0
-                    ? _contexts.Values.FirstOrDefault()?.Form
-                    : null;
-            }
-
-            CleanupIconImages(windowId);
-
-            try { ctx.Window.MakeCurrent(); } catch { }
-
-            try
-            {
-                ctx.Dispose();
-            }
-            catch { }
-
-            try { ctx.Window.IsVisible = false; } catch { }
-
-            try
-            {
-                ctx.Window.Close();
-            }
-            catch { }
+            _focusedWindow = _contexts.Count > 0
+                ? _contexts.Values.FirstOrDefault()?.Form
+                : null;
         }
+
+        Console.WriteLine($"[Platform] CleanupWindowOnClose: id={windowId} glCleanup={glCleanup} focusedWindow now='{_focusedWindow?.Text}'");
+
+        CleanupIconImages(windowId);
+
+        if (glCleanup)
+        {
+            // Programmatic close: GL context is still valid, clean up GL resources
+            try { ctx.Window.MakeCurrent(); } catch { }
+        }
+        else
+        {
+            // Deferred close (from Closing event): GL context may be invalid, skip GL calls
+            ctx.Renderer?.MarkContextLost();
+        }
+
+        try { ctx.Dispose(); } catch { }
+
+        form.OnFormClosing(new FormClosingEventArgs(CloseReason.UserClosing, false));
+        Application.Instance.UnregisterForm(form);
+        form.SetHandle(IntPtr.Zero);
     }
 
     /// <summary>
@@ -558,7 +585,10 @@ public static class Platform
     /// <param name="app">The application instance.</param>
     public static void ProcessEvents(Application app)
     {
-        foreach (var ctx in _contexts.Values.ToList())
+        var contextsSnapshot = _contexts.Values.ToList();
+        var pendingCleanup = new List<WindowContext>();
+
+        foreach (var ctx in contextsSnapshot)
         {
             if (ctx.IsClosing)
                 continue;
@@ -569,6 +599,18 @@ public static class Platform
             }
             catch { }
 
+            if (ctx.IsClosing)
+                pendingCleanup.Add(ctx);
+        }
+
+        foreach (var ctx in pendingCleanup)
+        {
+            Console.WriteLine($"[Platform] Deferred cleanup: id={ctx.WindowId} form='{ctx.Form.Text}'");
+            CleanupWindowOnClose(ctx.WindowId, ctx, ctx.Form, glCleanup: false);
+        }
+
+        foreach (var ctx in _contexts.Values.ToList())
+        {
             if (ctx.IsClosing || !ctx.IsInitialized || ctx.Renderer == null || ctx.FontRenderer == null)
                 continue;
 

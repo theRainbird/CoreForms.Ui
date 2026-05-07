@@ -46,8 +46,8 @@ public class Application
 
         _running = true;
 
-        _forms.TryAdd(mainForm.Handle, mainForm);
         mainForm.Create();
+        _forms.TryAdd(mainForm.Handle, mainForm);
 
         while (_running && !_forms.IsEmpty)
         {

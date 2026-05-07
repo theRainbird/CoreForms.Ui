@@ -98,6 +98,7 @@ public class Button : Control
     /// <param name="e">A KeyEventArgs that contains the event data.</param>
     protected internal override void OnKeyDown(KeyEventArgs e)
     {
+        Console.WriteLine($"[Button.OnKeyDown] Text='{Text}' KeyCode={e.KeyCode} Focused={Focused}");
         if (e.KeyCode == Keys.Enter || e.KeyCode == Keys.Space)
         {
             PerformClick();
