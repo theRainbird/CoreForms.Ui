@@ -88,36 +88,29 @@ public static class MessageBox
 
     private static DialogResult ShowCore(Form? owner, string text, string caption, MessageBoxButtons buttons, MessageBoxIcon icon, MessageBoxDefaultButton defaultButton)
     {
-        Console.WriteLine($"[MessageBox] ShowCore: owner='{owner?.Text}' focusedWindow='{Platform.Platform.FocusedWindow?.Text}'");
-
-        if (owner != null)
+        if (owner == null)
         {
-            owner.Enabled = false;
+            throw new InvalidOperationException("MessageBox requires an owner form.");
         }
+
+        var overlay = new MessageBoxOverlay(owner, text, caption, buttons, icon, defaultButton);
+        owner.Controls.Add(overlay);
+        owner.PerformLayout();
+        overlay.Initialize();
 
         try
         {
-            var mb = new MessageBoxForm(text, caption, buttons, icon, defaultButton);
-            mb.Show();
-            mb.LoadIconTexture();
-
-            Console.WriteLine($"[MessageBox] Dialog shown, entering loop. DialogResult={mb.DialogResult}");
-
-            while (mb.DialogResult == DialogResult.None)
+            while (overlay.DialogResult == DialogResult.None)
             {
                 Platform.Platform.ProcessEvents(Application.Instance);
             }
 
-            Console.WriteLine($"[MessageBox] Loop exited. DialogResult={mb.DialogResult}");
-            return mb.DialogResult;
+            return overlay.DialogResult;
         }
         finally
         {
-            if (owner != null)
-            {
-                owner.Enabled = true;
-                owner.BringToFront();
-            }
+            owner.Controls.Remove(overlay);
+            owner.PerformLayout();
         }
     }
 }

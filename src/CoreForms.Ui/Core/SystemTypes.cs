@@ -466,9 +466,29 @@ public static class SystemColors
     public static readonly Color ActiveCaption = Color.FromArgb(10, 36, 99);
 
     /// <summary>
+    /// Gets the text color for active caption bars.
+    /// </summary>
+    public static readonly Color ActiveCaptionText = Color.FromArgb(255, 255, 255);
+
+    /// <summary>
     /// Gets the inactive caption bar color.
     /// </summary>
     public static readonly Color InactiveCaption = Color.FromArgb(128, 128, 128);
+
+    /// <summary>
+    /// Gets the lighter control background color.
+    /// </summary>
+    public static readonly Color ControlLight = Color.FromArgb(240, 240, 240);
+
+    /// <summary>
+    /// Gets the darker control border color.
+    /// </summary>
+    public static readonly Color ControlDark = Color.FromArgb(160, 160, 160);
+
+    /// <summary>
+    /// Gets the disabled text color.
+    /// </summary>
+    public static readonly Color GrayText = Color.FromArgb(128, 128, 128);
 }
 
 /// <summary>

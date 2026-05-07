@@ -55,7 +55,8 @@ public class ContainerControl : Control
         var args = e as MouseEventArgs;
         if (args != null)
         {
-            var target = GetChildAtPoint(new Point(args.X, args.Y));
+            var point = new Point(args.X, args.Y);
+            var target = GetChildAtPoint(point);
             if (target != null)
             {
                 var localArgs = new MouseEventArgs(args.Button, args.Clicks, args.X - target.X, args.Y - target.Y, args.Delta);

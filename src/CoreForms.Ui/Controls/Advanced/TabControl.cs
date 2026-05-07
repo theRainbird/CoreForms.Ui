@@ -206,15 +206,6 @@ public class StatusStrip : ContainerControl
     public List<ToolStripStatusLabel> Items => _items;
 
     /// <summary>
-    /// Gets or sets the text displayed in the status strip.
-    /// </summary>
-    public string Text
-    {
-        get => _text;
-        set => _text = value;
-    }
-
-    /// <summary>
     /// Renders the status strip with its items.
     /// </summary>
     /// <param name="g">The Graphics object to use for rendering.</param>

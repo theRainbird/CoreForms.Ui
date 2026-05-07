@@ -12,7 +12,6 @@ public class ToolStripMenuItem : Component
     private bool _isSelected;
     private bool _isDropDownVisible;
     private readonly List<ToolStripMenuItem> _dropDownItems = new();
-    private int _width;
 
     /// <summary>
     /// Initializes a new instance of ToolStripMenuItem.

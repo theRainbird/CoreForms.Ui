@@ -12,8 +12,6 @@ public class DataGridView : ContainerControl
     private readonly DataGridViewRowCollection _rows = new();
     private int _selectedRowIndex = -1;
     private int _selectedColumnIndex = -1;
-    private int _firstVisibleRow;
-    private int _firstVisibleColumn;
     private int _rowHeight = 30;
     private int _columnWidth = 100;
     private bool _allowUserToAddRows = true;

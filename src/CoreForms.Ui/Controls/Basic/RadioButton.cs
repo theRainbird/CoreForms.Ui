@@ -9,7 +9,6 @@ namespace CoreForms.Ui.Controls.Basic;
 public class RadioButton : Control
 {
     private bool _checked;
-    private RadioButton? _group;
 
     /// <summary>
     /// Initializes a new instance of RadioButton.

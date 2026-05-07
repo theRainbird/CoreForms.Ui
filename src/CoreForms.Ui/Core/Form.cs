@@ -11,7 +11,6 @@ public class Form : ContainerControl
     private string _title = string.Empty;
     private bool _resizable = true;
     private FormWindowState _windowState = FormWindowState.Normal;
-    private bool _topMost;
     private FormBorderStyle _formBorderStyle = FormBorderStyle.Sizable;
     private IntPtr _handle;
     private Control? _captureControl;
@@ -403,8 +402,14 @@ public class Form : ContainerControl
     /// <param name="e">A KeyEventArgs that contains the event data.</param>
     protected internal override void OnKeyDown(KeyEventArgs e)
     {
-        Console.WriteLine($"[Form.OnKeyDown] form='{Text}' Enabled={Enabled} KeyCode={e.KeyCode} ActiveControl='{ActiveControl?.Text}'");
+        Console.WriteLine($"[Form.OnKeyDown] form='{Text}' Enabled={Enabled} KeyCode={e.KeyCode} ActiveControl='{ActiveControl?.GetType().Name}'");
         if (!Enabled) return;
+
+        if (ActiveControl != null && ActiveControl.Enabled)
+        {
+            ActiveControl.OnKeyDown(e);
+            if (e.Handled) return;
+        }
 
         MenuStrip? activeMenu = null;
         foreach (Control control in Controls)
@@ -465,11 +470,6 @@ public class Form : ContainerControl
             }
         }
 
-        if (ActiveControl != null)
-        {
-            ActiveControl.OnKeyDown(e);
-            if (e.Handled) return;
-        }
         base.OnKeyDown(e);
     }
 
