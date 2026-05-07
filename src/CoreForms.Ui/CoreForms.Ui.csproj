@@ -6,11 +6,8 @@
     <Nullable>enable</Nullable>
     <RootNamespace>CoreForms.Ui</RootNamespace>
     <AssemblyName>CoreForms.Ui</AssemblyName>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
-
-  <ItemGroup>
-    <ProjectReference Include="..\CoreForms.Ui.Sdl\CoreForms.Ui.Sdl.csproj" />
-  </ItemGroup>
 
   <ItemGroup>
     <EmbeddedResource Include="Resources\Icons\*.svg" />
@@ -23,6 +20,10 @@
   </ItemGroup>
 
   <ItemGroup>
+    <PackageReference Include="Silk.NET.OpenGL" Version="2.22.0" />
+    <PackageReference Include="Silk.NET.Input" Version="2.22.0" />
+    <PackageReference Include="Silk.NET.Windowing" Version="2.22.0" />
+    <PackageReference Include="SkiaSharp" Version="2.88.9" />
     <PackageReference Include="SkiaSharp.NativeAssets.Linux" Version="2.88.9" />
     <PackageReference Include="Svg.Skia" Version="4.6.0" />
   </ItemGroup>

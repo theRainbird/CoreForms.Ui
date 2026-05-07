@@ -1,4 +1,5 @@
 using CoreForms.Ui.Core;
+using SkiaSharp;
 
 namespace CoreForms.Ui.Rendering;
 
@@ -207,15 +208,38 @@ public class Graphics : IDisposable
     }
 
     /// <summary>
-    /// Draws an image at the specified location and size.
-    /// The image parameter should be an IntPtr representing an SDL texture.
+    /// Draws an ellipse outline at the specified location and size.
     /// </summary>
-    /// <param name="image">The image object (SDL texture handle) to draw.</param>
+    /// <param name="color">The outline color.</param>
+    /// <param name="x">The x-coordinate of the bounding rectangle.</param>
+    /// <param name="y">The y-coordinate of the bounding rectangle.</param>
+    /// <param name="width">The width of the bounding rectangle.</param>
+    /// <param name="height">The height of the bounding rectangle.</param>
+    /// <param name="lineWidth">The line width. Defaults to 1.</param>
+    public void DrawEllipse(Color color, float x, float y, float width, float height, float lineWidth = 1f)
+    {
+        _commands.Add(new DrawCommand
+        {
+            Type = DrawCommandType.DrawEllipse,
+            Color = color,
+            X = x + _offsetX,
+            Y = y + _offsetY,
+            Width = width,
+            Height = height,
+            LineWidth = lineWidth,
+            ClipBounds = ClipBounds
+        });
+    }
+
+    /// <summary>
+    /// Draws an image at the specified location and size.
+    /// </summary>
+    /// <param name="image">The SKImage to draw.</param>
     /// <param name="x">The x-coordinate.</param>
     /// <param name="y">The y-coordinate.</param>
     /// <param name="width">The width.</param>
     /// <param name="height">The height.</param>
-    public void DrawImage(object image, float x, float y, float width, float height)
+    public void DrawImage(SKImage image, float x, float y, float width, float height)
     {
         _commands.Add(new DrawCommand
         {
@@ -341,6 +365,11 @@ public enum DrawCommandType
     DrawImage,
 
     /// <summary>
+    /// Draw an ellipse outline.
+    /// </summary>
+    DrawEllipse,
+
+    /// <summary>
     /// Draw a filled triangle.
     /// </summary>
     FillTriangle
@@ -419,7 +448,7 @@ public class DrawCommand
     /// <summary>
     /// Gets or sets the image (for DrawImage commands).
     /// </summary>
-    public object? Image { get; set; }
+    public SKImage? Image { get; set; }
 
     /// <summary>
     /// Gets or sets the clipping bounds.

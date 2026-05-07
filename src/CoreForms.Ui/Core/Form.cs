@@ -21,6 +21,12 @@ public class Form : ContainerControl
     public IntPtr Handle => _handle;
 
     /// <summary>
+    /// Sets the native window handle. Called by the platform layer after window creation.
+    /// </summary>
+    /// <param name="handle">The window handle identifier.</param>
+    internal void SetHandle(IntPtr handle) => _handle = handle;
+
+    /// <summary>
     /// Gets or sets the SDL window ID.
     /// </summary>
     public uint WindowId { get; internal set; }
@@ -117,9 +123,12 @@ public class Form : ContainerControl
     /// </summary>
     public void Close()
     {
+        if (_handle == IntPtr.Zero)
+            return;
         OnFormClosing(new FormClosingEventArgs(CloseReason.UserClosing, false));
         Application.Instance.UnregisterForm(this);
         Platform.Platform.DestroyWindow(_handle);
+        _handle = IntPtr.Zero;
     }
 
     /// <summary>

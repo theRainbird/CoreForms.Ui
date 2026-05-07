@@ -1,5 +1,6 @@
 using CoreForms.Ui.Core;
 using CoreForms.Ui.Controls.Basic;
+using SkiaSharp;
 using Graphics = CoreForms.Ui.Rendering.Graphics;
 
 namespace CoreForms.Ui.Controls.Advanced;
@@ -15,7 +16,7 @@ internal class MessageBoxForm : Form
     private readonly MessageBoxIcon _icon;
     private readonly MessageBoxDefaultButton _defaultButton;
     private DialogResult _dialogResult = DialogResult.None;
-    private IntPtr _iconTexture;
+    private SKImage? _iconImage;
     private int _iconSize = 48;
 
     /// <summary>
@@ -37,7 +38,7 @@ internal class MessageBoxForm : Form
         _buttons = buttons;
         _icon = icon;
         _defaultButton = defaultButton;
-        _iconTexture = IntPtr.Zero;
+        _iconImage = null;
 
         Title = caption;
         FormBorderStyle = FormBorderStyle.FixedDialog;
@@ -70,7 +71,7 @@ internal class MessageBoxForm : Form
         var ctx = Platform.Platform.GetWindowContext(WindowId);
         if (ctx != null)
         {
-            _iconTexture = Platform.Platform.LoadMessageBoxIcon(_icon, ctx.Renderer.Handle);
+            _iconImage = Platform.Platform.LoadMessageBoxIcon(_icon, ctx.WindowId);
         }
     }
 
@@ -87,10 +88,10 @@ internal class MessageBoxForm : Form
         int padding = 20;
         int iconAreaWidth = _icon != MessageBoxIcon.None ? _iconSize + padding : 0;
 
-        if (_icon != MessageBoxIcon.None && _iconTexture != IntPtr.Zero)
+        if (_icon != MessageBoxIcon.None && _iconImage != null)
         {
             int iconY = padding + 4;
-            g.DrawImage(_iconTexture, padding, iconY, _iconSize, _iconSize);
+            g.DrawImage(_iconImage, padding, iconY, _iconSize, _iconSize);
         }
 
         var font = Font ?? Font.Default;
