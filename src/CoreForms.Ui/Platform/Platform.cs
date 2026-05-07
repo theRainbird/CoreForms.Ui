@@ -759,6 +759,7 @@ public static class Platform
             Key.Number7 => Core.Keys.D7,
             Key.Number8 => Core.Keys.D8,
             Key.Number9 => Core.Keys.D9,
+            Key.AltLeft or Key.AltRight => Core.Keys.Menu,
             _ => Core.Keys.None
         };
     }

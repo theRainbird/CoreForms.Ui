@@ -15,6 +15,7 @@ public class MenuStrip : ContainerControl
     private bool _dropDownVisible;
     private ToolStripMenuItem? _openItem;
     private int _selectedDropDownIndex = -1;
+    private int _selectedTopLevelIndex = -1;
     private bool _menuMode;
 
     /// <summary>
@@ -38,7 +39,14 @@ public class MenuStrip : ContainerControl
     public bool MenuMode
     {
         get => _menuMode;
-        set => _menuMode = value;
+        set
+        {
+            _menuMode = value;
+            if (_menuMode && _selectedTopLevelIndex < 0 && _items.Count > 0)
+                _selectedTopLevelIndex = 0;
+            if (!_menuMode)
+                _selectedTopLevelIndex = -1;
+        }
     }
 
     /// <summary>
@@ -65,7 +73,7 @@ public class MenuStrip : ContainerControl
         {
             var item = _items[i];
             int textWidth = GetItemWidth(item, font);
-            bool isHovered = item == _hoverItem || item == _openItem;
+            bool isHovered = item == _hoverItem || item == _openItem || i == _selectedTopLevelIndex;
 
             if (isHovered)
             {
@@ -228,7 +236,8 @@ public class MenuStrip : ContainerControl
         {
             if (!_menuMode)
             {
-                _menuMode = true;
+                MenuMode = true;
+                _selectedTopLevelIndex = _items.Count > 0 ? 0 : -1;
                 e.Handled = true;
                 return;
             }
@@ -236,7 +245,7 @@ public class MenuStrip : ContainerControl
             if (_dropDownVisible)
             {
                 CloseDropDown();
-                _menuMode = false;
+                MenuMode = false;
                 e.Handled = true;
                 return;
             }
@@ -269,7 +278,7 @@ public class MenuStrip : ContainerControl
                 {
                     match.OnClick();
                     CloseDropDown();
-                    _menuMode = false;
+                    MenuMode = false;
                 }
                 e.Handled = true;
                 return;
@@ -282,7 +291,7 @@ public class MenuStrip : ContainerControl
             {
                 case Keys.Escape:
                     CloseDropDown();
-                    _menuMode = false;
+                    MenuMode = false;
                     e.Handled = true;
                     return;
 
@@ -313,7 +322,7 @@ public class MenuStrip : ContainerControl
                     {
                         _openItem.DropDownItems[_selectedDropDownIndex].OnClick();
                         CloseDropDown();
-                        _menuMode = false;
+                        MenuMode = false;
                         e.Handled = true;
                         return;
                     }
@@ -324,6 +333,8 @@ public class MenuStrip : ContainerControl
                         int idx = GetItemIndex(_openItem);
                         if (idx > 0)
                             OpenDropDown(_items[idx - 1]);
+                        else if (_items.Count > 0)
+                            OpenDropDown(_items[_items.Count - 1]);
                         e.Handled = true;
                         return;
                     }
@@ -333,9 +344,78 @@ public class MenuStrip : ContainerControl
                         int idx = GetItemIndex(_openItem);
                         if (idx < _items.Count - 1)
                             OpenDropDown(_items[idx + 1]);
+                        else if (_items.Count > 0)
+                            OpenDropDown(_items[0]);
                         e.Handled = true;
                         return;
                     }
+            }
+        }
+        else if (_menuMode)
+        {
+            switch (e.KeyCode)
+            {
+                case Keys.Escape:
+                    MenuMode = false;
+                    _selectedTopLevelIndex = -1;
+                    e.Handled = true;
+                    return;
+
+                case Keys.Left:
+                    if (_items.Count > 0)
+                    {
+                        if (_selectedTopLevelIndex < 0)
+                            _selectedTopLevelIndex = 0;
+                        else if (_selectedTopLevelIndex > 0)
+                            _selectedTopLevelIndex--;
+                        else
+                            _selectedTopLevelIndex = _items.Count - 1;
+                        e.Handled = true;
+                        return;
+                    }
+                    break;
+
+                case Keys.Right:
+                    if (_items.Count > 0)
+                    {
+                        if (_selectedTopLevelIndex < 0)
+                            _selectedTopLevelIndex = 0;
+                        else if (_selectedTopLevelIndex < _items.Count - 1)
+                            _selectedTopLevelIndex++;
+                        else
+                            _selectedTopLevelIndex = 0;
+                        e.Handled = true;
+                        return;
+                    }
+                    break;
+
+                case Keys.Down:
+                case Keys.Enter:
+                    if (_selectedTopLevelIndex >= 0 && _selectedTopLevelIndex < _items.Count)
+                    {
+                        var item = _items[_selectedTopLevelIndex];
+                        if (item.DropDownItems.Count > 0)
+                            OpenDropDown(item);
+                        else
+                        {
+                            item.OnClick();
+                            MenuMode = false;
+                            _selectedTopLevelIndex = -1;
+                        }
+                        e.Handled = true;
+                        return;
+                    }
+                    break;
+
+                case Keys.Up:
+                    if (_items.Count > 0)
+                    {
+                        if (_selectedTopLevelIndex < 0)
+                            _selectedTopLevelIndex = _items.Count - 1;
+                        e.Handled = true;
+                        return;
+                    }
+                    break;
             }
         }
 
@@ -473,7 +553,9 @@ public class MenuStrip : ContainerControl
         _openItem = item;
         _dropDownVisible = true;
         _selectedDropDownIndex = -1;
+        _selectedTopLevelIndex = GetItemIndex(item);
         _hoverDropDownItem = null;
+        _menuMode = true;
         CapturingMouse = true;
     }
 

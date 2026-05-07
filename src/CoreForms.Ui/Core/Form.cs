@@ -405,6 +405,23 @@ public class Form : ContainerControl
     {
         Console.WriteLine($"[Form.OnKeyDown] form='{Text}' Enabled={Enabled} KeyCode={e.KeyCode} ActiveControl='{ActiveControl?.Text}'");
         if (!Enabled) return;
+
+        MenuStrip? activeMenu = null;
+        foreach (Control control in Controls)
+        {
+            if (control is MenuStrip ms && ms.MenuMode)
+            {
+                activeMenu = ms;
+                break;
+            }
+        }
+
+        if (activeMenu != null)
+        {
+            activeMenu.OnKeyDown(e);
+            if (e.Handled) return;
+        }
+
         if (e.KeyCode == Keys.Tab)
         {
             ProcessTabKey(e.Modifiers.HasFlag(ModifierKeys.Shift));
@@ -428,7 +445,7 @@ public class Form : ContainerControl
             {
                 if (control is MenuStrip menuStrip)
                 {
-                    if (e.KeyCode == Keys.Menu)
+                    if (e.KeyCode == Keys.Menu || (e.Modifiers.HasFlag(ModifierKeys.Alt) && e.KeyCode == Keys.None))
                     {
                         menuStrip.MenuMode = !menuStrip.MenuMode;
                         e.Handled = true;
