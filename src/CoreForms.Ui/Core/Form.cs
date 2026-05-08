@@ -271,20 +271,29 @@ public class Form : ContainerControl
     private List<Control> GetTabControls()
     {
         var tabs = new List<(Control control, int order)>();
-        for (int i = 0; i < Controls.Count; i++)
-        {
-            var child = Controls[i];
-            if (child.Visible && child.Enabled && child.TabStop)
-            {
-                tabs.Add((child, i));
-            }
-        }
+        CollectTabControls(tabs, this, 0);
         tabs.Sort((a, b) =>
         {
             int cmp = a.control.TabIndex.CompareTo(b.control.TabIndex);
             return cmp != 0 ? cmp : a.order.CompareTo(b.order);
         });
         return tabs.ConvertAll(t => t.control);
+    }
+
+    private void CollectTabControls(List<(Control control, int order)> tabs, Control parent, int startOrder)
+    {
+        for (int i = 0; i < parent.Controls.Count; i++)
+        {
+            var child = parent.Controls[i];
+            if (child.Visible && child.Enabled && child.TabStop)
+            {
+                tabs.Add((child, startOrder + i));
+            }
+            if (child is ContainerControl container)
+            {
+                CollectTabControls(tabs, container, (startOrder + i + 1) * 1000);
+            }
+        }
     }
 
     private void ProcessTabKey(bool shift)

@@ -1,6 +1,7 @@
 using CoreForms.Ui.Core;
 using CoreForms.Ui.Controls.Basic;
 using CoreForms.Ui.Controls.Advanced;
+using CoreForms.Ui.Controls.Containers;
 using Xunit;
 
 namespace CoreForms.Ui.Tests;
@@ -634,5 +635,50 @@ public class ControlTests
         form.OnKeyDown(new KeyEventArgs { KeyCode = Keys.Tab, Modifiers = ModifierKeys.None });
 
         Assert.Equal(textBox, form.ActiveControl);
+    }
+
+    [Fact]
+    public void Form_Tab_ShouldNavigateNestedContainers()
+    {
+        var form = new Form();
+        var panel = new Panel();
+        var button1 = new Button { TabIndex = 0 };
+        var button2 = new Button { TabIndex = 1 };
+        var button3 = new Button { TabIndex = 2 };
+        panel.Controls.Add(button1);
+        panel.Controls.Add(button2);
+        form.Controls.Add(panel);
+        form.Controls.Add(button3);
+
+        form.ActiveControl = button1;
+        Assert.True(button1.Focused);
+        Assert.False(button2.Focused);
+        Assert.False(button3.Focused);
+
+        form.OnKeyDown(new KeyEventArgs { KeyCode = Keys.Tab, Modifiers = ModifierKeys.None });
+        Assert.True(button2.Focused);
+        Assert.False(button1.Focused);
+
+        form.OnKeyDown(new KeyEventArgs { KeyCode = Keys.Tab, Modifiers = ModifierKeys.None });
+        Assert.True(button3.Focused);
+        Assert.False(button2.Focused);
+    }
+
+    [Fact]
+    public void Form_Focus_ShouldOnlyOneControlFocused()
+    {
+        var form = new Form();
+        var button1 = new Button();
+        var button2 = new Button();
+        form.Controls.Add(button1);
+        form.Controls.Add(button2);
+
+        button1.Focused = true;
+        Assert.True(button1.Focused);
+        Assert.False(button2.Focused);
+
+        button2.Focused = true;
+        Assert.True(button2.Focused);
+        Assert.False(button1.Focused);
     }
 }

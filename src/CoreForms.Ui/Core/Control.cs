@@ -283,11 +283,36 @@ public class Control : Component
         {
             if (_focused != value)
             {
+                if (value)
+                {
+                    var form = FindForm();
+                    if (form != null)
+                    {
+                        ClearFocusRecursive(form, this);
+                    }
+                }
                 _focused = value;
                 if (value)
                     OnGotFocus(EventArgs.Empty);
                 else
                     OnLostFocus(EventArgs.Empty);
+            }
+        }
+    }
+
+    private static void ClearFocusRecursive(Control parent, Control? except)
+    {
+        for (int i = 0; i < parent.Controls.Count; i++)
+        {
+            var child = parent.Controls[i];
+            if (child != except && child._focused)
+            {
+                child._focused = false;
+                child.OnLostFocus(EventArgs.Empty);
+            }
+            if (child is ContainerControl container)
+            {
+                ClearFocusRecursive(container, except);
             }
         }
     }
