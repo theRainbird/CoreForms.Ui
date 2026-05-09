@@ -57,9 +57,10 @@ public class SkiaFontRenderer : IDisposable
         if (skFont == null)
             return ((int)(text.Length * font.Size * 0.6f), (int)font.Size);
 
-        using var measurePaint = new SKPaint { TextSize = font.Size };
-        float width = measurePaint.MeasureText(text);
         var metrics = skFont.Metrics;
+        ushort[] glyphs = new ushort[text.Length];
+        skFont.GetGlyphs(text, glyphs);
+        float width = skFont.MeasureText(glyphs);
         return ((int)width, (int)(metrics.Descent - metrics.Ascent));
     }
 
