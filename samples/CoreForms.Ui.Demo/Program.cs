@@ -225,8 +225,9 @@ class Program
         {
             Location = new Point(80, 70),
             Size = new Size(200, 25),
-            Text = "********",
-            Name = "passwordTextBox"
+            Text = "MySecretPassword",
+            Name = "passwordTextBox",
+            UseSystemPasswordChar = true
         };
 
         textBoxPage.Controls.Add(nameLabel);

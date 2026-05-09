@@ -63,6 +63,31 @@ public class TextBox : Control
         set => _selectionLength = value;
     }
 
+    private bool _useSystemPasswordChar;
+
+    /// <summary>
+    /// Gets or sets whether the text box uses password mode, hiding characters with a bullet symbol.
+    /// </summary>
+    public bool UseSystemPasswordChar
+    {
+        get => _useSystemPasswordChar;
+        set
+        {
+            if (_useSystemPasswordChar != value)
+            {
+                _useSystemPasswordChar = value;
+                Invalidate();
+            }
+        }
+    }
+
+    private static readonly string BulletChar = "\u25CF";
+
+    private string GetDisplayText()
+    {
+        return _useSystemPasswordChar ? new string('\u25CF', _text.Length) : _text;
+    }
+
     /// <summary>
     /// Gets the selected text.
     /// </summary>
@@ -87,6 +112,19 @@ public class TextBox : Control
         return measured.width;
     }
 
+    private int MeasureDisplayWidth()
+    {
+        if (_text.Length == 0)
+            return 0;
+        if (_useSystemPasswordChar)
+        {
+            var font = Font ?? Font.Default;
+            var measured = Platform.Platform.MeasureText(BulletChar, font);
+            return measured.width * _text.Length;
+        }
+        return MeasureTextWidth(_text);
+    }
+
     /// <summary>
     /// Renders the text box with its text, selection, and cursor.
     /// </summary>
@@ -106,23 +144,25 @@ public class TextBox : Control
         float textY = (Height - font.Size) / 2f;
         float textX = 4;
 
+        string displayText = GetDisplayText();
+
         if (_selectionLength > 0 && Focused)
         {
             int selStart = Math.Min(_selectionAnchor, _cursorPosition);
             int selEnd = Math.Max(_selectionAnchor, _cursorPosition);
 
-            string beforeSel = _text.Substring(0, selStart);
-            string selStr = _text.Substring(selStart, selEnd - selStart);
+            string beforeSel = displayText.Substring(0, selStart);
+            string selStr = displayText.Substring(selStart, selEnd - selStart);
             float selX = textX + MeasureTextWidth(beforeSel);
             float selWidth = Math.Max(MeasureTextWidth(selStr), 2);
 
-            g.DrawString(_text, font, ForeColor, textX, textY);
+            g.DrawString(displayText, font, ForeColor, textX, textY);
             g.FillRectangle(SystemColors.Highlight, selX, textY, selWidth, font.Size + 2);
             g.DrawString(selStr, font, SystemColors.HighlightText, selX, textY);
         }
         else
         {
-            g.DrawString(_text, font, ForeColor, textX, textY);
+            g.DrawString(displayText, font, ForeColor, textX, textY);
         }
 
         if (Focused)
@@ -130,7 +170,7 @@ public class TextBox : Control
             bool cursorVisible = (Environment.TickCount % (CursorBlinkInterval * 2)) < CursorBlinkInterval;
             if (cursorVisible)
             {
-                string textBeforeCursor = _text.Substring(0, _cursorPosition);
+                string textBeforeCursor = displayText.Substring(0, _cursorPosition);
                 float cursorX = textX + MeasureTextWidth(textBeforeCursor);
                 g.DrawLine(Color.Black, cursorX, textY, cursorX, textY + font.Size, 1);
             }
@@ -158,21 +198,33 @@ public class TextBox : Control
         if (mouseArgs != null)
         {
             int xPos = mouseArgs.X - 4;
-            int bestPos = 0;
-            int bestDist = Math.Abs(xPos);
 
-            for (int i = 1; i <= _text.Length; i++)
+            if (_useSystemPasswordChar && _text.Length > 0)
             {
-                int w = MeasureTextWidth(_text.Substring(0, i));
-                int dist = Math.Abs(xPos - w);
-                if (dist < bestDist)
+                var font = Font ?? Font.Default;
+                var bulletMeasured = Platform.Platform.MeasureText(BulletChar, font);
+                int bulletWidth = bulletMeasured.width;
+                _cursorPosition = Math.Min(xPos / bulletWidth + 1, _text.Length);
+            }
+            else
+            {
+                int bestPos = 0;
+                int bestDist = Math.Abs(xPos);
+
+                for (int i = 1; i <= _text.Length; i++)
                 {
-                    bestDist = dist;
-                    bestPos = i;
+                    int w = MeasureTextWidth(_text.Substring(0, i));
+                    int dist = Math.Abs(xPos - w);
+                    if (dist < bestDist)
+                    {
+                        bestDist = dist;
+                        bestPos = i;
+                    }
                 }
+
+                _cursorPosition = bestPos;
             }
 
-            _cursorPosition = bestPos;
             _selectionAnchor = _cursorPosition;
             _selectionLength = 0;
         }
