@@ -4,12 +4,13 @@ using SkiaSharp;
 namespace CoreForms.Ui.Rendering;
 
 /// <summary>
-/// Provides methods for rendering graphics primitives using a command-list pattern.
-/// </summary>
-public class Graphics : IDisposable
-{
-    private float _offsetX;
-    private float _offsetY;
+    /// Provides methods for rendering graphics primitives using a command-list pattern.
+    /// </summary>
+    public class Graphics : IDisposable
+    {
+        private float _offsetX;
+        private float _offsetY;
+        private float _zoom = 1.0f;
     private readonly Stack<Matrix> _transforms = new();
     private readonly Stack<Rectangle> _clipStack = new();
     private readonly List<DrawCommand> _commands = new();
@@ -24,6 +25,15 @@ public class Graphics : IDisposable
     /// Gets the current y-offset for transformations.
     /// </summary>
     public float OffsetY => _offsetY;
+
+    /// <summary>
+    /// Gets or sets the zoom factor for scaling all drawing operations.
+    /// </summary>
+    public float Zoom
+    {
+        get => _zoom;
+        set => _zoom = value > 0 ? value : 1.0f;
+    }
 
     /// <summary>
     /// Gets the current clip bounds, if any.
@@ -107,10 +117,10 @@ public class Graphics : IDisposable
         {
             Type = DrawCommandType.FillRectangle,
             Color = color,
-            X = x + _offsetX,
-            Y = y + _offsetY,
-            Width = width,
-            Height = height,
+            X = (x + _offsetX) * _zoom,
+            Y = (y + _offsetY) * _zoom,
+            Width = width * _zoom,
+            Height = height * _zoom,
             ClipBounds = ClipBounds
         });
     }
@@ -130,11 +140,11 @@ public class Graphics : IDisposable
         {
             Type = DrawCommandType.DrawRectangle,
             Color = color,
-            X = x + _offsetX,
-            Y = y + _offsetY,
-            Width = width,
-            Height = height,
-            LineWidth = lineWidth,
+            X = (x + _offsetX) * _zoom,
+            Y = (y + _offsetY) * _zoom,
+            Width = width * _zoom,
+            Height = height * _zoom,
+            LineWidth = lineWidth * _zoom,
             ClipBounds = ClipBounds
         });
     }
@@ -155,8 +165,9 @@ public class Graphics : IDisposable
             Text = text,
             Font = font,
             Color = color,
-            X = x + _offsetX,
-            Y = y + _offsetY,
+            X = (x + _offsetX) * _zoom,
+            Y = (y + _offsetY) * _zoom,
+            Zoom = _zoom,
             ClipBounds = ClipBounds
         });
     }
@@ -175,10 +186,10 @@ public class Graphics : IDisposable
         {
             Type = DrawCommandType.FillEllipse,
             Color = color,
-            X = x + _offsetX,
-            Y = y + _offsetY,
-            Width = width,
-            Height = height,
+            X = (x + _offsetX) * _zoom,
+            Y = (y + _offsetY) * _zoom,
+            Width = width * _zoom,
+            Height = height * _zoom,
             ClipBounds = ClipBounds
         });
     }
@@ -198,11 +209,11 @@ public class Graphics : IDisposable
         {
             Type = DrawCommandType.DrawLine,
             Color = color,
-            X = x1 + _offsetX,
-            Y = y1 + _offsetY,
-            X2 = x2 + _offsetX,
-            Y2 = y2 + _offsetY,
-            LineWidth = lineWidth,
+            X = (x1 + _offsetX) * _zoom,
+            Y = (y1 + _offsetY) * _zoom,
+            X2 = (x2 + _offsetX) * _zoom,
+            Y2 = (y2 + _offsetY) * _zoom,
+            LineWidth = lineWidth * _zoom,
             ClipBounds = ClipBounds
         });
     }
@@ -222,11 +233,11 @@ public class Graphics : IDisposable
         {
             Type = DrawCommandType.DrawEllipse,
             Color = color,
-            X = x + _offsetX,
-            Y = y + _offsetY,
-            Width = width,
-            Height = height,
-            LineWidth = lineWidth,
+            X = (x + _offsetX) * _zoom,
+            Y = (y + _offsetY) * _zoom,
+            Width = width * _zoom,
+            Height = height * _zoom,
+            LineWidth = lineWidth * _zoom,
             ClipBounds = ClipBounds
         });
     }
@@ -245,10 +256,10 @@ public class Graphics : IDisposable
         {
             Type = DrawCommandType.DrawImage,
             Image = image,
-            X = x + _offsetX,
-            Y = y + _offsetY,
-            Width = width,
-            Height = height,
+            X = (x + _offsetX) * _zoom,
+            Y = (y + _offsetY) * _zoom,
+            Width = width * _zoom,
+            Height = height * _zoom,
             ClipBounds = ClipBounds
         });
     }
@@ -269,12 +280,12 @@ public class Graphics : IDisposable
         {
             Type = DrawCommandType.FillTriangle,
             Color = color,
-            X = x1 + _offsetX,
-            Y = y1 + _offsetY,
-            X2 = x2 + _offsetX,
-            Y2 = y2 + _offsetY,
-            X3 = x3 + _offsetX,
-            Y3 = y3 + _offsetY,
+            X = (x1 + _offsetX) * _zoom,
+            Y = (y1 + _offsetY) * _zoom,
+            X2 = (x2 + _offsetX) * _zoom,
+            Y2 = (y2 + _offsetY) * _zoom,
+            X3 = (x3 + _offsetX) * _zoom,
+            Y3 = (y3 + _offsetY) * _zoom,
             ClipBounds = ClipBounds
         });
     }
@@ -454,4 +465,9 @@ public class DrawCommand
     /// Gets or sets the clipping bounds.
     /// </summary>
     public Rectangle? ClipBounds { get; set; }
+
+    /// <summary>
+    /// Gets or sets the zoom factor for this command (used for font scaling).
+    /// </summary>
+    public float Zoom { get; set; } = 1.0f;
 }

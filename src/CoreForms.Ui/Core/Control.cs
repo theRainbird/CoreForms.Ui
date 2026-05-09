@@ -32,6 +32,19 @@ public class Control : Component
     internal bool _layoutDrivenBoundsChange;
 
     /// <summary>
+    /// Gets the effective zoom factor for this control.
+    /// Returns the zoom from the parent form, or 1.0 if no form is found.
+    /// </summary>
+    public float EffectiveZoom
+    {
+        get
+        {
+            var form = FindForm();
+            return form?.Zoom ?? 1.0f;
+        }
+    }
+
+    /// <summary>
     /// Gets or sets the name of the control.
     /// </summary>
     public string Name
@@ -392,11 +405,13 @@ if (_focused != value)
 
     /// <summary>
     /// Renders the control and its children using the specified graphics object.
+    /// Applies zoom scaling to all child controls.
     /// </summary>
     /// <param name="g">The Graphics object to use for rendering.</param>
     public virtual void Render(Graphics g)
     {
         _dirty = false;
+        g.Zoom = EffectiveZoom;
         foreach (Control child in Controls)
         {
             if (child.Visible)
@@ -468,7 +483,7 @@ if (_focused != value)
     /// <summary>
     /// Tests whether the specified point is within the bounds of the control.
     /// </summary>
-    /// <param name="point">The point to test.</param>
+    /// <param name="point">The point to test (should be in the coordinate space of the control's parent).</param>
     /// <returns>True if the point is within the control's bounds; otherwise, false.</returns>
     public virtual bool HitTest(Point point)
     {

@@ -15,6 +15,7 @@ public class Form : ContainerControl
     private FormBorderStyle _formBorderStyle = FormBorderStyle.Sizable;
     private IntPtr _handle;
     private Control? _captureControl;
+    private float _zoom = Dpi.GetDefaultZoom();
 
     /// <summary>
     /// Gets the native window handle.
@@ -78,6 +79,17 @@ public class Form : ContainerControl
     {
         get => _formBorderStyle;
         set => _formBorderStyle = value;
+    }
+
+    /// <summary>
+    /// Gets or sets the zoom factor for the form and all its controls.
+    /// The zoom affects all rendering (fonts, controls, images) and coordinates.
+    /// Clamped between 0.25 (25%) and 4.0 (400%).
+    /// </summary>
+    public float Zoom
+    {
+        get => _zoom;
+        set => _zoom = Dpi.ClampZoom(value);
     }
 
     /// <summary>

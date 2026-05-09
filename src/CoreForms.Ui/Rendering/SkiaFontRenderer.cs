@@ -5,15 +5,25 @@ using SkiaSharp;
 namespace CoreForms.Ui.Rendering;
 
 /// <summary>
-/// Provides font rendering using SkiaSharp's SKPaint and SKFont APIs.
-/// Supports cross-platform font discovery and caches typefaces for performance.
-/// Text is rendered directly to the SKCanvas, eliminating per-frame texture creation.
-/// </summary>
-public class SkiaFontRenderer : IDisposable
-{
-    private readonly Dictionary<string, SKTypeface> _typefaceCache = new();
-    private readonly Dictionary<string, SKFont> _fontCache = new();
-    private bool _disposed;
+    /// Provides font rendering using SkiaSharp's SKPaint and SKFont APIs.
+    /// Supports cross-platform font discovery and caches typefaces for performance.
+    /// Text is rendered directly to the SKCanvas, eliminating per-frame texture creation.
+    /// </summary>
+    public class SkiaFontRenderer : IDisposable
+    {
+        private readonly Dictionary<string, SKTypeface> _typefaceCache = new();
+        private readonly Dictionary<string, SKFont> _fontCache = new();
+        private float _zoom = 1.0f;
+        private bool _disposed;
+
+    /// <summary>
+    /// Gets or sets the zoom factor for font scaling.
+    /// </summary>
+    public float Zoom
+    {
+        get => _zoom;
+        set => _zoom = value > 0 ? value : 1.0f;
+    }
 
     /// <summary>
     /// Draws text at the specified location on the given canvas.
@@ -24,22 +34,24 @@ public class SkiaFontRenderer : IDisposable
     /// <param name="x">The x-coordinate.</param>
     /// <param name="y">The y-coordinate.</param>
     /// <param name="canvas">The SkiaSharp canvas to draw on.</param>
-    public void DrawText(string text, Core.Font font, Core.Color color, float x, float y, SKCanvas canvas)
+    /// <param name="zoom">The zoom factor for font scaling. If not specified, uses the renderer's zoom.</param>
+    public void DrawText(string text, Core.Font font, Core.Color color, float x, float y, SKCanvas canvas, float zoom = 1.0f)
     {
         if (string.IsNullOrEmpty(text)) return;
 
-        var skFont = GetOrCreateFont(font);
+        var skFont = GetOrCreateFont(font, zoom);
         if (skFont == null) return;
 
+        float scaledSize = font.Size * zoom;
         using var paint = new SKPaint
         {
             Color = new SKColor(color.R, color.G, color.B, color.A),
             IsAntialias = true,
             Style = SKPaintStyle.Fill,
-            TextSize = font.Size
+            TextSize = scaledSize
         };
 
-        canvas.DrawText(text, x, y + font.Size, skFont, paint);
+        canvas.DrawText(text, x, y + scaledSize, skFont, paint);
     }
 
     /// <summary>
@@ -47,15 +59,19 @@ public class SkiaFontRenderer : IDisposable
     /// </summary>
     /// <param name="text">The text to measure.</param>
     /// <param name="font">The font to use.</param>
+    /// <param name="zoom">The zoom factor for scaling. If not specified, uses the renderer's zoom.</param>
     /// <returns>A tuple containing the width and height.</returns>
-    public (int width, int height) MeasureText(string text, Core.Font font)
+    public (int width, int height) MeasureText(string text, Core.Font font, float zoom = 1.0f)
     {
         if (string.IsNullOrEmpty(text))
             return (0, 0);
 
-        var skFont = GetOrCreateFont(font);
+        var skFont = GetOrCreateFont(font, zoom);
         if (skFont == null)
-            return ((int)(text.Length * font.Size * 0.6f), (int)font.Size);
+        {
+            float scaledSize = font.Size * zoom;
+            return ((int)(text.Length * scaledSize * 0.6f), (int)scaledSize);
+        }
 
         var metrics = skFont.Metrics;
         ushort[] glyphs = new ushort[text.Length];
@@ -64,16 +80,16 @@ public class SkiaFontRenderer : IDisposable
         return ((int)width, (int)(metrics.Descent - metrics.Ascent));
     }
 
-    private SKFont? GetOrCreateFont(Core.Font font)
+    private SKFont? GetOrCreateFont(Core.Font font, float zoom = 1.0f)
     {
-        var key = $"{font.Name}:{font.Size}:{font.Style}";
+        var key = $"{font.Name}:{font.Size}:{font.Style}:{zoom:F2}";
         if (_fontCache.TryGetValue(key, out var cached))
             return cached;
 
         var typeface = GetOrLoadTypeface(font.Name, font.Style);
         if (typeface == null) return null;
 
-        var skFont = new SKFont(typeface, font.Size);
+        var skFont = new SKFont(typeface, font.Size * zoom);
         _fontCache[key] = skFont;
         return skFont;
     }

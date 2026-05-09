@@ -16,7 +16,8 @@ class Program
             Text = "CoreForms.Ui Demo - Dock & Anchor",
             Width = 900,
             Height = 800,
-            BackColor = SystemColors.Window
+            BackColor = SystemColors.Window,
+            Zoom = 1.05f
         };
 
         var menuStrip = new MenuStrip();

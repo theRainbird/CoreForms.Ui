@@ -135,7 +135,8 @@ public static class Platform
                 mouse.MouseDown += (m, button) =>
                 {
                     var pos = mouse.Position;
-                    var point = new Point((int)pos.X, (int)pos.Y);
+                    float zoom = form.Zoom;
+                    var point = new Point((int)(pos.X / zoom), (int)(pos.Y / zoom));
                     var btn = MapMouseButton(button);
                     var args = new MouseEventArgs(btn, 1, point.X, point.Y, 0);
                     form.OnMouseDown(args);
@@ -144,7 +145,8 @@ public static class Platform
                 mouse.MouseUp += (m, button) =>
                 {
                     var pos = mouse.Position;
-                    var point = new Point((int)pos.X, (int)pos.Y);
+                    float zoom = form.Zoom;
+                    var point = new Point((int)(pos.X / zoom), (int)(pos.Y / zoom));
                     var btn = MapMouseButton(button);
                     var args = new MouseEventArgs(btn, 1, point.X, point.Y, 0);
                     form.OnMouseUp(args);
@@ -152,7 +154,8 @@ public static class Platform
 
                 mouse.MouseMove += (m, pos) =>
                 {
-                    var point = new Point((int)pos.X, (int)pos.Y);
+                    float zoom = form.Zoom;
+                    var point = new Point((int)(pos.X / zoom), (int)(pos.Y / zoom));
                     _lastMousePosition = point;
                     var args = new MouseEventArgs(MouseButtons.None, 0, point.X, point.Y, 0);
                     form.OnMouseMove(args);
@@ -671,7 +674,7 @@ public static class Platform
             case DrawCommandType.DrawString:
                 if (!string.IsNullOrEmpty(cmd.Text) && cmd.Font != null)
                 {
-                    fontRenderer.DrawText(cmd.Text, cmd.Font, cmd.Color, cmd.X, cmd.Y, renderer.Canvas);
+                    fontRenderer.DrawText(cmd.Text, cmd.Font, cmd.Color, cmd.X, cmd.Y, renderer.Canvas, cmd.Zoom);
                 }
                 break;
             case DrawCommandType.FillTriangle:
