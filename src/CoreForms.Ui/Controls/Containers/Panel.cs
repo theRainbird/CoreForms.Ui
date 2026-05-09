@@ -17,6 +17,7 @@ public class Panel : ContainerControl
     {
         BackColor = SystemColors.Control;
         Size = new Size(200, 150);
+        TabStop = false;
     }
 
     /// <summary>

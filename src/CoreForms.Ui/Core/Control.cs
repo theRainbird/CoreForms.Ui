@@ -23,6 +23,7 @@ public class Control : Component
     private bool _focused;
     private bool _tabStop;
     private int _tabIndex;
+    private bool _dirty;
     private bool _capturingMouse;
     private Padding _padding;
     private int _anchorRightDistance;
@@ -281,22 +282,26 @@ public class Control : Component
         get => _focused;
         internal set
         {
-            if (_focused != value)
+if (_focused != value)
+        {
+            if (value)
             {
-                if (value)
+                var form = FindForm();
+                if (form != null)
                 {
-                    var form = FindForm();
-                    if (form != null)
-                    {
-                        ClearFocusRecursive(form, this);
-                    }
+                    ClearFocusRecursive(form, this);
+                    form.ActiveControl = this;
                 }
-                _focused = value;
-                if (value)
-                    OnGotFocus(EventArgs.Empty);
-                else
-                    OnLostFocus(EventArgs.Empty);
             }
+            _focused = value;
+            if (value)
+            {
+                OnGotFocus(EventArgs.Empty);
+                Invalidate();
+            }
+            else
+                OnLostFocus(EventArgs.Empty);
+        }
         }
     }
 
@@ -391,6 +396,7 @@ public class Control : Component
     /// <param name="g">The Graphics object to use for rendering.</param>
     public virtual void Render(Graphics g)
     {
+        _dirty = false;
         foreach (Control child in Controls)
         {
             if (child.Visible)
@@ -426,6 +432,7 @@ public class Control : Component
     /// </summary>
     public virtual void Invalidate()
     {
+        _dirty = true;
     }
 
     /// <summary>
@@ -434,7 +441,13 @@ public class Control : Component
     /// <param name="rect">The rectangle to invalidate.</param>
     public virtual void Invalidate(Rectangle rect)
     {
+        _dirty = true;
     }
+
+    /// <summary>
+    /// Gets whether the control needs to be repainted.
+    /// </summary>
+    public bool Dirty => _dirty;
 
     /// <summary>
     /// Searches for the parent Form of this control.

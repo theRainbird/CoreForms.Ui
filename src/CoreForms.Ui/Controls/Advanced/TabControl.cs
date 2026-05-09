@@ -28,6 +28,17 @@ public class TabControl : ContainerControl
     public List<TabPage> TabPages => _tabPages;
 
     /// <summary>
+    /// Adds a tab page to the collection.
+    /// </summary>
+    /// <param name="page">The tab page to add.</param>
+    public void AddTabPage(TabPage page)
+    {
+        page.TabStop = false;
+        _tabPages.Add(page);
+        Controls.Add(page);
+    }
+
+    /// <summary>
     /// Gets or sets the index of the selected tab page.
     /// </summary>
     public int SelectedIndex
@@ -68,51 +79,163 @@ public class TabControl : ContainerControl
     {
         if (!Visible) return;
 
-        g.FillRectangle(BackColor, 0, 0, Width, Height);
-
         var font = Font ?? Font.Default;
+        var tabHeaderHeight = _tabHeight + 2;
 
+        // Draw tab headers background
+        g.FillRectangle(Color.FromArgb(230, 230, 230), 0, 0, Width, tabHeaderHeight);
+
+        // Draw individual tabs
         for (int i = 0; i < _tabPages.Count; i++)
         {
-            var y = 0;
-            var height = _tabHeight + 2;
+            var x = i * 100;
+            var width = 100;
 
             if (i == _selectedIndex)
             {
-                g.FillRectangle(SystemColors.Control, i * 100, y, 100, height);
+                // Selected tab: white background, no bottom line
+                g.FillRectangle(Color.White, x, 0, width, tabHeaderHeight);
+                g.DrawString(_tabPages[i].Text, font, Color.Black, x + 5, (tabHeaderHeight - (int)font.Size) / 2);
             }
             else
             {
-                g.FillRectangle(Color.FromArgb(210, 210, 210), i * 100, y, 100, height);
+                // Unselected tabs: gray background
+                g.FillRectangle(Color.FromArgb(210, 210, 210), x, 0, width, tabHeaderHeight);
+                g.DrawString(_tabPages[i].Text, font, Color.FromArgb(100, 100, 100), x + 5, (tabHeaderHeight - (int)font.Size) / 2);
             }
-
-            g.DrawString(_tabPages[i].Text, font, i == _selectedIndex ? Color.Black : Color.FromArgb(100, 100, 100),
-                i * 100 + 5, (_tabHeight - (int)font.Size) / 2);
         }
 
-        g.DrawLine(Color.FromArgb(150, 150, 150), 0, _tabHeight + 2, Width, _tabHeight + 2);
+        // Draw separator line (only for unselected area)
+        var selectedTabX = _selectedIndex * 100;
+        var selectedTabWidth = 100;
+        
+        // Line to the left of selected tab
+        if (selectedTabX > 0)
+        {
+            g.DrawLine(Color.FromArgb(150, 150, 150), 0, tabHeaderHeight, selectedTabX, tabHeaderHeight);
+        }
+        
+        // Line to the right of selected tab
+        var rightStart = selectedTabX + selectedTabWidth;
+        if (rightStart < Width)
+        {
+            g.DrawLine(Color.FromArgb(150, 150, 150), rightStart, tabHeaderHeight, Width, tabHeaderHeight);
+        }
 
+        // Draw content area background
+        g.FillRectangle(Color.White, 0, tabHeaderHeight + 1, Width, Height - tabHeaderHeight - 1);
+
+        // Render selected tab page content
         if (SelectedTab != null)
         {
             g.Save();
-            g.TranslateTransform(0, _tabHeight + 3);
+            g.TranslateTransform(0, tabHeaderHeight + 1);
             SelectedTab.Render(g);
             g.Restore();
         }
 
-        base.Render(g);
+        // Draw border around entire control (after content to ensure visibility)
+        g.DrawRectangle(SystemColors.ControlDark, 0, 0, Width, Height, 1);
     }
 
     /// <summary>
-    /// Raises the SelectedIndexChanged event.
+    /// Raises the MouseDown event to handle tab header clicks and route to tab page content.
     /// </summary>
-    protected virtual void OnSelectedIndexChanged()
+    /// <param name="e">The event arguments.</param>
+    protected internal override void OnMouseDown(EventArgs e)
     {
-        SelectedIndexChanged?.Invoke(this, EventArgs.Empty);
+        var args = e as MouseEventArgs;
+        if (args != null && _tabPages.Count > 0)
+        {
+            var tabHeaderHeight = _tabHeight + 2;
+            if (args.Y < tabHeaderHeight)
+            {
+                var clickedIndex = args.X / 100;
+                if (clickedIndex >= 0 && clickedIndex < _tabPages.Count)
+                {
+                    SelectedIndex = clickedIndex;
+                    return;
+                }
+            }
+            else if (SelectedTab != null)
+            {
+                var localArgs = new MouseEventArgs(args.Button, args.Clicks, args.X, args.Y - tabHeaderHeight - 1, args.Delta);
+                SelectedTab.OnMouseDown(localArgs);
+                if (SelectedTab.ActiveControl != null)
+                {
+                    SelectedTab.ActiveControl.Focused = true;
+                }
+                return;
+            }
+        }
+        base.OnMouseDown(e);
     }
 
     /// <summary>
-    /// Raises the KeyDown event to handle tab navigation.
+    /// Raises the MouseUp event and routes to the selected tab page.
+    /// </summary>
+    /// <param name="e">The event arguments.</param>
+    protected internal override void OnMouseUp(EventArgs e)
+    {
+        var args = e as MouseEventArgs;
+        if (args != null && _tabPages.Count > 0 && SelectedTab != null)
+        {
+            var tabHeaderHeight = _tabHeight + 2;
+            if (args.Y >= tabHeaderHeight)
+            {
+                var localArgs = new MouseEventArgs(args.Button, args.Clicks, args.X, args.Y - tabHeaderHeight - 1, args.Delta);
+                SelectedTab.OnMouseUp(localArgs);
+                return;
+            }
+            // Header area click - tab may have switched, but don't route to non-selected TabPages
+            return;
+        }
+        base.OnMouseUp(e);
+    }
+
+    /// <summary>
+    /// Raises the MouseMove event and routes to the selected tab page.
+    /// </summary>
+    /// <param name="e">The event arguments.</param>
+    protected internal override void OnMouseMove(EventArgs e)
+    {
+        var args = e as MouseEventArgs;
+        if (args != null && _tabPages.Count > 0 && SelectedTab != null)
+        {
+            var tabHeaderHeight = _tabHeight + 2;
+            if (args.Y >= tabHeaderHeight)
+            {
+                var localArgs = new MouseEventArgs(args.Button, args.Clicks, args.X, args.Y - tabHeaderHeight - 1, args.Delta);
+                SelectedTab.OnMouseMove(localArgs);
+                return;
+            }
+            // Header area move - don't route to non-selected TabPages
+            return;
+        }
+        base.OnMouseMove(e);
+    }
+
+    /// <summary>
+    /// Raises the MouseWheel event and routes to the selected tab page.
+    /// </summary>
+    /// <param name="e">The event arguments.</param>
+    protected internal override void OnMouseWheel(EventArgs e)
+    {
+        var args = e as MouseEventArgs;
+        if (args != null && _tabPages.Count > 0 && SelectedTab != null)
+        {
+            var tabHeaderHeight = _tabHeight + 2;
+            if (args.Y >= tabHeaderHeight)
+            {
+                SelectedTab.OnMouseWheel(e);
+                return;
+            }
+        }
+        base.OnMouseWheel(e);
+    }
+
+    /// <summary>
+    /// Raises the KeyDown event and routes to the active control in the selected tab page.
     /// </summary>
     /// <param name="e">A KeyEventArgs that contains the event data.</param>
     protected internal override void OnKeyDown(KeyEventArgs e)
@@ -133,8 +256,63 @@ public class TabControl : ContainerControl
                     e.Handled = true;
                 }
                 break;
+            default:
+                if (SelectedTab?.ActiveControl != null)
+                {
+                    SelectedTab.ActiveControl.OnKeyDown(e);
+                    if (e.Handled) return;
+                }
+                break;
         }
         base.OnKeyDown(e);
+    }
+
+    /// <summary>
+    /// Raises the KeyUp event and routes to the active control in the selected tab page.
+    /// </summary>
+    /// <param name="e">A KeyEventArgs that contains the event data.</param>
+    protected internal override void OnKeyUp(KeyEventArgs e)
+    {
+        if (SelectedTab?.ActiveControl != null)
+        {
+            SelectedTab.ActiveControl.OnKeyUp(e);
+            if (e.Handled) return;
+        }
+        base.OnKeyUp(e);
+    }
+
+    /// <summary>
+    /// Raises the KeyPress event and routes to the active control in the selected tab page.
+    /// </summary>
+    /// <param name="e">A KeyPressEventArgs that contains the event data.</param>
+    protected internal override void OnKeyPress(KeyPressEventArgs e)
+    {
+        if (SelectedTab?.ActiveControl != null)
+        {
+            SelectedTab.ActiveControl.OnKeyPress(e);
+            if (e.Handled) return;
+        }
+        base.OnKeyPress(e);
+    }
+
+    /// <summary>
+    /// Raises the TextInput event and routes to the active control in the selected tab page.
+    /// </summary>
+    /// <param name="text">The input text.</param>
+    protected internal override void OnTextInput(string text)
+    {
+        if (SelectedTab?.ActiveControl != null)
+        {
+            SelectedTab.ActiveControl.OnTextInput(text);
+        }
+    }
+
+    /// <summary>
+    /// Raises the SelectedIndexChanged event.
+    /// </summary>
+    protected virtual void OnSelectedIndexChanged()
+    {
+        SelectedIndexChanged?.Invoke(this, EventArgs.Empty);
     }
 
     /// <summary>
@@ -155,6 +333,7 @@ public class TabPage : ContainerControl
     {
         Size = new Size(400, 250);
         BackColor = Color.White;
+        TabStop = false;
     }
 
     private string _text = "Tab";

@@ -15,7 +15,7 @@ class Program
         {
             Text = "CoreForms.Ui Demo - Dock & Anchor",
             Width = 900,
-            Height = 650,
+            Height = 800,
             BackColor = SystemColors.Window
         };
 
@@ -126,11 +126,12 @@ class Program
         var mainPanel = new Panel
         {
             BackColor = Color.White,
-            Size = new Size(700, 500)
+            Size = new Size(700, 600)
         };
         mainPanel.Dock = DockStyle.Fill;
 
         mainPanel.Controls.Add(CreateHeaderLabel());
+        mainPanel.Controls.Add(CreateTabControl());
         mainPanel.Controls.Add(CreateDataGrid());
         mainPanel.Controls.Add(CreateBottomLeftPanel(statusLabel));
         mainPanel.Controls.Add(CreateBottomRightPanel());
@@ -169,12 +170,155 @@ class Program
         return label;
     }
 
+    static TabControl CreateTabControl()
+    {
+        var tabControl = new TabControl
+        {
+            Location = new Point(15, 45),
+            Size = new Size(400, 160)
+        };
+        tabControl.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
+
+        var textBoxPage = new TabPage { Text = "Text Boxes" };
+
+        var nameLabel = new Label
+        {
+            Text = "Name:",
+            Location = new Point(10, 10),
+            Size = new Size(70, 20),
+            BackColor = Color.White
+        };
+
+        var nameTextBox = new TextBox
+        {
+            Location = new Point(80, 10),
+            Size = new Size(200, 25),
+            Text = "John Doe",
+            Name = "nameTextBox"
+        };
+
+        var emailLabel = new Label
+        {
+            Text = "Email:",
+            Location = new Point(10, 40),
+            Size = new Size(70, 20),
+            BackColor = Color.White
+        };
+
+        var emailTextBox = new TextBox
+        {
+            Location = new Point(80, 40),
+            Size = new Size(200, 25),
+            Text = "john@example.com",
+            Name = "emailTextBox"
+        };
+
+        var passwordLabel = new Label
+        {
+            Text = "Password:",
+            Location = new Point(10, 70),
+            Size = new Size(70, 20),
+            BackColor = Color.White
+        };
+
+        var passwordTextBox = new TextBox
+        {
+            Location = new Point(80, 70),
+            Size = new Size(200, 25),
+            Text = "********",
+            Name = "passwordTextBox"
+        };
+
+        textBoxPage.Controls.Add(nameLabel);
+        textBoxPage.Controls.Add(nameTextBox);
+        textBoxPage.Controls.Add(emailLabel);
+        textBoxPage.Controls.Add(emailTextBox);
+        textBoxPage.Controls.Add(passwordLabel);
+        textBoxPage.Controls.Add(passwordTextBox);
+
+        var radioPage = new TabPage { Text = "Radio Buttons" };
+
+        var genderLabel = new Label
+        {
+            Text = "Gender:",
+            Location = new Point(10, 10),
+            Size = new Size(80, 20),
+            BackColor = Color.White
+        };
+
+        var maleRadio = new RadioButton
+        {
+            Text = "Male",
+            Location = new Point(10, 35),
+            Size = new Size(100, 20),
+            Checked = true
+        };
+
+        var femaleRadio = new RadioButton
+        {
+            Text = "Female",
+            Location = new Point(10, 60),
+            Size = new Size(100, 20)
+        };
+
+        var otherRadio = new RadioButton
+        {
+            Text = "Other",
+            Location = new Point(10, 85),
+            Size = new Size(100, 20)
+        };
+
+        var roleLabel = new Label
+        {
+            Text = "Role:",
+            Location = new Point(120, 10),
+            Size = new Size(80, 20),
+            BackColor = Color.White
+        };
+
+        var adminRadio = new RadioButton
+        {
+            Text = "Admin",
+            Location = new Point(120, 35),
+            Size = new Size(100, 20)
+        };
+
+        var userRadio = new RadioButton
+        {
+            Text = "User",
+            Location = new Point(120, 60),
+            Size = new Size(100, 20),
+            Checked = true
+        };
+
+        var guestRadio = new RadioButton
+        {
+            Text = "Guest",
+            Location = new Point(120, 85),
+            Size = new Size(100, 20)
+        };
+
+        radioPage.Controls.Add(genderLabel);
+        radioPage.Controls.Add(maleRadio);
+        radioPage.Controls.Add(femaleRadio);
+        radioPage.Controls.Add(otherRadio);
+        radioPage.Controls.Add(roleLabel);
+        radioPage.Controls.Add(adminRadio);
+        radioPage.Controls.Add(userRadio);
+        radioPage.Controls.Add(guestRadio);
+
+        tabControl.AddTabPage(textBoxPage);
+        tabControl.AddTabPage(radioPage);
+
+        return tabControl;
+    }
+
     static Controls.Advanced.DataGridView CreateDataGrid()
     {
         var dataGrid = new Controls.Advanced.DataGridView
         {
-            Location = new Point(15, 40),
-            Size = new Size(400, 200),
+            Location = new Point(15, 215),
+            Size = new Size(400, 180),
             ColumnHeadersVisible = true,
             RowHeadersVisible = true,
             Name = "dataGrid"
@@ -195,8 +339,8 @@ class Program
         var panel = new Panel
         {
             BackColor = SystemColors.Control,
-            Location = new Point(15, 250),
-            Size = new Size(250, 220)
+            Location = new Point(15, 410),
+            Size = new Size(400, 160)
         };
         panel.Anchor = AnchorStyles.Bottom | AnchorStyles.Left;
 
@@ -288,8 +432,8 @@ class Program
         var panel = new Panel
         {
             BackColor = Color.FromArgb(245, 245, 255),
-            Location = new Point(275, 250),
-            Size = new Size(250, 220)
+            Location = new Point(430, 45),
+            Size = new Size(250, 365)
         };
         panel.Anchor = AnchorStyles.Bottom | AnchorStyles.Right;
 

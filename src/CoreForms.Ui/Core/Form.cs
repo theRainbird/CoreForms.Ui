@@ -1,3 +1,4 @@
+using CoreForms.Ui.Controls.Advanced;
 using CoreForms.Ui.Controls.Containers;
 using System;
 
@@ -106,6 +107,7 @@ public class Form : ContainerControl
     {
         _handle = Platform.Platform.CreateWindow(this);
         base.Create();
+        Invalidate();
     }
 
     /// <summary>
@@ -270,28 +272,73 @@ public class Form : ContainerControl
 
     private List<Control> GetTabControls()
     {
-        var tabs = new List<(Control control, int order)>();
-        CollectTabControls(tabs, this, 0);
-        tabs.Sort((a, b) =>
-        {
-            int cmp = a.control.TabIndex.CompareTo(b.control.TabIndex);
-            return cmp != 0 ? cmp : a.order.CompareTo(b.order);
-        });
-        return tabs.ConvertAll(t => t.control);
+        var tabs = new List<Control>();
+        CollectTabControls(tabs, this);
+        var names = string.Join(", ", tabs.ConvertAll(t => $"{(string.IsNullOrEmpty(t.Name) ? t.GetType().Name : t.Name)}"));
+        return tabs;
     }
 
-    private void CollectTabControls(List<(Control control, int order)> tabs, Control parent, int startOrder)
+    private void CollectTabControls(List<Control> tabs, Control parent)
     {
+        var dockFill = new List<Control>();
+        var other = new List<Control>();
+
         for (int i = 0; i < parent.Controls.Count; i++)
         {
             var child = parent.Controls[i];
-            if (child.Visible && child.Enabled && child.TabStop)
+            if (!child.Visible || !child.Enabled)
+                continue;
+
+            if (child is MenuStrip)
+                continue;
+
+            if (child is TabControl tabControl)
             {
-                tabs.Add((child, startOrder + i));
+                var selectedTab = tabControl.SelectedTab;
+                if (selectedTab != null && selectedTab.Visible)
+                {
+                    CollectTabControls(tabs, selectedTab);
+                }
             }
-            if (child is ContainerControl container)
+            else if (child is TabPage)
             {
-                CollectTabControls(tabs, container, (startOrder + i + 1) * 1000);
+                // Skip TabPages - only selectedTab should be visited via TabControl
+            }
+            else if (child is ContainerControl container)
+            {
+                if (child.Dock == DockStyle.Fill)
+                {
+                    dockFill.Add(child);
+                }
+                else
+                {
+                    other.Add(child);
+                }
+            }
+            else if (child.TabStop)
+            {
+                other.Add(child);
+            }
+        }
+
+        foreach (var c in dockFill)
+        {
+            if (c.TabStop)
+                tabs.Add(c);
+            CollectTabControls(tabs, c);
+        }
+
+        foreach (var c in other)
+        {
+            if (c is ContainerControl cc)
+            {
+                if (cc.TabStop)
+                    tabs.Add(cc);
+                CollectTabControls(tabs, cc);
+            }
+            else if (c.TabStop)
+            {
+                tabs.Add(c);
             }
         }
     }
@@ -317,7 +364,19 @@ public class Form : ContainerControl
             nextIndex = currentIndex < tabs.Count - 1 ? currentIndex + 1 : 0;
         }
 
-        ActiveControl = tabs[nextIndex];
+        var nextControl = tabs[nextIndex];
+        ActiveControl = nextControl;
+        nextControl.Focused = true;
+
+        var parent = nextControl.Parent;
+        while (parent != null && parent != this)
+        {
+            if (parent is ContainerControl cc)
+            {
+                cc.ActiveControl = nextControl;
+            }
+            parent = parent.Parent;
+        }
     }
 
     private bool ProcessArrowKey(Keys key)
@@ -411,7 +470,6 @@ public class Form : ContainerControl
     /// <param name="e">A KeyEventArgs that contains the event data.</param>
     protected internal override void OnKeyDown(KeyEventArgs e)
     {
-        Console.WriteLine($"[Form.OnKeyDown] form='{Text}' Enabled={Enabled} KeyCode={e.KeyCode} ActiveControl='{ActiveControl?.GetType().Name}'");
         if (!Enabled) return;
 
         if (ActiveControl != null && ActiveControl.Enabled)

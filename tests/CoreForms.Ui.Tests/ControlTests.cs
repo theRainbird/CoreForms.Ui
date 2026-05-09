@@ -664,6 +664,79 @@ public class ControlTests
         Assert.False(button2.Focused);
     }
 
+[Fact]
+    public void Form_Tab_ShouldNavigateWithinSingleTabPage()
+    {
+        var form = new Form();
+        var tabControl = new TabControl();
+        var tabPage = new TabPage();
+        var textBox1 = new TextBox();
+        var textBox2 = new TextBox();
+        var textBox3 = new TextBox();
+        tabPage.Controls.Add(textBox1);
+        tabPage.Controls.Add(textBox2);
+        tabPage.Controls.Add(textBox3);
+        tabControl.AddTabPage(tabPage);
+        form.Controls.Add(tabControl);
+
+        form.ActiveControl = textBox1;
+        Assert.True(textBox1.Focused);
+        Assert.False(textBox2.Focused);
+        Assert.False(textBox3.Focused);
+
+        form.OnKeyDown(new KeyEventArgs { KeyCode = Keys.Tab, Modifiers = ModifierKeys.None });
+        Assert.True(textBox2.Focused);
+        Assert.False(textBox1.Focused);
+        Assert.False(textBox3.Focused);
+
+        form.OnKeyDown(new KeyEventArgs { KeyCode = Keys.Tab, Modifiers = ModifierKeys.None });
+        Assert.True(textBox3.Focused);
+        Assert.False(textBox2.Focused);
+
+        form.OnKeyDown(new KeyEventArgs { KeyCode = Keys.Tab, Modifiers = ModifierKeys.None });
+        Assert.True(textBox1.Focused);
+        Assert.False(textBox3.Focused);
+
+        form.OnKeyDown(new KeyEventArgs { KeyCode = Keys.Tab, Modifiers = ModifierKeys.Shift });
+        Assert.True(textBox3.Focused);
+        Assert.False(textBox1.Focused);
+
+        form.OnKeyDown(new KeyEventArgs { KeyCode = Keys.Tab, Modifiers = ModifierKeys.Shift });
+        Assert.True(textBox2.Focused);
+        Assert.False(textBox3.Focused);
+    }
+
+    [Fact]
+    public void Form_Tab_ShouldNavigateWithinTabPage_NestedInPanel()
+    {
+        var form = new Form();
+        var panel = new Panel();
+        var tabControl = new TabControl();
+        var tabPage = new TabPage();
+        var textBox1 = new TextBox();
+        var textBox2 = new TextBox();
+        tabPage.Controls.Add(textBox1);
+        tabPage.Controls.Add(textBox2);
+        tabControl.AddTabPage(tabPage);
+        panel.Controls.Add(tabControl);
+        form.Controls.Add(panel);
+
+        form.ActiveControl = textBox1;
+        Assert.True(textBox1.Focused);
+        Assert.False(textBox2.Focused);
+
+        form.OnKeyDown(new KeyEventArgs { KeyCode = Keys.Tab, Modifiers = ModifierKeys.None });
+        Assert.True(textBox2.Focused);
+        Assert.False(textBox1.Focused);
+
+        form.OnKeyDown(new KeyEventArgs { KeyCode = Keys.Tab, Modifiers = ModifierKeys.None });
+        Assert.True(textBox1.Focused);
+        Assert.False(textBox2.Focused);
+
+        form.OnKeyDown(new KeyEventArgs { KeyCode = Keys.Tab, Modifiers = ModifierKeys.Shift });
+        Assert.True(textBox2.Focused);
+    }
+
     [Fact]
     public void Form_Focus_ShouldOnlyOneControlFocused()
     {

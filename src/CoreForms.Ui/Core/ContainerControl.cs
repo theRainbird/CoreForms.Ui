@@ -60,8 +60,8 @@ public class ContainerControl : Control
             if (target != null)
             {
                 var localArgs = new MouseEventArgs(args.Button, args.Clicks, args.X - target.X, args.Y - target.Y, args.Delta);
-                target.OnMouseDown(localArgs);
                 ActiveControl = target;
+                target.OnMouseDown(localArgs);
                 return;
             }
         }
