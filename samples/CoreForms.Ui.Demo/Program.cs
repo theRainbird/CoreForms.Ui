@@ -51,9 +51,46 @@ class Program
         editRedoItem.Click += (s, e) => MessageBox.Show("Redo last action?", "Redo", MessageBoxButtons.OKCancel, MessageBoxIcon.Question);
         var editDeleteItem = new ToolStripMenuItem("&Delete");
         editDeleteItem.Click += (s, e) => MessageBox.Show("Delete this item? This cannot be undone.", "Delete", MessageBoxButtons.YesNoCancel, MessageBoxIcon.Error);
+        var editSep1 = new ToolStripMenuItem("-");
+        var editCutItem = new ToolStripMenuItem("Cu&t");
+        editCutItem.Click += (s, e) => {
+            if (form.ActiveControl is Controls.Basic.TextBox tb)
+            {
+                try { tb.Cut(); }
+                catch (Exception ex) { MessageBox.Show($"Clipboard error: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error); }
+            }
+        };
+        var editCopyItem = new ToolStripMenuItem("&Copy");
+        editCopyItem.Click += (s, e) => {
+            if (form.ActiveControl != null)
+            {
+                try {
+                    var method = form.ActiveControl.GetType().GetMethod("CopyToClipboard");
+                    method?.Invoke(form.ActiveControl, null);
+                } catch (Exception ex) { MessageBox.Show($"Clipboard error: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error); }
+            }
+        };
+        var editPasteItem = new ToolStripMenuItem("&Paste");
+        editPasteItem.Click += (s, e) => {
+            if (form.ActiveControl is Controls.Basic.TextBox tb)
+            {
+                try { tb.Paste(); }
+                catch (Exception ex) { MessageBox.Show($"Clipboard error: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error); }
+            }
+        };
+        var editSelectAllItem = new ToolStripMenuItem("Select &All");
+        editSelectAllItem.Click += (s, e) => {
+            if (form.ActiveControl is Controls.Basic.TextBox tb)
+                tb.SelectAll();
+        };
         editItem.DropDownItems.Add(editUndoItem);
         editItem.DropDownItems.Add(editRedoItem);
         editItem.DropDownItems.Add(editDeleteItem);
+        editItem.DropDownItems.Add(editSep1);
+        editItem.DropDownItems.Add(editCutItem);
+        editItem.DropDownItems.Add(editCopyItem);
+        editItem.DropDownItems.Add(editPasteItem);
+        editItem.DropDownItems.Add(editSelectAllItem);
         menuStrip.Items.Add(editItem);
 
         var viewItem = new ToolStripMenuItem("&View");

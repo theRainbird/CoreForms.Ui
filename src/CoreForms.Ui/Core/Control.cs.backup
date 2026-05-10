@@ -1,5 +1,3 @@
-using System;
-using System.Collections.Generic;
 using CoreForms.Ui.Rendering;
 
 namespace CoreForms.Ui.Core;
@@ -977,14 +975,24 @@ public class ControlCollection : IEnumerable<Control>
     }
 
     /// <summary>
+    /// Gets the value of this control to copy to the clipboard.
+    /// Override in derived classes to provide custom clipboard values.
+    /// </summary>
+    /// <returns>The value to copy, or null if no clipboard value is available.</returns>
+    protected virtual string? GetClipboardValue()
+    {
+        return Text;
+    }
+
+    /// <summary>
     /// Copies the control's value to the system clipboard.
     /// </summary>
-    public void CopyToClipboard()
+    public virtual void Copy()
     {
-        var txt = ((Control)(object)this).Text;
-        if (txt != null && txt.Length > 0)
+        var value = GetClipboardValue();
+        if (!string.IsNullOrEmpty(value))
         {
-            Core.Clipboard.SetText(txt);
+            Core.Clipboard.SetText(value);
         }
     }
 

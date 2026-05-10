@@ -189,6 +189,66 @@ public class TextBox : Control
     }
 
     /// <summary>
+    /// Gets the value to copy to clipboard.
+    /// </summary>
+    protected string? GetClipboardValue() => _selectionLength > 0 ? SelectedText : _text;
+
+    /// <summary>
+    /// Copies the selected text or all text to the clipboard.
+    /// </summary>
+    public void CopyToClipboard()
+    {
+        string text = _selectionLength > 0 ? SelectedText : _text;
+        if (!string.IsNullOrEmpty(text))
+        {
+            Core.Clipboard.SetText(text);
+        }
+    }
+
+    /// <summary>
+    /// Cuts the selected text and copies it to the clipboard.
+    /// </summary>
+    public void Cut()
+    {
+        if (_selectionLength > 0)
+        {
+            var selected = SelectedText;
+            DeleteSelection();
+            Core.Clipboard.SetText(selected);
+        }
+    }
+
+    /// <summary>
+    /// Pastes the clipboard text at the current cursor position,
+    /// replacing any selected text.
+    /// </summary>
+    public void Paste()
+    {
+        var text = Core.Clipboard.GetText();
+        if (string.IsNullOrEmpty(text))
+            return;
+
+        if (_selectionLength > 0)
+            DeleteSelection();
+
+        _text = _text.Insert(_cursorPosition, text);
+        _cursorPosition += text.Length;
+        _selectionAnchor = _cursorPosition;
+        _selectionLength = 0;
+        OnTextChanged();
+    }
+
+    /// <summary>
+    /// Selects all text in the text box.
+    /// </summary>
+    public void SelectAll()
+    {
+        _selectionAnchor = 0;
+        _cursorPosition = _text.Length;
+        _selectionLength = _cursorPosition - _selectionAnchor;
+    }
+
+    /// <summary>
     /// Raises the MouseDown event and sets cursor position.
     /// </summary>
     /// <param name="e">The event arguments.</param>
@@ -247,6 +307,18 @@ public class TextBox : Control
                     _selectionAnchor = 0;
                     _cursorPosition = _text.Length;
                     _selectionLength = _cursorPosition - _selectionAnchor;
+                    e.Handled = true;
+                    break;
+                case Keys.C:
+                    CopyToClipboard();
+                    e.Handled = true;
+                    break;
+                case Keys.X:
+                    Cut();
+                    e.Handled = true;
+                    break;
+                case Keys.V:
+                    Paste();
                     e.Handled = true;
                     break;
             }

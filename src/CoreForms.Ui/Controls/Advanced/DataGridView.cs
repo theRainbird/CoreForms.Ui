@@ -178,6 +178,25 @@ public class DataGridView : ContainerControl
         : null;
 
     /// <summary>
+    /// Gets the value of this control to copy to the clipboard.
+    /// Returns the selected cell's value as string.
+    /// </summary>
+    /// <returns>The selected cell value as string, or null if no selection.</returns>
+    protected string? GetClipboardValue() => SelectedValue?.ToString();
+
+    /// <summary>
+    /// Copies the selected cell's value to the clipboard.
+    /// </summary>
+    public void Copy()
+    {
+        var value = GetClipboardValue();
+        if (!string.IsNullOrEmpty(value))
+        {
+            Core.Clipboard.SetText(value);
+        }
+    }
+
+    /// <summary>
     /// Occurs when the selection changes.
     /// </summary>
     public event EventHandler? SelectionChanged;
@@ -519,6 +538,14 @@ public class DataGridView : ContainerControl
                 }
                 break;
         }
+
+        if (e.Modifiers.HasFlag(ModifierKeys.Control) && e.KeyCode == Keys.C)
+        {
+            Copy();
+            e.Handled = true;
+            return;
+        }
+
         base.OnKeyDown(e);
     }
 

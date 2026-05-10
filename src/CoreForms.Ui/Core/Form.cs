@@ -490,6 +490,35 @@ public class Form : ContainerControl
             if (e.Handled) return;
         }
 
+        if (e.Modifiers.HasFlag(ModifierKeys.Control) && !e.Handled)
+        {
+            switch (e.KeyCode)
+            {
+                case Keys.C:
+                    if (ActiveControl != null)
+                    {
+                        var method = ActiveControl.GetType().GetMethod("CopyToClipboard");
+                        method?.Invoke(ActiveControl, null);
+                    }
+                    e.Handled = true;
+                    return;
+                case Keys.X:
+                    if (ActiveControl is Controls.Basic.TextBox tb)
+                    {
+                        tb.Cut();
+                        e.Handled = true;
+                    }
+                    return;
+                case Keys.V:
+                    if (ActiveControl is Controls.Basic.TextBox tb2)
+                    {
+                        tb2.Paste();
+                        e.Handled = true;
+                    }
+                    return;
+            }
+        }
+
         MenuStrip? activeMenu = null;
         foreach (Control control in Controls)
         {

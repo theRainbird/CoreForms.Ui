@@ -22,6 +22,7 @@ public static class Platform
     private static Point _lastMousePosition;
     private static uint _nextWindowId = 1;
     private static readonly Dictionary<(MessageBoxIcon icon, uint windowId), SKImage> _iconImageCache = new();
+    private static IKeyboard? _keyboard;
 
     /// <summary>
     /// Gets the WindowContext for the specified window ID, or null if not found.
@@ -93,6 +94,7 @@ public static class Platform
             var input = window.CreateInput();
             var keyboard = input.Keyboards.FirstOrDefault();
             var mouse = input.Mice.FirstOrDefault();
+            _keyboard = keyboard;
 
             if (keyboard != null)
             {
@@ -788,5 +790,26 @@ public static class Platform
             Silk.NET.Input.MouseButton.Middle => MouseButtons.Middle,
             _ => MouseButtons.None
         };
+    }
+
+    /// <summary>
+    /// Gets the text content from the system clipboard.
+    /// </summary>
+    /// <returns>The clipboard text, or null if empty or not text.</returns>
+    public static string? GetClipboardText()
+    {
+        return _keyboard?.ClipboardText;
+    }
+
+    /// <summary>
+    /// Sets the text content of the system clipboard.
+    /// </summary>
+    /// <param name="text">The text to set.</param>
+    public static void SetClipboardText(string? text)
+    {
+        if (_keyboard != null && text != null)
+        {
+            _keyboard.ClipboardText = text;
+        }
     }
 }

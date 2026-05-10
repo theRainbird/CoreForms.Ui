@@ -160,6 +160,13 @@ public class ListBox : Control
     }
 
     /// <summary>
+    /// Gets the value of this control to copy to the clipboard.
+    /// Returns the selected item's text.
+    /// </summary>
+    /// <returns>The selected item as string, or null if no selection.</returns>
+    protected string? GetClipboardValue() => SelectedItem?.ToString();
+
+    /// <summary>
     /// Occurs when the selected index changes.
     /// </summary>
     public event EventHandler? SelectedIndexChanged;
