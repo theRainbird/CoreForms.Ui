@@ -95,13 +95,13 @@ public class TabControl : ContainerControl
             {
                 // Selected tab: white background, no bottom line
                 g.FillRectangle(Color.White, x, 0, width, tabHeaderHeight);
-                g.DrawString(_tabPages[i].Text, font, Color.Black, x + 5, (tabHeaderHeight - (int)font.Size) / 2);
+                g.DrawString(_tabPages[i].Text, font, Color.Black, x + 5, CoordinateTransform.CenterVertically(0, tabHeaderHeight, font, EffectiveZoom));
             }
             else
             {
                 // Unselected tabs: gray background
                 g.FillRectangle(Color.FromArgb(210, 210, 210), x, 0, width, tabHeaderHeight);
-                g.DrawString(_tabPages[i].Text, font, Color.FromArgb(100, 100, 100), x + 5, (tabHeaderHeight - (int)font.Size) / 2);
+                g.DrawString(_tabPages[i].Text, font, Color.FromArgb(100, 100, 100), x + 5, CoordinateTransform.CenterVertically(0, tabHeaderHeight, font, EffectiveZoom));
             }
         }
 
@@ -398,7 +398,7 @@ public class StatusStrip : ContainerControl
         if (!string.IsNullOrEmpty(_text))
         {
             var font = Font ?? Font.Default;
-            g.DrawString(_text, font, ForeColor, 4, (Height - (int)font.Size) / 2);
+            g.DrawString(_text, font, ForeColor, 4, CoordinateTransform.CenterVertically(Height, font, EffectiveZoom));
         }
 
         int x = 4;
@@ -407,8 +407,8 @@ public class StatusStrip : ContainerControl
             if (!string.IsNullOrEmpty(item.Text))
             {
                 var font = item.Font ?? Font.Default;
-                g.DrawString(item.Text, font, item.ForeColor, x, (Height - (int)font.Size) / 2);
-                x += item.Text.Length * (int)font.Size / 2 + 10;
+                g.DrawString(item.Text, font, item.ForeColor, x, CoordinateTransform.CenterVertically(Height, font, EffectiveZoom));
+                x += item.Text.Length * (int)(font.Size * EffectiveZoom) / 2 + 10;
             }
         }
 

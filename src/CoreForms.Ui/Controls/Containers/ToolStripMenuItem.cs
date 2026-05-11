@@ -1,4 +1,5 @@
 using CoreForms.Ui.Core;
+using Graphics = CoreForms.Ui.Rendering.Graphics;
 
 namespace CoreForms.Ui.Controls.Containers;
 
@@ -6,9 +7,8 @@ namespace CoreForms.Ui.Controls.Containers;
 /// Represents a menu item in a MenuStrip.
 /// Supports mnemonics via the ampersand prefix (e.g., "&amp;File" shows as <u>F</u>ile and activates with Alt+F).
 /// </summary>
-public class ToolStripMenuItem : Component
+public class ToolStripMenuItem : ToolStripItem
 {
-    private string _text = string.Empty;
     private bool _isSelected;
     private bool _isDropDownVisible;
     private readonly List<ToolStripMenuItem> _dropDownItems = new();
@@ -19,29 +19,8 @@ public class ToolStripMenuItem : Component
     /// <param name="text">The menu item text, optionally containing an ampersand mnemonic prefix.</param>
     public ToolStripMenuItem(string text)
     {
-        _text = text;
+        Text = text;
     }
-
-    /// <summary>
-    /// Gets or sets the text of the menu item.
-    /// The ampersand character (&amp;) marks the mnemonic key.
-    /// </summary>
-    public string Text
-    {
-        get => _text;
-        set => _text = value;
-    }
-
-    /// <summary>
-    /// Gets the display text with the mnemonic ampersand removed.
-    /// </summary>
-    public string DisplayText => StripMnemonic(_text);
-
-    /// <summary>
-    /// Gets the mnemonic key character, or null if none is specified.
-    /// The mnemonic is the character following the first ampersand in the text.
-    /// </summary>
-    public char? Mnemonic => GetMnemonicChar(_text);
 
     /// <summary>
     /// Gets or sets whether the menu item is selected.
@@ -67,49 +46,46 @@ public class ToolStripMenuItem : Component
     public List<ToolStripMenuItem> DropDownItems => _dropDownItems;
 
     /// <summary>
-    /// Occurs when the menu item is clicked.
+    /// Renders the menu item with mnemonic support.
     /// </summary>
-    public event EventHandler? Click;
-
-    /// <summary>
-    /// Raises the Click event.
-    /// </summary>
-    public void OnClick()
+    /// <param name="g">The Graphics object to use for rendering.</param>
+    /// <param name="x">The x-coordinate of the item bounds.</param>
+    /// <param name="y">The y-coordinate of the item bounds.</param>
+    /// <param name="width">The width of the item bounds.</param>
+    /// <param name="height">The height of the item bounds.</param>
+    /// <param name="font">The font to use for text rendering.</param>
+    /// <param name="zoom">The current zoom factor.</param>
+    /// <param name="hovered">Whether the item is currently hovered.</param>
+    /// <param name="pressed">Whether the item is currently pressed.</param>
+    public override void OnPaint(Graphics g, int x, int y, int width, int height, Font font, float zoom, bool hovered, bool pressed)
     {
-        Click?.Invoke(this, EventArgs.Empty);
+        if (!Visible) return;
+
+        var textColor = Enabled ? Color.Black : SystemColors.GrayText;
+        string displayText = DisplayText;
+        int mnemonicIdx = MnemonicIndex;
+
+        g.DrawString(displayText, font, textColor, x + 5, y + (height - (int)font.Size) / 2);
+
+        if (mnemonicIdx >= 0 && Owner != null)
+        {
+            float scaledFontSize = font.Size * zoom;
+            int charWidth = (int)(scaledFontSize / 2);
+            int underlineX = x + 5 + mnemonicIdx * charWidth;
+            int underlineY = y + (int)scaledFontSize + (height - (int)font.Size) / 2;
+            g.DrawLine(textColor, underlineX, underlineY, underlineX + charWidth, underlineY);
+        }
     }
 
     /// <summary>
-    /// Returns the index of the mnemonic character in the display text.
+    /// Calculates the preferred width for menu item layout.
     /// </summary>
-    internal int MnemonicIndex => GetMnemonicIndex(_text);
-
-    private static string StripMnemonic(string text)
+    /// <param name="font">The font to use for text measurement.</param>
+    /// <param name="zoom">The current zoom factor.</param>
+    /// <returns>The preferred width in pixels.</returns>
+    public override int GetPreferredWidth(Font font, float zoom)
     {
-        if (text == null) return string.Empty;
-        int idx = text.IndexOf('&');
-        if (idx >= 0 && idx < text.Length - 1)
-            return text.Substring(0, idx) + text.Substring(idx + 1);
-        if (idx >= 0 && idx == text.Length - 1)
-            return text.Substring(0, idx);
-        return text;
-    }
-
-    private static char? GetMnemonicChar(string text)
-    {
-        if (text == null) return null;
-        int idx = text.IndexOf('&');
-        if (idx >= 0 && idx < text.Length - 1)
-            return char.ToUpperInvariant(text[idx + 1]);
-        return null;
-    }
-
-    private static int GetMnemonicIndex(string text)
-    {
-        if (text == null) return -1;
-        int idx = text.IndexOf('&');
-        if (idx >= 0 && idx < text.Length - 1)
-            return idx;
-        return -1;
+        float scaledFontSize = font.Size * zoom;
+        return (DisplayText.Length + 2) * (int)(scaledFontSize / 2) + 10;
     }
 }

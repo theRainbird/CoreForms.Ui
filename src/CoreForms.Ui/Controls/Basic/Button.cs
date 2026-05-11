@@ -38,9 +38,10 @@ public class Button : Control
         DrawFocusIndicator(g);
 
         var font = Font ?? Font.Default;
-        var textSize = Text.Length * (int)font.Size * 0.6f;
+        float zoom = EffectiveZoom;
+        var textSize = Text.Length * font.Size * zoom * 0.6f;
         var x = (Width - textSize) / 2;
-        var y = (Height - (int)font.Size) / 2;
+        var y = CoordinateTransform.CenterVertically(Height, font, zoom);
         g.DrawString(Text, font, ForeColor, x > 0 ? x : 3, y > 0 ? y : 3);
 
         base.Render(g);

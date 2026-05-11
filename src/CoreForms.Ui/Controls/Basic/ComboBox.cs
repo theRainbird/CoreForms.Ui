@@ -13,6 +13,7 @@ public class ComboBox : Control
     private bool _droppedDown;
     private int _dropDownHeight = 120;
     private int _scrollOffset;
+    private int _hoveredIndex = -1;
 
     /// <summary>
     /// Initializes a new instance of ComboBox.
@@ -73,11 +74,13 @@ public class ComboBox : Control
         g.FillRectangle(BackColor, 0, 0, Width, Height);
 
         var font = Font ?? Font.Default;
+        float zoom = EffectiveZoom;
+        float scaledFontSize = font.Size * zoom;
         var selectedText = SelectedItem?.ToString() ?? "";
         var btnWidth = 17;
         var btnX = Width - btnWidth;
 
-        g.DrawString(selectedText, font, ForeColor, 3, (Height - (int)font.Size) / 2);
+        g.DrawString(selectedText, font, ForeColor, 3, (Height - scaledFontSize) / 2);
 
         g.FillRectangle(SystemColors.Control, btnX, 1, btnWidth, Height - 2);
         g.DrawLine(Color.FromArgb(128, 128, 128), btnX, 0, btnX, Height);
@@ -96,6 +99,12 @@ public class ComboBox : Control
         base.Render(g);
     }
 
+    private int GetItemHeight()
+    {
+        var font = Font ?? Font.Default;
+        return CoordinateTransform.GetItemHeight(font, EffectiveZoom);
+    }
+
     /// <summary>
     /// Renders the dropdown list when visible.
     /// </summary>
@@ -105,7 +114,7 @@ public class ComboBox : Control
         if (!Visible || !_droppedDown) return;
 
         var font = Font ?? Font.Default;
-        var itemHeight = (int)font.Size + 4;
+        var itemHeight = GetItemHeight();
         var totalHeight = _items.Count * itemHeight;
         var scrollBarWidth = 16;
         var needsScrollbar = totalHeight > _dropDownHeight;
@@ -144,6 +153,11 @@ public class ComboBox : Control
             {
                 g.FillRectangle(SystemColors.Highlight, 1, y, listWidth - 2, itemHeight);
                 g.DrawString(_items[i]?.ToString() ?? "", font, SystemColors.HighlightText, 4, y + 2);
+            }
+            else if (i == _hoveredIndex)
+            {
+                g.FillRectangle(Color.FromArgb(200, 220, 255), 1, y, listWidth - 2, itemHeight);
+                g.DrawString(_items[i]?.ToString() ?? "", font, ForeColor, 4, y + 2);
             }
             else
             {
@@ -186,6 +200,7 @@ public class ComboBox : Control
         {
             _droppedDown = false;
             _scrollOffset = 0;
+            _hoveredIndex = -1;
             CapturingMouse = false;
             Invalidate();
         }
@@ -208,14 +223,13 @@ public class ComboBox : Control
             var args = e as MouseEventArgs;
             if (args != null)
             {
-                var font = Font ?? Font.Default;
-                var itemHeight = (int)font.Size + 4;
+                var itemHeight = GetItemHeight();
                 int dropY = Height;
                 int dropDownHeight = _dropDownHeight;
 
-                if (args.X >= X && args.X < X + Width && args.Y >= Y + dropY && args.Y < Y + dropY + dropDownHeight)
+                if (args.X >= 0 && args.X < Width && args.Y >= dropY && args.Y < dropY + dropDownHeight)
                 {
-                    int localY = args.Y - Y - dropY - 2 + _scrollOffset;
+                    int localY = args.Y - dropY - 2 + _scrollOffset;
                     if (localY >= 0)
                     {
                         int index = localY / itemHeight;
@@ -227,6 +241,7 @@ public class ComboBox : Control
 
                     _droppedDown = false;
                     _scrollOffset = 0;
+                    _hoveredIndex = -1;
                     CapturingMouse = false;
                     Invalidate();
                     return;
@@ -235,13 +250,14 @@ public class ComboBox : Control
 
             _droppedDown = false;
             _scrollOffset = 0;
+            _hoveredIndex = -1;
             CapturingMouse = false;
             Invalidate();
             return;
         }
 
         var mouseArgs = e as MouseEventArgs;
-        if (mouseArgs != null && mouseArgs.X >= X + Width - 17)
+        if (mouseArgs != null && mouseArgs.X >= Width - 17)
         {
             _droppedDown = true;
             CapturingMouse = true;
@@ -261,8 +277,7 @@ public class ComboBox : Control
             var args = e as MouseEventArgs;
             if (args != null)
             {
-                var font = Font ?? Font.Default;
-                var itemHeight = (int)font.Size + 4;
+                var itemHeight = GetItemHeight();
                 int delta = args.Delta * itemHeight;
                 ScrollBy(delta);
             }
@@ -270,6 +285,67 @@ public class ComboBox : Control
         }
 
         base.OnMouseWheel(e);
+    }
+
+    /// <summary>
+    /// Raises the MouseMove event to track hover state in dropdown.
+    /// </summary>
+    /// <param name="e">The event arguments.</param>
+    protected internal override void OnMouseMove(EventArgs e)
+    {
+        if (_droppedDown)
+        {
+            var args = e as MouseEventArgs;
+            if (args != null)
+            {
+                var itemHeight = GetItemHeight();
+                int dropY = Height;
+
+                if (args.Y >= dropY && args.Y < dropY + _dropDownHeight)
+                {
+                    int localY = args.Y - dropY - 2 + _scrollOffset;
+                    if (localY >= 0)
+                    {
+                        int index = localY / itemHeight;
+                        if (index >= 0 && index < _items.Count)
+                        {
+                            if (_hoveredIndex != index)
+                            {
+                                _hoveredIndex = index;
+                                Invalidate();
+                            }
+                        }
+                        else
+                        {
+                            if (_hoveredIndex != -1)
+                            {
+                                _hoveredIndex = -1;
+                                Invalidate();
+                            }
+                        }
+                    }
+                    else
+                    {
+                        if (_hoveredIndex != -1)
+                        {
+                            _hoveredIndex = -1;
+                            Invalidate();
+                        }
+                    }
+                }
+                else
+                {
+                    if (_hoveredIndex != -1)
+                    {
+                        _hoveredIndex = -1;
+                        Invalidate();
+                    }
+                }
+            }
+            return;
+        }
+
+        base.OnMouseMove(e);
     }
 
     /// <summary>
@@ -351,8 +427,7 @@ public class ComboBox : Control
 
     private void ScrollBy(int delta)
     {
-        var font = Font ?? Font.Default;
-        var itemHeight = (int)font.Size + 4;
+        var itemHeight = GetItemHeight();
         int totalHeight = _items.Count * itemHeight;
         int maxScroll = Math.Max(0, totalHeight - _dropDownHeight + 4);
 
@@ -364,8 +439,7 @@ public class ComboBox : Control
     {
         if (_selectedIndex < 0) return;
 
-        var font = Font ?? Font.Default;
-        var itemHeight = (int)font.Size + 4;
+        var itemHeight = GetItemHeight();
         int totalHeight = _items.Count * itemHeight;
         int maxScroll = Math.Max(0, totalHeight - _dropDownHeight + 4);
 

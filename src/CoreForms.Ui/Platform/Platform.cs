@@ -21,7 +21,7 @@ public static class Platform
     private static Form? _focusedWindow;
     private static Point _lastMousePosition;
     private static uint _nextWindowId = 1;
-    private static readonly Dictionary<(MessageBoxIcon icon, uint windowId), SKImage> _iconImageCache = new();
+    private static readonly Dictionary<(MessageBoxIcon icon, uint windowId, int size), SvgImage> _iconImageCache = new();
     private static IKeyboard? _keyboard;
 
     /// <summary>
@@ -447,10 +447,22 @@ public static class Platform
     /// <returns>A tuple containing the width and height.</returns>
     public static (int width, int height) MeasureText(string text, Core.Font font)
     {
+        return MeasureText(text, font, 1.0f);
+    }
+
+    /// <summary>
+    /// Measures the dimensions of text using the font renderer of the specified window with zoom scaling.
+    /// </summary>
+    /// <param name="text">The text to measure.</param>
+    /// <param name="font">The font to use.</param>
+    /// <param name="zoom">The zoom factor for scaling.</param>
+    /// <returns>A tuple containing the width and height.</returns>
+    public static (int width, int height) MeasureText(string text, Core.Font font, float zoom)
+    {
         var ctx = _contexts.Values.FirstOrDefault(c => c.IsInitialized);
         if (ctx == null || ctx.FontRenderer == null)
             return (0, 0);
-        return ctx.FontRenderer.MeasureText(text, font);
+        return ctx.FontRenderer.MeasureText(text, font, zoom);
     }
 
     /// <summary>
@@ -468,20 +480,20 @@ public static class Platform
     }
 
     /// <summary>
-    /// Loads a message box icon as an SKImage for the specified window.
+    /// Loads a message box icon as an SvgImage for the specified window.
     /// Uses Svg.Skia for resolution-independent SVG icons with alpha transparency.
-    /// The image is cached per (icon, windowId) pair.
+    /// The image is cached per (icon, windowId, size) pair.
     /// </summary>
     /// <param name="icon">The message box icon type to load.</param>
     /// <param name="windowId">The window ID to associate the icon with.</param>
     /// <param name="size">The desired icon size in pixels. Default is 48.</param>
-    /// <returns>The SKImage, or null if the icon could not be loaded.</returns>
-    public static SKImage? LoadMessageBoxIcon(MessageBoxIcon icon, uint windowId, int size = 48)
+    /// <returns>The SvgImage, or null if the icon could not be loaded.</returns>
+    public static SvgImage? LoadMessageBoxIcon(MessageBoxIcon icon, uint windowId, int size = 48)
     {
         if (icon == MessageBoxIcon.None)
             return null;
 
-        var key = (icon, windowId);
+        var key = (icon, windowId, size);
         if (_iconImageCache.TryGetValue(key, out var cached))
             return cached;
 
@@ -499,14 +511,14 @@ public static class Platform
     }
 
     /// <summary>
-    /// Loads an SVG resource from an embedded resource and renders it to an SKImage
+    /// Loads an SVG resource from an embedded resource and renders it to an SvgImage
     /// at the specified pixel size with full alpha transparency support.
     /// Uses Svg.Skia for pure C# SVG rasterization.
     /// </summary>
     /// <param name="resourceName">The manifest resource name of the SVG file.</param>
     /// <param name="size">The desired width/height in pixels.</param>
-    /// <returns>The SKImage, or null if loading failed.</returns>
-    public static SKImage? LoadSvgResource(string resourceName, int size)
+    /// <returns>The SvgImage, or null if loading failed.</returns>
+    public static SvgImage? LoadSvgResource(string resourceName, int size)
     {
         try
         {
@@ -514,37 +526,7 @@ public static class Platform
             using var stream = assembly.GetManifestResourceStream(resourceName);
             if (stream == null)
                 return null;
-
-            using var svg = new SKSvg();
-            if (svg.Load(stream) == null)
-                return null;
-
-            var picture = svg.Picture;
-            if (picture == null)
-                return null;
-
-            using var surface = SKSurface.Create(new SKImageInfo(size, size, SKColorType.Bgra8888, SKAlphaType.Premul));
-            if (surface == null)
-                return null;
-
-            var canvas = surface.Canvas;
-            canvas.Clear(SKColors.Transparent);
-
-            if (picture.CullRect.Width > 0 && picture.CullRect.Height > 0)
-            {
-                float scaleX = size / picture.CullRect.Width;
-                float scaleY = size / picture.CullRect.Height;
-                float scale = Math.Min(scaleX, scaleY);
-                float offsetX = (size - picture.CullRect.Width * scale) / 2f;
-                float offsetY = (size - picture.CullRect.Height * scale) / 2f;
-                canvas.Translate(offsetX, offsetY);
-                canvas.Scale(scale, scale);
-            }
-
-            canvas.DrawPicture(picture);
-            canvas.Flush();
-
-            return surface.Snapshot();
+            return SvgImage.FromSvgStream(stream, size);
         }
         catch (Exception ex)
         {
@@ -572,7 +554,7 @@ public static class Platform
     /// <param name="windowId">The window ID whose icon images should be cleaned up.</param>
     internal static void CleanupIconImages(uint windowId)
     {
-        var keysToRemove = new List<(MessageBoxIcon, uint)>();
+        var keysToRemove = new List<(MessageBoxIcon, uint, int)>();
         foreach (var kvp in _iconImageCache)
         {
             if (kvp.Key.Item2 == windowId)
@@ -693,9 +675,9 @@ public static class Platform
                 renderer.DrawEllipse(cmd.Color, cmd.X, cmd.Y, cmd.Width, cmd.Height, cmd.LineWidth);
                 break;
             case DrawCommandType.DrawImage:
-                if (cmd.Image != null)
+                if (cmd.Image?.NativeImage != null)
                 {
-                    renderer.DrawImage(cmd.Image, cmd.X, cmd.Y, cmd.Width, cmd.Height);
+                    renderer.DrawImage(cmd.Image.NativeImage, cmd.X, cmd.Y, cmd.Width, cmd.Height);
                 }
                 break;
         }

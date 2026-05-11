@@ -523,6 +523,25 @@ if (_focused != value)
     }
 
     /// <summary>
+    /// Gets the cumulative position of this control relative to its parent Form.
+    /// Sums the X/Y coordinates of all parent controls up to the Form.
+    /// </summary>
+    /// <returns>A point representing the control's position in form coordinates.</returns>
+    public Point GetFormRelativePosition()
+    {
+        int x = X;
+        int y = Y;
+        Control? current = Parent;
+        while (current != null && current is not Form)
+        {
+            x += current.X;
+            y += current.Y;
+            current = current.Parent;
+        }
+        return new Point(x, y);
+    }
+
+    /// <summary>
     /// Tests whether the specified point is within the bounds of the control.
     /// </summary>
     /// <param name="point">The point to test (should be in the coordinate space of the control's parent).</param>

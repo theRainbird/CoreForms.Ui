@@ -66,7 +66,7 @@ public class ListBox : Control
             g.DrawRectangle(Color.FromArgb(128, 128, 128), 0, 0, Width, Height, 1);
 
         var font = Font ?? Font.Default;
-        var itemHeight = (int)font.Size + 4;
+        var itemHeight = CoordinateTransform.GetItemHeight(font, EffectiveZoom);
         var y = 2;
 
         for (int i = 0; i < _items.Count && y < Height; i++)
@@ -99,7 +99,7 @@ public class ListBox : Control
         if (mouseArgs != null)
         {
             var font = Font ?? Font.Default;
-            var itemHeight = (int)font.Size + 4;
+            var itemHeight = CoordinateTransform.GetItemHeight(font, EffectiveZoom);
             var index = (mouseArgs.Y - 2) / itemHeight;
 
             if (index >= 0 && index < _items.Count)

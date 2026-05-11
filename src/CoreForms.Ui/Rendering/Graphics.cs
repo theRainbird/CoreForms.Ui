@@ -1,5 +1,4 @@
 using CoreForms.Ui.Core;
-using SkiaSharp;
 
 namespace CoreForms.Ui.Rendering;
 
@@ -47,10 +46,10 @@ namespace CoreForms.Ui.Rendering;
     public void SetClip(Rectangle rect)
     {
         _clipStack.Push(new Rectangle(
-            (int)(rect.X + _offsetX),
-            (int)(rect.Y + _offsetY),
-            rect.Width,
-            rect.Height));
+            (int)((rect.X + _offsetX) * _zoom),
+            (int)((rect.Y + _offsetY) * _zoom),
+            (int)(rect.Width * _zoom),
+            (int)(rect.Height * _zoom)));
     }
 
     /// <summary>
@@ -245,12 +244,12 @@ namespace CoreForms.Ui.Rendering;
     /// <summary>
     /// Draws an image at the specified location and size.
     /// </summary>
-    /// <param name="image">The SKImage to draw.</param>
+    /// <param name="image">The SvgImage to draw.</param>
     /// <param name="x">The x-coordinate.</param>
     /// <param name="y">The y-coordinate.</param>
     /// <param name="width">The width.</param>
     /// <param name="height">The height.</param>
-    public void DrawImage(SKImage image, float x, float y, float width, float height)
+    public void DrawImage(SvgImage image, float x, float y, float width, float height)
     {
         _commands.Add(new DrawCommand
         {
@@ -459,7 +458,7 @@ public class DrawCommand
     /// <summary>
     /// Gets or sets the image (for DrawImage commands).
     /// </summary>
-    public SKImage? Image { get; set; }
+    public SvgImage? Image { get; set; }
 
     /// <summary>
     /// Gets or sets the clipping bounds.

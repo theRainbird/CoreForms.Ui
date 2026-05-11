@@ -74,7 +74,7 @@ public class RadioButton : Control
         }
 
         var font = Font ?? Font.Default;
-        g.DrawString(Text, font, ForeColor, 20, (Height - (int)font.Size) / 2);
+        g.DrawString(Text, font, ForeColor, 20, CoordinateTransform.CenterVertically(Height, font, EffectiveZoom));
 
         base.Render(g);
     }

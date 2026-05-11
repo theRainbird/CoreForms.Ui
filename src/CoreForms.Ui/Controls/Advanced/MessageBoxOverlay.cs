@@ -1,6 +1,5 @@
 using CoreForms.Ui.Core;
 using CoreForms.Ui.Controls.Basic;
-using SkiaSharp;
 using Graphics = CoreForms.Ui.Rendering.Graphics;
 
 namespace CoreForms.Ui.Controls.Advanced;
@@ -18,7 +17,7 @@ internal class MessageBoxOverlay : Control
     private readonly MessageBoxIcon _icon;
     private readonly MessageBoxDefaultButton _defaultButton;
     private DialogResult _dialogResult = DialogResult.None;
-    private SKImage? _iconImage;
+    private SvgImage? _iconImage;
     private readonly int _iconSize = 48;
     private readonly List<Button> _dialogButtons = new();
     private int _dialogWidth;
@@ -76,8 +75,15 @@ internal class MessageBoxOverlay : Control
         int textHeight = EstimateTextHeight(_messageText);
         int contentWidth = iconAreaWidth + textWidth;
         int buttonRowHeight = 50;
-        int totalWidth = Math.Max(contentWidth + padding * 2, 300);
-        int totalHeight = padding + textHeight + padding + buttonRowHeight + padding;
+
+        var buttonDefs = GetButtonDefinitions(_buttons);
+        int buttonWidth = 100;
+        int gap = 10;
+        int totalButtonsWidth = buttonDefs.Count * buttonWidth + (buttonDefs.Count - 1) * gap;
+
+        int totalWidth = Math.Max(contentWidth + padding * 2, totalButtonsWidth + padding * 2);
+        int contentPadding = 30;
+        int totalHeight = contentPadding + textHeight + padding + buttonRowHeight + padding;
 
         _dialogWidth = Math.Max(totalWidth, 250);
         _dialogHeight = Math.Max(totalHeight, 150);
@@ -98,7 +104,9 @@ internal class MessageBoxOverlay : Control
         var ctx = Platform.Platform.GetWindowContext(_owner.WindowId);
         if (ctx != null)
         {
-            _iconImage = Platform.Platform.LoadMessageBoxIcon(_icon, ctx.WindowId);
+            float zoom = EffectiveZoom;
+            int iconPixelSize = (int)(_iconSize * zoom);
+            _iconImage = Platform.Platform.LoadMessageBoxIcon(_icon, ctx.WindowId, iconPixelSize);
         }
     }
 
@@ -137,25 +145,30 @@ internal class MessageBoxOverlay : Control
     {
         int padding = 20;
         int titleBarHeight = 30;
-        int contentY = _dialogY + titleBarHeight;
+        int contentPadding = 30;
+        int contentY = _dialogY + titleBarHeight + contentPadding;
         int iconAreaWidth = _icon != MessageBoxIcon.None ? _iconSize + padding : 0;
+        int buttonRowHeight = 50;
+        int textHeight = EstimateTextHeight(_messageText);
+
+        int contentAreaHeight = _dialogHeight - titleBarHeight - buttonRowHeight - padding - contentPadding;
+        int iconY = contentY + (contentAreaHeight - _iconSize) / 2;
 
         if (_icon != MessageBoxIcon.None && _iconImage != null)
         {
             int iconX = _dialogX + padding;
-            int iconY = contentY + padding + 4;
             g.DrawImage(_iconImage, iconX, iconY, _iconSize, _iconSize);
         }
 
         var font = Font ?? Font.Default;
         int textX = _dialogX + padding + iconAreaWidth;
-        int textY = contentY + padding;
+        int textY = contentY + (contentAreaHeight - textHeight) / 2;
 
         string[] lines = _messageText.Split('\n');
         foreach (string line in lines)
         {
             g.DrawString(line, font, ForeColor, textX, textY);
-            textY += (int)font.Size + 4;
+            textY += CoordinateTransform.GetItemHeight(font, EffectiveZoom);
         }
 
         for (int i = 0; i < _dialogButtons.Count; i++)
@@ -214,7 +227,7 @@ internal class MessageBoxOverlay : Control
         int buttonHeight = 36;
         int gap = 10;
         int totalButtonsWidth = buttonDefs.Count * buttonWidth + (buttonDefs.Count - 1) * gap;
-        int startX = Math.Max(padding, (_dialogWidth - totalButtonsWidth) / 2);
+        int startX = (_dialogWidth - totalButtonsWidth) / 2;
         int buttonY = _dialogY + _dialogHeight - padding - buttonHeight;
 
         int buttonTextIndex = 0;
@@ -434,7 +447,6 @@ internal class MessageBoxOverlay : Control
     /// </summary>
     public void Close()
     {
-        _iconImage?.Dispose();
         _owner.Controls.Remove(this);
         _owner.PerformLayout();
     }

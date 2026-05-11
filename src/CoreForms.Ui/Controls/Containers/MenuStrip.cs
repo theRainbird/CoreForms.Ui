@@ -52,7 +52,7 @@ public class MenuStrip : ContainerControl
     /// <summary>
     /// Gets the height of dropdown items.
     /// </summary>
-    protected virtual int DropDownItemHeight => 22;
+    protected virtual int DropDownItemHeight => CoordinateTransform.GetItemHeight(Font ?? Font.Default, EffectiveZoom);
 
     /// <summary>
     /// Renders the menu strip with its items and hover highlighting.
@@ -80,7 +80,7 @@ public class MenuStrip : ContainerControl
                 g.FillRectangle(Color.FromArgb(200, 200, 200), x, 0, textWidth, Height);
             }
 
-            RenderItemText(g, item, font, x + 5, (Height - (int)font.Size) / 2, _menuMode || isHovered || _dropDownVisible);
+            RenderItemText(g, item, font, x + 5, (int)CoordinateTransform.CenterVertically(Height, font, EffectiveZoom), _menuMode || isHovered || _dropDownVisible);
             x += textWidth;
         }
 
@@ -119,7 +119,7 @@ public class MenuStrip : ContainerControl
                 {
                     g.FillRectangle(Color.FromArgb(200, 220, 255), x + 1, itemY, maxWidth - 2, DropDownItemHeight);
                 }
-                RenderItemText(g, ddItem, font, x + 8, itemY + (DropDownItemHeight - (int)font.Size) / 2, true);
+                RenderItemText(g, ddItem, font, x + 8, itemY + (int)CoordinateTransform.CenterVertically(0, DropDownItemHeight, font, EffectiveZoom), true);
                 itemY += DropDownItemHeight;
             }
         }
@@ -141,7 +141,7 @@ public class MenuStrip : ContainerControl
                 var ddResult = HitTestDropDown(args.X, args.Y);
                 if (ddResult != null)
                 {
-                    ddResult.OnClick();
+                    ddResult.PerformClick();
                     CloseDropDown();
                     return;
                 }
@@ -166,7 +166,7 @@ public class MenuStrip : ContainerControl
                 }
                 else
                 {
-                    item.OnClick();
+                    item.PerformClick();
                 }
             }
             else
@@ -260,7 +260,7 @@ public class MenuStrip : ContainerControl
                 if (match.DropDownItems.Count > 0)
                     OpenDropDown(match);
                 else
-                    match.OnClick();
+                    match.PerformClick();
                 e.Handled = true;
                 return;
             }
@@ -276,7 +276,7 @@ public class MenuStrip : ContainerControl
                     OpenDropDown(match);
                 else
                 {
-                    match.OnClick();
+                    match.PerformClick();
                     CloseDropDown();
                     MenuMode = false;
                 }
@@ -320,7 +320,7 @@ public class MenuStrip : ContainerControl
                 case Keys.Enter:
                     if (_selectedDropDownIndex >= 0 && _selectedDropDownIndex < _openItem.DropDownItems.Count)
                     {
-                        _openItem.DropDownItems[_selectedDropDownIndex].OnClick();
+                        _openItem.DropDownItems[_selectedDropDownIndex].PerformClick();
                         CloseDropDown();
                         MenuMode = false;
                         e.Handled = true;
@@ -398,7 +398,7 @@ public class MenuStrip : ContainerControl
                             OpenDropDown(item);
                         else
                         {
-                            item.OnClick();
+                    item.PerformClick();
                             MenuMode = false;
                             _selectedTopLevelIndex = -1;
                         }
@@ -436,7 +436,7 @@ public class MenuStrip : ContainerControl
                 OpenDropDown(match);
             else
             {
-                match.OnClick();
+                match.PerformClick();
                 CloseDropDown();
             }
             return true;
@@ -464,9 +464,11 @@ public class MenuStrip : ContainerControl
 
         if (mnemonicIdx >= 0 && showMnemonic)
         {
-            int charWidth = (int)font.Size / 2;
+            float zoom = EffectiveZoom;
+            float scaledFontSize = font.Size * zoom;
+            int charWidth = (int)(scaledFontSize / 2);
             int underlineX = x + mnemonicIdx * charWidth;
-            int underlineY = y + (int)font.Size;
+            int underlineY = y + (int)scaledFontSize;
             g.DrawLine(ForeColor, underlineX, underlineY, underlineX + charWidth, underlineY);
         }
     }
@@ -489,15 +491,19 @@ public class MenuStrip : ContainerControl
 
     private int GetItemWidth(ToolStripMenuItem item, Font font)
     {
-        return (item.DisplayText.Length + 2) * (int)font.Size / 2 + 10;
+        float zoom = EffectiveZoom;
+        float scaledFontSize = font.Size * zoom;
+        return (item.DisplayText.Length + 2) * (int)(scaledFontSize / 2) + 10;
     }
 
     private int GetDropDownWidth(ToolStripMenuItem item, Font font)
     {
+        float zoom = EffectiveZoom;
+        float scaledFontSize = font.Size * zoom;
         int maxWidth = 0;
         foreach (var ddItem in item.DropDownItems)
         {
-            int w = ddItem.DisplayText.Length * (int)font.Size / 2 + 30;
+            int w = ddItem.DisplayText.Length * (int)(scaledFontSize / 2) + 30;
             if (w > maxWidth) maxWidth = w;
         }
         return maxWidth;

@@ -242,10 +242,19 @@ public class Form : ContainerControl
         var args = e as MouseEventArgs;
         if (args != null && _captureControl != null)
         {
-            var localArgs = new MouseEventArgs(args.Button, args.Clicks, args.X - _captureControl.X, args.Y - _captureControl.Y, args.Delta);
+            var capturePos = _captureControl.GetFormRelativePosition();
+            var localArgs = new MouseEventArgs(args.Button, args.Clicks, args.X - capturePos.X, args.Y - capturePos.Y, args.Delta);
             _captureControl.OnMouseDown(localArgs);
             return;
         }
+
+        var modalOverlay = GetVisibleModalOverlay();
+        if (modalOverlay != null)
+        {
+            modalOverlay.OnMouseDown(e);
+            return;
+        }
+
         base.OnMouseDown(e);
     }
 
@@ -259,10 +268,19 @@ public class Form : ContainerControl
         var args = e as MouseEventArgs;
         if (args != null && _captureControl != null)
         {
-            var localArgs = new MouseEventArgs(args.Button, args.Clicks, args.X - _captureControl.X, args.Y - _captureControl.Y, args.Delta);
+            var capturePos = _captureControl.GetFormRelativePosition();
+            var localArgs = new MouseEventArgs(args.Button, args.Clicks, args.X - capturePos.X, args.Y - capturePos.Y, args.Delta);
             _captureControl.OnMouseUp(localArgs);
             return;
         }
+
+        var modalOverlay = GetVisibleModalOverlay();
+        if (modalOverlay != null)
+        {
+            modalOverlay.OnMouseUp(e);
+            return;
+        }
+
         base.OnMouseUp(e);
     }
 
@@ -276,10 +294,19 @@ public class Form : ContainerControl
         var args = e as MouseEventArgs;
         if (args != null && _captureControl != null)
         {
-            var localArgs = new MouseEventArgs(args.Button, args.Clicks, args.X - _captureControl.X, args.Y - _captureControl.Y, args.Delta);
+            var capturePos = _captureControl.GetFormRelativePosition();
+            var localArgs = new MouseEventArgs(args.Button, args.Clicks, args.X - capturePos.X, args.Y - capturePos.Y, args.Delta);
             _captureControl.OnMouseMove(localArgs);
             return;
         }
+
+        var modalOverlay = GetVisibleModalOverlay();
+        if (modalOverlay != null)
+        {
+            modalOverlay.OnMouseMove(e);
+            return;
+        }
+
         base.OnMouseMove(e);
     }
 
@@ -295,7 +322,28 @@ public class Form : ContainerControl
             _captureControl.OnMouseWheel(e);
             return;
         }
+
+        var modalOverlay = GetVisibleModalOverlay();
+        if (modalOverlay != null)
+        {
+            modalOverlay.OnMouseWheel(e);
+            return;
+        }
+
         base.OnMouseWheel(e);
+    }
+
+    private Control? GetVisibleModalOverlay()
+    {
+        for (int i = Controls.Count - 1; i >= 0; i--)
+        {
+            var child = Controls[i];
+            if (child.Visible && child is Controls.Advanced.MessageBoxOverlay)
+            {
+                return child;
+            }
+        }
+        return null;
     }
 
     private List<Control> GetTabControls()
@@ -499,6 +547,13 @@ public class Form : ContainerControl
     protected internal override void OnKeyDown(KeyEventArgs e)
     {
         if (!Enabled) return;
+
+        var modalOverlay = GetVisibleModalOverlay();
+        if (modalOverlay != null)
+        {
+            modalOverlay.OnKeyDown(e);
+            return;
+        }
 
         if (ActiveControl != null && ActiveControl.Enabled)
         {

@@ -245,6 +245,7 @@ public class DataGridView : ContainerControl
     {
         if (!Visible) return;
 
+        float zoom = EffectiveZoom;
         int headerHeight = _columnHeadersVisible ? _rowHeight : 0;
         int rowHeaderWidth = _rowHeadersVisible ? 40 : 0;
         int totalContentHeight = _rows.Count * _rowHeight + (_allowUserToAddRows ? _rowHeight : 0);
@@ -281,7 +282,7 @@ public class DataGridView : ContainerControl
                     {
                         g.DrawRectangle(Color.FromArgb(180, 180, 180), drawX, 0, drawWidth, headerHeight, 1);
                         var font = _columns[col].HeaderCell?.Font ?? Font.Default;
-                        g.DrawString(_columns[col].HeaderText, font, Color.Black, drawX + 4, (headerHeight - (int)font.Size) / 2);
+                        g.DrawString(_columns[col].HeaderText, font, Color.Black, drawX + 4, CoordinateTransform.CenterVertically(0, headerHeight, font, zoom));
                     }
                 }
                 x += colWidth;
@@ -303,7 +304,7 @@ public class DataGridView : ContainerControl
                 g.FillRectangle(headerBg, 0, y, rowHeaderWidth, _rowHeight);
                 g.DrawRectangle(Color.FromArgb(180, 180, 180), 0, y, rowHeaderWidth, _rowHeight, 1);
                 var font = Font.Default;
-                g.DrawString((rowIdx + 1).ToString(), font, isSelected ? SystemColors.HighlightText : Color.Black, 4, y + (_rowHeight - (int)font.Size) / 2);
+                g.DrawString((rowIdx + 1).ToString(), font, isSelected ? SystemColors.HighlightText : Color.Black, 4, y + (int)CoordinateTransform.CenterVertically(0, _rowHeight, font, zoom));
             }
 
             if (_allowUserToAddRows)
@@ -372,7 +373,7 @@ public class DataGridView : ContainerControl
                         var cell = _rows[rowIdx].Cells.Count > col ? _rows[rowIdx].Cells[col] : null;
                         var text = cell?.Value?.ToString() ?? "";
                         var font = Font.Default;
-                        g.DrawString(text, font, textColor, drawX + 4, y + (_rowHeight - (int)font.Size) / 2);
+                        g.DrawString(text, font, textColor, drawX + 4, y + (int)CoordinateTransform.CenterVertically(0, _rowHeight, font, zoom));
                     }
                 }
                 x += colWidth;
@@ -384,7 +385,9 @@ public class DataGridView : ContainerControl
             int y = headerHeight + (_rows.Count * _rowHeight) - _verticalScrollOffset;
             g.FillRectangle(Color.FromArgb(250, 250, 250), rowHeaderWidth, y, dataWidth, _rowHeight);
             g.DrawLine(Color.FromArgb(150, 150, 150), rowHeaderWidth, y, rowHeaderWidth + dataWidth, y);
-            g.DrawString("*", Font.Default, Color.FromArgb(150, 150, 150), rowHeaderWidth + 4, y + (_rowHeight - 12) / 2);
+            var addRowFont = Font.Default;
+            float scaledAddRowSize = 12 * zoom;
+            g.DrawString("*", addRowFont, Color.FromArgb(150, 150, 150), rowHeaderWidth + 4, y + (_rowHeight - scaledAddRowSize) / 2);
         }
 
         g.ResetClip();

@@ -1,28 +1,43 @@
 using CoreForms.Ui.Core;
 using Graphics = CoreForms.Ui.Rendering.Graphics;
 
-namespace CoreForms.Ui.Controls.Basic;
+namespace CoreForms.Ui.Controls.Containers;
 
 /// <summary>
-/// A control that allows the user to enter text.
+/// Represents an editable text box in a ToolStrip.
+/// Supports full text editing including cursor, selection, copy/cut/paste, and password mode.
 /// </summary>
-public class TextBox : Control
+public class ToolStripTextBox : ToolStripItem
 {
     private string _text = string.Empty;
     private int _cursorPosition;
     private int _selectionAnchor;
     private int _selectionLength;
+    private bool _useSystemPasswordChar;
+    private bool _focused;
+    private int _width = 100;
+
     private static readonly int CursorBlinkInterval = 530;
+    private static readonly string BulletChar = "\u25CF";
 
     /// <summary>
-    /// Initializes a new instance of TextBox.
+    /// Initializes a new instance of ToolStripTextBox.
     /// </summary>
-    public TextBox()
+    public ToolStripTextBox()
     {
-        BackColor = Color.White;
-        ForeColor = Color.Black;
-        Size = new Size(200, 32);
-        TabStop = true;
+        DisplayStyle = ToolStripItemDisplayStyle.Text;
+    }
+
+    /// <summary>
+    /// Initializes a new instance of ToolStripTextBox with the specified text.
+    /// </summary>
+    /// <param name="text">The initial text.</param>
+    public ToolStripTextBox(string text)
+    {
+        _text = text;
+        _cursorPosition = _text.Length;
+        _selectionAnchor = _cursorPosition;
+        DisplayStyle = ToolStripItemDisplayStyle.Text;
     }
 
     /// <summary>
@@ -39,8 +54,8 @@ public class TextBox : Control
                 _cursorPosition = _text.Length;
                 _selectionAnchor = _cursorPosition;
                 _selectionLength = 0;
-                OnTextChanged();
-                Invalidate();
+                RaiseTextChanged();
+                Owner?.Invalidate();
             }
         }
     }
@@ -63,31 +78,6 @@ public class TextBox : Control
         set => _selectionLength = value;
     }
 
-    private bool _useSystemPasswordChar;
-
-    /// <summary>
-    /// Gets or sets whether the text box uses password mode, hiding characters with a bullet symbol.
-    /// </summary>
-    public bool UseSystemPasswordChar
-    {
-        get => _useSystemPasswordChar;
-        set
-        {
-            if (_useSystemPasswordChar != value)
-            {
-                _useSystemPasswordChar = value;
-                Invalidate();
-            }
-        }
-    }
-
-    private static readonly string BulletChar = "\u25CF";
-
-    private string GetDisplayText()
-    {
-        return _useSystemPasswordChar ? new string('\u25CF', _text.Length) : _text;
-    }
-
     /// <summary>
     /// Gets the selected text.
     /// </summary>
@@ -103,135 +93,202 @@ public class TextBox : Control
         }
     }
 
-    private int MeasureTextWidth(string text)
+    /// <summary>
+    /// Gets or sets whether the text box uses password mode.
+    /// </summary>
+    public bool UseSystemPasswordChar
     {
-        if (string.IsNullOrEmpty(text))
-            return 0;
-        var font = Font ?? Font.Default;
-        var zoom = EffectiveZoom;
-        var measured = Platform.Platform.MeasureText(text, font, zoom);
-        return (int)(measured.width / zoom);
+        get => _useSystemPasswordChar;
+        set
+        {
+            if (_useSystemPasswordChar != value)
+            {
+                _useSystemPasswordChar = value;
+                Owner?.Invalidate();
+            }
+        }
     }
 
-    private int MeasureDisplayWidth()
+    /// <summary>
+    /// Gets or sets whether the text box has focus.
+    /// </summary>
+    public bool Focused
     {
-        if (_text.Length == 0)
-            return 0;
-        if (_useSystemPasswordChar)
+        get => _focused;
+        set
         {
-            var font = Font ?? Font.Default;
-            var zoom = EffectiveZoom;
-            var measured = Platform.Platform.MeasureText(BulletChar, font, zoom);
-            int bulletWidth = (int)(measured.width / zoom);
-            return bulletWidth * _text.Length;
+            if (_focused != value)
+            {
+                _focused = value;
+                if (!_focused)
+                {
+                    _selectionLength = 0;
+                }
+                Owner?.Invalidate();
+            }
         }
-        return MeasureTextWidth(_text);
+    }
+
+    /// <summary>
+    /// Gets or sets the width of the text box in pixels.
+    /// </summary>
+    public int TextBoxWidth
+    {
+        get => _width;
+        set
+        {
+            if (_width != value)
+            {
+                _width = value;
+                Owner?.Invalidate();
+            }
+        }
+    }
+
+    /// <summary>
+    /// Occurs when the text changes.
+    /// </summary>
+    public new event EventHandler? TextChanged;
+
+    private void RaiseTextChanged()
+    {
+        TextChanged?.Invoke(this, EventArgs.Empty);
+    }
+
+    private string GetDisplayText()
+    {
+        return _useSystemPasswordChar ? new string('\u25CF', _text.Length) : _text;
+    }
+
+    private int MeasureLocalTextWidth(string text, Font font, float zoom)
+    {
+        if (string.IsNullOrEmpty(text)) return 0;
+        var measured = Platform.Platform.MeasureText(text, font, zoom);
+        return (int)(measured.width / zoom);
     }
 
     /// <summary>
     /// Renders the text box with its text, selection, and cursor.
     /// </summary>
     /// <param name="g">The Graphics object to use for rendering.</param>
-    public override void Render(Rendering.Graphics g)
+    /// <param name="x">The x-coordinate of the item bounds.</param>
+    /// <param name="y">The y-coordinate of the item bounds.</param>
+    /// <param name="width">The width of the item bounds.</param>
+    /// <param name="height">The height of the item bounds.</param>
+    /// <param name="font">The font to use for text rendering.</param>
+    /// <param name="zoom">The current zoom factor.</param>
+    /// <param name="hovered">Whether the item is currently hovered.</param>
+    /// <param name="pressed">Whether the item is currently pressed.</param>
+    public override void OnPaint(Graphics g, int x, int y, int width, int height, Font font, float zoom, bool hovered, bool pressed)
     {
         if (!Visible) return;
 
-g.FillRectangle(BackColor, 0, 0, Width, Height);
+        int tbWidth = _width;
+        int tbX = x + 2;
+        int tbY = y + 2;
+        int tbHeight = height - 4;
 
-        if (Focused)
-            g.DrawRectangle(Color.FromArgb(0, 120, 215), 0, 0, Width, Height, 2);
+        g.FillRectangle(Color.White, tbX, tbY, tbWidth, tbHeight);
+
+        if (_focused)
+            g.DrawRectangle(Color.FromArgb(0, 120, 215), tbX, tbY, tbWidth, tbHeight, 2);
         else
-            g.DrawRectangle(Color.FromArgb(128, 128, 128), 0, 0, Width, Height, 1);
+            g.DrawRectangle(Color.FromArgb(128, 128, 128), tbX, tbY, tbWidth, tbHeight, 1);
 
-        var font = Font ?? Font.Default;
-        float zoom = EffectiveZoom;
-        float scaledFontSize = font.Size * zoom;
-        float textY = CoordinateTransform.CenterVertically(Height, font, zoom);
-        float textX = 4;
+        float textY = tbY + (tbHeight - font.Size * zoom) / 2f;
+        float textX = tbX + 4;
 
         string displayText = GetDisplayText();
 
-        if (_selectionLength > 0 && Focused)
+        if (_selectionLength > 0 && _focused)
         {
             int selStart = Math.Min(_selectionAnchor, _cursorPosition);
             int selEnd = Math.Max(_selectionAnchor, _cursorPosition);
 
             string beforeSel = displayText.Substring(0, selStart);
             string selStr = displayText.Substring(selStart, selEnd - selStart);
-            float selX = textX + MeasureTextWidth(beforeSel);
-            float selWidth = Math.Max(MeasureTextWidth(selStr), 2);
+            float selX = textX + MeasureLocalTextWidth(beforeSel, font, zoom);
+            float selWidth = Math.Max(MeasureLocalTextWidth(selStr, font, zoom), 2);
 
-            g.DrawString(displayText, font, ForeColor, textX, textY);
-            g.FillRectangle(SystemColors.Highlight, selX, textY, selWidth, scaledFontSize + 2);
+            g.DrawString(displayText, font, Color.Black, textX, textY);
+            g.FillRectangle(SystemColors.Highlight, selX, textY, selWidth, font.Size * zoom + 2);
             g.DrawString(selStr, font, SystemColors.HighlightText, selX, textY);
         }
         else
         {
-            g.DrawString(displayText, font, ForeColor, textX, textY);
+            g.DrawString(displayText, font, Color.Black, textX, textY);
         }
 
-        if (Focused)
+        if (_focused)
         {
             bool cursorVisible = (Environment.TickCount % (CursorBlinkInterval * 2)) < CursorBlinkInterval;
             if (cursorVisible)
             {
                 string textBeforeCursor = displayText.Substring(0, _cursorPosition);
-                float cursorX = textX + MeasureTextWidth(textBeforeCursor);
-                g.DrawLine(Color.Black, cursorX, textY, cursorX, textY + scaledFontSize, 1);
+                float cursorX = textX + MeasureLocalTextWidth(textBeforeCursor, font, zoom);
+                g.DrawLine(Color.Black, cursorX, textY, cursorX, textY + font.Size * zoom, 1);
             }
         }
-
-        base.Render(g);
     }
 
     /// <summary>
-    /// Raises the TextChanged event.
+    /// Calculates the preferred width for layout.
     /// </summary>
-    protected override void OnTextChanged()
+    /// <param name="font">The font (unused for text box width).</param>
+    /// <param name="zoom">The current zoom factor.</param>
+    /// <returns>The configured text box width.</returns>
+    public override int GetPreferredWidth(Font font, float zoom)
     {
-        base.OnTextChanged();
-        TextChanged?.Invoke(this, EventArgs.Empty);
+        return _width + 4;
     }
 
     /// <summary>
-    /// Gets the value to copy to clipboard.
+    /// Handles mouse down to set focus and cursor position.
     /// </summary>
-    protected string? GetClipboardValue() => _selectionLength > 0 ? SelectedText : _text;
-
-    /// <summary>
-    /// Copies the selected text or all text to the clipboard.
-    /// </summary>
-    public void CopyToClipboard()
+    internal void HandleMouseDown(int x, int y, int itemX, int itemY)
     {
-        string text = _selectionLength > 0 ? SelectedText : _text;
-        if (!string.IsNullOrEmpty(text))
+        Focused = true;
+
+        int xPos = x - itemX - 6;
+        var font = Owner?.Font ?? Font.Default;
+        float zoom = Owner?.EffectiveZoom ?? 1.0f;
+
+        if (_useSystemPasswordChar && _text.Length > 0)
         {
-            Core.Clipboard.SetText(text);
+            var measured = Platform.Platform.MeasureText(BulletChar, font, zoom);
+            int bulletWidth = (int)(measured.width / zoom);
+            _cursorPosition = Math.Min(xPos / bulletWidth + 1, _text.Length);
         }
-    }
-
-    /// <summary>
-    /// Cuts the selected text and copies it to the clipboard.
-    /// </summary>
-    public void Cut()
-    {
-        if (_selectionLength > 0)
+        else
         {
-            var selected = SelectedText;
-            DeleteSelection();
-            Core.Clipboard.SetText(selected);
+            int bestPos = 0;
+            int bestDist = Math.Abs(xPos);
+
+            for (int i = 1; i <= _text.Length; i++)
+            {
+                int w = MeasureLocalTextWidth(_text.Substring(0, i), font, zoom);
+                int dist = Math.Abs(xPos - w);
+                if (dist < bestDist)
+                {
+                    bestDist = dist;
+                    bestPos = i;
+                }
+            }
+
+            _cursorPosition = bestPos;
         }
+
+        _selectionAnchor = _cursorPosition;
+        _selectionLength = 0;
+        Owner?.Invalidate();
     }
 
     /// <summary>
-    /// Pastes the clipboard text at the current cursor position,
-    /// replacing any selected text.
+    /// Handles text input.
     /// </summary>
-    public void Paste()
+    internal void HandleTextInput(string text)
     {
-        var text = Core.Clipboard.GetText();
-        if (string.IsNullOrEmpty(text))
-            return;
+        if (string.IsNullOrEmpty(text)) return;
 
         if (_selectionLength > 0)
             DeleteSelection();
@@ -240,70 +297,14 @@ g.FillRectangle(BackColor, 0, 0, Width, Height);
         _cursorPosition += text.Length;
         _selectionAnchor = _cursorPosition;
         _selectionLength = 0;
-        OnTextChanged();
+        RaiseTextChanged();
+        Owner?.Invalidate();
     }
 
     /// <summary>
-    /// Selects all text in the text box.
+    /// Handles key down events for editing operations.
     /// </summary>
-    public void SelectAll()
-    {
-        _selectionAnchor = 0;
-        _cursorPosition = _text.Length;
-        _selectionLength = _cursorPosition - _selectionAnchor;
-    }
-
-    /// <summary>
-    /// Raises the MouseDown event and sets cursor position.
-    /// </summary>
-    /// <param name="e">The event arguments.</param>
-    protected internal override void OnMouseDown(EventArgs e)
-    {
-        var mouseArgs = e as MouseEventArgs;
-        if (mouseArgs != null)
-        {
-            int xPos = mouseArgs.X - 4;
-
-            if (_useSystemPasswordChar && _text.Length > 0)
-            {
-                var font = Font ?? Font.Default;
-                var zoom = EffectiveZoom;
-                var bulletMeasured = Platform.Platform.MeasureText(BulletChar, font, zoom);
-                int bulletWidth = (int)(bulletMeasured.width / zoom);
-                _cursorPosition = Math.Min(xPos / bulletWidth + 1, _text.Length);
-            }
-            else
-            {
-                int bestPos = 0;
-                int bestDist = Math.Abs(xPos);
-
-                for (int i = 1; i <= _text.Length; i++)
-                {
-                    int w = MeasureTextWidth(_text.Substring(0, i));
-                    int dist = Math.Abs(xPos - w);
-                    if (dist < bestDist)
-                    {
-                        bestDist = dist;
-                        bestPos = i;
-                    }
-                }
-
-                _cursorPosition = bestPos;
-            }
-
-            _selectionAnchor = _cursorPosition;
-            _selectionLength = 0;
-        }
-
-        Focused = true;
-        base.OnMouseDown(e);
-    }
-
-    /// <summary>
-    /// Raises the KeyDown event to handle text editing.
-    /// </summary>
-    /// <param name="e">A KeyEventArgs that contains the event data.</param>
-    protected internal override void OnKeyDown(KeyEventArgs e)
+    internal bool HandleKeyDown(KeyEventArgs e)
     {
         if (e.Modifiers.HasFlag(ModifierKeys.Control))
         {
@@ -328,8 +329,8 @@ g.FillRectangle(BackColor, 0, 0, Width, Height);
                     e.Handled = true;
                     break;
             }
-            base.OnKeyDown(e);
-            return;
+            Owner?.Invalidate();
+            return e.Handled;
         }
 
         bool shift = e.Modifiers.HasFlag(ModifierKeys.Shift);
@@ -338,9 +339,7 @@ g.FillRectangle(BackColor, 0, 0, Width, Height);
         {
             case Keys.Back:
                 if (_selectionLength > 0)
-                {
                     DeleteSelection();
-                }
                 else if (_cursorPosition > 0)
                 {
                     _text = _text.Remove(_cursorPosition - 1, 1);
@@ -348,21 +347,19 @@ g.FillRectangle(BackColor, 0, 0, Width, Height);
                     _selectionAnchor = _cursorPosition;
                     _selectionLength = 0;
                 }
-                OnTextChanged();
+                RaiseTextChanged();
                 e.Handled = true;
                 break;
+
             case Keys.Delete:
                 if (_selectionLength > 0)
-                {
                     DeleteSelection();
-                }
                 else if (_cursorPosition < _text.Length)
-                {
                     _text = _text.Remove(_cursorPosition, 1);
-                }
-                OnTextChanged();
+                RaiseTextChanged();
                 e.Handled = true;
                 break;
+
             case Keys.Left:
                 if (_selectionLength > 0 && !shift)
                 {
@@ -374,8 +371,7 @@ g.FillRectangle(BackColor, 0, 0, Width, Height);
                 {
                     if (shift)
                     {
-                        if (_selectionLength == 0)
-                            _selectionAnchor = _cursorPosition;
+                        if (_selectionLength == 0) _selectionAnchor = _cursorPosition;
                         _cursorPosition--;
                         _selectionLength = Math.Abs(_cursorPosition - _selectionAnchor);
                     }
@@ -388,6 +384,7 @@ g.FillRectangle(BackColor, 0, 0, Width, Height);
                 }
                 e.Handled = true;
                 break;
+
             case Keys.Right:
                 if (_selectionLength > 0 && !shift)
                 {
@@ -399,8 +396,7 @@ g.FillRectangle(BackColor, 0, 0, Width, Height);
                 {
                     if (shift)
                     {
-                        if (_selectionLength == 0)
-                            _selectionAnchor = _cursorPosition;
+                        if (_selectionLength == 0) _selectionAnchor = _cursorPosition;
                         _cursorPosition++;
                         _selectionLength = Math.Abs(_cursorPosition - _selectionAnchor);
                     }
@@ -413,6 +409,7 @@ g.FillRectangle(BackColor, 0, 0, Width, Height);
                 }
                 e.Handled = true;
                 break;
+
             case Keys.Home:
                 if (shift)
                 {
@@ -428,6 +425,7 @@ g.FillRectangle(BackColor, 0, 0, Width, Height);
                 }
                 e.Handled = true;
                 break;
+
             case Keys.End:
                 if (shift)
                 {
@@ -443,8 +441,15 @@ g.FillRectangle(BackColor, 0, 0, Width, Height);
                 }
                 e.Handled = true;
                 break;
+
+            case Keys.Escape:
+                Focused = false;
+                e.Handled = true;
+                break;
         }
-        base.OnKeyDown(e);
+
+        Owner?.Invalidate();
+        return e.Handled;
     }
 
     private void DeleteSelection()
@@ -459,11 +464,38 @@ g.FillRectangle(BackColor, 0, 0, Width, Height);
     }
 
     /// <summary>
-    /// Raises the TextInput event to insert typed text.
+    /// Copies the selected text or all text to the clipboard.
     /// </summary>
-    /// <param name="text">The input text.</param>
-    protected internal override void OnTextInput(string text)
+    public void CopyToClipboard()
     {
+        string text = _selectionLength > 0 ? SelectedText : _text;
+        if (!string.IsNullOrEmpty(text))
+        {
+            Clipboard.SetText(text);
+        }
+    }
+
+    /// <summary>
+    /// Cuts the selected text and copies it to the clipboard.
+    /// </summary>
+    public void Cut()
+    {
+        if (_selectionLength > 0)
+        {
+            var selected = SelectedText;
+            DeleteSelection();
+            Clipboard.SetText(selected);
+            RaiseTextChanged();
+            Owner?.Invalidate();
+        }
+    }
+
+    /// <summary>
+    /// Pastes the clipboard text at the current cursor position.
+    /// </summary>
+    public void Paste()
+    {
+        var text = Clipboard.GetText();
         if (string.IsNullOrEmpty(text)) return;
 
         if (_selectionLength > 0)
@@ -473,11 +505,18 @@ g.FillRectangle(BackColor, 0, 0, Width, Height);
         _cursorPosition += text.Length;
         _selectionAnchor = _cursorPosition;
         _selectionLength = 0;
-        OnTextChanged();
+        RaiseTextChanged();
+        Owner?.Invalidate();
     }
 
     /// <summary>
-    /// Occurs when the text changes.
+    /// Selects all text in the text box.
     /// </summary>
-    public event EventHandler? TextChanged;
+    public void SelectAll()
+    {
+        _selectionAnchor = 0;
+        _cursorPosition = _text.Length;
+        _selectionLength = _cursorPosition - _selectionAnchor;
+        Owner?.Invalidate();
+    }
 }

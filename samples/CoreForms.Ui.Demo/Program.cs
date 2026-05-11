@@ -14,10 +14,10 @@ class Program
         var form = new Form
         {
             Text = "CoreForms.Ui Demo - Dock & Anchor",
-            Width = 900,
-            Height = 800,
+            Width = 1200,
+            Height = 900,
             BackColor = SystemColors.Window,
-            Zoom = 1.1f
+            Zoom = 1.25f
         };
 
         var menuStrip = new MenuStrip();
@@ -117,6 +117,65 @@ class Program
             ForeColor = SystemColors.ControlText
         };
 
+        var toolStrip = new ToolStrip();
+        toolStrip.Dock = DockStyle.Top;
+
+        var newButton = new ToolStripButton("New");
+        newButton.Click += (s, e) => statusLabel.Text = "New clicked";
+        toolStrip.Items.Add(newButton);
+
+        var openButton = new ToolStripButton("Open");
+        openButton.Click += (s, e) => statusLabel.Text = "Open clicked";
+        toolStrip.Items.Add(openButton);
+
+        var saveButton = new ToolStripButton("Save");
+        saveButton.Click += (s, e) => statusLabel.Text = "Save clicked";
+        toolStrip.Items.Add(saveButton);
+
+        toolStrip.Items.Add(new ToolStripSeparator());
+
+        var boldButton = new ToolStripButton("B");
+        boldButton.CheckOnClick = true;
+        boldButton.CheckedChanged += (s, e) => statusLabel.Text = $"Bold: {boldButton.Checked}";
+        toolStrip.Items.Add(boldButton);
+
+        var italicButton = new ToolStripButton("I");
+        italicButton.CheckOnClick = true;
+        italicButton.CheckedChanged += (s, e) => statusLabel.Text = $"Italic: {italicButton.Checked}";
+        toolStrip.Items.Add(italicButton);
+
+        toolStrip.Items.Add(new ToolStripSeparator());
+
+        var searchBox = new ToolStripTextBox();
+        searchBox.TextBoxWidth = 120;
+        searchBox.TextChanged += (s, e) => statusLabel.Text = $"Search: {searchBox.Text}";
+        toolStrip.Items.Add(searchBox);
+
+        var searchButton = new ToolStripButton("Search");
+        searchButton.Click += (s, e) => statusLabel.Text = $"Searching for: {searchBox.Text}";
+        toolStrip.Items.Add(searchButton);
+
+        toolStrip.Items.Add(new ToolStripSeparator());
+
+        var zoomLabel = new ToolStripLabel("Zoom:");
+        toolStrip.Items.Add(zoomLabel);
+
+        var zoomComboBox = new ToolStripLabel("100%");
+        zoomComboBox.IsLink = true;
+        zoomComboBox.Click += (s, e) =>
+        {
+            form.Zoom = form.Zoom == 1.0f ? 1.5f : 1.0f;
+            zoomComboBox.Text = $"{(int)(form.Zoom * 100)}%";
+            statusLabel.Text = $"Zoom: {zoomComboBox.Text}";
+        };
+        toolStrip.Items.Add(zoomComboBox);
+
+        toolStrip.Items.Add(new ToolStripSeparator());
+
+        var helpButton = new ToolStripButton("Help");
+        helpButton.Click += (s, e) => MessageBox.Show("CoreForms.Ui ToolStrip Demo\n\nDemonstrates all ToolStrip item types.", "Help", MessageBoxButtons.OK, MessageBoxIcon.Information);
+        toolStrip.Items.Add(helpButton);
+
         var statusStrip = new Panel
         {
             BackColor = SystemColors.Control,
@@ -180,6 +239,7 @@ class Program
         };
 
         form.Controls.Add(menuStrip);
+        form.Controls.Add(toolStrip);
         form.Controls.Add(statusStrip);
         form.Controls.Add(leftPanel);
         form.Controls.Add(mainPanel);
@@ -446,23 +506,14 @@ class Program
             statusLabel.Text = $"MessageBox result: {result}";
         };
 
-        var infoLabel = new Label
-        {
-            Text = "Dock: Left, Right, Top, Bottom, Fill\nAnchor: TopLeft, TopLeftRight, All\nResize window to see effects!",
-            Location = new Point(5, 165),
-            Size = new Size(200, 50),
-            BackColor = SystemColors.Control,
-            ForeColor = Color.FromArgb(80, 80, 80)
-        };
-
+      
         panel.Controls.Add(comboBox);
         panel.Controls.Add(checkBox);
         panel.Controls.Add(progressBar);
         panel.Controls.Add(addButton);
         panel.Controls.Add(progressButton);
         panel.Controls.Add(msgBoxButton);
-        panel.Controls.Add(infoLabel);
-
+      
         return panel;
     }
 
