@@ -177,8 +177,8 @@ public static class Platform
                 if (size.X > 0 && size.Y > 0)
                 {
                     form.SuspendLayout();
-                    form.Width = size.X;
-                    form.Height = size.Y;
+                    form.Width = (int)(size.X / form.Zoom);
+                    form.Height = (int)(size.Y / form.Zoom);
                     form.ResumeLayout(true);
                     form.OnResize(EventArgs.Empty);
                 }
@@ -214,6 +214,10 @@ public static class Platform
         };
 
         window.Initialize();
+
+        // Convert initial pixel dimensions to logical coordinates
+        form.Width = (int)(form.Width / form.Zoom);
+        form.Height = (int)(form.Height / form.Zoom);
 
         return handle;
     }

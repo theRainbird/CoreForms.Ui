@@ -89,8 +89,24 @@ public class Form : ContainerControl
     public float Zoom
     {
         get => _zoom;
-        set => _zoom = Dpi.ClampZoom(value);
+        set
+        {
+            var oldZoom = _zoom;
+            _zoom = Dpi.ClampZoom(value);
+            if (Math.Abs(oldZoom - _zoom) > 0.001f)
+            {
+                PerformLayout();
+            }
+        }
     }
+
+    /// <summary>
+    /// Gets the client area size of the form in actual screen pixels.
+    /// This is the logical size multiplied by the zoom factor.
+    /// </summary>
+    public Size ClientSizePixels => new Size(
+        (int)(Width * Zoom),
+        (int)(Height * Zoom));
 
     /// <summary>
     /// Occurs when the form is first shown.
@@ -206,13 +222,13 @@ public class Form : ContainerControl
     /// <summary>
     /// Resizes the form to the specified dimensions.
     /// </summary>
-    /// <param name="width">The new width.</param>
-    /// <param name="height">The new height.</param>
+    /// <param name="width">The new logical width.</param>
+    /// <param name="height">The new logical height.</param>
     public void SetSize(int width, int height)
     {
         if (_handle != IntPtr.Zero)
         {
-            Platform.Platform.ResizeWindow(_handle, width, height);
+            Platform.Platform.ResizeWindow(_handle, (int)(width * Zoom), (int)(height * Zoom));
         }
     }
 
