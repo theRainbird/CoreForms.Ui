@@ -32,6 +32,7 @@ public class Control : Component
     private int _anchorBottomDistance;
     private int _layoutSuspendCount;
     internal bool _layoutDrivenBoundsChange;
+    private ControlState _state = ControlState.None;
 
     /// <summary>
     /// Gets the effective zoom factor for this control.
@@ -44,6 +45,44 @@ public class Control : Component
             var form = FindForm();
             return form?.Zoom ?? 1.0f;
         }
+    }
+
+    /// <summary>
+    /// Gets the current visual state of the control (hovered, pressed, focused).
+    /// </summary>
+    protected ControlState State
+    {
+        get => _state;
+        private set
+        {
+            if (_state != value)
+            {
+                _state = value;
+                OnStateChanged();
+            }
+        }
+    }
+
+    /// <summary>
+    /// Gets whether the control is currently hovered.
+    /// </summary>
+    protected bool IsHovered => (_state & ControlState.Hovered) != 0;
+
+    /// <summary>
+    /// Gets whether the control has a mouse button pressed.
+    /// </summary>
+    protected bool IsPressed => (_state & ControlState.Pressed) != 0;
+
+    /// <summary>
+    /// Gets or sets whether the control is allowed to show focus cues.
+    /// </summary>
+    protected virtual bool ShowFocusCues => true;
+
+    /// <summary>
+    /// Called when the control's state changes (hover, pressed, focus).
+    /// </summary>
+    protected virtual void OnStateChanged()
+    {
     }
 
     /// <summary>
@@ -432,6 +471,7 @@ if (_focused != value)
     /// <param name="g">The Graphics object to use for rendering.</param>
     public virtual void RenderOverlay(Graphics g)
     {
+        g.Zoom = EffectiveZoom;
         foreach (Control child in Controls)
         {
             if (child.Visible)
@@ -796,16 +836,30 @@ if (_controls == null || _controls.Count == 0) return;
     protected virtual void OnDoubleClick(EventArgs e) => DoubleClick?.Invoke(this, e);
 
     /// <summary>
-    /// Raises the MouseEnter event.
+    /// Raises the MouseEnter event and sets the Hovered state.
     /// </summary>
     /// <param name="e">An EventArgs that contains the event data.</param>
-    protected virtual void OnMouseEnter(EventArgs e) => MouseEnter?.Invoke(this, e);
+    protected virtual void OnMouseEnter(EventArgs e)
+    {
+        if (!IsHovered)
+        {
+            State |= ControlState.Hovered;
+        }
+        MouseEnter?.Invoke(this, e);
+    }
 
     /// <summary>
-    /// Raises the MouseLeave event.
+    /// Raises the MouseLeave event and clears the Hovered state.
     /// </summary>
     /// <param name="e">An EventArgs that contains the event data.</param>
-    protected virtual void OnMouseLeave(EventArgs e) => MouseLeave?.Invoke(this, e);
+    protected virtual void OnMouseLeave(EventArgs e)
+    {
+        if (IsHovered)
+        {
+            State &= ~ControlState.Hovered;
+        }
+        MouseLeave?.Invoke(this, e);
+    }
 
     /// <summary>
     /// Raises the MouseMove event.
@@ -814,17 +868,28 @@ if (_controls == null || _controls.Count == 0) return;
     protected internal virtual void OnMouseMove(EventArgs e) => MouseMove?.Invoke(this, e);
 
     /// <summary>
-    /// Raises the MouseDown event.
+    /// Raises the MouseDown event and sets the Pressed state.
     /// </summary>
     /// <param name="e">An EventArgs that contains the event data.</param>
-    protected internal virtual void OnMouseDown(EventArgs e) => MouseDown?.Invoke(this, e);
+    protected internal virtual void OnMouseDown(EventArgs e)
+    {
+        if (!IsPressed)
+        {
+            State |= ControlState.Pressed;
+        }
+        MouseDown?.Invoke(this, e);
+    }
 
     /// <summary>
-    /// Raises the MouseUp event.
+    /// Raises the MouseUp event and clears the Pressed state.
     /// </summary>
     /// <param name="e">An EventArgs that contains the event data.</param>
     protected internal virtual void OnMouseUp(EventArgs e)
     {
+        if (IsPressed)
+        {
+            State &= ~ControlState.Pressed;
+        }
         MouseUp?.Invoke(this, e);
         OnClick(EventArgs.Empty);
     }
@@ -863,13 +928,63 @@ if (_controls == null || _controls.Count == 0) return;
     /// Raises the GotFocus event.
     /// </summary>
     /// <param name="e">An EventArgs that contains the event data.</param>
-    protected internal virtual void OnGotFocus(EventArgs e) => GotFocus?.Invoke(this, e);
+    protected internal virtual void OnGotFocus(EventArgs e)
+    {
+        if (!Focused)
+        {
+            State |= ControlState.Focused;
+        }
+        OnFocused();
+        GotFocus?.Invoke(this, e);
+    }
 
     /// <summary>
     /// Raises the LostFocus event.
     /// </summary>
     /// <param name="e">An EventArgs that contains the event data.</param>
-    protected internal virtual void OnLostFocus(EventArgs e) => LostFocus?.Invoke(this, e);
+    protected internal virtual void OnLostFocus(EventArgs e)
+    {
+        if (Focused)
+        {
+            State &= ~ControlState.Focused;
+        }
+        OnUnfocused();
+        LostFocus?.Invoke(this, e);
+    }
+
+    /// <summary>
+    /// Called when the control receives focus. Override to provide custom focus behavior.
+    /// </summary>
+    protected internal virtual void OnFocused() { }
+
+    /// <summary>
+    /// Called when the control loses focus. Override to provide custom focus behavior.
+    /// </summary>
+    protected internal virtual void OnUnfocused() { }
+
+    /// <summary>
+    /// Draws the focus indicator for the control if it has focus and focus cues are enabled.
+    /// Override to customize focus rendering or provide different behavior.
+    /// </summary>
+    /// <param name="g">The Graphics object to use for rendering.</param>
+    protected virtual void DrawFocusIndicator(Graphics g)
+    {
+        if (Focused && ShowFocusCues)
+        {
+            g.DrawRectangle(FocusColor, 0, 0, Width, Height, 2);
+        }
+    }
+
+    /// <summary>
+    /// Gets the color used for the focus indicator. Override to customize.
+    /// </summary>
+    protected virtual Color FocusColor => Color.FromArgb(0, 120, 215);
+
+    /// <summary>
+    /// Called when the control is activated (e.g., Enter or Space key pressed while focused).
+    /// Override to provide custom activation behavior. Base implementation is empty.
+    /// </summary>
+    protected internal virtual void OnActivate() { }
 }
 
 /// <summary>

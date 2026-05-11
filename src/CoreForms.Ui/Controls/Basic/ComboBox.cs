@@ -82,10 +82,7 @@ public class ComboBox : Control
         g.FillRectangle(SystemColors.Control, btnX, 1, btnWidth, Height - 2);
         g.DrawLine(Color.FromArgb(128, 128, 128), btnX, 0, btnX, Height);
 
-        if (Focused)
-            g.DrawRectangle(Color.FromArgb(0, 120, 215), 0, 0, Width, Height, 2);
-        else
-            g.DrawRectangle(Color.FromArgb(128, 128, 128), 0, 0, Width, Height, 1);
+        DrawFocusIndicator(g);
 
         var cx = btnX + btnWidth / 2;
         var cy = Height / 2;
@@ -201,6 +198,11 @@ public class ComboBox : Control
     /// <param name="e">The event arguments.</param>
     protected internal override void OnMouseDown(EventArgs e)
     {
+        if (!Focused)
+        {
+            Focused = true;
+        }
+
         if (_droppedDown)
         {
             var args = e as MouseEventArgs;
@@ -209,15 +211,25 @@ public class ComboBox : Control
                 var font = Font ?? Font.Default;
                 var itemHeight = (int)font.Size + 4;
                 int dropY = Height;
-                int clickY = args.Y - dropY - 2 + _scrollOffset;
+                int dropDownHeight = _dropDownHeight;
 
-                if (clickY >= 0 && args.Y >= dropY)
+                if (args.X >= X && args.X < X + Width && args.Y >= Y + dropY && args.Y < Y + dropY + dropDownHeight)
                 {
-                    int index = clickY / itemHeight;
-                    if (index >= 0 && index < _items.Count)
+                    int localY = args.Y - Y - dropY - 2 + _scrollOffset;
+                    if (localY >= 0)
                     {
-                        SelectedIndex = index;
+                        int index = localY / itemHeight;
+                        if (index >= 0 && index < _items.Count)
+                        {
+                            SelectedIndex = index;
+                        }
                     }
+
+                    _droppedDown = false;
+                    _scrollOffset = 0;
+                    CapturingMouse = false;
+                    Invalidate();
+                    return;
                 }
             }
 
@@ -229,15 +241,13 @@ public class ComboBox : Control
         }
 
         var mouseArgs = e as MouseEventArgs;
-        if (mouseArgs != null && mouseArgs.X >= Width - 17)
+        if (mouseArgs != null && mouseArgs.X >= X + Width - 17)
         {
             _droppedDown = true;
             CapturingMouse = true;
             EnsureSelectedVisible();
             Invalidate();
         }
-
-        base.OnMouseDown(e);
     }
 
     /// <summary>
@@ -253,7 +263,7 @@ public class ComboBox : Control
             {
                 var font = Font ?? Font.Default;
                 var itemHeight = (int)font.Size + 4;
-                int delta = -args.Delta * itemHeight;
+                int delta = args.Delta * itemHeight;
                 ScrollBy(delta);
             }
             return;

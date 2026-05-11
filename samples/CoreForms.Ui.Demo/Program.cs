@@ -17,7 +17,7 @@ class Program
             Width = 900,
             Height = 800,
             BackColor = SystemColors.Window,
-            Zoom = 1.05f
+            Zoom = 1.1f
         };
 
         var menuStrip = new MenuStrip();

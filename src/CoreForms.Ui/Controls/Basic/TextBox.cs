@@ -133,7 +133,7 @@ public class TextBox : Control
     {
         if (!Visible) return;
 
-        g.FillRectangle(BackColor, 0, 0, Width, Height);
+g.FillRectangle(BackColor, 0, 0, Width, Height);
 
         if (Focused)
             g.DrawRectangle(Color.FromArgb(0, 120, 215), 0, 0, Width, Height, 2);

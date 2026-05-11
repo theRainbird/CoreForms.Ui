@@ -8,9 +8,6 @@ namespace CoreForms.Ui.Controls.Basic;
 /// </summary>
 public class Button : Control
 {
-    private bool _isPressed;
-    private bool _isHovered;
-
     /// <summary>
     /// Initializes a new instance of Button.
     /// </summary>
@@ -30,18 +27,15 @@ public class Button : Control
         if (!Visible) return;
 
         var bgColor = BackColor;
-        if (_isPressed)
+        if (IsPressed)
             bgColor = Color.FromArgb(bgColor.R - 20, bgColor.G - 20, bgColor.B - 20);
-        else if (_isHovered)
+        else if (IsHovered)
             bgColor = Color.FromArgb(Math.Min(255, bgColor.R + 15), Math.Min(255, bgColor.G + 15), Math.Min(255, bgColor.B + 15));
 
         g.FillRectangle(bgColor, 0, 0, Width, Height);
         g.DrawRectangle(Color.FromArgb(128, 128, 128), 0, 0, Width, Height, 1);
 
-        if (Focused)
-        {
-            g.DrawRectangle(Color.FromArgb(0, 120, 215), 0, 0, Width, Height, 2);
-        }
+        DrawFocusIndicator(g);
 
         var font = Font ?? Font.Default;
         var textSize = Text.Length * (int)font.Size * 0.6f;
@@ -53,52 +47,11 @@ public class Button : Control
     }
 
     /// <summary>
-    /// Raises the MouseDown event and tracks pressed state.
-    /// </summary>
-    /// <param name="e">The event arguments.</param>
-    protected internal override void OnMouseDown(EventArgs e)
-    {
-        _isPressed = true;
-        base.OnMouseDown(e);
-    }
-
-    /// <summary>
-    /// Raises the MouseUp event and tracks pressed state.
-    /// </summary>
-    /// <param name="e">The event arguments.</param>
-    protected internal override void OnMouseUp(EventArgs e)
-    {
-        _isPressed = false;
-        base.OnMouseUp(e);
-    }
-
-    /// <summary>
-    /// Raises the MouseEnter event and tracks hover state.
-    /// </summary>
-    /// <param name="e">The event arguments.</param>
-    protected override void OnMouseEnter(EventArgs e)
-    {
-        _isHovered = true;
-        base.OnMouseEnter(e);
-    }
-
-    /// <summary>
-    /// Raises the MouseLeave event and tracks hover state.
-    /// </summary>
-    /// <param name="e">The event arguments.</param>
-    protected override void OnMouseLeave(EventArgs e)
-    {
-        _isHovered = false;
-        base.OnMouseLeave(e);
-    }
-
-    /// <summary>
     /// Raises the KeyDown event to handle Enter and Space keys.
     /// </summary>
     /// <param name="e">A KeyEventArgs that contains the event data.</param>
     protected internal override void OnKeyDown(KeyEventArgs e)
     {
-        Console.WriteLine($"[Button.OnKeyDown] Text='{Text}' KeyCode={e.KeyCode} Focused={Focused}");
         if (e.KeyCode == Keys.Enter || e.KeyCode == Keys.Space)
         {
             PerformClick();
