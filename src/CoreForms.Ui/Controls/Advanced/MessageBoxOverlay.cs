@@ -1,5 +1,6 @@
 using CoreForms.Ui.Core;
 using CoreForms.Ui.Controls.Basic;
+using CoreForms.Ui.Theming;
 using Graphics = CoreForms.Ui.Rendering.Graphics;
 
 namespace CoreForms.Ui.Controls.Advanced;
@@ -125,16 +126,18 @@ internal class MessageBoxOverlay : Control
 
         Initialize();
 
-        g.FillRectangle(Color.FromArgb(128, 0, 0, 0), 0, 0, _owner.Width, _owner.Height);
+        var theme = ThemeManager.CurrentTheme;
 
-        g.FillRectangle(SystemColors.Control, _dialogX, _dialogY, _dialogWidth, _dialogHeight);
-        g.DrawRectangle(Color.FromArgb(100, 100, 100), _dialogX, _dialogY, _dialogWidth, _dialogHeight, 2);
+        g.FillRectangle(theme.MessageBoxOverlay, 0, 0, _owner.Width, _owner.Height);
+
+        g.FillRectangle(theme.ControlBackground, _dialogX, _dialogY, _dialogWidth, _dialogHeight);
+        g.DrawRectangle(theme.MessageBoxBorder, _dialogX, _dialogY, _dialogWidth, _dialogHeight, 2);
 
         int titleBarHeight = 30;
-        g.FillRectangle(SystemColors.ActiveCaption, _dialogX, _dialogY, _dialogWidth, titleBarHeight);
+        g.FillRectangle(theme.ActiveCaption, _dialogX, _dialogY, _dialogWidth, titleBarHeight);
 
-        var titleFont = Font ?? Font.Default;
-        g.DrawString(_caption, titleFont, SystemColors.ActiveCaptionText, _dialogX + 10, _dialogY + 6);
+        var titleFont = EffectiveFont;
+        g.DrawString(_caption, titleFont, theme.ActiveCaptionText, _dialogX + 10, _dialogY + 6);
 
         RenderDialogContent(g);
 
@@ -160,7 +163,7 @@ internal class MessageBoxOverlay : Control
             g.DrawImage(_iconImage, iconX, iconY, _iconSize, _iconSize);
         }
 
-        var font = Font ?? Font.Default;
+        var font = EffectiveFont;
         int textX = _dialogX + padding + iconAreaWidth;
         int textY = contentY + (contentAreaHeight - textHeight) / 2;
 
@@ -185,22 +188,23 @@ internal class MessageBoxOverlay : Control
 
     private void RenderButton(Graphics g, Button btn, bool isFocused, bool isHovered)
     {
+        var theme = ThemeManager.CurrentTheme;
         Color backColor = btn.BackColor;
         if (isHovered)
         {
-            backColor = SystemColors.ControlLight;
+            backColor = theme.ControlLight;
         }
 
         g.FillRectangle(backColor, btn.X, btn.Y, btn.Width, btn.Height);
-        g.DrawRectangle(SystemColors.ControlDark, btn.X, btn.Y, btn.Width, btn.Height, 1);
+        g.DrawRectangle(theme.ControlDark, btn.X, btn.Y, btn.Width, btn.Height, 1);
 
         if (isFocused)
         {
-            g.DrawRectangle(SystemColors.Highlight, btn.X + 1, btn.Y + 1, btn.Width - 2, btn.Height - 2, 2);
+            g.DrawRectangle(theme.Highlight, btn.X + 1, btn.Y + 1, btn.Width - 2, btn.Height - 2, 2);
         }
 
-        var font = btn.Font ?? Font ?? Font.Default;
-        var textColor = btn.Enabled ? btn.ForeColor : SystemColors.GrayText;
+        var font = btn.Font ?? EffectiveFont;
+        var textColor = btn.Enabled ? btn.ForeColor : theme.GrayText;
         var textSize = Platform.Platform.MeasureText(btn.Text, font);
         var textX = btn.X + (btn.Width - textSize.width) / 2;
         var textY = btn.Y + (btn.Height - textSize.height) / 2;

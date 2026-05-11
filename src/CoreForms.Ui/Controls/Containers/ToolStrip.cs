@@ -42,7 +42,7 @@ public class ToolStrip : ContainerControl
     /// </summary>
     public ToolStrip()
     {
-        Size = new Size(400, 25);
+        Size = new Size(400, 28);
         BackColor = SystemColors.Control;
         TabStop = true;
         Dock = DockStyle.Top;
@@ -90,7 +90,7 @@ public class ToolStrip : ContainerControl
 
         if (_gripStyle == ToolStripGripStyle.Visible)
         {
-            RenderGrip(g, 2, 4, _gripWidth - 4, Height - 8);
+            RenderGrip(g, 2, 0, _gripWidth - 4, Height);
             xOffset = _gripWidth;
         }
 
@@ -104,16 +104,16 @@ public class ToolStrip : ContainerControl
         {
             if (!item.Visible) continue;
 
-            int itemWidth = item.GetPreferredWidth(font, zoom) + 8;
+            int itemWidth = item.GetPreferredWidth(font, zoom) + 2;
             bool isHovered = item == _hoveredItem;
             bool isPressed = item.IsPressed;
 
             if (isHovered || isPressed)
             {
-                g.FillRectangle(Color.FromArgb(200, 200, 200), xOffset, 1, itemWidth, Height - 2);
+                g.FillRectangle(Color.FromArgb(200, 200, 200), xOffset, 2, itemWidth, Height - 4);
             }
 
-            item.OnPaint(g, xOffset + 4, 1, itemWidth - 8, Height - 2, font, zoom, isHovered, isPressed);
+            item.OnPaint(g, xOffset + 4, 2, itemWidth - 8, Height - 4, font, zoom, isHovered, isPressed);
             item.Owner = this;
             xOffset += itemWidth;
         }
@@ -161,7 +161,7 @@ public class ToolStrip : ContainerControl
         foreach (var item in visibleItems)
         {
             if (item == ownerItem) break;
-            ddX += item.GetPreferredWidth(font, zoom) + 8;
+            ddX += item.GetPreferredWidth(font, zoom) + 2;
         }
 
         int ddY = Height;
@@ -233,7 +233,7 @@ public class ToolStrip : ContainerControl
                     {
                         if (it == item) break;
                         if (!it.Visible) continue;
-                        itemX += it.GetPreferredWidth(font, zoom) + 8;
+                        itemX += it.GetPreferredWidth(font, zoom) + 2;
                     }
                     textBox.HandleMouseDown(args.X, args.Y, itemX, 0);
                     return;
@@ -503,7 +503,8 @@ public class ToolStrip : ContainerControl
         var gripColor = Color.FromArgb(150, 150, 150);
         int dotSize = 2;
         int gap = 4;
-        int startY = y + (height - 8) / 2;
+        int gripDotHeight = 14;
+        int startY = y + (height - gripDotHeight) / 2;
 
         for (int row = 0; row < 4; row++)
         {
@@ -544,7 +545,7 @@ public class ToolStrip : ContainerControl
             var item = _items[i];
             if (!item.Visible) continue;
 
-            int itemWidth = item.GetPreferredWidth(font, zoom) + 8;
+            int itemWidth = item.GetPreferredWidth(font, zoom) + 2;
             if (currentX + itemWidth > availableWidth)
             {
                 _overflowActive = true;
@@ -619,7 +620,7 @@ public class ToolStrip : ContainerControl
         foreach (var item in visibleItems)
         {
             if (!item.Visible) continue;
-            int itemWidth = item.GetPreferredWidth(font, zoom) + 8;
+            int itemWidth = item.GetPreferredWidth(font, zoom) + 2;
             if (x >= itemX && x < itemX + itemWidth)
             {
                 return item;
@@ -642,7 +643,7 @@ public class ToolStrip : ContainerControl
         foreach (var item in _items)
         {
             if (item == ownerItem) break;
-            ddX += item.GetPreferredWidth(font, zoom) + 8;
+            ddX += item.GetPreferredWidth(font, zoom) + 2;
         }
 
         int ddY = Height;

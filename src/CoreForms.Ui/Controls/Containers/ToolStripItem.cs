@@ -1,4 +1,5 @@
 using CoreForms.Ui.Core;
+using CoreForms.Ui.Theming;
 using Graphics = CoreForms.Ui.Rendering.Graphics;
 
 namespace CoreForms.Ui.Controls.Containers;
@@ -316,7 +317,8 @@ public abstract class ToolStripItem : Component
     {
         if (!_visible) return;
 
-        var textColor = _enabled ? Color.Black : SystemColors.GrayText;
+        var theme = ThemeManager.CurrentTheme;
+        var textColor = _enabled ? theme.ToolStripItemText : theme.GrayText;
         int contentX = x + _padding.Left;
         int contentY = y + _padding.Top;
         int contentWidth = width - _padding.Horizontal;

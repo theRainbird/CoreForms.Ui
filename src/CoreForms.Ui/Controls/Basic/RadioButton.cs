@@ -1,4 +1,5 @@
 using CoreForms.Ui.Core;
+using CoreForms.Ui.Theming;
 using Graphics = CoreForms.Ui.Rendering.Graphics;
 
 namespace CoreForms.Ui.Controls.Basic;
@@ -63,17 +64,18 @@ public class RadioButton : Control
     {
         if (!Visible) return;
 
+        var theme = ThemeManager.CurrentTheme;
         var centerY = Height / 2;
 
-        g.FillRectangle(Color.White, 0, centerY - 8, 16, 16);
-        g.DrawRectangle(Color.FromArgb(128, 128, 128), 0, centerY - 8, 16, 16, 1);
+        g.FillRectangle(theme.CheckboxBackground, 0, centerY - 8, 16, 16);
+        g.DrawRectangle(theme.CheckboxBorder, 0, centerY - 8, 16, 16, 1);
 
         if (_checked)
         {
-            g.FillRectangle(Color.Black, 4, centerY - 4, 8, 8);
+            g.FillRectangle(theme.CheckboxCheck, 4, centerY - 4, 8, 8);
         }
 
-        var font = Font ?? Font.Default;
+        var font = EffectiveFont;
         g.DrawString(Text, font, ForeColor, 20, CoordinateTransform.CenterVertically(Height, font, EffectiveZoom));
 
         base.Render(g);

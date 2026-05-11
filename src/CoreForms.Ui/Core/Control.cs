@@ -1,13 +1,14 @@
 using System;
 using System.Collections.Generic;
 using CoreForms.Ui.Rendering;
+using CoreForms.Ui.Theming;
 
 namespace CoreForms.Ui.Core;
 
 /// <summary>
 /// Base class for all UI controls, providing properties, methods, and events for visual elements.
 /// </summary>
-public class Control : Component
+public class Control : Component, IThemeChangeSubscriber
 {
     private string _name = string.Empty;
     private Control? _parent;
@@ -15,9 +16,11 @@ public class Control : Component
     private Size _preferredSize;
     private bool _visible = true;
     private bool _enabled = true;
-    private Color _backColor = SystemColors.Control;
-    private Color _foreColor = SystemColors.ControlText;
+    protected Color _backColor;
+    protected Color _foreColor;
     private Font? _font;
+    protected bool _backColorSet;
+    protected bool _foreColorSet;
     private ControlCollection? _controls;
     private string _text = string.Empty;
     private AnchorStyles _anchor = AnchorStyles.Top | AnchorStyles.Left;
@@ -33,6 +36,17 @@ public class Control : Component
     private int _layoutSuspendCount;
     internal bool _layoutDrivenBoundsChange;
     private ControlState _state = ControlState.None;
+
+    /// <summary>
+    /// Initializes a new instance of Control.
+    /// </summary>
+    public Control()
+    {
+        var theme = ThemeManager.CurrentTheme;
+        _backColor = theme.ControlBackground;
+        _foreColor = theme.ControlText;
+        ThemeManager.Subscribe(this);
+    }
 
     /// <summary>
     /// Gets the effective zoom factor for this control.
@@ -224,29 +238,56 @@ public class Control : Component
 
     /// <summary>
     /// Gets or sets the background color of the control.
+    /// Individual color settings take precedence over theme colors.
     /// </summary>
     public Color BackColor
     {
         get => _backColor;
-        set => _backColor = value;
+        set
+        {
+            _backColor = value;
+            _backColorSet = true;
+        }
     }
 
     /// <summary>
     /// Gets or sets the foreground color of the control.
+    /// Individual color settings take precedence over theme colors.
     /// </summary>
     public Color ForeColor
     {
         get => _foreColor;
-        set => _foreColor = value;
+        set
+        {
+            _foreColor = value;
+            _foreColorSet = true;
+        }
     }
 
     /// <summary>
     /// Gets or sets the font used by the control.
+    /// If not set, the font is inherited from the parent control or the active theme.
     /// </summary>
     public Font? Font
     {
         get => _font;
         set => _font = value;
+    }
+
+    /// <summary>
+    /// Gets the effective font, traversing up the parent chain if not set.
+    /// Falls back to the active theme's default font.
+    /// </summary>
+    public Font EffectiveFont
+    {
+        get
+        {
+            if (_font != null)
+                return _font;
+            if (_parent != null)
+                return _parent.EffectiveFont;
+            return ThemeManager.CurrentTheme.DefaultFont;
+        }
     }
 
     /// <summary>
@@ -997,7 +1038,31 @@ if (_controls == null || _controls.Count == 0) return;
     /// <summary>
     /// Gets the color used for the focus indicator. Override to customize.
     /// </summary>
-    protected virtual Color FocusColor => Color.FromArgb(0, 120, 215);
+    protected virtual Color FocusColor => ThemeManager.CurrentTheme.FocusIndicator;
+
+    /// <summary>
+    /// Gets a color from the active theme. Override to provide custom theme color resolution.
+    /// Individual control colors take precedence over theme colors.
+    /// </summary>
+    /// <param name="themeColorSelector">A function that selects the color from the theme.</param>
+    /// <returns>The theme color, or the control's color if explicitly set.</returns>
+    protected Color GetThemeColor(Func<Theme, Color> themeColorSelector)
+    {
+        return themeColorSelector(ThemeManager.CurrentTheme);
+    }
+
+    /// <summary>
+    /// Called when the theme changes. Invalidates the control to trigger repaint with new theme colors.
+    /// </summary>
+    /// <param name="newTheme">The new theme that was activated.</param>
+    public virtual void OnThemeChanged(Theme newTheme)
+    {
+        if (!_backColorSet)
+            _backColor = newTheme.ControlBackground;
+        if (!_foreColorSet)
+            _foreColor = newTheme.ControlText;
+        Invalidate();
+    }
 
     /// <summary>
     /// Called when the control is activated (e.g., Enter or Space key pressed while focused).

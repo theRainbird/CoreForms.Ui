@@ -1,4 +1,5 @@
 using CoreForms.Ui.Core;
+using CoreForms.Ui.Theming;
 using Graphics = CoreForms.Ui.Rendering.Graphics;
 
 namespace CoreForms.Ui.Controls.Containers;
@@ -24,7 +25,7 @@ public class MenuStrip : ContainerControl
     public MenuStrip()
     {
         Size = new Size(400, 24);
-        BackColor = SystemColors.Control;
+        BackColor = ThemeManager.CurrentTheme.ControlBackground;
         TabStop = true;
     }
 
@@ -52,7 +53,7 @@ public class MenuStrip : ContainerControl
     /// <summary>
     /// Gets the height of dropdown items.
     /// </summary>
-    protected virtual int DropDownItemHeight => CoordinateTransform.GetItemHeight(Font ?? Font.Default, EffectiveZoom);
+    protected virtual int DropDownItemHeight => CoordinateTransform.GetItemHeight(EffectiveFont, EffectiveZoom);
 
     /// <summary>
     /// Renders the menu strip with its items and hover highlighting.
@@ -63,10 +64,12 @@ public class MenuStrip : ContainerControl
     {
         if (!Visible) return;
 
-        g.FillRectangle(BackColor, 0, 0, Width, Height);
-        g.DrawLine(Color.FromArgb(180, 180, 180), 0, Height - 1, Width, Height - 1);
+        var theme = ThemeManager.CurrentTheme;
 
-        var font = Font ?? Font.Default;
+        g.FillRectangle(BackColor, 0, 0, Width, Height);
+        g.DrawLine(theme.MenuSeparator, 0, Height - 1, Width, Height - 1);
+
+        var font = EffectiveFont;
         int x = 4;
 
         for (int i = 0; i < _items.Count; i++)
@@ -77,7 +80,7 @@ public class MenuStrip : ContainerControl
 
             if (isHovered)
             {
-                g.FillRectangle(Color.FromArgb(200, 200, 200), x, 0, textWidth, Height);
+                g.FillRectangle(theme.MenuHover, x, 0, textWidth, Height);
             }
 
             RenderItemText(g, item, font, x + 5, (int)CoordinateTransform.CenterVertically(Height, font, EffectiveZoom), _menuMode || isHovered || _dropDownVisible);
@@ -98,17 +101,19 @@ public class MenuStrip : ContainerControl
 
         base.RenderOverlay(g);
 
+        var theme = ThemeManager.CurrentTheme;
+
         if (_dropDownVisible && _openItem != null && _openItem.DropDownItems.Count > 0)
         {
-            var font = Font ?? Font.Default;
+            var font = EffectiveFont;
             int x = GetItemX(GetItemIndex(_openItem));
             int y = Height;
 
             int maxWidth = GetDropDownWidth(_openItem, font);
             int dropDownHeight = _openItem.DropDownItems.Count * DropDownItemHeight + 4;
 
-            g.FillRectangle(Color.White, x, y, maxWidth, dropDownHeight);
-            g.DrawRectangle(Color.FromArgb(100, 100, 100), x, y, maxWidth, dropDownHeight, 1);
+            g.FillRectangle(theme.MenuDropdownBackground, x, y, maxWidth, dropDownHeight);
+            g.DrawRectangle(theme.MenuDropdownBorder, x, y, maxWidth, dropDownHeight, 1);
 
             int itemY = y + 2;
             for (int i = 0; i < _openItem.DropDownItems.Count; i++)
@@ -117,7 +122,7 @@ public class MenuStrip : ContainerControl
                 bool isHovered = ddItem == _hoverDropDownItem || i == _selectedDropDownIndex;
                 if (isHovered)
                 {
-                    g.FillRectangle(Color.FromArgb(200, 220, 255), x + 1, itemY, maxWidth - 2, DropDownItemHeight);
+                    g.FillRectangle(theme.MenuDropdownHover, x + 1, itemY, maxWidth - 2, DropDownItemHeight);
                 }
                 RenderItemText(g, ddItem, font, x + 8, itemY + (int)CoordinateTransform.CenterVertically(0, DropDownItemHeight, font, EffectiveZoom), true);
                 itemY += DropDownItemHeight;
@@ -480,7 +485,7 @@ public class MenuStrip : ContainerControl
 
     private int GetItemX(int index)
     {
-        var font = Font ?? Font.Default;
+        var font = EffectiveFont;
         int x = 4;
         for (int i = 0; i < index && i < _items.Count; i++)
         {
@@ -493,7 +498,7 @@ public class MenuStrip : ContainerControl
     {
         float zoom = EffectiveZoom;
         float scaledFontSize = font.Size * zoom;
-        return (item.DisplayText.Length + 2) * (int)(scaledFontSize / 2) + 10;
+        return (item.DisplayText.Length) * (int)(scaledFontSize / 2) + 8;
     }
 
     private int GetDropDownWidth(ToolStripMenuItem item, Font font)
@@ -514,7 +519,7 @@ public class MenuStrip : ContainerControl
         if (y < 0 || y > Height)
             return null;
 
-        var font = Font ?? Font.Default;
+        var font = EffectiveFont;
         int itemX = 4;
 
         for (int i = 0; i < _items.Count; i++)
@@ -535,7 +540,7 @@ public class MenuStrip : ContainerControl
         if (_openItem == null || _openItem.DropDownItems.Count == 0)
             return null;
 
-        var font = Font ?? Font.Default;
+        var font = EffectiveFont;
         int ddX = GetItemX(GetItemIndex(_openItem));
         int ddY = Height;
 

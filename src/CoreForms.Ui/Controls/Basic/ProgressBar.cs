@@ -1,4 +1,5 @@
 using CoreForms.Ui.Core;
+using CoreForms.Ui.Theming;
 using Graphics = CoreForms.Ui.Rendering.Graphics;
 
 namespace CoreForms.Ui.Controls.Basic;
@@ -89,8 +90,10 @@ public class ProgressBar : Control
     {
         if (!Visible) return;
 
+        var theme = ThemeManager.CurrentTheme;
+
         g.FillRectangle(BackColor, 0, 0, Width, Height);
-        g.DrawRectangle(Color.FromArgb(128, 128, 128), 0, 0, Width, Height, 1);
+        g.DrawRectangle(theme.Border, 0, 0, Width, Height, 1);
 
         if (_maximum > _minimum)
         {
@@ -99,13 +102,11 @@ public class ProgressBar : Control
 
             if (_orientation == Orientation.Horizontal)
             {
-                var progressColor = Color.FromArgb(0, 120, 215);
-                g.FillRectangle(progressColor, 1, 1, fillWidth, Height - 2);
+                g.FillRectangle(theme.ProgressBarFill, 1, 1, fillWidth, Height - 2);
             }
             else
             {
-                var progressColor = Color.FromArgb(0, 120, 215);
-                g.FillRectangle(progressColor, 1, Height - 1 - fillWidth, Width - 2, fillWidth);
+                g.FillRectangle(theme.ProgressBarFill, 1, Height - 1 - fillWidth, Width - 2, fillWidth);
             }
         }
 

@@ -1,4 +1,5 @@
 using CoreForms.Ui.Core;
+using CoreForms.Ui.Theming;
 using CoreForms.Ui.Rendering;
 
 namespace CoreForms.Ui.Layout;
@@ -17,7 +18,7 @@ public class FlowLayoutPanel : ContainerControl
     public FlowLayoutPanel()
     {
         Size = new Size(300, 200);
-        BackColor = SystemColors.Control;
+        BackColor = ThemeManager.CurrentTheme.ControlBackground;
     }
 
     /// <summary>

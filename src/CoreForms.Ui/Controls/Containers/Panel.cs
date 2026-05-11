@@ -1,4 +1,5 @@
 using CoreForms.Ui.Core;
+using CoreForms.Ui.Theming;
 using Graphics = CoreForms.Ui.Rendering.Graphics;
 
 namespace CoreForms.Ui.Controls.Containers;
@@ -15,7 +16,7 @@ public class Panel : ContainerControl
     /// </summary>
     public Panel()
     {
-        BackColor = SystemColors.Control;
+        BackColor = ThemeManager.CurrentTheme.ControlBackground;
         Size = new Size(200, 150);
         TabStop = false;
     }
@@ -41,11 +42,13 @@ public class Panel : ContainerControl
     {
         if (!Visible) return;
 
+        var theme = ThemeManager.CurrentTheme;
+
         g.FillRectangle(BackColor, 0, 0, Width, Height);
 
         if (_borderStyle == BorderStyle.FixedSingle)
         {
-            g.DrawRectangle(Color.FromArgb(128, 128, 128), 0, 0, Width, Height, 1);
+            g.DrawRectangle(theme.PanelBorder, 0, 0, Width, Height, 1);
         }
 
         base.Render(g);

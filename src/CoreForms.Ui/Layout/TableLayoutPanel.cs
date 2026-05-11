@@ -1,4 +1,5 @@
 using CoreForms.Ui.Core;
+using CoreForms.Ui.Theming;
 using CoreForms.Ui.Rendering;
 
 namespace CoreForms.Ui.Layout;
@@ -18,7 +19,7 @@ public class TableLayoutPanel : ContainerControl
     public TableLayoutPanel()
     {
         Size = new Size(300, 200);
-        BackColor = SystemColors.Control;
+        BackColor = ThemeManager.CurrentTheme.ControlBackground;
     }
 
     /// <summary>
@@ -98,6 +99,8 @@ public class TableLayoutPanel : ContainerControl
     {
         if (!Visible) return;
 
+        var theme = ThemeManager.CurrentTheme;
+
         g.FillRectangle(BackColor, 0, 0, Width, Height);
 
         int padLeft = Padding.Left + 2;
@@ -110,11 +113,11 @@ public class TableLayoutPanel : ContainerControl
 
         for (int row = 0; row <= _rowCount; row++)
         {
-            g.DrawLine(Color.FromArgb(180, 180, 180), padLeft, row * cellHeight + padTop, Width - Padding.Right - 2, row * cellHeight + padTop);
+            g.DrawLine(theme.TableLayoutGridLine, padLeft, row * cellHeight + padTop, Width - Padding.Right - 2, row * cellHeight + padTop);
         }
         for (int col = 0; col <= _columnCount; col++)
         {
-            g.DrawLine(Color.FromArgb(180, 180, 180), col * cellWidth + padLeft, padTop, col * cellWidth + padLeft, Height - Padding.Bottom - 2);
+            g.DrawLine(theme.TableLayoutGridLine, col * cellWidth + padLeft, padTop, col * cellWidth + padLeft, Height - Padding.Bottom - 2);
         }
 
         base.Render(g);

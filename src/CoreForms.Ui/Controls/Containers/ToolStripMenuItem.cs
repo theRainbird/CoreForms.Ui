@@ -86,6 +86,6 @@ public class ToolStripMenuItem : ToolStripItem
     public override int GetPreferredWidth(Font font, float zoom)
     {
         float scaledFontSize = font.Size * zoom;
-        return (DisplayText.Length + 2) * (int)(scaledFontSize / 2) + 10;
+        return (DisplayText.Length) * (int)(scaledFontSize / 2) + 6;
     }
 }

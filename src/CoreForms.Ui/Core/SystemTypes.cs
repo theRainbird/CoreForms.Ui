@@ -58,6 +58,30 @@ public readonly struct Color
     public static readonly Color Empty = new(0, 0, 0, 0);
 
     /// <summary>
+    /// Determines whether two Color instances are equal.
+    /// </summary>
+    public static bool operator ==(Color left, Color right)
+        => left.R == right.R && left.G == right.G && left.B == right.B && left.A == right.A;
+
+    /// <summary>
+    /// Determines whether two Color instances are not equal.
+    /// </summary>
+    public static bool operator !=(Color left, Color right)
+        => !(left == right);
+
+    /// <summary>
+    /// Determines whether this Color is equal to the specified object.
+    /// </summary>
+    public override bool Equals(object? obj)
+        => obj is Color other && this == other;
+
+    /// <summary>
+    /// Returns the hash code for this Color.
+    /// </summary>
+    public override int GetHashCode()
+        => HashCode.Combine(R, G, B, A);
+
+    /// <summary>
     /// Represents the color white.
     /// </summary>
     public static readonly Color White = new(255, 255, 255);

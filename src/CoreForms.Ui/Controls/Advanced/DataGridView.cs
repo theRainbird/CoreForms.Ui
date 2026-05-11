@@ -1,4 +1,5 @@
 using CoreForms.Ui.Core;
+using CoreForms.Ui.Theming;
 using Graphics = CoreForms.Ui.Rendering.Graphics;
 
 namespace CoreForms.Ui.Controls.Advanced;
@@ -30,9 +31,21 @@ public class DataGridView : ContainerControl
     /// </summary>
     public DataGridView()
     {
-        BackColor = Color.White;
+        var theme = ThemeManager.CurrentTheme;
+        _backColor = theme.TextBoxBackground;
         Size = new Size(400, 200);
         TabStop = true;
+    }
+
+    /// <summary>
+    /// Called when the theme changes. Updates datagridview-specific colors.
+    /// </summary>
+    /// <param name="newTheme">The new theme that was activated.</param>
+    public override void OnThemeChanged(Theme newTheme)
+    {
+        if (!_backColorSet)
+            _backColor = newTheme.TextBoxBackground;
+        Invalidate();
     }
 
     /// <summary>
@@ -245,6 +258,7 @@ public class DataGridView : ContainerControl
     {
         if (!Visible) return;
 
+        var theme = ThemeManager.CurrentTheme;
         float zoom = EffectiveZoom;
         int headerHeight = _columnHeadersVisible ? _rowHeight : 0;
         int rowHeaderWidth = _rowHeadersVisible ? 40 : 0;
@@ -262,12 +276,12 @@ public class DataGridView : ContainerControl
         int rowEnd = Math.Min(_rows.Count, rowStart + (dataHeight / _rowHeight) + 2);
 
         g.FillRectangle(BackColor, 0, 0, Width, Height);
-        g.DrawRectangle(Color.FromArgb(180, 180, 180), 0, 0, Width, Height, 1);
+        g.DrawRectangle(theme.DataGridViewBorder, 0, 0, Width, Height, 1);
 
         if (_columnHeadersVisible)
         {
-            g.FillRectangle(SystemColors.Control, 0, 0, Width - scrollBarWidth, headerHeight);
-            g.DrawLine(Color.FromArgb(150, 150, 150), 0, headerHeight, Width - scrollBarWidth, headerHeight);
+            g.FillRectangle(theme.ControlBackground, 0, 0, Width - scrollBarWidth, headerHeight);
+            g.DrawLine(theme.DataGridViewHeaderSeparator, 0, headerHeight, Width - scrollBarWidth, headerHeight);
 
             g.SetClip(new Rectangle(rowHeaderWidth, 0, dataWidth, headerHeight));
             int x = rowHeaderWidth - _horizontalScrollOffset;
@@ -280,9 +294,9 @@ public class DataGridView : ContainerControl
                     int drawWidth = Math.Min(x + colWidth, rowHeaderWidth + dataWidth) - drawX;
                     if (drawWidth > 0)
                     {
-                        g.DrawRectangle(Color.FromArgb(180, 180, 180), drawX, 0, drawWidth, headerHeight, 1);
-                        var font = _columns[col].HeaderCell?.Font ?? Font.Default;
-                        g.DrawString(_columns[col].HeaderText, font, Color.Black, drawX + 4, CoordinateTransform.CenterVertically(0, headerHeight, font, zoom));
+                        g.DrawRectangle(theme.DataGridViewBorder, drawX, 0, drawWidth, headerHeight, 1);
+                        var font = _columns[col].HeaderCell?.Font ?? EffectiveFont;
+                        g.DrawString(_columns[col].HeaderText, font, theme.DataGridViewHeaderText, drawX + 4, CoordinateTransform.CenterVertically(0, headerHeight, font, zoom));
                     }
                 }
                 x += colWidth;
@@ -293,25 +307,25 @@ public class DataGridView : ContainerControl
         if (_rowHeadersVisible)
         {
             g.SetClip(new Rectangle(0, headerHeight, rowHeaderWidth, dataHeight));
-            g.FillRectangle(SystemColors.Control, 0, headerHeight, rowHeaderWidth, dataHeight);
+            g.FillRectangle(theme.ControlBackground, 0, headerHeight, rowHeaderWidth, dataHeight);
 
             for (int rowIdx = rowStart; rowIdx < rowEnd; rowIdx++)
             {
                 int y = headerHeight + (rowIdx * _rowHeight) - _verticalScrollOffset;
                 bool isSelected = rowIdx == _selectedRowIndex;
-                var headerBg = isSelected ? SystemColors.Highlight : SystemColors.Control;
+                var headerBg = isSelected ? SystemColors.Highlight : theme.ControlBackground;
 
                 g.FillRectangle(headerBg, 0, y, rowHeaderWidth, _rowHeight);
-                g.DrawRectangle(Color.FromArgb(180, 180, 180), 0, y, rowHeaderWidth, _rowHeight, 1);
-                var font = Font.Default;
-                g.DrawString((rowIdx + 1).ToString(), font, isSelected ? SystemColors.HighlightText : Color.Black, 4, y + (int)CoordinateTransform.CenterVertically(0, _rowHeight, font, zoom));
+                g.DrawRectangle(theme.DataGridViewBorder, 0, y, rowHeaderWidth, _rowHeight, 1);
+                var font = EffectiveFont;
+                g.DrawString((rowIdx + 1).ToString(), font, isSelected ? SystemColors.HighlightText : theme.DataGridViewRowHeaderText, 4, y + (int)CoordinateTransform.CenterVertically(0, _rowHeight, font, zoom));
             }
 
             if (_allowUserToAddRows)
             {
                 int y = headerHeight + (_rows.Count * _rowHeight) - _verticalScrollOffset;
-                g.FillRectangle(SystemColors.Control, 0, y, rowHeaderWidth, _rowHeight);
-                g.DrawRectangle(Color.FromArgb(180, 180, 180), 0, y, rowHeaderWidth, _rowHeight, 1);
+                g.FillRectangle(theme.ControlBackground, 0, y, rowHeaderWidth, _rowHeight);
+                g.DrawRectangle(theme.DataGridViewBorder, 0, y, rowHeaderWidth, _rowHeight, 1);
             }
 
             g.ResetClip();
@@ -329,7 +343,7 @@ public class DataGridView : ContainerControl
             if (isSelected)
                 g.FillRectangle(SystemColors.Highlight, rowHeaderWidth, y, dataWidth, _rowHeight);
             else if (isAlternate)
-                g.FillRectangle(Color.FromArgb(245, 245, 245), rowHeaderWidth, y, dataWidth, _rowHeight);
+                g.FillRectangle(theme.AlternateRow, rowHeaderWidth, y, dataWidth, _rowHeight);
         }
 
         if (_showGridLines)
@@ -338,7 +352,7 @@ public class DataGridView : ContainerControl
             {
                 int y = headerHeight + (rowIdx * _rowHeight) - _verticalScrollOffset;
 
-                g.DrawLine(Color.FromArgb(180, 180, 180), rowHeaderWidth, y + _rowHeight, rowHeaderWidth + dataWidth, y + _rowHeight);
+                g.DrawLine(theme.GridLine, rowHeaderWidth, y + _rowHeight, rowHeaderWidth + dataWidth, y + _rowHeight);
 
                 int x = rowHeaderWidth - _horizontalScrollOffset;
                 for (int col = 0; col < _columns.Count; col++)
@@ -347,7 +361,7 @@ public class DataGridView : ContainerControl
                     if (x + colWidth > rowHeaderWidth && x < rowHeaderWidth + dataWidth)
                     {
                         int drawX = Math.Max(x, rowHeaderWidth);
-                        g.DrawLine(Color.FromArgb(220, 220, 220), drawX, y, drawX, y + _rowHeight);
+                        g.DrawLine(theme.GridLineVertical, drawX, y, drawX, y + _rowHeight);
                     }
                     x += colWidth;
                 }
@@ -358,7 +372,7 @@ public class DataGridView : ContainerControl
         {
             int y = headerHeight + (rowIdx * _rowHeight) - _verticalScrollOffset;
             bool isSelected = rowIdx == _selectedRowIndex;
-            var textColor = isSelected ? SystemColors.HighlightText : Color.Black;
+            var textColor = isSelected ? SystemColors.HighlightText : theme.DataGridViewCellText;
 
             int x = rowHeaderWidth - _horizontalScrollOffset;
             for (int col = 0; col < _columns.Count; col++)
@@ -372,7 +386,7 @@ public class DataGridView : ContainerControl
                     {
                         var cell = _rows[rowIdx].Cells.Count > col ? _rows[rowIdx].Cells[col] : null;
                         var text = cell?.Value?.ToString() ?? "";
-                        var font = Font.Default;
+                        var font = EffectiveFont;
                         g.DrawString(text, font, textColor, drawX + 4, y + (int)CoordinateTransform.CenterVertically(0, _rowHeight, font, zoom));
                     }
                 }
@@ -383,11 +397,11 @@ public class DataGridView : ContainerControl
         if (_allowUserToAddRows)
         {
             int y = headerHeight + (_rows.Count * _rowHeight) - _verticalScrollOffset;
-            g.FillRectangle(Color.FromArgb(250, 250, 250), rowHeaderWidth, y, dataWidth, _rowHeight);
-            g.DrawLine(Color.FromArgb(150, 150, 150), rowHeaderWidth, y, rowHeaderWidth + dataWidth, y);
-            var addRowFont = Font.Default;
+            g.FillRectangle(theme.DataGridViewAddNewRowBackground, rowHeaderWidth, y, dataWidth, _rowHeight);
+            g.DrawLine(theme.DataGridViewAddNewRowSeparator, rowHeaderWidth, y, rowHeaderWidth + dataWidth, y);
+            var addRowFont = EffectiveFont;
             float scaledAddRowSize = 12 * zoom;
-            g.DrawString("*", addRowFont, Color.FromArgb(150, 150, 150), rowHeaderWidth + 4, y + (_rowHeight - scaledAddRowSize) / 2);
+            g.DrawString("*", addRowFont, theme.DataGridViewAddNewRowAsterisk, rowHeaderWidth + 4, y + (_rowHeight - scaledAddRowSize) / 2);
         }
 
         g.ResetClip();
@@ -396,8 +410,8 @@ public class DataGridView : ContainerControl
         {
             int scrollBarX = Width - scrollBarWidth;
             int scrollBarY = headerHeight;
-            g.FillRectangle(Color.FromArgb(240, 240, 240), scrollBarX, scrollBarY, scrollBarWidth, dataHeight);
-            g.DrawRectangle(Color.FromArgb(180, 180, 180), scrollBarX, scrollBarY, scrollBarWidth, dataHeight, 1);
+            g.FillRectangle(theme.ScrollbarTrack, scrollBarX, scrollBarY, scrollBarWidth, dataHeight);
+            g.DrawRectangle(theme.ScrollbarBorder, scrollBarX, scrollBarY, scrollBarWidth, dataHeight, 1);
 
             float thumbHeightRatio = (float)dataHeight / totalContentHeight;
             int thumbHeight = Math.Max(20, (int)(dataHeight * thumbHeightRatio));
@@ -405,12 +419,12 @@ public class DataGridView : ContainerControl
             float thumbPosRatio = maxScrollVal > 0 ? (float)_verticalScrollOffset / maxScrollVal : 0;
             int thumbY = scrollBarY + (int)(thumbPosRatio * (dataHeight - thumbHeight));
 
-            g.FillRectangle(Color.FromArgb(190, 190, 190), scrollBarX + 2, thumbY, scrollBarWidth - 4, thumbHeight);
-            g.DrawRectangle(Color.FromArgb(150, 150, 150), scrollBarX + 2, thumbY, scrollBarWidth - 4, thumbHeight, 1);
+            g.FillRectangle(theme.ScrollbarThumb, scrollBarX + 2, thumbY, scrollBarWidth - 4, thumbHeight);
+            g.DrawRectangle(theme.ScrollbarThumbBorder, scrollBarX + 2, thumbY, scrollBarWidth - 4, thumbHeight, 1);
         }
 
         if (Focused)
-            g.DrawRectangle(Color.FromArgb(0, 120, 215), 0, 0, Width, Height, 2);
+            g.DrawRectangle(theme.TextBoxFocusBorder, 0, 0, Width, Height, 2);
 
         base.Render(g);
     }

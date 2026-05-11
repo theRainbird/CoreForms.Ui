@@ -3,6 +3,7 @@ using CoreForms.Ui.Core;
 using CoreForms.Ui.Controls.Basic;
 using CoreForms.Ui.Controls.Containers;
 using CoreForms.Ui.Layout;
+using CoreForms.Ui.Theming;
 
 namespace CoreForms.Ui.Demo;
 
@@ -120,26 +121,36 @@ class Program
         var toolStrip = new ToolStrip();
         toolStrip.Dock = DockStyle.Top;
 
-        var newButton = new ToolStripButton("New");
+        var newIcon = SvgImage.FromSvgResource("CoreForms.Ui.Resources.Icons.file-plus.svg", 32);
+        var newButton = new ToolStripButton("New", newIcon);
+        newButton.DisplayStyle = ToolStripItemDisplayStyle.ImageAndText;
         newButton.Click += (s, e) => statusLabel.Text = "New clicked";
         toolStrip.Items.Add(newButton);
 
-        var openButton = new ToolStripButton("Open");
+        var openIcon = SvgImage.FromSvgResource("CoreForms.Ui.Resources.Icons.folder-open.svg", 32);
+        var openButton = new ToolStripButton("Open", openIcon);
+        openButton.DisplayStyle = ToolStripItemDisplayStyle.ImageAndText;
         openButton.Click += (s, e) => statusLabel.Text = "Open clicked";
         toolStrip.Items.Add(openButton);
 
-        var saveButton = new ToolStripButton("Save");
+        var saveIcon = SvgImage.FromSvgResource("CoreForms.Ui.Resources.Icons.device-floppy.svg", 32);
+        var saveButton = new ToolStripButton("Save", saveIcon);
+        saveButton.DisplayStyle = ToolStripItemDisplayStyle.ImageAndText;
         saveButton.Click += (s, e) => statusLabel.Text = "Save clicked";
         toolStrip.Items.Add(saveButton);
 
         toolStrip.Items.Add(new ToolStripSeparator());
 
-        var boldButton = new ToolStripButton("B");
+        var boldIcon = SvgImage.FromSvgResource("CoreForms.Ui.Resources.Icons.bold.svg", 32);
+        var boldButton = new ToolStripButton("B", boldIcon);
+        boldButton.DisplayStyle = ToolStripItemDisplayStyle.ImageAndText;
         boldButton.CheckOnClick = true;
         boldButton.CheckedChanged += (s, e) => statusLabel.Text = $"Bold: {boldButton.Checked}";
         toolStrip.Items.Add(boldButton);
 
-        var italicButton = new ToolStripButton("I");
+        var italicIcon = SvgImage.FromSvgResource("CoreForms.Ui.Resources.Icons.italic.svg", 32);
+        var italicButton = new ToolStripButton("I", italicIcon);
+        italicButton.DisplayStyle = ToolStripItemDisplayStyle.ImageAndText;
         italicButton.CheckOnClick = true;
         italicButton.CheckedChanged += (s, e) => statusLabel.Text = $"Italic: {italicButton.Checked}";
         toolStrip.Items.Add(italicButton);
@@ -151,7 +162,9 @@ class Program
         searchBox.TextChanged += (s, e) => statusLabel.Text = $"Search: {searchBox.Text}";
         toolStrip.Items.Add(searchBox);
 
-        var searchButton = new ToolStripButton("Search");
+        var searchIcon = SvgImage.FromSvgResource("CoreForms.Ui.Resources.Icons.search.svg", 32);
+        var searchButton = new ToolStripButton("Search", searchIcon);
+        searchButton.DisplayStyle = ToolStripItemDisplayStyle.ImageAndText;
         searchButton.Click += (s, e) => statusLabel.Text = $"Searching for: {searchBox.Text}";
         toolStrip.Items.Add(searchButton);
 
@@ -172,7 +185,45 @@ class Program
 
         toolStrip.Items.Add(new ToolStripSeparator());
 
-        var helpButton = new ToolStripButton("Help");
+        ToolStripButton? lightButton = null;
+        ToolStripButton? darkButton = null;
+
+        var lightIcon = SvgImage.FromSvgResource("CoreForms.Ui.Resources.Icons.sun.svg", 32);
+        lightButton = new ToolStripButton("Light", lightIcon);
+        lightButton.DisplayStyle = ToolStripItemDisplayStyle.ImageAndText;
+        lightButton.Checked = true;
+        lightButton.CheckOnClick = true;
+        lightButton.CheckedChanged += (s, e) =>
+        {
+            if (lightButton.Checked)
+            {
+                ThemeManager.SetTheme(new LightTheme());
+                darkButton!.Checked = false;
+                statusLabel.Text = "Theme: Light";
+            }
+        };
+        toolStrip.Items.Add(lightButton);
+
+        var darkIcon = SvgImage.FromSvgResource("CoreForms.Ui.Resources.Icons.moon.svg", 32);
+        darkButton = new ToolStripButton("Dark", darkIcon);
+        darkButton.DisplayStyle = ToolStripItemDisplayStyle.ImageAndText;
+        darkButton.CheckOnClick = true;
+        darkButton.CheckedChanged += (s, e) =>
+        {
+            if (darkButton.Checked)
+            {
+                ThemeManager.SetTheme(new DarkTheme());
+                lightButton!.Checked = false;
+                statusLabel.Text = "Theme: Dark";
+            }
+        };
+        toolStrip.Items.Add(darkButton);
+
+        toolStrip.Items.Add(new ToolStripSeparator());
+
+        var helpIcon = SvgImage.FromSvgResource("CoreForms.Ui.Resources.Icons.help.svg", 32);
+        var helpButton = new ToolStripButton("Help", helpIcon);
+        helpButton.DisplayStyle = ToolStripItemDisplayStyle.ImageAndText;
         helpButton.Click += (s, e) => MessageBox.Show("CoreForms.Ui ToolStrip Demo\n\nDemonstrates all ToolStrip item types.", "Help", MessageBoxButtons.OK, MessageBoxIcon.Information);
         toolStrip.Items.Add(helpButton);
 
@@ -437,7 +488,6 @@ class Program
     {
         var panel = new Panel
         {
-            BackColor = SystemColors.Control,
             Location = new Point(15, 410),
             Size = new Size(400, 160)
         };

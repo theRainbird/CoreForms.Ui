@@ -1,4 +1,5 @@
 using CoreForms.Ui.Core;
+using CoreForms.Ui.Theming;
 using Graphics = CoreForms.Ui.Rendering.Graphics;
 
 namespace CoreForms.Ui.Controls.Basic;
@@ -44,17 +45,19 @@ public class CheckBox : Control
     {
         if (!Visible) return;
 
-        g.FillRectangle(Color.White, 0, (Height - 16) / 2, 16, 16);
-        g.DrawRectangle(Color.FromArgb(128, 128, 128), 0, (Height - 16) / 2, 16, 16, 1);
+        var theme = ThemeManager.CurrentTheme;
+        int boxY = (Height - 16) / 2;
+
+        g.FillRectangle(theme.CheckboxBackground, 0, boxY, 16, 16);
+        g.DrawRectangle(theme.CheckboxBorder, 0, boxY, 16, 16, 1);
 
         if (_checked)
         {
-            var boxY = (Height - 16) / 2f;
-            g.DrawLine(Color.Black, 3, boxY + 8, 6, boxY + 11, 3);
-            g.DrawLine(Color.Black, 6, boxY + 11, 13, boxY + 4, 3);
+            g.DrawLine(theme.CheckboxCheck, 3, boxY + 8, 6, boxY + 11, 3);
+            g.DrawLine(theme.CheckboxCheck, 6, boxY + 11, 13, boxY + 4, 3);
         }
 
-        var font = Font ?? Font.Default;
+        var font = EffectiveFont;
         g.DrawString(Text, font, ForeColor, 20, CoordinateTransform.CenterVertically(Height, font, EffectiveZoom));
 
         base.Render(g);

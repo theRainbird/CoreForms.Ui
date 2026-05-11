@@ -177,7 +177,7 @@ public class ToolStripButton : ToolStripItem
         {
             int textX = showImage ? contentX + imageWidth + 4 : contentX;
             var textColor = Enabled ? Color.Black : SystemColors.GrayText;
-            g.DrawString(DisplayText, font, textColor, textX, y + (height - (int)font.Size) / 2);
+            g.DrawString(DisplayText, font, textColor, textX, y + (height - (int)(font.Size * zoom)) / 2);
         }
 
         if (_dropDownItems.Count > 0)
@@ -199,23 +199,23 @@ public class ToolStripButton : ToolStripItem
     /// <returns>The preferred width in pixels.</returns>
     public override int GetPreferredWidth(Font font, float zoom)
     {
-        int width = 8;
+        int width = 4;
 
         if (DisplayStyle == ToolStripItemDisplayStyle.Text ||
             DisplayStyle == ToolStripItemDisplayStyle.ImageAndText)
         {
-            width += MeasureTextWidth(DisplayText, font, zoom) + 4;
+            width += MeasureTextWidth(DisplayText, font, zoom) + 2;
         }
 
         if ((DisplayStyle == ToolStripItemDisplayStyle.Image ||
              DisplayStyle == ToolStripItemDisplayStyle.ImageAndText) && Image != null)
         {
-            width += Image.Width + 4;
+            width += Image.Width + 2;
         }
 
         if (_dropDownItems.Count > 0)
         {
-            width += 12;
+            width += 10;
         }
 
         return width;

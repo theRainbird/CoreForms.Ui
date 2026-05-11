@@ -1,4 +1,5 @@
 using CoreForms.Ui.Core;
+using CoreForms.Ui.Theming;
 using Graphics = CoreForms.Ui.Rendering.Graphics;
 
 namespace CoreForms.Ui.Controls.Advanced;
@@ -18,8 +19,19 @@ public class TabControl : ContainerControl
     public TabControl()
     {
         Size = new Size(400, 300);
-        BackColor = SystemColors.Control;
+        _backColor = ThemeManager.CurrentTheme.ControlBackground;
         TabStop = true;
+    }
+
+    /// <summary>
+    /// Called when the theme changes. Updates tabcontrol-specific colors.
+    /// </summary>
+    /// <param name="newTheme">The new theme that was activated.</param>
+    public override void OnThemeChanged(Theme newTheme)
+    {
+        if (!_backColorSet)
+            _backColor = newTheme.ControlBackground;
+        Invalidate();
     }
 
     /// <summary>
@@ -79,11 +91,12 @@ public class TabControl : ContainerControl
     {
         if (!Visible) return;
 
-        var font = Font ?? Font.Default;
+        var theme = ThemeManager.CurrentTheme;
+        var font = EffectiveFont;
         var tabHeaderHeight = _tabHeight + 2;
 
         // Draw tab headers background
-        g.FillRectangle(Color.FromArgb(230, 230, 230), 0, 0, Width, tabHeaderHeight);
+        g.FillRectangle(theme.TabHeaderBackground, 0, 0, Width, tabHeaderHeight);
 
         // Draw individual tabs
         for (int i = 0; i < _tabPages.Count; i++)
@@ -94,36 +107,36 @@ public class TabControl : ContainerControl
             if (i == _selectedIndex)
             {
                 // Selected tab: white background, no bottom line
-                g.FillRectangle(Color.White, x, 0, width, tabHeaderHeight);
-                g.DrawString(_tabPages[i].Text, font, Color.Black, x + 5, CoordinateTransform.CenterVertically(0, tabHeaderHeight, font, EffectiveZoom));
+                g.FillRectangle(theme.TabSelectedBackground, x, 0, width, tabHeaderHeight);
+                g.DrawString(_tabPages[i].Text, font, theme.TabSelectedText, x + 5, CoordinateTransform.CenterVertically(0, tabHeaderHeight, font, EffectiveZoom));
             }
             else
             {
                 // Unselected tabs: gray background
-                g.FillRectangle(Color.FromArgb(210, 210, 210), x, 0, width, tabHeaderHeight);
-                g.DrawString(_tabPages[i].Text, font, Color.FromArgb(100, 100, 100), x + 5, CoordinateTransform.CenterVertically(0, tabHeaderHeight, font, EffectiveZoom));
+                g.FillRectangle(theme.TabUnselectedBackground, x, 0, width, tabHeaderHeight);
+                g.DrawString(_tabPages[i].Text, font, theme.TabUnselectedText, x + 5, CoordinateTransform.CenterVertically(0, tabHeaderHeight, font, EffectiveZoom));
             }
         }
 
         // Draw separator line (only for unselected area)
         var selectedTabX = _selectedIndex * 100;
         var selectedTabWidth = 100;
-        
+
         // Line to the left of selected tab
         if (selectedTabX > 0)
         {
-            g.DrawLine(Color.FromArgb(150, 150, 150), 0, tabHeaderHeight, selectedTabX, tabHeaderHeight);
+            g.DrawLine(theme.TabSeparator, 0, tabHeaderHeight, selectedTabX, tabHeaderHeight);
         }
-        
+
         // Line to the right of selected tab
         var rightStart = selectedTabX + selectedTabWidth;
         if (rightStart < Width)
         {
-            g.DrawLine(Color.FromArgb(150, 150, 150), rightStart, tabHeaderHeight, Width, tabHeaderHeight);
+            g.DrawLine(theme.TabSeparator, rightStart, tabHeaderHeight, Width, tabHeaderHeight);
         }
 
         // Draw content area background
-        g.FillRectangle(Color.White, 0, tabHeaderHeight + 1, Width, Height - tabHeaderHeight - 1);
+        g.FillRectangle(theme.TabContentBackground, 0, tabHeaderHeight + 1, Width, Height - tabHeaderHeight - 1);
 
         // Render selected tab page content
         if (SelectedTab != null)
@@ -135,7 +148,7 @@ public class TabControl : ContainerControl
         }
 
         // Draw border around entire control (after content to ensure visibility)
-        g.DrawRectangle(SystemColors.ControlDark, 0, 0, Width, Height, 1);
+        g.DrawRectangle(theme.ControlDark, 0, 0, Width, Height, 1);
     }
 
     /// <summary>
@@ -332,7 +345,7 @@ public class TabPage : ContainerControl
     public TabPage()
     {
         Size = new Size(400, 250);
-        BackColor = Color.White;
+        BackColor = ThemeManager.CurrentTheme.TabContentBackground;
         TabStop = false;
     }
 
@@ -375,7 +388,7 @@ public class StatusStrip : ContainerControl
     public StatusStrip()
     {
         Size = new Size(400, 24);
-        BackColor = SystemColors.Control;
+        BackColor = ThemeManager.CurrentTheme.ControlBackground;
         Dock = DockStyle.Bottom;
     }
 
@@ -392,12 +405,14 @@ public class StatusStrip : ContainerControl
     {
         if (!Visible) return;
 
+        var theme = ThemeManager.CurrentTheme;
+
         g.FillRectangle(BackColor, 0, 0, Width, Height);
-        g.DrawLine(Color.FromArgb(150, 150, 150), 0, 0, Width, 0);
+        g.DrawLine(theme.StatusStripTopLine, 0, 0, Width, 0);
 
         if (!string.IsNullOrEmpty(_text))
         {
-            var font = Font ?? Font.Default;
+            var font = EffectiveFont;
             g.DrawString(_text, font, ForeColor, 4, CoordinateTransform.CenterVertically(Height, font, EffectiveZoom));
         }
 
@@ -406,7 +421,7 @@ public class StatusStrip : ContainerControl
         {
             if (!string.IsNullOrEmpty(item.Text))
             {
-                var font = item.Font ?? Font.Default;
+                var font = item.Font ?? EffectiveFont;
                 g.DrawString(item.Text, font, item.ForeColor, x, CoordinateTransform.CenterVertically(Height, font, EffectiveZoom));
                 x += item.Text.Length * (int)(font.Size * EffectiveZoom) / 2 + 10;
             }

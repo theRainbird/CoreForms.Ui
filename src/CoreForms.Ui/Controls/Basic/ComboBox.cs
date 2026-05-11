@@ -1,4 +1,5 @@
 using CoreForms.Ui.Core;
+using CoreForms.Ui.Theming;
 using Graphics = CoreForms.Ui.Rendering.Graphics;
 
 namespace CoreForms.Ui.Controls.Basic;
@@ -20,9 +21,21 @@ public class ComboBox : Control
     /// </summary>
     public ComboBox()
     {
-        BackColor = Color.White;
+        var theme = ThemeManager.CurrentTheme;
+        _backColor = theme.TextBoxBackground;
         Size = new Size(200, 32);
         TabStop = true;
+    }
+
+    /// <summary>
+    /// Called when the theme changes. Updates combobox-specific colors.
+    /// </summary>
+    /// <param name="newTheme">The new theme that was activated.</param>
+    public override void OnThemeChanged(Theme newTheme)
+    {
+        if (!_backColorSet)
+            _backColor = newTheme.TextBoxBackground;
+        Invalidate();
     }
 
     /// <summary>
@@ -71,9 +84,11 @@ public class ComboBox : Control
     {
         if (!Visible) return;
 
+        var theme = ThemeManager.CurrentTheme;
+
         g.FillRectangle(BackColor, 0, 0, Width, Height);
 
-        var font = Font ?? Font.Default;
+        var font = EffectiveFont;
         float zoom = EffectiveZoom;
         float scaledFontSize = font.Size * zoom;
         var selectedText = SelectedItem?.ToString() ?? "";
@@ -82,8 +97,8 @@ public class ComboBox : Control
 
         g.DrawString(selectedText, font, ForeColor, 3, (Height - scaledFontSize) / 2);
 
-        g.FillRectangle(SystemColors.Control, btnX, 1, btnWidth, Height - 2);
-        g.DrawLine(Color.FromArgb(128, 128, 128), btnX, 0, btnX, Height);
+        g.FillRectangle(theme.ControlBackground, btnX, 1, btnWidth, Height - 2);
+        g.DrawLine(theme.ComboBoxDropdownButtonSeparator, btnX, 0, btnX, Height);
 
         DrawFocusIndicator(g);
 
@@ -91,7 +106,7 @@ public class ComboBox : Control
         var cy = Height / 2;
         var tw = 4;
         var th = 3;
-        g.FillTriangle(Color.FromArgb(80, 80, 80),
+        g.FillTriangle(theme.ComboBoxDropdownArrow,
             cx - tw, cy - th,
             cx + tw, cy - th,
             cx, cy + th);
@@ -101,7 +116,7 @@ public class ComboBox : Control
 
     private int GetItemHeight()
     {
-        var font = Font ?? Font.Default;
+        var font = EffectiveFont;
         return CoordinateTransform.GetItemHeight(font, EffectiveZoom);
     }
 
@@ -113,7 +128,8 @@ public class ComboBox : Control
     {
         if (!Visible || !_droppedDown) return;
 
-        var font = Font ?? Font.Default;
+        var theme = ThemeManager.CurrentTheme;
+        var font = EffectiveFont;
         var itemHeight = GetItemHeight();
         var totalHeight = _items.Count * itemHeight;
         var scrollBarWidth = 16;
@@ -121,23 +137,23 @@ public class ComboBox : Control
         var listWidth = needsScrollbar ? Width - scrollBarWidth : Width;
         var dropY = Height;
 
-        g.FillRectangle(Color.White, 0, dropY, Width, _dropDownHeight);
-        g.DrawRectangle(Color.FromArgb(128, 128, 128), 0, dropY, Width, _dropDownHeight, 1);
+        g.FillRectangle(theme.MenuDropdownBackground, 0, dropY, Width, _dropDownHeight);
+        g.DrawRectangle(theme.MenuDropdownBorder, 0, dropY, Width, _dropDownHeight, 1);
 
         if (needsScrollbar)
         {
             int scrollBarX = Width - scrollBarWidth;
 
-            g.FillRectangle(Color.FromArgb(240, 240, 240), scrollBarX, dropY, scrollBarWidth, _dropDownHeight);
-            g.DrawRectangle(Color.FromArgb(180, 180, 180), scrollBarX, dropY, scrollBarWidth, _dropDownHeight, 1);
+            g.FillRectangle(theme.ScrollbarTrack, scrollBarX, dropY, scrollBarWidth, _dropDownHeight);
+            g.DrawRectangle(theme.ScrollbarBorder, scrollBarX, dropY, scrollBarWidth, _dropDownHeight, 1);
 
             int maxScroll = totalHeight - _dropDownHeight + 4;
             float thumbHeightRatio = (float)_dropDownHeight / totalHeight;
             int thumbHeight = Math.Max(20, (int)(_dropDownHeight * thumbHeightRatio));
             int thumbY = dropY + (maxScroll > 0 ? (int)((float)_scrollOffset / maxScroll * (_dropDownHeight - thumbHeight)) : 0);
 
-            g.FillRectangle(Color.FromArgb(190, 190, 190), scrollBarX + 2, thumbY, scrollBarWidth - 4, thumbHeight);
-            g.DrawRectangle(Color.FromArgb(150, 150, 150), scrollBarX + 2, thumbY, scrollBarWidth - 4, thumbHeight, 1);
+            g.FillRectangle(theme.ScrollbarThumb, scrollBarX + 2, thumbY, scrollBarWidth - 4, thumbHeight);
+            g.DrawRectangle(theme.ScrollbarThumbBorder, scrollBarX + 2, thumbY, scrollBarWidth - 4, thumbHeight, 1);
         }
 
         g.SetClip(new Rectangle(0, dropY, listWidth, _dropDownHeight));
@@ -156,7 +172,7 @@ public class ComboBox : Control
             }
             else if (i == _hoveredIndex)
             {
-                g.FillRectangle(Color.FromArgb(200, 220, 255), 1, y, listWidth - 2, itemHeight);
+                g.FillRectangle(theme.HoverHighlight, 1, y, listWidth - 2, itemHeight);
                 g.DrawString(_items[i]?.ToString() ?? "", font, ForeColor, 4, y + 2);
             }
             else
@@ -242,7 +258,6 @@ public class ComboBox : Control
                     _droppedDown = false;
                     _scrollOffset = 0;
                     _hoveredIndex = -1;
-                    CapturingMouse = false;
                     Invalidate();
                     return;
                 }
@@ -251,7 +266,6 @@ public class ComboBox : Control
             _droppedDown = false;
             _scrollOffset = 0;
             _hoveredIndex = -1;
-            CapturingMouse = false;
             Invalidate();
             return;
         }
@@ -264,6 +278,20 @@ public class ComboBox : Control
             EnsureSelectedVisible();
             Invalidate();
         }
+    }
+
+    /// <summary>
+    /// Raises the MouseUp event to release mouse capture after dropdown closes.
+    /// </summary>
+    /// <param name="e">The event arguments.</param>
+    protected internal override void OnMouseUp(EventArgs e)
+    {
+        if (!_droppedDown && CapturingMouse)
+        {
+            CapturingMouse = false;
+            return;
+        }
+        base.OnMouseUp(e);
     }
 
     /// <summary>

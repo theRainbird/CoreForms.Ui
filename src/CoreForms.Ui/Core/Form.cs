@@ -1,5 +1,6 @@
 using CoreForms.Ui.Controls.Advanced;
 using CoreForms.Ui.Controls.Containers;
+using CoreForms.Ui.Theming;
 using System;
 
 namespace CoreForms.Ui.Core;
@@ -16,6 +17,15 @@ public class Form : ContainerControl
     private IntPtr _handle;
     private Control? _captureControl;
     private float _zoom = Dpi.GetDefaultZoom();
+
+    /// <summary>
+    /// Initializes a new instance of Form.
+    /// </summary>
+    public Form()
+    {
+        _backColor = ThemeManager.CurrentTheme.WindowBackground;
+        _foreColor = ThemeManager.CurrentTheme.WindowText;
+    }
 
     /// <summary>
     /// Gets the native window handle.
@@ -507,6 +517,32 @@ public class Form : ContainerControl
     /// Called when the window state changes.
     /// </summary>
     protected internal virtual void OnWindowStateChanged() { }
+
+    /// <summary>
+    /// Called when the theme changes. Propagates the theme change to all child controls.
+    /// </summary>
+    /// <param name="newTheme">The new theme that was activated.</param>
+    public override void OnThemeChanged(Theme newTheme)
+    {
+        if (!_backColorSet)
+            _backColor = newTheme.WindowBackground;
+        if (!_foreColorSet)
+            _foreColor = newTheme.WindowText;
+        PropagateThemeChange(this, newTheme);
+        Invalidate();
+    }
+
+    private static void PropagateThemeChange(Control parent, Theme theme)
+    {
+        foreach (Control child in parent.Controls)
+        {
+            child.OnThemeChanged(theme);
+            if (child is ContainerControl container)
+            {
+                PropagateThemeChange(container, theme);
+            }
+        }
+    }
 
     /// <summary>
     /// Raises the GotFocus event.

@@ -151,6 +151,6 @@ public class ToolStripLabel : ToolStripItem
     /// <returns>The preferred width in pixels.</returns>
     public override int GetPreferredWidth(Font font, float zoom)
     {
-        return MeasureTextWidth(DisplayText, font, zoom) + Padding.Horizontal + 8;
+        return MeasureTextWidth(DisplayText, font, zoom) + Padding.Horizontal + 4;
     }
 }

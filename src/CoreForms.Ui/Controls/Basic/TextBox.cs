@@ -1,4 +1,5 @@
 using CoreForms.Ui.Core;
+using CoreForms.Ui.Theming;
 using Graphics = CoreForms.Ui.Rendering.Graphics;
 
 namespace CoreForms.Ui.Controls.Basic;
@@ -19,10 +20,24 @@ public class TextBox : Control
     /// </summary>
     public TextBox()
     {
-        BackColor = Color.White;
-        ForeColor = Color.Black;
+        var theme = ThemeManager.CurrentTheme;
+        _backColor = theme.TextBoxBackground;
+        _foreColor = theme.TextBoxText;
         Size = new Size(200, 32);
         TabStop = true;
+    }
+
+    /// <summary>
+    /// Called when the theme changes. Updates textbox-specific colors.
+    /// </summary>
+    /// <param name="newTheme">The new theme that was activated.</param>
+    public override void OnThemeChanged(Theme newTheme)
+    {
+        if (!_backColorSet)
+            _backColor = newTheme.TextBoxBackground;
+        if (!_foreColorSet)
+            _foreColor = newTheme.TextBoxText;
+        Invalidate();
     }
 
     /// <summary>
@@ -107,7 +122,7 @@ public class TextBox : Control
     {
         if (string.IsNullOrEmpty(text))
             return 0;
-        var font = Font ?? Font.Default;
+        var font = EffectiveFont;
         var zoom = EffectiveZoom;
         var measured = Platform.Platform.MeasureText(text, font, zoom);
         return (int)(measured.width / zoom);
@@ -119,7 +134,7 @@ public class TextBox : Control
             return 0;
         if (_useSystemPasswordChar)
         {
-            var font = Font ?? Font.Default;
+            var font = EffectiveFont;
             var zoom = EffectiveZoom;
             var measured = Platform.Platform.MeasureText(BulletChar, font, zoom);
             int bulletWidth = (int)(measured.width / zoom);
@@ -136,14 +151,16 @@ public class TextBox : Control
     {
         if (!Visible) return;
 
-g.FillRectangle(BackColor, 0, 0, Width, Height);
+        var theme = ThemeManager.CurrentTheme;
+
+        g.FillRectangle(BackColor, 0, 0, Width, Height);
 
         if (Focused)
-            g.DrawRectangle(Color.FromArgb(0, 120, 215), 0, 0, Width, Height, 2);
+            g.DrawRectangle(theme.TextBoxFocusBorder, 0, 0, Width, Height, 2);
         else
-            g.DrawRectangle(Color.FromArgb(128, 128, 128), 0, 0, Width, Height, 1);
+            g.DrawRectangle(theme.TextBoxBorder, 0, 0, Width, Height, 1);
 
-        var font = Font ?? Font.Default;
+        var font = EffectiveFont;
         float zoom = EffectiveZoom;
         float scaledFontSize = font.Size * zoom;
         float textY = CoordinateTransform.CenterVertically(Height, font, zoom);
@@ -177,7 +194,7 @@ g.FillRectangle(BackColor, 0, 0, Width, Height);
             {
                 string textBeforeCursor = displayText.Substring(0, _cursorPosition);
                 float cursorX = textX + MeasureTextWidth(textBeforeCursor);
-                g.DrawLine(Color.Black, cursorX, textY, cursorX, textY + scaledFontSize, 1);
+                g.DrawLine(theme.CursorLine, cursorX, textY, cursorX, textY + scaledFontSize, 1);
             }
         }
 
@@ -266,7 +283,7 @@ g.FillRectangle(BackColor, 0, 0, Width, Height);
 
             if (_useSystemPasswordChar && _text.Length > 0)
             {
-                var font = Font ?? Font.Default;
+                var font = EffectiveFont;
                 var zoom = EffectiveZoom;
                 var bulletMeasured = Platform.Platform.MeasureText(BulletChar, font, zoom);
                 int bulletWidth = (int)(bulletMeasured.width / zoom);

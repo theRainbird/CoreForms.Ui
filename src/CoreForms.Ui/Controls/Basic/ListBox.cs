@@ -1,4 +1,5 @@
 using CoreForms.Ui.Core;
+using CoreForms.Ui.Theming;
 using Graphics = CoreForms.Ui.Rendering.Graphics;
 
 namespace CoreForms.Ui.Controls.Basic;
@@ -16,9 +17,21 @@ public class ListBox : Control
     /// </summary>
     public ListBox()
     {
-        BackColor = Color.White;
+        var theme = ThemeManager.CurrentTheme;
+        _backColor = theme.TextBoxBackground;
         Size = new Size(150, 120);
         TabStop = true;
+    }
+
+    /// <summary>
+    /// Called when the theme changes. Updates listbox-specific colors.
+    /// </summary>
+    /// <param name="newTheme">The new theme that was activated.</param>
+    public override void OnThemeChanged(Theme newTheme)
+    {
+        if (!_backColorSet)
+            _backColor = newTheme.TextBoxBackground;
+        Invalidate();
     }
 
     /// <summary>
@@ -58,14 +71,16 @@ public class ListBox : Control
     {
         if (!Visible) return;
 
+        var theme = ThemeManager.CurrentTheme;
+
         g.FillRectangle(BackColor, 0, 0, Width, Height);
 
         if (Focused)
-            g.DrawRectangle(Color.FromArgb(0, 120, 215), 0, 0, Width, Height, 2);
+            g.DrawRectangle(theme.TextBoxFocusBorder, 0, 0, Width, Height, 2);
         else
-            g.DrawRectangle(Color.FromArgb(128, 128, 128), 0, 0, Width, Height, 1);
+            g.DrawRectangle(theme.TextBoxBorder, 0, 0, Width, Height, 1);
 
-        var font = Font ?? Font.Default;
+        var font = EffectiveFont;
         var itemHeight = CoordinateTransform.GetItemHeight(font, EffectiveZoom);
         var y = 2;
 
@@ -98,7 +113,7 @@ public class ListBox : Control
         var mouseArgs = e as MouseEventArgs;
         if (mouseArgs != null)
         {
-            var font = Font ?? Font.Default;
+            var font = EffectiveFont;
             var itemHeight = CoordinateTransform.GetItemHeight(font, EffectiveZoom);
             var index = (mouseArgs.Y - 2) / itemHeight;
 
