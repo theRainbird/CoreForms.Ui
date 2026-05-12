@@ -18,7 +18,7 @@ internal class MessageBoxOverlay : Control
     private readonly MessageBoxIcon _icon;
     private readonly MessageBoxDefaultButton _defaultButton;
     private DialogResult _dialogResult = DialogResult.None;
-    private SvgImage? _iconImage;
+    private IGraphicsImage? _iconImage;
     private readonly int _iconSize = 48;
     private readonly List<Button> _dialogButtons = new();
     private int _dialogWidth;

@@ -179,10 +179,10 @@ public class DarkTheme : Theme
     public override Color MessageBoxBorder => Color.FromArgb(80, 80, 83);
 
     /// <inheritdoc />
-    public override Color ButtonHoverBackground => Color.FromArgb(0, 0, 0);
+    public override Color ButtonHoverBackground => Color.FromArgb(60, 60, 63);
 
     /// <inheritdoc />
-    public override Color ButtonPressedBackground => Color.FromArgb(0, 0, 0);
+    public override Color ButtonPressedBackground => Color.FromArgb(35, 35, 38);
 
     /// <inheritdoc />
     public override Color ButtonBorder => Color.FromArgb(80, 80, 83);

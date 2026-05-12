@@ -21,7 +21,7 @@ public static class Platform
     private static Form? _focusedWindow;
     private static Point _lastMousePosition;
     private static uint _nextWindowId = 1;
-    private static readonly Dictionary<(MessageBoxIcon icon, uint windowId, int size), SvgImage> _iconImageCache = new();
+    private static readonly Dictionary<(MessageBoxIcon icon, uint windowId, int size), IGraphicsImage> _iconImageCache = new();
     private static IKeyboard? _keyboard;
 
     /// <summary>
@@ -480,15 +480,15 @@ public static class Platform
     }
 
     /// <summary>
-    /// Loads a message box icon as an SvgImage for the specified window.
+    /// Loads a message box icon as an IGraphicsImage for the specified window.
     /// Uses Svg.Skia for resolution-independent SVG icons with alpha transparency.
     /// The image is cached per (icon, windowId, size) pair.
     /// </summary>
     /// <param name="icon">The message box icon type to load.</param>
     /// <param name="windowId">The window ID to associate the icon with.</param>
     /// <param name="size">The desired icon size in pixels. Default is 48.</param>
-    /// <returns>The SvgImage, or null if the icon could not be loaded.</returns>
-    public static SvgImage? LoadMessageBoxIcon(MessageBoxIcon icon, uint windowId, int size = 48)
+    /// <returns>The IGraphicsImage, or null if the icon could not be loaded.</returns>
+    public static IGraphicsImage? LoadMessageBoxIcon(MessageBoxIcon icon, uint windowId, int size = 48)
     {
         if (icon == MessageBoxIcon.None)
             return null;
@@ -511,14 +511,14 @@ public static class Platform
     }
 
     /// <summary>
-    /// Loads an SVG resource from an embedded resource and renders it to an SvgImage
+    /// Loads an SVG resource from an embedded resource and renders it to an IGraphicsImage
     /// at the specified pixel size with full alpha transparency support.
     /// Uses Svg.Skia for pure C# SVG rasterization.
     /// </summary>
     /// <param name="resourceName">The manifest resource name of the SVG file.</param>
     /// <param name="size">The desired width/height in pixels.</param>
-    /// <returns>The SvgImage, or null if loading failed.</returns>
-    public static SvgImage? LoadSvgResource(string resourceName, int size)
+    /// <returns>The IGraphicsImage, or null if loading failed.</returns>
+    public static IGraphicsImage? LoadSvgResource(string resourceName, int size)
     {
         try
         {
@@ -533,6 +533,17 @@ public static class Platform
             Console.WriteLine($"[SVG] EXCEPTION: {ex.GetType().Name}: {ex.Message}");
             return null;
         }
+    }
+
+    /// <summary>
+    /// Loads a raster image resource (PNG, JPEG, BMP, etc.) from an embedded resource.
+    /// Supports alpha transparency for cutout images.
+    /// </summary>
+    /// <param name="resourceName">The manifest resource name of the image file.</param>
+    /// <returns>The IGraphicsImage, or null if loading failed.</returns>
+    public static IGraphicsImage? LoadRasterImageResource(string resourceName)
+    {
+        return RasterImage.FromResource(resourceName);
     }
 
     private static string? GetIconResourceName(MessageBoxIcon icon)

@@ -95,8 +95,10 @@ public class ToolStrip : ContainerControl
     {
         if (!Visible) return;
 
+        var theme = ThemeManager.CurrentTheme;
+
         g.FillRectangle(BackColor, 0, 0, Width, Height);
-        g.DrawLine(Color.FromArgb(180, 180, 180), 0, Height - 1, Width, Height - 1);
+        g.DrawLine(theme.MenuSeparator, 0, Height - 1, Width, Height - 1);
 
         int xOffset = 0;
 
@@ -122,7 +124,7 @@ public class ToolStrip : ContainerControl
 
             if (isHovered || isPressed)
             {
-                g.FillRectangle(Color.FromArgb(200, 200, 200), xOffset, 2, itemWidth, Height - 4);
+                g.FillRectangle(theme.MenuHover, xOffset, 2, itemWidth, Height - 4);
             }
 
             item.OnPaint(g, xOffset + 4, 2, itemWidth - 8, Height - 4, font, zoom, isHovered, isPressed);
@@ -179,8 +181,10 @@ public class ToolStrip : ContainerControl
         int ddY = Height;
         int ddHeight = dropDownItems.Count * itemHeight + 4;
 
-        g.FillRectangle(Color.White, ddX, ddY, maxWidth, ddHeight);
-        g.DrawRectangle(Color.FromArgb(100, 100, 100), ddX, ddY, maxWidth, ddHeight, 1);
+        var theme = ThemeManager.CurrentTheme;
+
+        g.FillRectangle(theme.MenuDropdownBackground, ddX, ddY, maxWidth, ddHeight);
+        g.DrawRectangle(theme.MenuDropdownBorder, ddX, ddY, maxWidth, ddHeight, 1);
 
         int itemY = ddY + 2;
         for (int i = 0; i < dropDownItems.Count; i++)
@@ -190,7 +194,7 @@ public class ToolStrip : ContainerControl
 
             if (isHovered)
             {
-                g.FillRectangle(Color.FromArgb(200, 220, 255), ddX + 1, itemY, maxWidth - 2, itemHeight);
+                g.FillRectangle(theme.MenuDropdownHover, ddX + 1, itemY, maxWidth - 2, itemHeight);
             }
 
             ddItem.OnPaint(g, ddX + 6, itemY, maxWidth - 12, itemHeight, font, zoom, isHovered, false);
@@ -512,7 +516,8 @@ public class ToolStrip : ContainerControl
 
     private void RenderGrip(Graphics g, int x, int y, int width, int height)
     {
-        var gripColor = Color.FromArgb(150, 150, 150);
+        var theme = ThemeManager.CurrentTheme;
+        var gripColor = theme.GrayText;
         int dotSize = 2;
         int gap = 4;
         int gripDotHeight = 14;
@@ -531,14 +536,15 @@ public class ToolStrip : ContainerControl
 
     private void RenderOverflowButton(Graphics g, int x, int y, int width, int height)
     {
+        var theme = ThemeManager.CurrentTheme;
         bool isHovered = _hoveredItem == null && false;
         if (isHovered)
         {
-            g.FillRectangle(Color.FromArgb(200, 200, 200), x, y, width, height);
+            g.FillRectangle(theme.MenuHover, x, y, width, height);
         }
 
         var font = Font ?? Font.Default;
-        g.DrawString(">>", font, Color.Black, x + 3, y + (height - (int)font.Size) / 2);
+        g.DrawString(">>", font, theme.ToolStripItemText, x + 3, y + (height - (int)font.Size) / 2);
     }
 
     private void CalculateOverflow()

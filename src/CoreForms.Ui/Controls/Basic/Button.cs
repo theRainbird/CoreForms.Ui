@@ -27,14 +27,15 @@ public class Button : Control
     {
         if (!Visible) return;
 
+        var theme = ThemeManager.CurrentTheme;
         var bgColor = BackColor;
         if (IsPressed)
-            bgColor = Color.FromArgb(Math.Max(0, bgColor.R - 20), Math.Max(0, bgColor.G - 20), Math.Max(0, bgColor.B - 20));
+            bgColor = theme.ButtonPressedBackground;
         else if (IsHovered)
-            bgColor = Color.FromArgb(Math.Min(255, bgColor.R + 15), Math.Min(255, bgColor.G + 15), Math.Min(255, bgColor.B + 15));
+            bgColor = theme.ButtonHoverBackground;
 
         g.FillRectangle(bgColor, 0, 0, Width, Height);
-        g.DrawRectangle(ThemeManager.CurrentTheme.ButtonBorder, 0, 0, Width, Height, 1);
+        g.DrawRectangle(theme.ButtonBorder, 0, 0, Width, Height, 1);
 
         DrawFocusIndicator(g);
 

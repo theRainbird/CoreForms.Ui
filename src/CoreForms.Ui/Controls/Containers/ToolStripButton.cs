@@ -31,7 +31,7 @@ public class ToolStripButton : ToolStripItem
     /// Initializes a new instance of ToolStripButton with the specified image.
     /// </summary>
     /// <param name="image">The button image.</param>
-    public ToolStripButton(SvgImage image)
+    public ToolStripButton(IGraphicsImage image)
     {
         Image = image;
     }
@@ -41,7 +41,7 @@ public class ToolStripButton : ToolStripItem
     /// </summary>
     /// <param name="text">The button text.</param>
     /// <param name="image">The button image.</param>
-    public ToolStripButton(string text, SvgImage image)
+    public ToolStripButton(string text, IGraphicsImage image)
     {
         Text = text;
         Image = image;

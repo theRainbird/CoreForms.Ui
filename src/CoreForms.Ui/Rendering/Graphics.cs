@@ -244,12 +244,12 @@ namespace CoreForms.Ui.Rendering;
     /// <summary>
     /// Draws an image at the specified location and size.
     /// </summary>
-    /// <param name="image">The SvgImage to draw.</param>
+    /// <param name="image">The IGraphicsImage to draw.</param>
     /// <param name="x">The x-coordinate.</param>
     /// <param name="y">The y-coordinate.</param>
     /// <param name="width">The width.</param>
     /// <param name="height">The height.</param>
-    public void DrawImage(SvgImage image, float x, float y, float width, float height)
+    public void DrawImage(IGraphicsImage image, float x, float y, float width, float height)
     {
         _commands.Add(new DrawCommand
         {
@@ -458,7 +458,7 @@ public class DrawCommand
     /// <summary>
     /// Gets or sets the image (for DrawImage commands).
     /// </summary>
-    public SvgImage? Image { get; set; }
+    public IGraphicsImage? Image { get; set; }
 
     /// <summary>
     /// Gets or sets the clipping bounds.

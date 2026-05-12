@@ -179,10 +179,10 @@ public class LightTheme : Theme
     public override Color MessageBoxBorder => Color.FromArgb(100, 100, 100);
 
     /// <inheritdoc />
-    public override Color ButtonHoverBackground => Color.FromArgb(0, 0, 0);
+    public override Color ButtonHoverBackground => Color.FromArgb(240, 240, 240);
 
     /// <inheritdoc />
-    public override Color ButtonPressedBackground => Color.FromArgb(0, 0, 0);
+    public override Color ButtonPressedBackground => Color.FromArgb(220, 220, 220);
 
     /// <inheritdoc />
     public override Color ButtonBorder => Color.FromArgb(128, 128, 128);

@@ -29,11 +29,12 @@ public class ContainerControl : Control
     }
 
     /// <summary>
-    /// Gets the child control at the specified point.
+    /// Gets the direct child control at the specified point.
+    /// Does not recurse into nested containers — only checks immediate children.
     /// </summary>
-    /// <param name="point">The point to test.</param>
-    /// <returns>The child control at the specified point, or null if none found.</returns>
-    protected Control? GetChildAtPoint(Point point)
+    /// <param name="point">The point to test, in this container's coordinate space.</param>
+    /// <returns>The direct child control at the point, or null if none found.</returns>
+    protected virtual Control? GetChildAtPoint(Point point)
     {
         for (int i = Controls.Count - 1; i >= 0; i--)
         {
@@ -42,6 +43,37 @@ public class ContainerControl : Control
             {
                 return child;
             }
+        }
+        return null;
+    }
+
+    /// <summary>
+    /// Finds the deepest child control at the specified point and computes its local coordinates.
+    /// Recursively descends through nested containers, tracking coordinate transformations at each level.
+    /// Uses GetChildAtPoint (virtual) so that derived classes like TabControl can apply
+    /// coordinate transformations (e.g., tab header offset).
+    /// </summary>
+    /// <param name="point">The point in this container's coordinate space.</param>
+    /// <param name="localPoint">The resulting point in the deepest child's coordinate space.</param>
+    /// <returns>The deepest child control, or null if none found.</returns>
+    protected virtual Control? GetDeepestChildAtPoint(Point point, out Point localPoint)
+    {
+        localPoint = point;
+        var child = GetChildAtPoint(point);
+        if (child != null)
+        {
+            var childLocal = new Point(point.X - child.X, point.Y - child.Y);
+            if (child is ContainerControl container)
+            {
+                var deepest = container.GetDeepestChildAtPoint(childLocal, out var deepestLocal);
+                if (deepest != null)
+                {
+                    localPoint = deepestLocal;
+                    return deepest;
+                }
+            }
+            localPoint = childLocal;
+            return child;
         }
         return null;
     }
@@ -56,11 +88,11 @@ public class ContainerControl : Control
         if (args != null)
         {
             var point = new Point(args.X, args.Y);
-            var target = GetChildAtPoint(point);
+            var target = GetDeepestChildAtPoint(point, out var localPoint);
             if (target != null)
             {
-                var localArgs = new MouseEventArgs(args.Button, args.Clicks, args.X - target.X, args.Y - target.Y, args.Delta);
-                ActiveControl = target;
+                var localArgs = new MouseEventArgs(args.Button, args.Clicks, localPoint.X, localPoint.Y, args.Delta);
+                SetActiveControlRecursive(target);
                 target.OnMouseDown(localArgs);
                 return;
             }
@@ -77,10 +109,11 @@ public class ContainerControl : Control
         var args = e as MouseEventArgs;
         if (args != null)
         {
-            var target = GetChildAtPoint(new Point(args.X, args.Y));
+            var point = new Point(args.X, args.Y);
+            var target = GetDeepestChildAtPoint(point, out var localPoint);
             if (target != null)
             {
-                var localArgs = new MouseEventArgs(args.Button, args.Clicks, args.X - target.X, args.Y - target.Y, args.Delta);
+                var localArgs = new MouseEventArgs(args.Button, args.Clicks, localPoint.X, localPoint.Y, args.Delta);
                 target.OnMouseUp(localArgs);
                 return;
             }
@@ -97,10 +130,11 @@ public class ContainerControl : Control
         var args = e as MouseEventArgs;
         if (args != null)
         {
-            var target = GetChildAtPoint(new Point(args.X, args.Y));
+            var point = new Point(args.X, args.Y);
+            var target = GetDeepestChildAtPoint(point, out var localPoint);
             if (target != null)
             {
-                var localArgs = new MouseEventArgs(args.Button, args.Clicks, args.X - target.X, args.Y - target.Y, args.Delta);
+                var localArgs = new MouseEventArgs(args.Button, args.Clicks, localPoint.X, localPoint.Y, args.Delta);
                 target.OnMouseMove(localArgs);
                 return;
             }
@@ -117,7 +151,8 @@ public class ContainerControl : Control
         var args = e as MouseEventArgs;
         if (args != null)
         {
-            var target = GetChildAtPoint(new Point(args.X, args.Y));
+            var point = new Point(args.X, args.Y);
+            var target = GetDeepestChildAtPoint(point, out _);
             if (target != null)
             {
                 target.OnMouseWheel(e);
@@ -125,6 +160,22 @@ public class ContainerControl : Control
             }
         }
         base.OnMouseWheel(e);
+    }
+
+    /// <summary>
+    /// Sets the active control, walking up through container controls to the form level.
+    /// </summary>
+    /// <param name="control">The control to activate.</param>
+    private void SetActiveControlRecursive(Control control)
+    {
+        if (control is ContainerControl container)
+        {
+            ActiveControl = container;
+        }
+        else
+        {
+            ActiveControl = control;
+        }
     }
 
     /// <summary>

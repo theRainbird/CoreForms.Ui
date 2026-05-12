@@ -84,6 +84,48 @@ public class TabControl : ContainerControl
     }
 
     /// <summary>
+    /// Gets the child control at the specified point, returning null for clicks in the tab header area.
+    /// </summary>
+    /// <param name="point">The point to test, in TabControl coordinates.</param>
+    /// <returns>The child control at the point, or null if in the header area.</returns>
+    protected override Control? GetChildAtPoint(Point point)
+    {
+        var tabHeaderHeight = _tabHeight + 2;
+        if (point.Y < tabHeaderHeight)
+            return null;
+        var contentPoint = new Point(point.X, point.Y - tabHeaderHeight);
+        // Only the selected tab page should receive hits
+        if (SelectedTab != null && SelectedTab.HitTest(contentPoint))
+            return SelectedTab;
+        return null;
+    }
+
+    /// <summary>
+    /// Finds the deepest child at the point, shifting coordinates past the tab header.
+    /// </summary>
+    protected override Control? GetDeepestChildAtPoint(Point point, out Point localPoint)
+    {
+        var tabHeaderHeight = _tabHeight + 2;
+        if (point.Y < tabHeaderHeight)
+        {
+            localPoint = point;
+            return null;
+        }
+        var contentPoint = new Point(point.X, point.Y - tabHeaderHeight);
+        var result = base.GetDeepestChildAtPoint(contentPoint, out var deepestLocal);
+        if (result != null)
+        {
+            // Convert deepest local point back to TabControl coordinates (add header offset)
+            localPoint = new Point(deepestLocal.X, deepestLocal.Y + tabHeaderHeight);
+        }
+        else
+        {
+            localPoint = point;
+        }
+        return result;
+    }
+
+    /// <summary>
     /// Renders the tab control with its tab headers and selected page.
     /// </summary>
     /// <param name="g">The Graphics object to use for rendering.</param>
@@ -152,7 +194,8 @@ public class TabControl : ContainerControl
     }
 
     /// <summary>
-    /// Raises the MouseDown event to handle tab header clicks and route to tab page content.
+    /// Raises the MouseDown event to handle tab header clicks.
+    /// Content area clicks are routed to child controls by the base ContainerControl.
     /// </summary>
     /// <param name="e">The event arguments.</param>
     protected internal override void OnMouseDown(EventArgs e)
@@ -170,80 +213,34 @@ public class TabControl : ContainerControl
                     return;
                 }
             }
-            else if (SelectedTab != null)
-            {
-                var localArgs = new MouseEventArgs(args.Button, args.Clicks, args.X, args.Y - tabHeaderHeight - 1, args.Delta);
-                SelectedTab.OnMouseDown(localArgs);
-                if (SelectedTab.ActiveControl != null)
-                {
-                    SelectedTab.ActiveControl.Focused = true;
-                }
-                return;
-            }
         }
         base.OnMouseDown(e);
     }
 
     /// <summary>
-    /// Raises the MouseUp event and routes to the selected tab page.
+    /// Raises the MouseUp event. Content area clicks are routed by the base ContainerControl.
     /// </summary>
     /// <param name="e">The event arguments.</param>
     protected internal override void OnMouseUp(EventArgs e)
     {
-        var args = e as MouseEventArgs;
-        if (args != null && _tabPages.Count > 0 && SelectedTab != null)
-        {
-            var tabHeaderHeight = _tabHeight + 2;
-            if (args.Y >= tabHeaderHeight)
-            {
-                var localArgs = new MouseEventArgs(args.Button, args.Clicks, args.X, args.Y - tabHeaderHeight - 1, args.Delta);
-                SelectedTab.OnMouseUp(localArgs);
-                return;
-            }
-            // Header area click - tab may have switched, but don't route to non-selected TabPages
-            return;
-        }
         base.OnMouseUp(e);
     }
 
     /// <summary>
-    /// Raises the MouseMove event and routes to the selected tab page.
+    /// Raises the MouseMove event. Routed by the base ContainerControl.
     /// </summary>
     /// <param name="e">The event arguments.</param>
     protected internal override void OnMouseMove(EventArgs e)
     {
-        var args = e as MouseEventArgs;
-        if (args != null && _tabPages.Count > 0 && SelectedTab != null)
-        {
-            var tabHeaderHeight = _tabHeight + 2;
-            if (args.Y >= tabHeaderHeight)
-            {
-                var localArgs = new MouseEventArgs(args.Button, args.Clicks, args.X, args.Y - tabHeaderHeight - 1, args.Delta);
-                SelectedTab.OnMouseMove(localArgs);
-                return;
-            }
-            // Header area move - don't route to non-selected TabPages
-            return;
-        }
         base.OnMouseMove(e);
     }
 
     /// <summary>
-    /// Raises the MouseWheel event and routes to the selected tab page.
+    /// Raises the MouseWheel event. Routed by the base ContainerControl.
     /// </summary>
     /// <param name="e">The event arguments.</param>
     protected internal override void OnMouseWheel(EventArgs e)
     {
-        var args = e as MouseEventArgs;
-        if (args != null && _tabPages.Count > 0 && SelectedTab != null)
-        {
-            var tabHeaderHeight = _tabHeight + 2;
-            if (args.Y >= tabHeaderHeight)
-            {
-                SelectedTab.OnMouseWheel(e);
-                return;
-            }
-        }
         base.OnMouseWheel(e);
     }
 

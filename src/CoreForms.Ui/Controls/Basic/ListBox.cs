@@ -19,6 +19,7 @@ public class ListBox : Control
     {
         var theme = ThemeManager.CurrentTheme;
         _backColor = theme.TextBoxBackground;
+        _foreColor = theme.TextBoxText;
         Size = new Size(150, 120);
         TabStop = true;
     }
@@ -31,6 +32,8 @@ public class ListBox : Control
     {
         if (!_backColorSet)
             _backColor = newTheme.TextBoxBackground;
+        if (!_foreColorSet)
+            _foreColor = newTheme.TextBoxText;
         Invalidate();
     }
 

@@ -76,7 +76,7 @@ public abstract class ToolStripItem : Component
     private string _text = string.Empty;
     private bool _enabled = true;
     private bool _visible = true;
-    private SvgImage? _image;
+    private IGraphicsImage? _image;
     private ToolStripItemDisplayStyle _displayStyle = ToolStripItemDisplayStyle.ImageAndText;
     private ToolStripItemImageScaling _imageScaling = ToolStripItemImageScaling.SizeToFit;
     private ToolStripItemTextAlign _textAlign = ToolStripItemTextAlign.Left;
@@ -135,7 +135,7 @@ public abstract class ToolStripItem : Component
     /// <summary>
     /// Gets or sets the image displayed on the item.
     /// </summary>
-    public SvgImage? Image
+    public IGraphicsImage? Image
     {
         get => _image;
         set
@@ -443,7 +443,7 @@ public abstract class ToolStripItem : Component
     /// <summary>
     /// Calculates the scaled image width based on the ImageScaling setting.
     /// </summary>
-    protected int CalculateImageWidth(SvgImage image, int availableHeight)
+    protected int CalculateImageWidth(IGraphicsImage image, int availableHeight)
     {
         return _imageScaling switch
         {

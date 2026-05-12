@@ -475,8 +475,10 @@ public class MenuStrip : ContainerControl
     {
         string displayText = item.DisplayText;
         int mnemonicIdx = item.MnemonicIndex;
+        var theme = ThemeManager.CurrentTheme;
+        var textColor = Enabled ? theme.ToolStripItemText : theme.GrayText;
 
-        g.DrawString(displayText, font, ForeColor, x, y);
+        g.DrawString(displayText, font, textColor, x, y);
 
         if (mnemonicIdx >= 0 && showMnemonic)
         {
@@ -485,7 +487,7 @@ public class MenuStrip : ContainerControl
             int charWidth = (int)(scaledFontSize / 2);
             int underlineX = x + mnemonicIdx * charWidth;
             int underlineY = y + (int)scaledFontSize;
-            g.DrawLine(ForeColor, underlineX, underlineY, underlineX + charWidth, underlineY);
+            g.DrawLine(textColor, underlineX, underlineY, underlineX + charWidth, underlineY);
         }
     }
 

@@ -10,7 +10,7 @@ namespace CoreForms.Ui.Core;
 /// Represents an SVG image that can be rendered by the graphics system.
 /// Encapsulates SkiaSharp types to keep the public API renderer-agnostic.
 /// </summary>
-public class SvgImage : IDisposable
+public class SvgImage : IGraphicsImage
 {
     private SKImage? _nativeImage;
     private bool _disposed;
@@ -18,7 +18,7 @@ public class SvgImage : IDisposable
     /// <summary>
     /// Gets the native SkiaSharp image. For internal renderer use only.
     /// </summary>
-    internal SKImage? NativeImage => _nativeImage;
+    public SKImage? NativeImage => _nativeImage;
 
     /// <summary>
     /// Gets the width of the image in pixels.
