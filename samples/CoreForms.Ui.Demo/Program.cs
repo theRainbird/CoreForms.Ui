@@ -17,7 +17,6 @@ class Program
             Text = "CoreForms.Ui Demo - Dock & Anchor",
             Width = 1200,
             Height = 900,
-            BackColor = SystemColors.Window,
             Zoom = 1.25f
         };
 
@@ -114,26 +113,25 @@ class Program
 
         var statusLabel = new Label
         {
-            Text = "Ready",
-            ForeColor = SystemColors.ControlText
+            Text = "Ready"
         };
 
         var toolStrip = new ToolStrip();
         toolStrip.Dock = DockStyle.Top;
 
-        var newIcon = SvgImage.FromSvgResource("CoreForms.Ui.Resources.Icons.file-plus.svg", 32);
+        var newIcon = SvgImage.FromSvgResource("CoreForms.Ui.Resources.Icons.FluentColor.ic_fluent_document_add_24_color.svg", 32);
         var newButton = new ToolStripButton("New", newIcon);
         newButton.DisplayStyle = ToolStripItemDisplayStyle.ImageAndText;
         newButton.Click += (s, e) => statusLabel.Text = "New clicked";
         toolStrip.Items.Add(newButton);
 
-        var openIcon = SvgImage.FromSvgResource("CoreForms.Ui.Resources.Icons.folder-open.svg", 32);
+        var openIcon = SvgImage.FromSvgResource("CoreForms.Ui.Resources.Icons.FluentColor.ic_fluent_document_24_color.svg", 32);
         var openButton = new ToolStripButton("Open", openIcon);
         openButton.DisplayStyle = ToolStripItemDisplayStyle.ImageAndText;
         openButton.Click += (s, e) => statusLabel.Text = "Open clicked";
         toolStrip.Items.Add(openButton);
 
-        var saveIcon = SvgImage.FromSvgResource("CoreForms.Ui.Resources.Icons.device-floppy.svg", 32);
+        var saveIcon = SvgImage.FromSvgResource("CoreForms.Ui.Resources.Icons.FluentColor.ic_fluent_document_edit_24_color.svg", 32);
         var saveButton = new ToolStripButton("Save", saveIcon);
         saveButton.DisplayStyle = ToolStripItemDisplayStyle.ImageAndText;
         saveButton.Click += (s, e) => statusLabel.Text = "Save clicked";
@@ -141,16 +139,14 @@ class Program
 
         toolStrip.Items.Add(new ToolStripSeparator());
 
-        var boldIcon = SvgImage.FromSvgResource("CoreForms.Ui.Resources.Icons.bold.svg", 32);
-        var boldButton = new ToolStripButton("B", boldIcon);
-        boldButton.DisplayStyle = ToolStripItemDisplayStyle.ImageAndText;
+        var boldButton = new ToolStripButton("B");
+        boldButton.DisplayStyle = ToolStripItemDisplayStyle.Text;
         boldButton.CheckOnClick = true;
         boldButton.CheckedChanged += (s, e) => statusLabel.Text = $"Bold: {boldButton.Checked}";
         toolStrip.Items.Add(boldButton);
 
-        var italicIcon = SvgImage.FromSvgResource("CoreForms.Ui.Resources.Icons.italic.svg", 32);
-        var italicButton = new ToolStripButton("I", italicIcon);
-        italicButton.DisplayStyle = ToolStripItemDisplayStyle.ImageAndText;
+        var italicButton = new ToolStripButton("I");
+        italicButton.DisplayStyle = ToolStripItemDisplayStyle.Text;
         italicButton.CheckOnClick = true;
         italicButton.CheckedChanged += (s, e) => statusLabel.Text = $"Italic: {italicButton.Checked}";
         toolStrip.Items.Add(italicButton);
@@ -162,7 +158,7 @@ class Program
         searchBox.TextChanged += (s, e) => statusLabel.Text = $"Search: {searchBox.Text}";
         toolStrip.Items.Add(searchBox);
 
-        var searchIcon = SvgImage.FromSvgResource("CoreForms.Ui.Resources.Icons.search.svg", 32);
+        var searchIcon = SvgImage.FromSvgResource("CoreForms.Ui.Resources.Icons.FluentColor.ic_fluent_search_sparkle_24_color.svg", 32);
         var searchButton = new ToolStripButton("Search", searchIcon);
         searchButton.DisplayStyle = ToolStripItemDisplayStyle.ImageAndText;
         searchButton.Click += (s, e) => statusLabel.Text = $"Searching for: {searchBox.Text}";
@@ -188,7 +184,7 @@ class Program
         ToolStripButton? lightButton = null;
         ToolStripButton? darkButton = null;
 
-        var lightIcon = SvgImage.FromSvgResource("CoreForms.Ui.Resources.Icons.sun.svg", 32);
+        var lightIcon = SvgImage.FromSvgResource("CoreForms.Ui.Resources.Icons.FluentColor.ic_fluent_weather_sunny_low_24_color.svg", 32);
         lightButton = new ToolStripButton("Light", lightIcon);
         lightButton.DisplayStyle = ToolStripItemDisplayStyle.ImageAndText;
         lightButton.Checked = true;
@@ -204,7 +200,7 @@ class Program
         };
         toolStrip.Items.Add(lightButton);
 
-        var darkIcon = SvgImage.FromSvgResource("CoreForms.Ui.Resources.Icons.moon.svg", 32);
+        var darkIcon = SvgImage.FromSvgResource("CoreForms.Ui.Resources.Icons.FluentColor.ic_fluent_weather_snowflake_24_color.svg", 32);
         darkButton = new ToolStripButton("Dark", darkIcon);
         darkButton.DisplayStyle = ToolStripItemDisplayStyle.ImageAndText;
         darkButton.CheckOnClick = true;
@@ -221,7 +217,7 @@ class Program
 
         toolStrip.Items.Add(new ToolStripSeparator());
 
-        var helpIcon = SvgImage.FromSvgResource("CoreForms.Ui.Resources.Icons.help.svg", 32);
+        var helpIcon = SvgImage.FromSvgResource("CoreForms.Ui.Resources.Icons.FluentColor.ic_fluent_question_circle_24_color.svg", 32);
         var helpButton = new ToolStripButton("Help", helpIcon);
         helpButton.DisplayStyle = ToolStripItemDisplayStyle.ImageAndText;
         helpButton.Click += (s, e) => MessageBox.Show("CoreForms.Ui ToolStrip Demo\n\nDemonstrates all ToolStrip item types.", "Help", MessageBoxButtons.OK, MessageBoxIcon.Information);
@@ -229,7 +225,6 @@ class Program
 
         var statusStrip = new Panel
         {
-            BackColor = SystemColors.Control,
             Size = new Size(900, 24)
         };
         statusStrip.Dock = DockStyle.Bottom;
@@ -240,7 +235,6 @@ class Program
 
         var leftPanel = new Panel
         {
-            BackColor = Color.FromArgb(240, 240, 240),
             Size = new Size(180, 500)
         };
         leftPanel.Dock = DockStyle.Left;
@@ -250,9 +244,7 @@ class Program
         {
             Text = "Navigation",
             Location = new Point(10, 10),
-            Size = new Size(150, 20),
-            BackColor = Color.FromArgb(240, 240, 240),
-            ForeColor = Color.Black
+            Size = new Size(150, 20)
         };
 
         var navListBox = new ListBox
@@ -273,10 +265,10 @@ class Program
 
         var mainPanel = new Panel
         {
-            BackColor = Color.White,
             Size = new Size(700, 600)
         };
         mainPanel.Dock = DockStyle.Fill;
+        mainPanel.BackColor = ThemeManager.CurrentTheme.WindowBackground;
 
         mainPanel.Controls.Add(CreateHeaderLabel());
         mainPanel.Controls.Add(CreateTabControl());
@@ -311,9 +303,7 @@ class Program
         {
             Text = "Dock & Anchor Demo",
             Location = new Point(15, 10),
-            Size = new Size(300, 25),
-            BackColor = Color.White,
-            ForeColor = Color.FromArgb(10, 36, 99)
+            Size = new Size(300, 25)
         };
         label.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
         return label;
@@ -334,8 +324,7 @@ class Program
         {
             Text = "Name:",
             Location = new Point(10, 10),
-            Size = new Size(70, 20),
-            BackColor = Color.White
+            Size = new Size(70, 20)
         };
 
         var nameTextBox = new TextBox
@@ -350,8 +339,7 @@ class Program
         {
             Text = "Email:",
             Location = new Point(10, 40),
-            Size = new Size(70, 20),
-            BackColor = Color.White
+            Size = new Size(70, 20)
         };
 
         var emailTextBox = new TextBox
@@ -366,8 +354,7 @@ class Program
         {
             Text = "Password:",
             Location = new Point(10, 70),
-            Size = new Size(70, 20),
-            BackColor = Color.White
+            Size = new Size(70, 20)
         };
 
         var passwordTextBox = new TextBox
@@ -392,8 +379,7 @@ class Program
         {
             Text = "Gender:",
             Location = new Point(10, 10),
-            Size = new Size(80, 20),
-            BackColor = Color.White
+            Size = new Size(80, 20)
         };
 
         var maleRadio = new RadioButton
@@ -422,8 +408,7 @@ class Program
         {
             Text = "Role:",
             Location = new Point(120, 10),
-            Size = new Size(80, 20),
-            BackColor = Color.White
+            Size = new Size(80, 20)
         };
 
         var adminRadio = new RadioButton
@@ -508,7 +493,6 @@ class Program
             Text = "Show Grid Lines",
             Location = new Point(5, 35),
             Size = new Size(150, 25),
-            BackColor = SystemColors.Control,
             Checked = true
         };
 
@@ -571,7 +555,6 @@ class Program
     {
         var panel = new Panel
         {
-            BackColor = Color.FromArgb(245, 245, 255),
             Location = new Point(430, 45),
             Size = new Size(250, 365)
         };
@@ -580,8 +563,6 @@ class Program
         var dockedTopLabel = new Label
         {
             Text = "Dock=Top",
-            BackColor = Color.FromArgb(200, 220, 255),
-            ForeColor = Color.Black,
             Size = new Size(250, 22)
         };
         dockedTopLabel.Dock = DockStyle.Top;
@@ -589,8 +570,6 @@ class Program
         var dockedBottomLabel = new Label
         {
             Text = "Dock=Bottom",
-            BackColor = Color.FromArgb(255, 220, 200),
-            ForeColor = Color.Black,
             Size = new Size(250, 22)
         };
         dockedBottomLabel.Dock = DockStyle.Bottom;
@@ -598,8 +577,6 @@ class Program
         var dockedLeftLabel = new Label
         {
             Text = "L",
-            BackColor = Color.FromArgb(200, 255, 200),
-            ForeColor = Color.Black,
             Size = new Size(30, 176)
         };
         dockedLeftLabel.Dock = DockStyle.Left;
@@ -607,8 +584,6 @@ class Program
         var centerLabel = new Label
         {
             Text = "Dock=Fill",
-            BackColor = Color.FromArgb(255, 255, 220),
-            ForeColor = Color.Black,
             Size = new Size(50, 50)
         };
         centerLabel.Dock = DockStyle.Fill;

@@ -19,7 +19,18 @@ public class TableLayoutPanel : ContainerControl
     public TableLayoutPanel()
     {
         Size = new Size(300, 200);
-        BackColor = ThemeManager.CurrentTheme.ControlBackground;
+        _backColor = ThemeManager.CurrentTheme.ControlBackground;
+    }
+
+    /// <summary>
+    /// Called when the theme changes. Updates tablelayoutpanel-specific colors.
+    /// </summary>
+    /// <param name="newTheme">The new theme that was activated.</param>
+    public override void OnThemeChanged(Theme newTheme)
+    {
+        if (!_backColorSet)
+            _backColor = newTheme.ControlBackground;
+        Invalidate();
     }
 
     /// <summary>

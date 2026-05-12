@@ -16,9 +16,20 @@ public class Panel : ContainerControl
     /// </summary>
     public Panel()
     {
-        BackColor = ThemeManager.CurrentTheme.ControlBackground;
+        _backColor = ThemeManager.CurrentTheme.ControlBackground;
         Size = new Size(200, 150);
         TabStop = false;
+    }
+
+    /// <summary>
+    /// Called when the theme changes. Updates panel-specific colors.
+    /// </summary>
+    /// <param name="newTheme">The new theme that was activated.</param>
+    public override void OnThemeChanged(Theme newTheme)
+    {
+        if (!_backColorSet)
+            _backColor = newTheme.ControlBackground;
+        Invalidate();
     }
 
     /// <summary>

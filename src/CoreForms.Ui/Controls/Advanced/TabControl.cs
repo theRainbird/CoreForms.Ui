@@ -345,8 +345,19 @@ public class TabPage : ContainerControl
     public TabPage()
     {
         Size = new Size(400, 250);
-        BackColor = ThemeManager.CurrentTheme.TabContentBackground;
+        _backColor = ThemeManager.CurrentTheme.TabContentBackground;
         TabStop = false;
+    }
+
+    /// <summary>
+    /// Called when the theme changes. Updates tabpage-specific colors.
+    /// </summary>
+    /// <param name="newTheme">The new theme that was activated.</param>
+    public override void OnThemeChanged(Theme newTheme)
+    {
+        if (!_backColorSet)
+            _backColor = newTheme.TabContentBackground;
+        Invalidate();
     }
 
     private string _text = "Tab";
@@ -388,8 +399,19 @@ public class StatusStrip : ContainerControl
     public StatusStrip()
     {
         Size = new Size(400, 24);
-        BackColor = ThemeManager.CurrentTheme.ControlBackground;
+        _backColor = ThemeManager.CurrentTheme.ControlBackground;
         Dock = DockStyle.Bottom;
+    }
+
+    /// <summary>
+    /// Called when the theme changes. Updates statusstrip-specific colors.
+    /// </summary>
+    /// <param name="newTheme">The new theme that was activated.</param>
+    public override void OnThemeChanged(Theme newTheme)
+    {
+        if (!_backColorSet)
+            _backColor = newTheme.ControlBackground;
+        Invalidate();
     }
 
     /// <summary>

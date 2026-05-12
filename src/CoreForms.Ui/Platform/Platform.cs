@@ -539,10 +539,10 @@ public static class Platform
     {
         return icon switch
         {
-            MessageBoxIcon.Information => "CoreForms.Ui.Resources.Icons.info-circle.svg",
-            MessageBoxIcon.Warning => "CoreForms.Ui.Resources.Icons.alert-triangle.svg",
-            MessageBoxIcon.Error => "CoreForms.Ui.Resources.Icons.circle-x.svg",
-            MessageBoxIcon.Question => "CoreForms.Ui.Resources.Icons.help-circle.svg",
+            MessageBoxIcon.Information => "CoreForms.Ui.Resources.Icons.FluentColor.ic_fluent_checkmark_circle_24_color.svg",
+            MessageBoxIcon.Warning => "CoreForms.Ui.Resources.Icons.FluentColor.ic_fluent_warning_24_color.svg",
+            MessageBoxIcon.Error => "CoreForms.Ui.Resources.Icons.FluentColor.ic_fluent_error_circle_24_color.svg",
+            MessageBoxIcon.Question => "CoreForms.Ui.Resources.Icons.FluentColor.ic_fluent_question_circle_24_color.svg",
             _ => null
         };
     }

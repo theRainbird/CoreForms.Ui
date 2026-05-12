@@ -88,6 +88,11 @@ public class ComboBox : Control
 
         g.FillRectangle(BackColor, 0, 0, Width, Height);
 
+        if (Focused)
+            g.DrawRectangle(theme.TextBoxFocusBorder, 0, 0, Width, Height, 2);
+        else
+            g.DrawRectangle(theme.TextBoxBorder, 0, 0, Width, Height, 1);
+
         var font = EffectiveFont;
         float zoom = EffectiveZoom;
         float scaledFontSize = font.Size * zoom;

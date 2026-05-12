@@ -1,4 +1,5 @@
 using CoreForms.Ui.Core;
+using CoreForms.Ui.Theming;
 using Graphics = CoreForms.Ui.Rendering.Graphics;
 
 namespace CoreForms.Ui.Controls.Containers;
@@ -43,10 +44,21 @@ public class ToolStrip : ContainerControl
     public ToolStrip()
     {
         Size = new Size(400, 28);
-        BackColor = SystemColors.Control;
+        _backColor = ThemeManager.CurrentTheme.ControlBackground;
         TabStop = true;
         Dock = DockStyle.Top;
         _items = new ToolStripItemCollection(this);
+    }
+
+    /// <summary>
+    /// Called when the theme changes. Updates toolstrip-specific colors.
+    /// </summary>
+    /// <param name="newTheme">The new theme that was activated.</param>
+    public override void OnThemeChanged(Theme newTheme)
+    {
+        if (!_backColorSet)
+            _backColor = newTheme.ControlBackground;
+        Invalidate();
     }
 
     /// <summary>

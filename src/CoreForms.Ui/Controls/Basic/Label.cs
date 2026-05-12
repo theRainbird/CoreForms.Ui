@@ -13,7 +13,7 @@ public class Label : Control
     /// </summary>
     public Label()
     {
-        BackColor = SystemColors.Control;
+        _backColor = Color.Transparent;
         Size = new Size(150, 28);
     }
 
@@ -25,7 +25,10 @@ public class Label : Control
     {
         if (Visible)
         {
-            g.FillRectangle(BackColor, 0, 0, Width, Height);
+            if (BackColor.A > 0)
+            {
+                g.FillRectangle(BackColor, 0, 0, Width, Height);
+            }
 
             var font = EffectiveFont;
             g.DrawString(Text, font, ForeColor, 3, CoordinateTransform.CenterVertically(Height, font, EffectiveZoom));

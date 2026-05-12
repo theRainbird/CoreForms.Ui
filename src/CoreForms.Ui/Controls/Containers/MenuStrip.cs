@@ -25,8 +25,19 @@ public class MenuStrip : ContainerControl
     public MenuStrip()
     {
         Size = new Size(400, 24);
-        BackColor = ThemeManager.CurrentTheme.ControlBackground;
+        _backColor = ThemeManager.CurrentTheme.ControlBackground;
         TabStop = true;
+    }
+
+    /// <summary>
+    /// Called when the theme changes. Updates menustrip-specific colors.
+    /// </summary>
+    /// <param name="newTheme">The new theme that was activated.</param>
+    public override void OnThemeChanged(Theme newTheme)
+    {
+        if (!_backColorSet)
+            _backColor = newTheme.ControlBackground;
+        Invalidate();
     }
 
     /// <summary>
