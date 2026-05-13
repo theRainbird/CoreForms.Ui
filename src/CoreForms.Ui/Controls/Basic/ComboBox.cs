@@ -25,7 +25,6 @@ public class ComboBox : Control
         _backColor = theme.TextBoxBackground;
         Size = new Size(200, 32);
         TabStop = true;
-        TextAlign = ContentAlignment.MiddleLeft;
     }
 
     /// <summary>
@@ -100,26 +99,8 @@ public class ComboBox : Control
         var selectedText = SelectedItem?.ToString() ?? "";
         var btnWidth = 17;
         var btnX = Width - btnWidth;
-        var textAreaWidth = Width - btnWidth;
-        var textSize = Platform.Platform.MeasureText(selectedText, font, zoom);
-        var padding = 3;
 
-        var textX = TextAlign switch
-        {
-            ContentAlignment.TopLeft or ContentAlignment.MiddleLeft or ContentAlignment.BottomLeft => padding,
-            ContentAlignment.TopCenter or ContentAlignment.MiddleCenter or ContentAlignment.BottomCenter => (textAreaWidth - textSize.width) / 2,
-            ContentAlignment.TopRight or ContentAlignment.MiddleRight or ContentAlignment.BottomRight => textAreaWidth - textSize.width - padding,
-            _ => padding
-        };
-        var textY = TextAlign switch
-        {
-            ContentAlignment.TopLeft or ContentAlignment.TopCenter or ContentAlignment.TopRight => padding,
-            ContentAlignment.MiddleLeft or ContentAlignment.MiddleCenter or ContentAlignment.MiddleRight => (Height - scaledFontSize) / 2,
-            ContentAlignment.BottomLeft or ContentAlignment.BottomCenter or ContentAlignment.BottomRight => Height - scaledFontSize - padding,
-            _ => (Height - scaledFontSize) / 2
-        };
-
-        g.DrawString(selectedText, font, ForeColor, textX, textY);
+        g.DrawString(selectedText, font, ForeColor, 3, (Height - scaledFontSize) / 2);
 
         g.FillRectangle(theme.ControlBackground, btnX, 1, btnWidth, Height - 2);
         g.DrawLine(theme.ComboBoxDropdownButtonSeparator, btnX, 0, btnX, Height);
@@ -163,7 +144,7 @@ public class ComboBox : Control
         var scrollBarWidth = 16;
         var needsScrollbar = totalHeight > _dropDownHeight;
         var listWidth = needsScrollbar ? Width - scrollBarWidth : Width;
-        var dropY = Height;
+        int dropY = Height + 25;
 
         g.FillRectangle(theme.MenuDropdownBackground, 0, dropY, Width, _dropDownHeight);
         g.DrawRectangle(theme.MenuDropdownBorder, 0, dropY, Width, _dropDownHeight, 1);
@@ -266,7 +247,7 @@ public class ComboBox : Control
             if (args != null)
             {
                 var itemHeight = GetItemHeight();
-                int dropY = Height;
+                int dropY = Height + 25;
                 int dropDownHeight = _dropDownHeight;
 
                 if (args.X >= 0 && args.X < Width && args.Y >= dropY && args.Y < dropY + dropDownHeight)
@@ -353,7 +334,7 @@ public class ComboBox : Control
             if (args != null)
             {
                 var itemHeight = GetItemHeight();
-                int dropY = Height;
+                int dropY = Height + 25;
 
                 if (args.Y >= dropY && args.Y < dropY + _dropDownHeight)
                 {

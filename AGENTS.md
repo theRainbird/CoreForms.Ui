@@ -75,6 +75,10 @@ dotnet run --project samples/CoreForms.Ui.Demo  # Run demo (requires X11/display
 
 ## Code Conventions
 
+**Deleting files that cause build errors:**
+- AI agents must NOT delete source code files that cause build errors but are not directly related to the current task without first asking the user for permission
+- Instead, the agent should inform the user and ask for confirmation
+
 **XML Summary Comments:**
 - All classes, properties, events, and methods in the codebase (except unit tests) must have XML summary comments
 - XML summaries must include parameters (`<param name="...">`) and thrown exceptions (`<exception cref="...">`) where applicable

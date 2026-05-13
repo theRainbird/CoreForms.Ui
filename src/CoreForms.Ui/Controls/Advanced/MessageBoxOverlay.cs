@@ -206,21 +206,8 @@ internal class MessageBoxOverlay : Control
         var font = btn.Font ?? EffectiveFont;
         var textColor = btn.Enabled ? btn.ForeColor : theme.GrayText;
         var textSize = Platform.Platform.MeasureText(btn.Text, font);
-        var padding = 6;
-        var textX = btn.TextAlign switch
-        {
-            ContentAlignment.TopLeft or ContentAlignment.MiddleLeft or ContentAlignment.BottomLeft => btn.X + padding,
-            ContentAlignment.TopCenter or ContentAlignment.MiddleCenter or ContentAlignment.BottomCenter => btn.X + (btn.Width - textSize.width) / 2,
-            ContentAlignment.TopRight or ContentAlignment.MiddleRight or ContentAlignment.BottomRight => btn.X + btn.Width - textSize.width - padding,
-            _ => btn.X + (btn.Width - textSize.width) / 2
-        };
-        var textY = btn.TextAlign switch
-        {
-            ContentAlignment.TopLeft or ContentAlignment.TopCenter or ContentAlignment.TopRight => btn.Y + padding,
-            ContentAlignment.MiddleLeft or ContentAlignment.MiddleCenter or ContentAlignment.MiddleRight => btn.Y + (btn.Height - textSize.height) / 2,
-            ContentAlignment.BottomLeft or ContentAlignment.BottomCenter or ContentAlignment.BottomRight => btn.Y + btn.Height - textSize.height - padding,
-            _ => btn.Y + (btn.Height - textSize.height) / 2
-        };
+        var textX = btn.X + (btn.Width - textSize.width) / 2;
+        var textY = btn.Y + (btn.Height - textSize.height) / 2;
 
         g.DrawString(btn.Text, font, textColor, textX, textY);
     }

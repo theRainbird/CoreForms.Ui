@@ -1,5 +1,4 @@
 using CoreForms.Ui.Core;
-using CoreForms.Ui.Theming;
 using Graphics = CoreForms.Ui.Rendering.Graphics;
 
 namespace CoreForms.Ui.Controls.Containers;
@@ -115,7 +114,6 @@ public class ToolStripLabel : ToolStripItem
     {
         if (!Visible) return;
 
-        var theme = ThemeManager.CurrentTheme;
         Color textColor;
         if (_isLink)
         {
@@ -123,7 +121,7 @@ public class ToolStripLabel : ToolStripItem
         }
         else
         {
-            textColor = Enabled ? theme.ToolStripItemText : theme.GrayText;
+            textColor = Enabled ? Color.Black : SystemColors.GrayText;
         }
 
         if (hovered && _isLink)

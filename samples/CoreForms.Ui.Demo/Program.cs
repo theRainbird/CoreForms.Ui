@@ -274,6 +274,7 @@ class Program
         tabControl.AddTabPage(CreateMessageBoxPage());
         tabControl.AddTabPage(CreateDockAnchorPage());
         tabControl.AddTabPage(CreateTreeViewPage());
+        tabControl.AddTabPage(CreateUserControlPage());
 
         return tabControl;
     }
@@ -499,56 +500,6 @@ class Program
             _statusLabel!.Text = $"Result: {result}";
         };
 
-        var textAlignGroup = new GroupBox
-        {
-            Text = "Text Alignment Demo",
-            Location = new Point(10, 150),
-            Size = new Size(550, 200)
-        };
-
-        var btnLeft = new Button { Text = "Left", Location = new Point(10, 25), Size = new Size(120, 30), TextAlign = ContentAlignment.MiddleLeft };
-        var btnCenter = new Button { Text = "Center", Location = new Point(140, 25), Size = new Size(120, 30), TextAlign = ContentAlignment.MiddleCenter };
-        var btnRight = new Button { Text = "Right", Location = new Point(270, 25), Size = new Size(120, 30), TextAlign = ContentAlignment.MiddleRight };
-
-        var labelLeft = new Label { Text = "Label Left", Location = new Point(10, 65), Size = new Size(120, 25), TextAlign = ContentAlignment.MiddleLeft };
-        var labelCenter = new Label { Text = "Label Center", Location = new Point(140, 65), Size = new Size(120, 25), TextAlign = ContentAlignment.MiddleCenter };
-        var labelRight = new Label { Text = "Label Right", Location = new Point(270, 65), Size = new Size(120, 25), TextAlign = ContentAlignment.MiddleRight };
-
-        var txtLeft = new TextBox { Text = "Left", Location = new Point(10, 100), Size = new Size(120, 25), TextAlign = ContentAlignment.MiddleLeft };
-        var txtCenter = new TextBox { Text = "Center", Location = new Point(140, 100), Size = new Size(120, 25), TextAlign = ContentAlignment.MiddleCenter };
-        var txtRight = new TextBox { Text = "Right", Location = new Point(270, 100), Size = new Size(120, 25), TextAlign = ContentAlignment.MiddleRight };
-
-        var cmbLeft = new ComboBox { Location = new Point(10, 135), Size = new Size(120, 25), TextAlign = ContentAlignment.MiddleLeft };
-        cmbLeft.Items.Add("Left");
-        cmbLeft.Items.Add("Center");
-        cmbLeft.Items.Add("Right");
-        cmbLeft.SelectedIndex = 0;
-
-        var cmbCenter = new ComboBox { Location = new Point(140, 135), Size = new Size(120, 25), TextAlign = ContentAlignment.MiddleCenter };
-        cmbCenter.Items.Add("Left");
-        cmbCenter.Items.Add("Center");
-        cmbCenter.Items.Add("Right");
-        cmbCenter.SelectedIndex = 1;
-
-        var cmbRight = new ComboBox { Location = new Point(270, 135), Size = new Size(120, 25), TextAlign = ContentAlignment.MiddleRight };
-        cmbRight.Items.Add("Left");
-        cmbRight.Items.Add("Center");
-        cmbRight.Items.Add("Right");
-        cmbRight.SelectedIndex = 2;
-
-        textAlignGroup.Controls.Add(btnLeft);
-        textAlignGroup.Controls.Add(btnCenter);
-        textAlignGroup.Controls.Add(btnRight);
-        textAlignGroup.Controls.Add(labelLeft);
-        textAlignGroup.Controls.Add(labelCenter);
-        textAlignGroup.Controls.Add(labelRight);
-        textAlignGroup.Controls.Add(txtLeft);
-        textAlignGroup.Controls.Add(txtCenter);
-        textAlignGroup.Controls.Add(txtRight);
-        textAlignGroup.Controls.Add(cmbLeft);
-        textAlignGroup.Controls.Add(cmbCenter);
-        textAlignGroup.Controls.Add(cmbRight);
-
         page.Controls.Add(infoButton);
         page.Controls.Add(warningButton);
         page.Controls.Add(errorButton);
@@ -557,7 +508,6 @@ class Program
         page.Controls.Add(yesNoCancelButton);
         page.Controls.Add(retryButton);
         page.Controls.Add(abortButton);
-        page.Controls.Add(textAlignGroup);
 
         return page;
     }
@@ -649,6 +599,24 @@ class Program
         treeView.Nodes.Add(root2);
 
         page.Controls.Add(treeView);
+        return page;
+    }
+
+    static TabPage CreateUserControlPage()
+    {
+        var page = new TabPage { Text = "User Control" };
+
+        var loginControl = new LoginUserControl
+        {
+            Location = new Point(10, 10),
+            Size = new Size(350, 200)
+        };
+        loginControl.LoginClicked += (s, e) =>
+        {
+            _statusLabel!.Text = $"Login: {loginControl.Username}";
+        };
+
+        page.Controls.Add(loginControl);
         return page;
     }
 
@@ -752,5 +720,49 @@ class Program
         using var image = SKImage.FromBitmap(bitmap);
         using var data = image.Encode(SKEncodedImageFormat.Png, 100);
         return data.ToArray();
+    }
+}
+
+public class LoginUserControl : UserControl
+{
+    private Label _usernameLabel = null!;
+    private TextBox _usernameTextBox = null!;
+    private Label _passwordLabel = null!;
+    private TextBox _passwordTextBox = null!;
+    private CheckBox _rememberCheckBox = null!;
+    private Button _loginButton = null!;
+
+    public string Username => _usernameTextBox.Text;
+    public string Password => _passwordTextBox.Text;
+
+    public event EventHandler? LoginClicked;
+
+    public LoginUserControl()
+    {
+        InitializeComponent();
+    }
+
+    private void InitializeComponent()
+    {
+        BackColor = ThemeManager.CurrentTheme.ControlBackground;
+        BorderStyle = BorderStyle.FixedSingle;
+
+        _usernameLabel = new Label { Text = "Username:", Location = new Point(10, 15), Size = new Size(80, 20) };
+        _usernameTextBox = new TextBox { Location = new Point(100, 15), Size = new Size(230, 25), Text = "admin" };
+
+        _passwordLabel = new Label { Text = "Password:", Location = new Point(10, 50), Size = new Size(80, 20) };
+        _passwordTextBox = new TextBox { Location = new Point(100, 50), Size = new Size(230, 25), Text = "password", UseSystemPasswordChar = true };
+
+        _rememberCheckBox = new CheckBox { Text = "Remember me", Location = new Point(100, 80), Size = new Size(150, 20), Checked = true };
+
+        _loginButton = new Button { Text = "Login", Location = new Point(100, 115), Size = new Size(100, 30) };
+        _loginButton.Click += (s, e) => LoginClicked?.Invoke(this, EventArgs.Empty);
+
+        Controls.Add(_usernameLabel);
+        Controls.Add(_usernameTextBox);
+        Controls.Add(_passwordLabel);
+        Controls.Add(_passwordTextBox);
+        Controls.Add(_rememberCheckBox);
+        Controls.Add(_loginButton);
     }
 }
