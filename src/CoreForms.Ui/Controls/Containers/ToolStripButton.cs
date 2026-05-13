@@ -1,4 +1,5 @@
 using CoreForms.Ui.Core;
+using CoreForms.Ui.Theming;
 using Graphics = CoreForms.Ui.Rendering.Graphics;
 
 namespace CoreForms.Ui.Controls.Containers;
@@ -146,16 +147,18 @@ public class ToolStripButton : ToolStripItem
     {
         if (!Visible) return;
 
+        var theme = ThemeManager.CurrentTheme;
+
         bool isActive = hovered || pressed || _checked;
         if (isActive)
         {
-            Color bgColor = _checked ? Color.FromArgb(180, 200, 230) : Color.FromArgb(200, 200, 200);
+            Color bgColor = _checked ? theme.MenuHover : theme.HoverHighlight;
             g.FillRectangle(bgColor, x, y, width, height);
         }
 
         if (_checked)
         {
-            g.DrawRectangle(Color.FromArgb(100, 140, 200), x, y, width - 1, height - 1, 1);
+            g.DrawRectangle(theme.FocusIndicator, x, y, width - 1, height - 1, 1);
         }
 
         bool showImage = DisplayStyle == ToolStripItemDisplayStyle.Image ||
@@ -176,7 +179,7 @@ public class ToolStripButton : ToolStripItem
         if (showText && !string.IsNullOrEmpty(DisplayText))
         {
             int textX = showImage ? contentX + imageWidth + 4 : contentX;
-            var textColor = Enabled ? Color.Black : SystemColors.GrayText;
+            var textColor = Enabled ? theme.ToolStripItemText : theme.GrayText;
             g.DrawString(DisplayText, font, textColor, textX, y + (height - (int)(font.Size * zoom)) / 2);
         }
 
@@ -184,7 +187,7 @@ public class ToolStripButton : ToolStripItem
         {
             int arrowX = x + width - 12;
             int arrowY = y + height / 2;
-            g.FillTriangle(Color.FromArgb(100, 100, 100),
+            g.FillTriangle(theme.GrayText,
                 arrowX - 3, arrowY - 2,
                 arrowX + 3, arrowY - 2,
                 arrowX, arrowY + 2);

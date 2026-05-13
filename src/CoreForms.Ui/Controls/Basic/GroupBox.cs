@@ -26,6 +26,7 @@ public class GroupBox : ContainerControl
     /// <param name="newTheme">The new theme that was activated.</param>
     public override void OnThemeChanged(Theme newTheme)
     {
+        base.OnThemeChanged(newTheme);
         Invalidate();
     }
 

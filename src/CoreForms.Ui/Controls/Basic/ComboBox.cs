@@ -126,12 +126,16 @@ public class ComboBox : Control
     }
 
     /// <summary>
-    /// Renders the dropdown list when visible.
+    /// Renders the dropdown list below the combo box when visible.
     /// </summary>
     /// <param name="g">The Graphics object to use for rendering.</param>
     public override void RenderOverlay(Graphics g)
     {
-        if (!Visible || !_droppedDown) return;
+        if (!Visible) return;
+
+        base.RenderOverlay(g);
+
+        if (!_droppedDown) return;
 
         var theme = ThemeManager.CurrentTheme;
         var font = EffectiveFont;
@@ -187,8 +191,6 @@ public class ComboBox : Control
         }
 
         g.ResetClip();
-
-        base.RenderOverlay(g);
     }
 
     /// <summary>

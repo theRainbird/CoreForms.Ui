@@ -1,4 +1,5 @@
 using CoreForms.Ui.Core;
+using CoreForms.Ui.Theming;
 using Graphics = CoreForms.Ui.Rendering.Graphics;
 
 namespace CoreForms.Ui.Controls.Containers;
@@ -61,7 +62,8 @@ public class ToolStripMenuItem : ToolStripItem
     {
         if (!Visible) return;
 
-        var textColor = Enabled ? Color.Black : SystemColors.GrayText;
+        var theme = ThemeManager.CurrentTheme;
+        var textColor = Enabled ? theme.ToolStripItemText : theme.GrayText;
         string displayText = DisplayText;
         int mnemonicIdx = MnemonicIndex;
 

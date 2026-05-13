@@ -1,4 +1,5 @@
 using CoreForms.Ui.Core;
+using CoreForms.Ui.Theming;
 using Graphics = CoreForms.Ui.Rendering.Graphics;
 
 namespace CoreForms.Ui.Controls.Containers;
@@ -35,12 +36,13 @@ public class ToolStripSeparator : ToolStripItem
     {
         if (!Visible) return;
 
+        var theme = ThemeManager.CurrentTheme;
         int centerX = x + width / 2;
         int lineTop = y + 4;
         int lineBottom = y + height - 4;
 
-        g.DrawLine(Color.FromArgb(180, 180, 180), centerX - 1, lineTop, centerX - 1, lineBottom);
-        g.DrawLine(Color.White, centerX, lineTop, centerX, lineBottom);
+        g.DrawLine(theme.ControlDark, centerX - 1, lineTop, centerX - 1, lineBottom);
+        g.DrawLine(theme.ControlLight, centerX, lineTop, centerX, lineBottom);
     }
 
     /// <summary>

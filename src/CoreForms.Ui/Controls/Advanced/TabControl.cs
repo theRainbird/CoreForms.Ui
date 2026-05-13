@@ -48,6 +48,20 @@ public class TabControl : ContainerControl
         page.TabStop = false;
         _tabPages.Add(page);
         Controls.Add(page);
+        PerformLayout();
+    }
+
+    /// <summary>
+    /// Arranges tab pages to fill the content area below the tab headers.
+    /// </summary>
+    protected override void OnLayout()
+    {
+        var tabHeaderHeight = _tabHeight + 2;
+        foreach (var page in _tabPages)
+        {
+            page.Bounds = new Rectangle(0, 0, Width, Math.Max(0, Height - tabHeaderHeight));
+        }
+        base.OnLayout();
     }
 
     /// <summary>
@@ -124,6 +138,8 @@ public class TabControl : ContainerControl
 
     /// <summary>
     /// Finds the deepest child at the point, shifting coordinates past the tab header.
+    /// Manually handles the TabPage descent to avoid re-applying the header offset
+    /// through the virtual GetChildAtPoint dispatch.
     /// </summary>
     protected override Control? GetDeepestChildAtPoint(Point point, out Point localPoint)
     {
@@ -134,17 +150,41 @@ public class TabControl : ContainerControl
             return null;
         }
         var contentPoint = new Point(point.X, point.Y - tabHeaderHeight);
-        var result = base.GetDeepestChildAtPoint(contentPoint, out var deepestLocal);
-        if (result != null)
-        {
-            // deepestLocal is already in the target control's coordinate space
-            localPoint = deepestLocal;
-        }
-        else
+        if (SelectedTab == null || !SelectedTab.HitTest(contentPoint))
         {
             localPoint = point;
+            return null;
         }
-        return result;
+        var tabPageLocal = new Point(contentPoint.X - SelectedTab.X, contentPoint.Y - SelectedTab.Y);
+        var deepest = (Control?)SelectedTab;
+        var deepestLocal = tabPageLocal;
+        FindDeepest(SelectedTab, tabPageLocal, ref deepest, ref deepestLocal);
+        localPoint = deepestLocal;
+        return deepest;
+    }
+
+    /// <summary>
+    /// Recursively finds the deepest child control within a container.
+    /// </summary>
+    private void FindDeepest(ContainerControl container, Point containerLocal, ref Control? deepest, ref Point deepestLocal)
+    {
+        for (int i = container.Controls.Count - 1; i >= 0; i--)
+        {
+            var child = container.Controls[i];
+            if (!child.Visible || !child.HitTest(containerLocal))
+                continue;
+            var childLocal = new Point(containerLocal.X - child.X, containerLocal.Y - child.Y);
+            if (child is ContainerControl childContainer)
+            {
+                deepest = child;
+                deepestLocal = childLocal;
+                FindDeepest(childContainer, childLocal, ref deepest, ref deepestLocal);
+                return;
+            }
+            deepest = child;
+            deepestLocal = childLocal;
+            return;
+        }
     }
 
     /// <summary>

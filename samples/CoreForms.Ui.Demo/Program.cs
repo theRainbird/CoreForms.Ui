@@ -578,9 +578,7 @@ class Program
         {
             Location = new Point(10, 10),
             Size = new Size(400, 300),
-            ImageList = imageList,
-            BackColor = Core.Color.White,
-            ForeColor = Core.Color.Black
+            ImageList = imageList
         };
 
         // Build sample nodes

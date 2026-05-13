@@ -12,9 +12,10 @@ namespace CoreForms.Ui.Controls;
 /// </summary>
 public class TreeView : Control
 {
-    private const int DefaultIndent = 16;
+    private const int DefaultIndent = 24;
     private const int GlyphSize = 12;
-    private const int ItemHeight = 18; // approximate height per node line
+    private const int ItemHeight = 18;
+    private const int LeftMargin = 4;
     private int _scrollOffsetY;
     private readonly List<TreeNode> _rootNodes = new();
 
@@ -102,175 +103,144 @@ public class TreeView : Control
         if (!Visible) return;
         var theme = ThemeManager.CurrentTheme;
 
-        // Fill background using BackColor
         g.FillRectangle(BackColor, 0, 0, Width, Height);
-        // Border
         g.DrawRectangle(SystemColors.ControlDark, 0, 0, Width, Height, 1);
-        // Focus rectangle
         if (Focused)
-            g.DrawRectangle(theme.FocusIndicator, 1, 1, Width - 2, Height - 2, 1);
+            g.DrawRectangle(theme.FocusIndicator, 1, 1, Width - 2, Height - 2);
 
         g.SetClip(new Rectangle(0, 0, Width, Height));
         g.TranslateTransform(0, -_scrollOffsetY);
 
-        // First pass: calculate positions and store bounds
-        int y = 0;
         var visible = GetVisibleNodes();
+
+        // Pass 1: calculate positions and store bounds
         for (int i = 0; i < visible.Count; i++)
         {
             var node = visible[i];
             var depth = GetDepth(node);
-            var x = depth * Indent;
+            var x = LeftMargin + depth * Indent;
+            var y = i * ItemHeight;
             node.Bounds = new Rectangle(x, y, Width - x, ItemHeight);
-            y += ItemHeight;
         }
 
-        // Draw continuous vertical continuation lines for each ancestor column
-        // A column needs a line if ANY visible node has an ancestor with a younger sibling at that depth
-        for (int colDepth = 0; ; colDepth++)
+        // Pass 2: draw horizontal connectors for each non-root node
+        for (int i = 0; i < visible.Count; i++)
         {
-            int colLineX = colDepth * Indent + GlyphSize / 2;
-            bool anyNodeNeedsLine = false;
-            foreach (var node in visible)
+            var node = visible[i];
+            var depth = GetDepth(node);
+            if (depth == 0) continue;
+
+            int lineX = LeftMargin + (depth - 1) * Indent + GlyphSize / 2;
+            int endX = LeftMargin + depth * Indent;
+            int rowCenterY = i * ItemHeight + ItemHeight / 2;
+            DrawDottedLine(g, SystemColors.ControlDark, lineX, rowCenterY, endX, rowCenterY, 2, 2);
+        }
+
+        // Pass 2b: draw vertical sibling lines per parent group
+        var drawnParents = new HashSet<TreeNode>();
+        for (int i = 0; i < visible.Count; i++)
+        {
+            var node = visible[i];
+            var depth = GetDepth(node);
+            if (depth == 0) continue;
+
+            var parent = node.Parent!;
+            if (drawnParents.Contains(parent)) continue;
+            drawnParents.Add(parent);
+
+            int parentIdx = visible.IndexOf(parent);
+            if (parentIdx < 0) continue;
+
+            int lastChildIdx = -1;
+            for (int j = visible.Count - 1; j >= 0; j--)
             {
-                int nodeDepth = GetDepth(node);
-                if (nodeDepth <= colDepth) continue;
-                
-                var ancestor = node;
-                for (int d = 0; d < nodeDepth - colDepth; d++)
+                if (visible[j].Parent == parent)
                 {
-                    if (ancestor.Parent == null) break;
-                    ancestor = ancestor.Parent;
-                }
-                
-                bool hasYoungerSibling = false;
-                if (ancestor.Parent != null)
-                {
-                    int idx = ancestor.Parent.Children.IndexOf(ancestor);
-                    if (idx < ancestor.Parent.Children.Count - 1) hasYoungerSibling = true;
-                }
-                else
-                {
-                    int rootIdx = _rootNodes.IndexOf(ancestor);
-                    if (rootIdx >= 0 && rootIdx < _rootNodes.Count - 1) hasYoungerSibling = true;
-                }
-                
-                if (hasYoungerSibling)
-                {
-                    anyNodeNeedsLine = true;
+                    lastChildIdx = j;
                     break;
                 }
             }
-            if (!anyNodeNeedsLine) break; // No more columns need lines
-            
-            // Find the topmost and bottommost nodes that need this column's line
-            int topY = -1;
-            int bottomY = -1;
-            foreach (var node in visible)
+
+            if (lastChildIdx >= 0)
             {
-                int nodeDepth = GetDepth(node);
-                if (nodeDepth <= colDepth) continue;
-                
-                var ancestor = node;
-                for (int d = 0; d < nodeDepth - colDepth; d++)
-                {
-                    if (ancestor.Parent == null) break;
-                    ancestor = ancestor.Parent;
-                }
-                
-                bool hasYoungerSibling = false;
-                if (ancestor.Parent != null)
-                {
-                    int idx = ancestor.Parent.Children.IndexOf(ancestor);
-                    if (idx < ancestor.Parent.Children.Count - 1) hasYoungerSibling = true;
-                }
-                else
-                {
-                    int rootIdx = _rootNodes.IndexOf(ancestor);
-                    if (rootIdx >= 0 && rootIdx < _rootNodes.Count - 1) hasYoungerSibling = true;
-                }
-                
-                if (hasYoungerSibling)
-                {
-                    int nodeY = node.Bounds.Y;
-                    if (topY < 0 || nodeY < topY) topY = nodeY;
-                    int nodeBottom = nodeY + ItemHeight;
-                    if (bottomY < 0 || nodeBottom > bottomY) bottomY = nodeBottom;
-                }
-            }
-            
-            if (topY >= 0 && bottomY > topY)
-            {
-                DrawDottedLine(g, SystemColors.ControlDark, colLineX, topY, colLineX, bottomY, 2, 2);
+                int startY = parentIdx * ItemHeight + ItemHeight / 2;
+                int endY = lastChildIdx * ItemHeight + ItemHeight / 2;
+                int lineX = LeftMargin + (depth - 1) * Indent + GlyphSize / 2;
+                DrawDottedLine(g, SystemColors.ControlDark, lineX, startY, lineX, endY, 2, 2);
             }
         }
 
-        // Second pass: draw nodes (glyphs, lines, icons, text)
-        y = 0;
+        // Pass 2c: draw root-level vertical line connecting all root nodes
+        if (_rootNodes.Count > 1)
+        {
+            int firstIdx = -1, lastIdx = -1;
+            for (int j = 0; j < visible.Count; j++)
+            {
+                if (GetDepth(visible[j]) == 0)
+                {
+                    if (firstIdx < 0) firstIdx = j;
+                    lastIdx = j;
+                }
+            }
+
+            if (firstIdx >= 0 && lastIdx > firstIdx)
+            {
+                int startY = firstIdx * ItemHeight + ItemHeight / 2;
+                int endY = lastIdx * ItemHeight + ItemHeight / 2;
+                int lineX = LeftMargin + GlyphSize / 2;
+                DrawDottedLine(g, SystemColors.ControlDark, lineX, startY, lineX, endY, 2, 2);
+            }
+        }
+
+        // Pass 3: draw nodes (glyph backgrounds, glyphs, selection, icons, text)
         for (int i = 0; i < visible.Count; i++)
         {
             var node = visible[i];
             var depth = GetDepth(node);
-            var x = depth * Indent;
+            var x = LeftMargin + depth * Indent;
+            var y = i * ItemHeight;
             var hasChildren = node.Children.Any();
-            
-            // Glyph box: centered vertically in the row
-            int glyphY = y + (ItemHeight - GlyphSize) / 2;
-            var glyphRect = new Rectangle(x, glyphY, GlyphSize, GlyphSize);
 
-            // Draw connector lines (dotted)
-            if (node.Parent != null)
+            // Selection background (drawn before anything else for this row)
+            if (node == SelectedNode)
             {
-                int parentY = node.Parent.Bounds.Y + ItemHeight / 2;
-                int childY = y + ItemHeight / 2; // center of current row
-                int lineX = (depth - 1) * Indent + GlyphSize / 2;
-                
-                // Vertical dotted line from parent center down to top of this node's glyph box
-                int verticalStopY = glyphY;
-                DrawDottedLine(g, SystemColors.ControlDark, lineX, parentY, lineX, verticalStopY, 2, 2);
-                
-                // Horizontal dotted line from vertical line to left edge of glyph box
-                DrawDottedLine(g, SystemColors.ControlDark, lineX, childY, x, childY, 2, 2);
+                g.FillRectangle(SystemColors.Highlight, 0, y, Width, ItemHeight);
             }
 
+            // Glyph box background and outline
+            int glyphY = y + (ItemHeight - GlyphSize) / 2;
             if (hasChildren)
             {
-                // box outline
-                g.DrawRectangle(SystemColors.ControlDark, glyphRect.X, glyphRect.Y, GlyphSize, GlyphSize, 1);
-                // horizontal line (minus)
-                var centerX = glyphRect.X + GlyphSize / 2;
-                var centerY = glyphRect.Y + GlyphSize / 2;
-                g.DrawLine(SystemColors.ControlDark, glyphRect.X + 2, centerY, glyphRect.X + GlyphSize - 2, centerY);
-                // vertical line for plus (when collapsed)
+                // Fill glyph background to occlude any vertical lines passing through
+                g.FillRectangle(BackColor, x, glyphY, GlyphSize, GlyphSize);
+                // Draw glyph outline
+                g.DrawRectangle(SystemColors.ControlDark, x, glyphY, GlyphSize, GlyphSize, 1);
+                // Horizontal minus line
+                var centerX = x + GlyphSize / 2;
+                var centerY = glyphY + GlyphSize / 2;
+                g.DrawLine(SystemColors.ControlDark, x + 2, centerY, x + GlyphSize - 2, centerY);
+                // Vertical plus line (when collapsed)
                 if (!node.IsExpanded)
                 {
-                    g.DrawLine(SystemColors.ControlDark, centerX, glyphRect.Y + 2, centerX, glyphRect.Y + GlyphSize - 2);
+                    g.DrawLine(SystemColors.ControlDark, centerX, glyphY + 2, centerX, glyphY + GlyphSize - 2);
                 }
             }
 
             // Calculate text start position
             int textX = hasChildren ? x + GlyphSize + 2 : x;
 
-            // Selection background (drawn before icon and text)
-            if (node == SelectedNode)
-            {
-                g.FillRectangle(SystemColors.Highlight, 0, y, Width, ItemHeight);
-            }
-
-            // Icon (centered vertically in the row)
+            // Icon
             if (ImageList != null && node.ImageIndex.HasValue && node.ImageIndex.Value < ImageList.Count)
             {
                 var img = ImageList[node.ImageIndex.Value];
-                int iconY = y + (ItemHeight - ItemHeight) / 2; // ItemHeight x ItemHeight, so centered
+                int iconY = y + (ItemHeight - ItemHeight) / 2;
                 g.DrawImage(img, textX, iconY, ItemHeight, ItemHeight);
                 textX += ItemHeight + 2;
             }
 
-            // Text (drawn last so it appears on top)
+            // Text
             var textColor = node == SelectedNode ? SystemColors.HighlightText : ForeColor;
             g.DrawString(node.Text, EffectiveFont, textColor, textX, y);
-
-            y += ItemHeight;
         }
 
         g.TranslateTransform(0, _scrollOffsetY);
@@ -307,6 +277,19 @@ public class TreeView : Control
     }
 
     /// <summary>
+    /// Called when the theme changes. Updates TreeView-specific colors.
+    /// </summary>
+    /// <param name="newTheme">The new theme that was activated.</param>
+    public override void OnThemeChanged(Theme newTheme)
+    {
+        if (!_backColorSet)
+            _backColor = newTheme.ContentBackground;
+        if (!_foreColorSet)
+            _foreColor = newTheme.ControlText;
+        Invalidate();
+    }
+
+    /// <summary>
     /// Handles mouse wheel for vertical scrolling.
     /// </summary>
     protected internal override void OnMouseWheel(EventArgs e)
@@ -314,10 +297,8 @@ public class TreeView : Control
         var me = e as MouseEventArgs;
         if (me != null)
         {
-            // delta is usually +/-120 per notch
             int lines = me.Delta / 120;
             _scrollOffsetY = System.Math.Max(0, _scrollOffsetY - lines * ItemHeight);
-            // clamp to content height
             int maxOffset = System.Math.Max(0, GetVisibleNodes().Count * ItemHeight - Height);
             _scrollOffsetY = System.Math.Min(_scrollOffsetY, maxOffset);
             Invalidate();
@@ -334,20 +315,17 @@ public class TreeView : Control
         var me = e as MouseEventArgs;
         if (me != null)
         {
-            // Calculate virtual Y coordinate (accounting for scroll)
             int virtualY = me.Y + _scrollOffsetY;
             var visible = GetVisibleNodes();
-            
-            // Find the node at the clicked position using bounds
+
             foreach (var node in visible)
             {
                 if (virtualY >= node.Bounds.Y && virtualY < node.Bounds.Y + ItemHeight)
                 {
                     int depth = GetDepth(node);
-                    int glyphX = depth * Indent;
+                    int glyphX = LeftMargin + depth * Indent;
                     var relX = me.X - glyphX;
-                    
-                    // Hit test glyph area
+
                     if (relX >= 0 && relX < GlyphSize && node.Children.Any())
                     {
                         node.Toggle();
@@ -355,7 +333,6 @@ public class TreeView : Control
                         return;
                     }
 
-                    // Otherwise select node
                     SelectedNode = node;
                     AfterSelect?.Invoke(this, EventArgs.Empty);
                     Invalidate();
