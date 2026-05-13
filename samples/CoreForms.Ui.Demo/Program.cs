@@ -499,6 +499,56 @@ class Program
             _statusLabel!.Text = $"Result: {result}";
         };
 
+        var textAlignGroup = new GroupBox
+        {
+            Text = "Text Alignment Demo",
+            Location = new Point(10, 150),
+            Size = new Size(550, 200)
+        };
+
+        var btnLeft = new Button { Text = "Left", Location = new Point(10, 25), Size = new Size(120, 30), TextAlign = ContentAlignment.MiddleLeft };
+        var btnCenter = new Button { Text = "Center", Location = new Point(140, 25), Size = new Size(120, 30), TextAlign = ContentAlignment.MiddleCenter };
+        var btnRight = new Button { Text = "Right", Location = new Point(270, 25), Size = new Size(120, 30), TextAlign = ContentAlignment.MiddleRight };
+
+        var labelLeft = new Label { Text = "Label Left", Location = new Point(10, 65), Size = new Size(120, 25), TextAlign = ContentAlignment.MiddleLeft };
+        var labelCenter = new Label { Text = "Label Center", Location = new Point(140, 65), Size = new Size(120, 25), TextAlign = ContentAlignment.MiddleCenter };
+        var labelRight = new Label { Text = "Label Right", Location = new Point(270, 65), Size = new Size(120, 25), TextAlign = ContentAlignment.MiddleRight };
+
+        var txtLeft = new TextBox { Text = "Left", Location = new Point(10, 100), Size = new Size(120, 25), TextAlign = ContentAlignment.MiddleLeft };
+        var txtCenter = new TextBox { Text = "Center", Location = new Point(140, 100), Size = new Size(120, 25), TextAlign = ContentAlignment.MiddleCenter };
+        var txtRight = new TextBox { Text = "Right", Location = new Point(270, 100), Size = new Size(120, 25), TextAlign = ContentAlignment.MiddleRight };
+
+        var cmbLeft = new ComboBox { Location = new Point(10, 135), Size = new Size(120, 25), TextAlign = ContentAlignment.MiddleLeft };
+        cmbLeft.Items.Add("Left");
+        cmbLeft.Items.Add("Center");
+        cmbLeft.Items.Add("Right");
+        cmbLeft.SelectedIndex = 0;
+
+        var cmbCenter = new ComboBox { Location = new Point(140, 135), Size = new Size(120, 25), TextAlign = ContentAlignment.MiddleCenter };
+        cmbCenter.Items.Add("Left");
+        cmbCenter.Items.Add("Center");
+        cmbCenter.Items.Add("Right");
+        cmbCenter.SelectedIndex = 1;
+
+        var cmbRight = new ComboBox { Location = new Point(270, 135), Size = new Size(120, 25), TextAlign = ContentAlignment.MiddleRight };
+        cmbRight.Items.Add("Left");
+        cmbRight.Items.Add("Center");
+        cmbRight.Items.Add("Right");
+        cmbRight.SelectedIndex = 2;
+
+        textAlignGroup.Controls.Add(btnLeft);
+        textAlignGroup.Controls.Add(btnCenter);
+        textAlignGroup.Controls.Add(btnRight);
+        textAlignGroup.Controls.Add(labelLeft);
+        textAlignGroup.Controls.Add(labelCenter);
+        textAlignGroup.Controls.Add(labelRight);
+        textAlignGroup.Controls.Add(txtLeft);
+        textAlignGroup.Controls.Add(txtCenter);
+        textAlignGroup.Controls.Add(txtRight);
+        textAlignGroup.Controls.Add(cmbLeft);
+        textAlignGroup.Controls.Add(cmbCenter);
+        textAlignGroup.Controls.Add(cmbRight);
+
         page.Controls.Add(infoButton);
         page.Controls.Add(warningButton);
         page.Controls.Add(errorButton);
@@ -507,6 +557,7 @@ class Program
         page.Controls.Add(yesNoCancelButton);
         page.Controls.Add(retryButton);
         page.Controls.Add(abortButton);
+        page.Controls.Add(textAlignGroup);
 
         return page;
     }

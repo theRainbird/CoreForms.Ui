@@ -754,4 +754,207 @@ public class ControlTests
         Assert.True(button2.Focused);
         Assert.False(button1.Focused);
     }
+
+    [Fact]
+    public void Button_TextAlign_DefaultShouldBeMiddleCenter()
+    {
+        var button = new Button();
+        Assert.Equal(ContentAlignment.MiddleCenter, button.TextAlign);
+    }
+
+    [Fact]
+    public void Button_TextAlign_ShouldBeSettable()
+    {
+        var button = new Button();
+        button.TextAlign = ContentAlignment.MiddleRight;
+        Assert.Equal(ContentAlignment.MiddleRight, button.TextAlign);
+    }
+
+    [Fact]
+    public void Label_TextAlign_DefaultShouldBeMiddleLeft()
+    {
+        var label = new Label();
+        Assert.Equal(ContentAlignment.MiddleLeft, label.TextAlign);
+    }
+
+    [Fact]
+    public void Label_TextAlign_ShouldBeSettable()
+    {
+        var label = new Label();
+        label.TextAlign = ContentAlignment.MiddleCenter;
+        Assert.Equal(ContentAlignment.MiddleCenter, label.TextAlign);
+    }
+
+    [Fact]
+    public void TextBox_TextAlign_DefaultShouldBeMiddleLeft()
+    {
+        var textBox = new TextBox();
+        Assert.Equal(ContentAlignment.MiddleLeft, textBox.TextAlign);
+    }
+
+    [Fact]
+    public void TextBox_TextAlign_ShouldBeSettable()
+    {
+        var textBox = new TextBox();
+        textBox.TextAlign = ContentAlignment.MiddleRight;
+        Assert.Equal(ContentAlignment.MiddleRight, textBox.TextAlign);
+    }
+
+    [Fact]
+    public void ComboBox_TextAlign_DefaultShouldBeMiddleLeft()
+    {
+        var comboBox = new ComboBox();
+        Assert.Equal(ContentAlignment.MiddleLeft, comboBox.TextAlign);
+    }
+
+    [Fact]
+    public void ComboBox_TextAlign_ShouldBeSettable()
+    {
+        var comboBox = new ComboBox();
+        comboBox.TextAlign = ContentAlignment.MiddleCenter;
+        Assert.Equal(ContentAlignment.MiddleCenter, comboBox.TextAlign);
+    }
+
+    [Fact]
+    public void Control_TextAlign_DefaultShouldBeMiddleCenter()
+    {
+        var control = new Label();
+        control.TextAlign = ContentAlignment.MiddleCenter;
+        Assert.Equal(ContentAlignment.MiddleCenter, control.TextAlign);
+    }
+
+    [Fact]
+    public void ComboBox_Dropdown_YPosition_ShouldBeBelowComboBox()
+    {
+        var comboBox = new ComboBox { Location = new Point(100, 200), Size = new Size(120, 24) };
+        comboBox.Items.Add("Item1");
+        comboBox.Items.Add("Item2");
+        comboBox.Items.Add("Item3");
+
+        var method = typeof(ComboBox).GetProperty("DroppedDown", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Public);
+        if (method != null) { }
+        var field = typeof(ComboBox).GetField("_droppedDown", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Public);
+        Assert.NotNull(field);
+        field!.SetValue(comboBox, true);
+
+        using var g = new Rendering.Graphics();
+        g.TranslateTransform(100, 200);
+
+        comboBox.RenderOverlay(g);
+
+        var commands = g.GetCommands();
+        var fillRects = commands.Where(c => c.Type == Rendering.DrawCommandType.FillRectangle).ToList();
+        var dropdownBg = fillRects.FirstOrDefault(c => Math.Abs(c.Y - (24 + 200)) < 1 && c.Height > 24);
+
+        Assert.NotNull(dropdownBg);
+        Assert.True(dropdownBg!.Y >= 200 + 24, $"Dropdown Y ({dropdownBg.Y}) should be >= ComboBox bottom ({200 + 24})");
+    }
+
+    [Fact]
+    public void ComboBox_Dropdown_YPosition_StandaloneNoOffset()
+    {
+        var comboBox = new ComboBox { Size = new Size(120, 24) };
+        comboBox.Items.Add("Item1");
+        comboBox.Items.Add("Item2");
+
+        var field = typeof(ComboBox).GetField("_droppedDown", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Public);
+        Assert.NotNull(field);
+        field!.SetValue(comboBox, true);
+
+        using var g = new Rendering.Graphics();
+        comboBox.RenderOverlay(g);
+
+        var commands = g.GetCommands();
+        var fillRects = commands.Where(c => c.Type == Rendering.DrawCommandType.FillRectangle).ToList();
+        var dropdownBg = fillRects.FirstOrDefault(c => c.Height == comboBox.DropDownHeight);
+
+        Assert.NotNull(dropdownBg);
+        Assert.Equal(comboBox.Height, dropdownBg!.Y);
+    }
+
+    [Fact]
+    public void ComboBox_Dropdown_YPosition_InsideGroupBox()
+    {
+        var form = new Form { Size = new Size(800, 600) };
+        var groupBox = new GroupBox { Location = new Point(10, 180), Size = new Size(280, 200), Text = "Test" };
+        var comboBox = new ComboBox { Location = new Point(140, 45), Size = new Size(120, 24) };
+        comboBox.Items.Add("Item1");
+        comboBox.Items.Add("Item2");
+
+        groupBox.Controls.Add(comboBox);
+        form.Controls.Add(groupBox);
+
+        var field = typeof(ComboBox).GetField("_droppedDown", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Public);
+        Assert.NotNull(field);
+        field!.SetValue(comboBox, true);
+
+        using var gOverlay = new Rendering.Graphics();
+        form.RenderOverlay(gOverlay);
+
+        var overlayCommands = gOverlay.GetCommands();
+        var overlayFillRects = overlayCommands.Where(c => c.Type == Rendering.DrawCommandType.FillRectangle).ToList();
+
+        var overlayAllYs = overlayFillRects.Select(r => $"Y={r.Y} H={r.Height} W={r.Width} X={r.X}").ToList();
+        Assert.NotEmpty(overlayAllYs);
+
+        using var gBody = new Rendering.Graphics();
+        form.Render(gBody);
+
+        var bodyCommands = gBody.GetCommands();
+        var bodyFillRects = bodyCommands.Where(c => c.Type == Rendering.DrawCommandType.FillRectangle).ToList();
+
+        var comboBoxBodyRect = bodyFillRects.FirstOrDefault(c => Math.Abs(c.Width - 120) < 3 && Math.Abs(c.Height - 24) < 3);
+        Assert.NotNull(comboBoxBodyRect);
+
+        var expectedDropdownY = comboBoxBodyRect!.Y + comboBoxBodyRect.Height;
+
+        var dropdownBg = overlayFillRects.FirstOrDefault(c => Math.Abs(c.Y - expectedDropdownY) < 2);
+
+        Assert.True(dropdownBg != null, $"No dropdown FillRect found near Y={expectedDropdownY}. " +
+            $"ComboBox body: Y={comboBoxBodyRect.Y} H={comboBoxBodyRect.Height}. " +
+            $"Overlay rects: {string.Join("; ", overlayAllYs)}");
+    }
+
+    [Fact]
+    public void ComboBox_Dropdown_YPosition_WithZoom()
+    {
+        var form = new Form { Size = new Size(800, 600) };
+        form.Zoom = 1.5f;
+
+        var groupBox = new GroupBox { Location = new Point(10, 180), Size = new Size(280, 200), Text = "Test" };
+        var comboBox = new ComboBox { Location = new Point(140, 45), Size = new Size(120, 24) };
+        comboBox.Items.Add("Item1");
+        comboBox.Items.Add("Item2");
+
+        groupBox.Controls.Add(comboBox);
+        form.Controls.Add(groupBox);
+
+        var field = typeof(ComboBox).GetField("_droppedDown", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Public);
+        Assert.NotNull(field);
+        field!.SetValue(comboBox, true);
+
+        using var gOverlay = new Rendering.Graphics();
+        form.RenderOverlay(gOverlay);
+
+        var overlayCommands = gOverlay.GetCommands();
+        var overlayFillRects = overlayCommands.Where(c => c.Type == Rendering.DrawCommandType.FillRectangle).ToList();
+
+        using var gBody = new Rendering.Graphics();
+        form.Render(gBody);
+
+        var bodyCommands = gBody.GetCommands();
+        var bodyFillRects = bodyCommands.Where(c => c.Type == Rendering.DrawCommandType.FillRectangle).ToList();
+
+        var zoom = form.Zoom;
+        var comboBoxBodyRect = bodyFillRects.FirstOrDefault(c => Math.Abs(c.Width - 120 * zoom) < 3 && Math.Abs(c.Height - 24 * zoom) < 3);
+        Assert.NotNull(comboBoxBodyRect);
+
+        var expectedDropdownY = comboBoxBodyRect!.Y + comboBoxBodyRect.Height;
+
+        var dropdownBg = overlayFillRects.FirstOrDefault(c => Math.Abs(c.Y - expectedDropdownY) < 3);
+
+        Assert.True(dropdownBg != null, $"No dropdown near Y={expectedDropdownY}. " +
+            $"Body: Y={comboBoxBodyRect.Y} H={comboBoxBodyRect.Height} W={comboBoxBodyRect.Width}. " +
+            $"Overlay rects: {string.Join("; ", overlayFillRects.Select(r => $"Y={r.Y} H={r.Height} W={r.Width}"))}");
+    }
 }

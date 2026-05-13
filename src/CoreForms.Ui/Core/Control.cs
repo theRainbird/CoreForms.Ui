@@ -36,6 +36,7 @@ public class Control : Component, IThemeChangeSubscriber
     private int _layoutSuspendCount;
     internal bool _layoutDrivenBoundsChange;
     private ControlState _state = ControlState.None;
+    private ContentAlignment _textAlign = ContentAlignment.MiddleCenter;
 
     /// <summary>
     /// Initializes a new instance of Control.
@@ -302,6 +303,22 @@ public class Control : Component, IThemeChangeSubscriber
             {
                 _text = value;
                 OnTextChanged();
+            }
+        }
+    }
+
+    /// <summary>
+    /// Gets or sets the text alignment within the control.
+    /// </summary>
+    public ContentAlignment TextAlign
+    {
+        get => _textAlign;
+        set
+        {
+            if (_textAlign != value)
+            {
+                _textAlign = value;
+                Invalidate();
             }
         }
     }

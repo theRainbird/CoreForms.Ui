@@ -16,6 +16,7 @@ public class Label : Control
     {
         _backColor = Color.Transparent;
         Size = new Size(150, 28);
+        TextAlign = ContentAlignment.MiddleLeft;
     }
 
     /// <summary>
@@ -42,7 +43,24 @@ public class Label : Control
             }
 
             var font = EffectiveFont;
-            g.DrawString(Text, font, ForeColor, 3, CoordinateTransform.CenterVertically(Height, font, EffectiveZoom));
+            float zoom = EffectiveZoom;
+            var textSize = Platform.Platform.MeasureText(Text, font, zoom);
+            var padding = 3;
+            var textX = TextAlign switch
+            {
+                ContentAlignment.TopLeft or ContentAlignment.MiddleLeft or ContentAlignment.BottomLeft => padding,
+                ContentAlignment.TopCenter or ContentAlignment.MiddleCenter or ContentAlignment.BottomCenter => (Width - textSize.width) / 2,
+                ContentAlignment.TopRight or ContentAlignment.MiddleRight or ContentAlignment.BottomRight => Width - textSize.width - padding,
+                _ => padding
+            };
+            var textY = TextAlign switch
+            {
+                ContentAlignment.TopLeft or ContentAlignment.TopCenter or ContentAlignment.TopRight => padding,
+                ContentAlignment.MiddleLeft or ContentAlignment.MiddleCenter or ContentAlignment.MiddleRight => CoordinateTransform.CenterVertically(Height, font, zoom),
+                ContentAlignment.BottomLeft or ContentAlignment.BottomCenter or ContentAlignment.BottomRight => Height - textSize.height - padding,
+                _ => CoordinateTransform.CenterVertically(Height, font, zoom)
+            };
+            g.DrawString(Text, font, ForeColor, textX, textY);
 
             base.Render(g);
         }

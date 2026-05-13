@@ -25,6 +25,7 @@ public class TextBox : Control
         _foreColor = theme.TextBoxText;
         Size = new Size(200, 32);
         TabStop = true;
+        TextAlign = ContentAlignment.MiddleLeft;
     }
 
     /// <summary>
@@ -143,6 +144,19 @@ public class TextBox : Control
         return MeasureTextWidth(_text);
     }
 
+    private int GetTextX()
+    {
+        var padding = 4;
+        int textWidth = MeasureDisplayWidth();
+        return TextAlign switch
+        {
+            ContentAlignment.TopLeft or ContentAlignment.MiddleLeft or ContentAlignment.BottomLeft => padding,
+            ContentAlignment.TopCenter or ContentAlignment.MiddleCenter or ContentAlignment.BottomCenter => (Width - textWidth) / 2,
+            ContentAlignment.TopRight or ContentAlignment.MiddleRight or ContentAlignment.BottomRight => Width - textWidth - padding,
+            _ => padding
+        };
+    }
+
     /// <summary>
     /// Renders the text box with its text, selection, and cursor.
     /// </summary>
@@ -164,7 +178,7 @@ public class TextBox : Control
         float zoom = EffectiveZoom;
         float scaledFontSize = font.Size * zoom;
         float textY = CoordinateTransform.CenterVertically(Height, font, zoom);
-        float textX = 4;
+        float textX = GetTextX();
 
         string displayText = GetDisplayText();
 
@@ -279,7 +293,8 @@ public class TextBox : Control
         var mouseArgs = e as MouseEventArgs;
         if (mouseArgs != null)
         {
-            int xPos = mouseArgs.X - 4;
+            int textX = GetTextX();
+            int xPos = mouseArgs.X - textX;
 
             if (_useSystemPasswordChar && _text.Length > 0)
             {
@@ -287,7 +302,7 @@ public class TextBox : Control
                 var zoom = EffectiveZoom;
                 var bulletMeasured = Platform.Platform.MeasureText(BulletChar, font, zoom);
                 int bulletWidth = (int)(bulletMeasured.width / zoom);
-                _cursorPosition = Math.Min(xPos / bulletWidth + 1, _text.Length);
+                _cursorPosition = Math.Min(Math.Max(0, xPos / bulletWidth + 1), _text.Length);
             }
             else
             {
