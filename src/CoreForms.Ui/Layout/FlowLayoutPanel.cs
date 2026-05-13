@@ -10,8 +10,7 @@ namespace CoreForms.Ui.Layout;
 public class FlowLayoutPanel : ContainerControl
 {
     private FlowDirection _flowDirection = FlowDirection.LeftToRight;
-    private int _wrapContents = 1;
-
+    
     /// <summary>
     /// Initializes a new instance of FlowLayoutPanel.
     /// </summary>

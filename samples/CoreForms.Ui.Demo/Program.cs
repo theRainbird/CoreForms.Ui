@@ -2,7 +2,7 @@ using CoreForms.Ui.Controls.Advanced;
 using CoreForms.Ui.Core;
 using CoreForms.Ui.Controls.Basic;
 using CoreForms.Ui.Controls.Containers;
-using CoreForms.Ui.Layout;
+using CoreForms.Ui.Controls;
 using CoreForms.Ui.Resources;
 using CoreForms.Ui.Theming;
 using SkiaSharp;
@@ -273,7 +273,7 @@ class Program
         tabControl.AddTabPage(CreateDataGridPage());
         tabControl.AddTabPage(CreateMessageBoxPage());
         tabControl.AddTabPage(CreateDockAnchorPage());
-        tabControl.AddTabPage(CreateImagesPage());
+        tabControl.AddTabPage(CreateTreeViewPage());
 
         return tabControl;
     }
@@ -562,6 +562,47 @@ class Program
         return page;
     }
 
+    static TabPage CreateTreeViewPage()
+    {
+        var page = new TabPage { Text = "Tree View" };
+
+        // Create an ImageList with some icons
+        var imageList = new ImageList();
+        // Using existing icons for folder and file representations
+        imageList.Add(Icons.DocumentFolder24 ?? Icons.Document24!);
+        imageList.Add(Icons.DocumentFolder24 ?? Icons.Document24!);
+        imageList.Add(Icons.Document24!);
+
+        // Create TreeView
+        var treeView = new TreeView
+        {
+            Location = new Point(10, 10),
+            Size = new Size(400, 300),
+            ImageList = imageList,
+            BackColor = Core.Color.White,
+            ForeColor = Core.Color.Black
+        };
+
+        // Build sample nodes
+        var root1 = new TreeNode("Root 1") { ImageIndex = 0 };
+        var child1 = new TreeNode("Child 1") { ImageIndex = 1 };
+        var child2 = new TreeNode("Child 2") { ImageIndex = 2 };
+        root1.Add(child1);
+        root1.Add(child2);
+
+        var root2 = new TreeNode("Root 2") { ImageIndex = 0 };
+        var subRoot = new TreeNode("Sub Root") { ImageIndex = 1 };
+        subRoot.Add(new TreeNode("Leaf A") { ImageIndex = 2 });
+        subRoot.Add(new TreeNode("Leaf B") { ImageIndex = 2 });
+        root2.Add(subRoot);
+
+        treeView.Nodes.Add(root1);
+        treeView.Nodes.Add(root2);
+
+        page.Controls.Add(treeView);
+        return page;
+    }
+
     static TabPage CreateImagesPage()
     {
         var page = new TabPage { Text = "Images" };
@@ -647,7 +688,6 @@ class Program
 
         page.Controls.Add(svgGroup);
         page.Controls.Add(rasterGroup);
-
         return page;
     }
 

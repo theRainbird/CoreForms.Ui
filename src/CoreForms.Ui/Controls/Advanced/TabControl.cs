@@ -83,6 +83,28 @@ public class TabControl : ContainerControl
         set => _tabHeight = value;
     }
 
+    private (int[] positions, int[] widths) CalculateTabLayout()
+    {
+        const int horizontalPadding = 16;
+        const int minTabWidth = 40;
+        var fontSize = (int)(EffectiveFont.Size * EffectiveZoom);
+        var charWidth = fontSize / 2;
+
+        var widths = new int[_tabPages.Count];
+        var positions = new int[_tabPages.Count];
+        int totalWidth = 0;
+
+        for (int i = 0; i < _tabPages.Count; i++)
+        {
+            var textWidth = _tabPages[i].Text.Length * charWidth + horizontalPadding;
+            widths[i] = Math.Max(textWidth, minTabWidth);
+            positions[i] = totalWidth;
+            totalWidth += widths[i];
+        }
+
+        return (positions, widths);
+    }
+
     /// <summary>
     /// Gets the child control at the specified point, returning null for clicks in the tab header area.
     /// </summary>
@@ -115,8 +137,8 @@ public class TabControl : ContainerControl
         var result = base.GetDeepestChildAtPoint(contentPoint, out var deepestLocal);
         if (result != null)
         {
-            // Convert deepest local point back to TabControl coordinates (add header offset)
-            localPoint = new Point(deepestLocal.X, deepestLocal.Y + tabHeaderHeight);
+            // deepestLocal is already in the target control's coordinate space
+            localPoint = deepestLocal;
         }
         else
         {
@@ -136,33 +158,49 @@ public class TabControl : ContainerControl
         var theme = ThemeManager.CurrentTheme;
         var font = EffectiveFont;
         var tabHeaderHeight = _tabHeight + 2;
+        const int horizontalPadding = 16;
+
+        var (tabPositions, tabWidths) = CalculateTabLayout();
 
         // Draw tab headers background
         g.FillRectangle(theme.TabHeaderBackground, 0, 0, Width, tabHeaderHeight);
 
-        // Draw individual tabs
+        // Draw individual tabs with vertical separators
         for (int i = 0; i < _tabPages.Count; i++)
         {
-            var x = i * 100;
-            var width = 100;
+            var x = tabPositions[i];
+            var tabWidth = tabWidths[i];
 
             if (i == _selectedIndex)
             {
-                // Selected tab: white background, no bottom line
-                g.FillRectangle(theme.TabSelectedBackground, x, 0, width, tabHeaderHeight);
-                g.DrawString(_tabPages[i].Text, font, theme.TabSelectedText, x + 5, CoordinateTransform.CenterVertically(0, tabHeaderHeight, font, EffectiveZoom));
+                // Selected tab: white background, border on top/right/left (not bottom)
+                g.FillRectangle(theme.TabSelectedBackground, x, 0, tabWidth, tabHeaderHeight);
+                // Top border
+                g.DrawLine(theme.TabSelectedBorder, x, 0, x + tabWidth, 0);
+                // Left border
+                g.DrawLine(theme.TabSelectedBorder, x, 0, x, tabHeaderHeight);
+                // Right border
+                g.DrawLine(theme.TabSelectedBorder, x + tabWidth, 0, x + tabWidth, tabHeaderHeight);
+                g.DrawString(_tabPages[i].Text, font, theme.TabSelectedText, x + horizontalPadding / 2, CoordinateTransform.CenterVertically(0, tabHeaderHeight, font, EffectiveZoom));
             }
             else
             {
                 // Unselected tabs: gray background
-                g.FillRectangle(theme.TabUnselectedBackground, x, 0, width, tabHeaderHeight);
-                g.DrawString(_tabPages[i].Text, font, theme.TabUnselectedText, x + 5, CoordinateTransform.CenterVertically(0, tabHeaderHeight, font, EffectiveZoom));
+                g.FillRectangle(theme.TabUnselectedBackground, x, 0, tabWidth, tabHeaderHeight);
+                g.DrawString(_tabPages[i].Text, font, theme.TabUnselectedText, x + horizontalPadding / 2, CoordinateTransform.CenterVertically(0, tabHeaderHeight, font, EffectiveZoom));
+            }
+
+            // Vertical separator between tabs (except after last tab)
+            if (i < _tabPages.Count - 1)
+            {
+                var sepX = x + tabWidth;
+                g.DrawLine(theme.TabSeparator, sepX, 2, sepX, tabHeaderHeight - 2);
             }
         }
 
-        // Draw separator line (only for unselected area)
-        var selectedTabX = _selectedIndex * 100;
-        var selectedTabWidth = 100;
+        // Draw separator line below tab headers (only for unselected area)
+        var selectedTabX = tabPositions[_selectedIndex];
+        var selectedTabWidth = tabWidths[_selectedIndex];
 
         // Line to the left of selected tab
         if (selectedTabX > 0)
@@ -177,14 +215,14 @@ public class TabControl : ContainerControl
             g.DrawLine(theme.TabSeparator, rightStart, tabHeaderHeight, Width, tabHeaderHeight);
         }
 
-        // Draw content area background
-        g.FillRectangle(theme.TabContentBackground, 0, tabHeaderHeight + 1, Width, Height - tabHeaderHeight - 1);
+        // Draw content area background (start at tabHeaderHeight to hide any child control borders at top)
+        g.FillRectangle(theme.TabContentBackground, 0, tabHeaderHeight, Width, Height - tabHeaderHeight);
 
         // Render selected tab page content
         if (SelectedTab != null)
         {
             g.Save();
-            g.TranslateTransform(0, tabHeaderHeight + 1);
+            g.TranslateTransform(0, tabHeaderHeight);
             SelectedTab.Render(g);
             g.Restore();
         }
@@ -206,11 +244,15 @@ public class TabControl : ContainerControl
             var tabHeaderHeight = _tabHeight + 2;
             if (args.Y < tabHeaderHeight)
             {
-                var clickedIndex = args.X / 100;
-                if (clickedIndex >= 0 && clickedIndex < _tabPages.Count)
+                var (tabPositions, tabWidths) = CalculateTabLayout();
+                var clickedX = args.X;
+                for (int i = 0; i < _tabPages.Count; i++)
                 {
-                    SelectedIndex = clickedIndex;
-                    return;
+                    if (clickedX >= tabPositions[i] && clickedX < tabPositions[i] + tabWidths[i])
+                    {
+                        SelectedIndex = i;
+                        return;
+                    }
                 }
             }
         }
@@ -362,7 +404,7 @@ public class TabPage : ContainerControl
     /// <summary>
     /// Gets or sets the text of the tab page (displayed in the tab header).
     /// </summary>
-    public string Text
+    public new string Text
     {
         get => _text;
         set => _text = value;

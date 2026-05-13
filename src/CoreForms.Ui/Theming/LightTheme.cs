@@ -107,6 +107,9 @@ public class LightTheme : Theme
     public override Color TextBoxFocusBorder => Color.FromArgb(0, 120, 215);
 
     /// <inheritdoc />
+    public override Color ContentBackground => Color.FromArgb(255, 255, 255);
+
+    /// <inheritdoc />
     public override Color TabHeaderBackground => Color.FromArgb(230, 230, 230);
 
     /// <inheritdoc />
@@ -123,6 +126,9 @@ public class LightTheme : Theme
 
     /// <inheritdoc />
     public override Color TabSeparator => Color.FromArgb(150, 150, 150);
+
+    /// <inheritdoc />
+    public override Color TabSelectedBorder => Color.FromArgb(180, 180, 180);
 
     /// <inheritdoc />
     public override Color TabContentBackground => Color.FromArgb(255, 255, 255);

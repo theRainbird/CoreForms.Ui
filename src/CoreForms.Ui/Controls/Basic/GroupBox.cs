@@ -21,6 +21,15 @@ public class GroupBox : ContainerControl
     }
 
     /// <summary>
+    /// Called when the theme changes. Keeps the transparent background.
+    /// </summary>
+    /// <param name="newTheme">The new theme that was activated.</param>
+    public override void OnThemeChanged(Theme newTheme)
+    {
+        Invalidate();
+    }
+
+    /// <summary>
     /// Renders the GroupBox with its border and title text.
     /// </summary>
     /// <param name="g">The Graphics object to use for rendering.</param>
@@ -37,9 +46,9 @@ public class GroupBox : ContainerControl
         int titleWidth = Text.Length > 0 ? (int)(Text.Length * font.Size * zoom * 0.6f) + 10 : 0;
         int halfTitle = titleHeight / 2;
 
-        base.Render(g);
-
         g.FillRectangle(BackColor, 0, 0, Width, Height);
+
+        base.Render(g);
 
         if (!string.IsNullOrEmpty(Text))
         {

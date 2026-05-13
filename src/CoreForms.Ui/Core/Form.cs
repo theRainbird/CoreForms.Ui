@@ -11,7 +11,7 @@ namespace CoreForms.Ui.Core;
 public class Form : ContainerControl
 {
     private string _title = string.Empty;
-    private bool _resizable = true;
+
     private FormWindowState _windowState = FormWindowState.Normal;
     private FormBorderStyle _formBorderStyle = FormBorderStyle.Sizable;
     private IntPtr _handle;

@@ -107,6 +107,9 @@ public class DarkTheme : Theme
     public override Color TextBoxFocusBorder => Color.FromArgb(0, 120, 212);
 
     /// <inheritdoc />
+    public override Color ContentBackground => Color.FromArgb(45, 45, 48);
+
+    /// <inheritdoc />
     public override Color TabHeaderBackground => Color.FromArgb(40, 40, 43);
 
     /// <inheritdoc />
@@ -123,6 +126,9 @@ public class DarkTheme : Theme
 
     /// <inheritdoc />
     public override Color TabSeparator => Color.FromArgb(70, 70, 73);
+
+    /// <inheritdoc />
+    public override Color TabSelectedBorder => Color.FromArgb(80, 80, 83);
 
     /// <inheritdoc />
     public override Color TabContentBackground => Color.FromArgb(50, 50, 53);

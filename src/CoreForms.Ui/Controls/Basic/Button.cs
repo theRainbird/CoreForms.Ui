@@ -14,7 +14,6 @@ public class Button : Control
     /// </summary>
     public Button()
     {
-        BackColor = ThemeManager.CurrentTheme.ControlBackground;
         Size = new Size(120, 40);
         TabStop = true;
     }

@@ -178,6 +178,11 @@ public abstract class Theme
     public abstract Color TextBoxFocusBorder { get; }
 
     /// <summary>
+    /// Gets the content area background color (e.g., TreeView, ListBox).
+    /// </summary>
+    public abstract Color ContentBackground { get; }
+
+    /// <summary>
     /// Gets the tab header background color.
     /// </summary>
     public abstract Color TabHeaderBackground { get; }
@@ -206,6 +211,11 @@ public abstract class Theme
     /// Gets the tab separator color.
     /// </summary>
     public abstract Color TabSeparator { get; }
+
+    /// <summary>
+    /// Gets the selected tab border color.
+    /// </summary>
+    public abstract Color TabSelectedBorder { get; }
 
     /// <summary>
     /// Gets the tab content area background color.

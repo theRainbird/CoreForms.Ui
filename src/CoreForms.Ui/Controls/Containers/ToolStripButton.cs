@@ -199,23 +199,38 @@ public class ToolStripButton : ToolStripItem
     /// <returns>The preferred width in pixels.</returns>
     public override int GetPreferredWidth(Font font, float zoom)
     {
-        int width = 4;
+        int width = Padding.Left + 4 + 2;
 
-        if (DisplayStyle == ToolStripItemDisplayStyle.Text ||
-            DisplayStyle == ToolStripItemDisplayStyle.ImageAndText)
+        bool showImage = DisplayStyle == ToolStripItemDisplayStyle.Image ||
+                         DisplayStyle == ToolStripItemDisplayStyle.ImageAndText;
+        bool showText = DisplayStyle == ToolStripItemDisplayStyle.Text ||
+                        DisplayStyle == ToolStripItemDisplayStyle.ImageAndText;
+
+        if (showImage && Image != null)
+        {
+            width += Image.Width + 2;
+        }
+
+        if (showText && !string.IsNullOrEmpty(DisplayText))
         {
             width += MeasureTextWidth(DisplayText, font, zoom) + 2;
         }
 
-        if ((DisplayStyle == ToolStripItemDisplayStyle.Image ||
-             DisplayStyle == ToolStripItemDisplayStyle.ImageAndText) && Image != null)
+        if (showImage && showText && Image != null && !string.IsNullOrEmpty(DisplayText))
         {
-            width += Image.Width + 2;
+            width += 4;
         }
 
         if (_dropDownItems.Count > 0)
         {
             width += 10;
+        }
+
+        width += Padding.Right;
+
+        if (showText && !string.IsNullOrEmpty(DisplayText))
+        {
+            width += 2;
         }
 
         return width;

@@ -1,4 +1,5 @@
 using CoreForms.Ui.Core;
+using CoreForms.Ui.Theming;
 using Graphics = CoreForms.Ui.Rendering.Graphics;
 
 namespace CoreForms.Ui.Controls.Basic;
@@ -15,6 +16,15 @@ public class Label : Control
     {
         _backColor = Color.Transparent;
         Size = new Size(150, 28);
+    }
+
+    /// <summary>
+    /// Called when the theme changes. Keeps the transparent background.
+    /// </summary>
+    /// <param name="newTheme">The new theme that was activated.</param>
+    public override void OnThemeChanged(Theme newTheme)
+    {
+        Invalidate();
     }
 
     /// <summary>

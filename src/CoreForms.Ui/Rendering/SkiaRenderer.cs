@@ -128,7 +128,7 @@ public class SkiaRenderer : IDisposable
         int fboid;
         unsafe
         {
-            _gl.GetInteger(GLEnum.FramebufferBinding, out fboid);
+            if (_gl != null) { _gl.GetInteger(GLEnum.FramebufferBinding, out fboid); } else { fboid = 0; }
         }
 
         _renderTarget = new GRBackendRenderTarget(_width, _height, 0, 8,
