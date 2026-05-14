@@ -13,6 +13,7 @@ public class HtmlRenderer
     private readonly Dictionary<HtmlDomElement, List<RenderedLine>> _layoutCache = new();
     private int _renderWidth;
     private int _renderHeight;
+    private HtmlDomElement? _documentRoot;
 
     public HtmlRenderer()
     {
@@ -29,8 +30,11 @@ public class HtmlRenderer
         _styleResolver.AddStylesheet(css);
     }
 
+    private HtmlDomDocument? _document;
+
     public void Layout(HtmlDomDocument document, int width)
     {
+        _document = document;
         _renderWidth = width;
         _layoutCache.Clear();
 
@@ -411,17 +415,51 @@ public class HtmlRenderer
 
     public HtmlDomElement? HitTest(int x, int y)
     {
-        foreach (var kvp in _layoutCache)
+        return HitTestElement(_documentRoot, x, y);
+    }
+
+    private HtmlDomElement? HitTestElement(HtmlDomElement? element, int x, int y)
+    {
+        if (element == null) return null;
+        if (x >= element.RenderedX && x <= element.RenderedX + element.RenderedWidth &&
+            y >= element.RenderedY && y <= element.RenderedY + element.RenderedHeight)
         {
-            var element = kvp.Key;
-            if (x >= element.RenderedX && x <= element.RenderedX + element.RenderedWidth &&
-                y >= element.RenderedY && y <= element.RenderedY + element.RenderedHeight)
+            foreach (var child in element.Children)
             {
-                return element;
+                if (child is HtmlDomElement childElement)
+                {
+                    var hit = HitTestElement(childElement, x, y);
+                    if (hit != null) return hit;
+                }
             }
+            return element;
         }
         return null;
     }
+
+    public int GetContentHeight() => _renderHeight;
+
+    public (int x, int y, int height)? GetLastTextPosition()
+    {
+        int lastY = 0, lastX = 0, lastH = 0;
+        bool found = false;
+        foreach (var kvp in _layoutCache)
+        {
+            foreach (var line in kvp.Value)
+            {
+                if (line.TextNode != null)
+                {
+                    lastX = line.X + line.Width;
+                    lastY = line.Y;
+                    lastH = line.Height;
+                    found = true;
+                }
+            }
+        }
+        return found ? (lastX, lastY, lastH) : null;
+    }
+
+    public void SetDocument(HtmlDomDocument doc) => _documentRoot = doc?.DocumentElement;
 
     public (HtmlDomNode? node, int offset) HitTestText(int x, int y)
     {
@@ -444,7 +482,6 @@ public class HtmlRenderer
         return (null, 0);
     }
 
-    public int TotalHeight => _renderHeight;
 }
 
 public class RenderedLine

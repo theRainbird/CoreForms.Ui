@@ -564,8 +564,16 @@ if (_focused != value)
     }
 
     /// <summary>
+    /// Gets the render offset applied to child controls by this parent.
+    /// Override to report visual offsets (e.g., TabControl's tab header).
+    /// </summary>
+    /// <returns>The render offset applied to children.</returns>
+    protected internal virtual Point GetChildRenderOffset() => Point.Empty;
+
+    /// <summary>
     /// Gets the cumulative position of this control relative to its parent Form.
-    /// Sums the X/Y coordinates of all parent controls up to the Form.
+    /// Sums the X/Y coordinates of all parent controls up to the Form,
+    /// including any child render offsets applied by parent controls.
     /// </summary>
     /// <returns>A point representing the control's position in form coordinates.</returns>
     public virtual Point GetFormRelativePosition()
@@ -577,6 +585,9 @@ if (_focused != value)
         {
             x += current.X;
             y += current.Y;
+            var offset = current.GetChildRenderOffset();
+            x += offset.X;
+            y += offset.Y;
             current = current.Parent;
         }
         return new Point(x, y);

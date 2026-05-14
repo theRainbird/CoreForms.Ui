@@ -25,6 +25,11 @@ public static class Platform
     private static IKeyboard? _keyboard;
 
     /// <summary>
+    /// Called every frame before event processing. External components can hook here.
+    /// </summary>
+    public static Action? OnFrame { get; set; }
+
+    /// <summary>
     /// Gets the WindowContext for the specified window ID, or null if not found.
     /// </summary>
     /// <param name="windowId">The window ID.</param>
@@ -587,6 +592,7 @@ public static class Platform
     /// <param name="app">The application instance.</param>
     public static void ProcessEvents(Application app)
     {
+        OnFrame?.Invoke();
         var contextsSnapshot = _contexts.Values.ToList();
         var pendingCleanup = new List<WindowContext>();
 

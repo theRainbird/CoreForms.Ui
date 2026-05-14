@@ -118,14 +118,14 @@ internal sealed class CefAppImpl : CefApp
 
     protected override void OnBeforeCommandLineProcessing(string processType, CefCommandLine commandLine)
     {
-        commandLine.AppendSwitch("disable-gpu");
-        commandLine.AppendSwitch("disable-gpu-compositing");
-        commandLine.AppendSwitch("disable-software-rasterizer");
-        commandLine.AppendSwitch("enable-begin-frame-scheduling");
+        commandLine.AppendSwitch("single-process");
         commandLine.AppendSwitch("no-zygote");
+        commandLine.AppendSwitch("disable-gpu");
+        commandLine.AppendSwitch("enable-begin-frame-scheduling");
         commandLine.AppendSwitch("disable-extensions");
         commandLine.AppendSwitch("disable-smooth-scrolling");
-        commandLine.AppendSwitch("in-process-gpu");
+        commandLine.AppendSwitch("use-gl=swiftshader");
+        commandLine.AppendSwitch("enable-unsafe-swiftshader");
     }
 }
 
@@ -165,10 +165,29 @@ public class CefPlatformHandler : IWebViewPlatformHandler
 
             var mainArgs = new CefMainArgs(new string[] { });
             var exitCode = CefRuntime.ExecuteProcess(mainArgs, _cefApp, IntPtr.Zero);
+            if (exitCode >= 0)
+                Environment.Exit(exitCode);
+
+            var settings = new CefSettings
+            {
+                MultiThreadedMessageLoop = false,
+                NoSandbox = true,
+                WindowlessRenderingEnabled = true,
+                LogSeverity = CefLogSeverity.Warning,
+                CachePath = Path.Combine(Path.GetTempPath(), "CoreFormsCefCache"),
+                ResourcesDirPath = GetCefResourcesPath(),
+                LocalesDirPath = Path.Combine(GetCefResourcesPath(), "locales")
+            };
+
+            var browserProcessPath = Path.Combine(AppContext.BaseDirectory, "CefGlueBrowserProcess", "Xilium.CefGlue.BrowserProcess");
+            if (File.Exists(browserProcessPath))
+                settings.BrowserSubprocessPath = browserProcessPath;
+            else if (File.Exists(browserProcessPath + ".exe"))
+                settings.BrowserSubprocessPath = browserProcessPath + ".exe";
 
             CefRuntime.Initialize(mainArgs, settings, _cefApp, IntPtr.Zero);
             _cefInitialized = true;
-            Console.WriteLine("[CefPlatformHandler] CEF initialized (multi-threaded mode)");
+            Console.WriteLine("[CefPlatformHandler] CEF initialized (single-threaded mode)");
         }
     }
 
@@ -185,6 +204,9 @@ public class CefPlatformHandler : IWebViewPlatformHandler
         try
         {
             InitializeCef();
+
+            // Register CEF message pump
+            CoreForms.Ui.Platform.Platform.OnFrame += CefRuntime.DoMessageLoopWork;
 
             var windowInfo = CefWindowInfo.Create();
             windowInfo.SetAsWindowless(IntPtr.Zero, false);
@@ -249,6 +271,12 @@ public class CefPlatformHandler : IWebViewPlatformHandler
     {
         _browser = browser;
         Console.WriteLine("[CefPlatformHandler] Browser ready");
+
+        // Force initial resize to trigger first paint
+        var host = browser.GetHost();
+        host.WasResized();
+        host.SetFocus(true);
+        host.NotifyMoveOrResizeStarted();
     }
 
     internal void OnPaintBuffer(IntPtr buffer, int width, int height)
@@ -259,6 +287,8 @@ public class CefPlatformHandler : IWebViewPlatformHandler
         Marshal.Copy(buffer, _pixelBuffer, 0, size);
         _bufferWidth = width;
         _bufferHeight = height;
+        if (_pixelBuffer != null)
+            Console.WriteLine($"[CefPlatformHandler] OnPaint: {width}x{height}");
     }
 
     internal void OnNavigated(string url)

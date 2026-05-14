@@ -6,6 +6,7 @@ namespace CoreForms.Ui.WebBrowser.Rendering;
 internal sealed class PixelImage : IGraphicsImage
 {
     private SKImage? _image;
+    private SKBitmap? _bitmap;
 
     public int Width { get; }
     public int Height { get; }
@@ -17,16 +18,18 @@ internal sealed class PixelImage : IGraphicsImage
         Height = height;
 
         var info = new SKImageInfo(width, height, SKColorType.Bgra8888, SKAlphaType.Premul);
-        var bitmap = new SKBitmap(info);
-        var ptr = bitmap.GetPixels();
+        _bitmap = new SKBitmap(info);
+        var ptr = _bitmap.GetPixels();
         System.Runtime.InteropServices.Marshal.Copy(bgraData, 0, ptr, bgraData.Length);
-        _image = SKImage.FromBitmap(bitmap);
-        bitmap.Dispose();
+        _image = SKImage.FromBitmap(_bitmap);
+        // Keep _bitmap alive as long as _image exists (SKImage.FromBitmap may reference it)
     }
 
     public void Dispose()
     {
         _image?.Dispose();
         _image = null;
+        _bitmap?.Dispose();
+        _bitmap = null;
     }
 }

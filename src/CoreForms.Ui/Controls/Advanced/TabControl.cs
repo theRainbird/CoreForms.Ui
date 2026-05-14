@@ -16,6 +16,12 @@ public class TabControl : ContainerControl
     private int TabHeaderHeight => _tabHeight + 2;
 
     /// <summary>
+    /// Returns the tab header height as the render offset applied to child controls.
+    /// </summary>
+    /// <returns>The offset for child rendering.</returns>
+    protected internal override Point GetChildRenderOffset() => new Point(0, TabHeaderHeight);
+
+    /// <summary>
     /// Initializes a new instance of TabControl.
     /// </summary>
     public TabControl()
@@ -448,19 +454,6 @@ public class TabPage : ContainerControl
         Size = new Size(400, 250);
         _backColor = ThemeManager.CurrentTheme.TabContentBackground;
         TabStop = false;
-    }
-
-    /// <summary>
-    /// Gets the cumulative position of this control relative to the parent Form,
-    /// accounting for the TabControl's tab header offset.
-    /// </summary>
-    /// <returns>A point representing the control's position in form coordinates.</returns>
-    public override Point GetFormRelativePosition()
-    {
-        var pos = base.GetFormRelativePosition();
-        if (Parent is TabControl tabControl)
-            pos = new Point(pos.X, pos.Y + tabControl.TabHeight + 2);
-        return pos;
     }
 
     /// <summary>

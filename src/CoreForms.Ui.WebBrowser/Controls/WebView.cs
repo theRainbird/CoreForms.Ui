@@ -4,6 +4,7 @@ using CoreForms.Ui.Core;
 using CoreForms.Ui.WebBrowser.Events;
 using CoreForms.Ui.WebBrowser.Platform;
 using Graphics = CoreForms.Ui.Rendering.Graphics;
+using Xilium.CefGlue;
 
 namespace CoreForms.Ui.WebBrowser.Controls;
 
@@ -17,6 +18,7 @@ public class WebView : Control
     private bool _isLoaded;
     private bool _initFailed;
     private string? _initError;
+    private Rendering.PixelImage? _cachedPixelImage;
 
     #region Properties
 
@@ -178,13 +180,22 @@ public class WebView : Control
     {
         base.Render(g);
 
-        if (_platformHandler is Platform.Linux.CefPlatformHandler cef && cef.GetPixelBuffer() != null)
+        if (_platformHandler is Platform.Linux.CefPlatformHandler cef)
         {
-            using var pixelImage = new Rendering.PixelImage(
-                cef.GetPixelBuffer()!, cef.BufferWidth, cef.BufferHeight);
-            g.DrawImage(pixelImage, 0, 0, Width, Height);
+            var pixels = cef.GetPixelBuffer();
+            Console.Write(""); // trim output
+            if (pixels != null)
+            {
+                _cachedPixelImage?.Dispose();
+                _cachedPixelImage = new Rendering.PixelImage(
+                    pixels, cef.BufferWidth, cef.BufferHeight);
+                Console.WriteLine($"[WebView] Draw CEF {cef.BufferWidth}x{cef.BufferHeight} -> {Width}x{Height} image={_cachedPixelImage.NativeImage != null}");
+                g.DrawImage(_cachedPixelImage, 0, 0, Width, Height);
+                return;
+            }
         }
-        else if (_initFailed || _platformHandler == null)
+
+        if (_initFailed || _platformHandler == null)
         {
             g.FillRectangle(Color.White, 0, 0, Width, Height);
             g.DrawRectangle(Color.FromArgb(180, 180, 180), 0, 0, Width, Height, 1);
@@ -218,6 +229,8 @@ public class WebView : Control
     {
         if (disposing)
         {
+            _cachedPixelImage?.Dispose();
+            _cachedPixelImage = null;
             _platformHandler?.Dispose();
             _platformHandler = null;
         }

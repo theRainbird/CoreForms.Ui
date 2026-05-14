@@ -15,6 +15,10 @@ public class HtmlBox : Control
     private HtmlRenderer? _renderer;
     private bool _readOnly = true;
     private LinkBehavior _linkBehavior = LinkBehavior.RaiseEvent;
+    private int _cursorCharIndex;
+    private static readonly int CursorBlinkInterval = 530;
+    private int _selectionStartX, _selectionStartY, _selectionEndX, _selectionEndY;
+    private bool _isSelecting;
     #pragma warning disable CS0414, CS0649
     private bool _needsLayout;
     private int _scrollOffsetY;
@@ -69,6 +73,7 @@ public class HtmlBox : Control
         {
             _document = new HtmlDomDocument();
             _renderer = new HtmlRenderer();
+            _renderer.SetDocument(_document);
             _needsLayout = false;
             return;
         }
@@ -88,6 +93,7 @@ public class HtmlBox : Control
             styles.AddStylesheet(kvp.Value);
         }
         _renderer = new HtmlRenderer(styles);
+        _renderer.SetDocument(_document);
 
         _needsLayout = true;
         Invalidate();
@@ -112,6 +118,34 @@ public class HtmlBox : Control
             _renderer.Layout(_document, Width - 4);
             _renderer.Render(g, _document);
 
+            if (_isSelecting)
+            {
+                int selX = Math.Min(_selectionStartX, _selectionEndX);
+                int selY = Math.Min(_selectionStartY, _selectionEndY);
+                int selW = Math.Abs(_selectionEndX - _selectionStartX);
+                int selH = Math.Abs(_selectionEndY - _selectionStartY);
+                if (selW > 0 || selH > 0)
+                {
+                    if (selW < 4) selW = 4;
+                    if (selH < 14) selH = 14;
+                    g.FillRectangle(SystemColors.Highlight, selX, selY, selW, selH);
+                }
+            }
+
+            if (Focused && !_readOnly)
+            {
+                bool cursorVisible = (Environment.TickCount % (CursorBlinkInterval * 2)) < CursorBlinkInterval;
+                if (cursorVisible)
+                {
+                    int cursorX = 4;
+                    int cursorY = _renderer.GetContentHeight();
+                    if (cursorY < 4) cursorY = 4;
+                    if (cursorY >= Height) cursorY = Height - 16;
+                    if (cursorY < 0) cursorY = 4;
+                    g.DrawLine(ForeColor, cursorX, cursorY, cursorX, cursorY + 14, 1);
+                }
+            }
+
             g.Restore();
         }
 
@@ -125,6 +159,12 @@ public class HtmlBox : Control
         {
             int testX = mouseArgs.X;
             int testY = mouseArgs.Y + _scrollOffsetY;
+
+            _selectionStartX = testX;
+            _selectionStartY = testY;
+            _selectionEndX = testX;
+            _selectionEndY = testY;
+            _isSelecting = true;
 
             var element = _renderer.HitTest(testX, testY);
             if (element != null && element.TagName == "a")
@@ -155,6 +195,25 @@ public class HtmlBox : Control
         Focused = true;
     }
 
+    protected internal override void OnMouseMove(EventArgs e)
+    {
+        var mouseArgs = e as MouseEventArgs;
+        if (mouseArgs != null && _isSelecting)
+        {
+            _selectionEndX = mouseArgs.X;
+            _selectionEndY = mouseArgs.Y + _scrollOffsetY;
+            Invalidate();
+        }
+        base.OnMouseMove(e);
+    }
+
+    protected internal override void OnMouseUp(EventArgs e)
+    {
+        _isSelecting = false;
+        Invalidate();
+        base.OnMouseUp(e);
+    }
+
     protected internal override void OnKeyDown(KeyEventArgs e)
     {
         if (_readOnly)
@@ -162,6 +221,8 @@ public class HtmlBox : Control
             base.OnKeyDown(e);
             return;
         }
+
+        bool shift = e.Modifiers.HasFlag(ModifierKeys.Shift);
 
         switch (e.KeyCode)
         {
@@ -174,23 +235,19 @@ public class HtmlBox : Control
                 e.Handled = true;
                 break;
             case Keys.Enter:
-                InsertText("\n");
+                InsertHtmlAtEnd("<br>");
                 e.Handled = true;
                 break;
             case Keys.Left:
-                MoveCursor(-1);
                 e.Handled = true;
                 break;
             case Keys.Right:
-                MoveCursor(1);
                 e.Handled = true;
                 break;
             case Keys.Up:
-                MoveCursorLine(-1);
                 e.Handled = true;
                 break;
             case Keys.Down:
-                MoveCursorLine(1);
                 e.Handled = true;
                 break;
         }
@@ -201,20 +258,32 @@ public class HtmlBox : Control
     protected internal override void OnTextInput(string text)
     {
         if (_readOnly || string.IsNullOrEmpty(text)) return;
+        foreach (char c in text)
+            if (c < 32) return;
         InsertText(text);
     }
 
     private void InsertText(string text)
     {
-        if (string.IsNullOrEmpty(text)) return;
-
-        if (_document?.DocumentElement == null) return;
+        if (string.IsNullOrEmpty(text) || _document?.DocumentElement == null) return;
 
         var body = _document.DocumentElement;
         var textNode = new HtmlDomText(text);
         body.AppendChild(textNode);
 
+        _cursorCharIndex += text.Length;
+        RebuildAndInvalidate();
+    }
+
+    private void InsertHtmlAtEnd(string html)
+    {
+        if (string.IsNullOrEmpty(html) || _document?.DocumentElement == null) return;
+
         _html = _document.DocumentElement.OuterHtml;
+        int insertPos = _html.LastIndexOf('<');
+        if (insertPos < 0) insertPos = _html.Length - 1;
+        _html = _html.Insert(insertPos, html);
+        _cursorCharIndex += html.Length;
         ParseHtml();
         ContentChanged?.Invoke(this, EventArgs.Empty);
     }
@@ -229,39 +298,26 @@ public class HtmlBox : Control
         if (direction < 0)
         {
             var lastChild = children[^1];
-            if (lastChild is HtmlDomText textNode)
+            if (lastChild is HtmlDomText textNode && textNode.TextContent.Length > 0)
             {
-                if (textNode.TextContent.Length > 0)
-                {
-                    textNode.TextContent = textNode.TextContent[..^1];
-                    if (string.IsNullOrEmpty(textNode.TextContent))
-                        _document.DocumentElement.RemoveChild(textNode);
-                }
-                else
-                {
-                    _document.DocumentElement.RemoveChild(lastChild);
-                }
+                textNode.TextContent = textNode.TextContent[..^1];
+                if (string.IsNullOrEmpty(textNode.TextContent))
+                    _document.DocumentElement.RemoveChild(textNode);
             }
             else
             {
                 _document.DocumentElement.RemoveChild(lastChild);
             }
+            if (_cursorCharIndex > 0) _cursorCharIndex--;
         }
         else
         {
             var firstChild = children[0];
-            if (firstChild is HtmlDomText textNode)
+            if (firstChild is HtmlDomText textNode && textNode.TextContent.Length > 0)
             {
-                if (textNode.TextContent.Length > 0)
-                {
-                    textNode.TextContent = textNode.TextContent[1..];
-                    if (string.IsNullOrEmpty(textNode.TextContent))
-                        _document.DocumentElement.RemoveChild(textNode);
-                }
-                else
-                {
-                    _document.DocumentElement.RemoveChild(firstChild);
-                }
+                textNode.TextContent = textNode.TextContent[1..];
+                if (string.IsNullOrEmpty(textNode.TextContent))
+                    _document.DocumentElement.RemoveChild(textNode);
             }
             else
             {
@@ -269,18 +325,18 @@ public class HtmlBox : Control
             }
         }
 
-        _html = _document.DocumentElement.OuterHtml;
+        RebuildAndInvalidate();
+    }
+
+    private void RebuildAndInvalidate()
+    {
+        _html = _document!.DocumentElement!.OuterHtml;
         ParseHtml();
         ContentChanged?.Invoke(this, EventArgs.Empty);
     }
 
-    private void MoveCursor(int direction)
-    {
-    }
-
-    private void MoveCursorLine(int direction)
-    {
-    }
+    private void MoveCursor(int direction) { }
+    private void MoveCursorLine(int direction) { }
 
     public override void Invalidate()
     {
@@ -324,7 +380,7 @@ public class HtmlBox : Control
                 WrapSelectionWithTag("a", "href=\"https://example.com\"");
                 break;
             case "insertImage":
-                InsertHtml("<img src=\"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAABHNCSVQICAgIfAhkiAAAAAlwSFlzAAAA7AAAAOwBeShxvQAAABl0RVh0U29mdHdhcmUAd3d3Lmlua3NjYXBlLm9yZ5vuPBoAAAGJSURBVFiF7ZY9TsNAEIW/NYkUkhBKQYGgoKCgoKChoeEJPABcgCugoaGhoaGhoaGhoaGhoaGhoaGhoaGhoaGhoaGhoaGhoQGioECQAhISKSSKxMaWHUdZJCtK4pC1Zn/ezFvv2IkDfxj9+PHjZ9jb2/tmGHdJkmwBlwBToAlcAPdN0yiRSAT6/X7fMAx9IBAITk9P9yzL2gWmgUFgAhgBBoF+YBAYAIaBQaAfGAT6gAGgD+gF+oA+oA/oBfqAPqAX6AV6gB6gG+gGuoAuoAvoBLqALqAL6AQ6gQ6gA2gH2oE2oA1oAdqAZqAZaAKagWagGWgCmoBmoAloApqBJqAJaAKagCagEWgEGoFGoBFoBBqBRqAbaAbagdagNWgNWoPWoDVoDVqD1qA1aA1ag9agNWgNWoPWoDVoDVqD1qA1aA1ag9agNWgNWgM=\" />");
+                InsertHtmlForSelection("<img src=\"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAABHNCSVQICAgIfAhkiAAAAAlwSFlzAAAA7AAAAOwBeShxvQAAABl0RVh0U29mdHdhcmUAd3d3Lmlua3NjYXBlLm9yZ5vuPBoAAAGJSURBVFiF7ZY9TsNAEIW/NYkUkhBKQYGgoKCgoKChoeEJPABcgCugoaGhoaGhoaGhoaGhoaGhoaGhoaGhoaGhoaGhoaGhoQGioECQAhISKSSKxMaWHUdZJCtK4pC1Zn/ezFvv2IkDfxj9+PHjZ9jb2/tmGHdJkmwBlwBToAlcAPdN0yiRSAT6/X7fMAx9IBAITk9P9yzL2gWmgUFgAhgBBoF+YBAYAIaBQaAfGAT6gAGgD+gF+oA+oA/oBfqAPqAX6AV6gB6gG+gGuoAuoAvoBLqALqAL6AQ6gQ6gA2gH2oE2oA1oAdqAZqAZaAKagWagGWgCmoBmoAloApqBJqAJaAKagCagEWgEGoFGoBFoBBqBRqAbaAbagdagNWgNWoPWoDVoDVqD1qA1aA1ag9agNWgNWoPWoDVoDVqD1qA1aA1ag9agNWgNWgM=\" />");
                 break;
         }
     }
@@ -336,10 +392,10 @@ public class HtmlBox : Control
 
         var attrStr = string.IsNullOrEmpty(attributes) ? "" : " " + attributes;
         var html = $"<{tagName}{attrStr}>{selectedText}</{tagName}>";
-        InsertHtml(html);
+        InsertHtmlForSelection(html);
     }
 
-    private void InsertHtml(string html)
+    private void InsertHtmlForSelection(string html)
     {
         var selectedText = Selection.GetSelectedText();
         var newHtml = _html.Insert(_html.IndexOf(selectedText, StringComparison.Ordinal), html);
