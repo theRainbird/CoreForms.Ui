@@ -15,11 +15,9 @@ public class HtmlBox : Control
     private HtmlRenderer? _renderer;
     private bool _readOnly = true;
     private LinkBehavior _linkBehavior = LinkBehavior.RaiseEvent;
-    private int _cursorCharIndex;
-    private int _cursorRenderX = 6;
+    private HtmlDomText? _cursorDomNode;
+    private int _cursorDomOffset;
     private static readonly int CursorBlinkInterval = 530;
-    private int _selectionStartX, _selectionStartY, _selectionEndX, _selectionEndY;
-    private bool _isSelecting;
     #pragma warning disable CS0414, CS0649
     private bool _needsLayout;
     private int _scrollOffsetY;
@@ -106,7 +104,10 @@ public class HtmlBox : Control
 
         g.FillRectangle(BackColor, 0, 0, Width, Height);
 
-        int contentHeight = 0;
+        if (Focused)
+            g.DrawRectangle(ThemeManager.CurrentTheme.TextBoxFocusBorder, 0, 0, Width, Height, 2);
+        else
+            g.DrawRectangle(ThemeManager.CurrentTheme.TextBoxBorder, 0, 0, Width, Height, 1);
 
         if (_renderer != null && _document != null)
         {
@@ -115,44 +116,40 @@ public class HtmlBox : Control
 
             _renderer.Layout(_document, Width - 4);
             _renderer.Render(g, _document);
-            contentHeight = _renderer.GetContentHeight();
-
-            if (_isSelecting)
-            {
-                int selX = Math.Min(_selectionStartX, _selectionEndX);
-                int selY = Math.Min(_selectionStartY, _selectionEndY);
-                int selW = Math.Abs(_selectionEndX - _selectionStartX) + 1;
-                int selH = Math.Abs(_selectionEndY - _selectionStartY) + 1;
-                if (selW > 0 && selH > 0)
-                {
-                    if (selW < 5) selW = 5;
-                    if (selH < 16) selH = 16;
-                    g.FillRectangle(SystemColors.Highlight, selX, selY, selW, selH);
-                }
-            }
 
             g.Restore();
         }
 
-        if (Focused)
-            g.DrawRectangle(ThemeManager.CurrentTheme.TextBoxFocusBorder, 0, 0, Width, Height, 2);
-        else
-            g.DrawRectangle(ThemeManager.CurrentTheme.TextBoxBorder, 0, 0, Width, Height, 1);
-
-        if (Focused && !_readOnly)
-        {
-            bool cursorVisible = (Environment.TickCount % (CursorBlinkInterval * 2)) < CursorBlinkInterval;
-            if (cursorVisible)
-            {
-                int cursorX = _cursorRenderX;
-                int cursorY = contentHeight > 0 ? contentHeight : 6;
-                if (cursorY + 16 >= Height) cursorY = Height - 18;
-                if (cursorY < 4) cursorY = 4;
-                g.DrawLine(ForeColor, cursorX, cursorY, cursorX, cursorY + 14, 2);
-            }
-        }
+        DrawCursor(g);
 
         base.Render(g);
+    }
+
+    private void DrawCursor(Graphics g)
+    {
+        if (!Focused || _readOnly) return;
+
+        bool visible = (Environment.TickCount % (CursorBlinkInterval * 2)) < CursorBlinkInterval;
+        if (!visible) return;
+
+        var cursorPos = GetCursorScreenPos();
+        if (cursorPos == null) return;
+
+        var (cx, cy) = cursorPos.Value;
+        if (cy < 0 || cy >= Height) return;
+        g.DrawLine(ForeColor, cx, cy, cx, Math.Min(cy + 16, Height), 2);
+    }
+
+    private (int x, int y)? GetCursorScreenPos()
+    {
+        if (_renderer == null || _document == null) return null;
+
+        var pos = _renderer.GetTextPosition(_cursorDomNode, _cursorDomOffset);
+        if (pos != null) return (pos.Value.x, pos.Value.y - _scrollOffsetY);
+
+        int contentY = _renderer.GetContentHeight();
+        if (contentY < 4) contentY = 4;
+        return (6, Math.Min(contentY, Height - 16) - _scrollOffsetY);
     }
 
     protected internal override void OnMouseDown(EventArgs e)
@@ -163,20 +160,16 @@ public class HtmlBox : Control
             int testX = mouseArgs.X;
             int testY = mouseArgs.Y;
 
-            var (node, offset) = _renderer.HitTestText(testX, testY);
-            if (node != null)
+            var (node, offset, _, _, _) = _renderer.HitTestTextWithPos(testX, testY);
+            if (node is HtmlDomText textNode)
             {
+                _cursorDomNode = textNode;
+                _cursorDomOffset = offset;
                 Selection.StartNode = node;
                 Selection.StartOffset = offset;
                 Selection.EndNode = node;
                 Selection.EndOffset = offset;
             }
-
-            _selectionStartX = testX;
-            _selectionStartY = testY;
-            _selectionEndX = testX;
-            _selectionEndY = testY;
-            _isSelecting = true;
 
             var element = _renderer.HitTest(testX, testY);
             if (element != null && element.TagName == "a")
@@ -207,33 +200,6 @@ public class HtmlBox : Control
         Focused = true;
     }
 
-    protected internal override void OnMouseMove(EventArgs e)
-    {
-        var mouseArgs = e as MouseEventArgs;
-        if (mouseArgs != null && _isSelecting && _renderer != null)
-        {
-            _selectionEndX = mouseArgs.X;
-            _selectionEndY = mouseArgs.Y;
-
-            var (hitNode, offset) = _renderer.HitTestText(mouseArgs.X, mouseArgs.Y);
-            if (hitNode != null)
-            {
-                Selection.EndNode = hitNode;
-                Selection.EndOffset = offset;
-            }
-
-            Invalidate();
-        }
-        base.OnMouseMove(e);
-    }
-
-    protected internal override void OnMouseUp(EventArgs e)
-    {
-        _isSelecting = false;
-        Invalidate();
-        base.OnMouseUp(e);
-    }
-
     protected internal override void OnKeyDown(KeyEventArgs e)
     {
         if (_readOnly)
@@ -247,34 +213,26 @@ public class HtmlBox : Control
         switch (e.KeyCode)
         {
             case Keys.Back:
-                DeleteText(-1);
+                HandleBackspace();
                 e.Handled = true;
                 break;
             case Keys.Delete:
-                DeleteText(0);
+                HandleDelete();
                 e.Handled = true;
                 break;
             case Keys.Enter:
-                InsertHtmlAtEnd("<br>");
+                HandleEnter();
                 e.Handled = true;
                 break;
             case Keys.Left:
-                if (shift && Selection.EndNode is HtmlDomText leftText && Selection.EndOffset > 0)
-                    Selection.EndOffset--;
+                MoveCursorLeft(shift);
                 e.Handled = true;
                 break;
             case Keys.Right:
-                if (shift && Selection.EndNode is HtmlDomText rightText)
-                {
-                    int max = rightText.TextContent.Length;
-                    if (Selection.EndOffset < max)
-                        Selection.EndOffset++;
-                }
+                MoveCursorRight(shift);
                 e.Handled = true;
                 break;
             case Keys.Up:
-                e.Handled = true;
-                break;
             case Keys.Down:
                 e.Handled = true;
                 break;
@@ -288,96 +246,227 @@ public class HtmlBox : Control
         if (_readOnly || string.IsNullOrEmpty(text)) return;
         foreach (char c in text)
             if (c < 32) return;
-        InsertText(text);
+        HandleTextInput(text);
     }
 
-    private void InsertText(string text)
-    {
-        if (string.IsNullOrEmpty(text) || _document?.DocumentElement == null) return;
-
-        var body = _document.DocumentElement;
-        var textNode = new HtmlDomText(text);
-        body.AppendChild(textNode);
-
-        _cursorCharIndex += text.Length;
-        RebuildAndInvalidate();
-        UpdateCursorX();
-    }
-
-    private void InsertHtmlAtEnd(string html)
-    {
-        if (string.IsNullOrEmpty(html) || _document?.DocumentElement == null) return;
-
-        _html = _document.DocumentElement.OuterHtml;
-        int insertPos = _html.LastIndexOf('<');
-        if (insertPos < 0) insertPos = _html.Length - 1;
-        _html = _html.Insert(insertPos, html);
-        _cursorCharIndex += html.Length;
-        ParseHtml();
-        ContentChanged?.Invoke(this, EventArgs.Empty);
-        UpdateCursorX();
-    }
-
-    private void UpdateCursorX()
-    {
-        if (_renderer != null && _document != null)
-        {
-            _renderer.Layout(_document, Width - 4);
-            var lastPos = _renderer.GetLastTextPosition();
-            _cursorRenderX = lastPos.HasValue ? lastPos.Value.x + 2 : 6;
-        }
-    }
-
-    private void DeleteText(int direction)
+    private void HandleTextInput(string text)
     {
         if (_document?.DocumentElement == null) return;
+        EnsureCursorValid();
 
-        var children = _document.DocumentElement.Children;
-        if (children.Count == 0) return;
-
-        if (direction < 0)
+        if (_cursorDomNode != null)
         {
-            var lastChild = children[^1];
-            if (lastChild is HtmlDomText textNode && textNode.TextContent.Length > 0)
-            {
-                textNode.TextContent = textNode.TextContent[..^1];
-                if (string.IsNullOrEmpty(textNode.TextContent))
-                    _document.DocumentElement.RemoveChild(textNode);
-            }
-            else
-            {
-                _document.DocumentElement.RemoveChild(lastChild);
-            }
-            if (_cursorCharIndex > 0) _cursorCharIndex--;
+            _cursorDomNode.TextContent = _cursorDomNode.TextContent.Insert(_cursorDomOffset, text);
+            _cursorDomOffset += text.Length;
         }
         else
         {
-            var firstChild = children[0];
-            if (firstChild is HtmlDomText textNode && textNode.TextContent.Length > 0)
+            var newNode = new HtmlDomText(text);
+            _document.DocumentElement.AppendChild(newNode);
+            _cursorDomNode = newNode;
+            _cursorDomOffset = text.Length;
+        }
+
+        SyncHtmlAndInvalidate();
+    }
+
+    private void HandleEnter()
+    {
+        if (_document?.DocumentElement == null) return;
+        EnsureCursorValid();
+
+        var body = _document.DocumentElement;
+        var br = new HtmlDomElement("br");
+        if (_cursorDomNode != null)
+        {
+            body.InsertAfter(br, _cursorDomNode);
+            _cursorDomNode = null;
+            _cursorDomOffset = 0;
+        }
+        else
+        {
+            body.AppendChild(br);
+        }
+
+        SyncHtmlAndInvalidate();
+    }
+
+    private void HandleBackspace()
+    {
+        if (_document?.DocumentElement == null) return;
+        EnsureCursorValid();
+
+        if (_cursorDomNode != null && _cursorDomOffset > 0)
+        {
+            _cursorDomNode.TextContent = _cursorDomNode.TextContent.Remove(_cursorDomOffset - 1, 1);
+            _cursorDomOffset--;
+            if (string.IsNullOrEmpty(_cursorDomNode.TextContent))
             {
-                textNode.TextContent = textNode.TextContent[1..];
-                if (string.IsNullOrEmpty(textNode.TextContent))
-                    _document.DocumentElement.RemoveChild(textNode);
+                var parent = _cursorDomNode.Parent;
+                parent?.RemoveChild(_cursorDomNode);
+                _cursorDomNode = null;
+                _cursorDomOffset = 0;
             }
-            else
+        }
+        else if (_cursorDomNode != null)
+        {
+            var sibling = _cursorDomNode.PreviousSibling;
+            if (sibling is HtmlDomText prevText && prevText.TextContent.Length > 0)
             {
-                _document.DocumentElement.RemoveChild(firstChild);
+                _cursorDomOffset = prevText.TextContent.Length;
+                _cursorDomNode = prevText;
+                _cursorDomNode.TextContent = _cursorDomNode.TextContent.Remove(_cursorDomOffset - 1, 1);
+                _cursorDomOffset--;
             }
         }
 
-        RebuildAndInvalidate();
+        SyncHtmlAndInvalidate();
     }
 
-    private void RebuildAndInvalidate()
+    private void HandleDelete()
+    {
+        if (_document?.DocumentElement == null) return;
+        EnsureCursorValid();
+
+        if (_cursorDomNode != null)
+        {
+            int len = _cursorDomNode.TextContent.Length;
+            if (_cursorDomOffset < len)
+            {
+                _cursorDomNode.TextContent = _cursorDomNode.TextContent.Remove(_cursorDomOffset, 1);
+                if (string.IsNullOrEmpty(_cursorDomNode.TextContent))
+                {
+                    var parent = _cursorDomNode.Parent;
+                    parent?.RemoveChild(_cursorDomNode);
+                    _cursorDomNode = null;
+                    _cursorDomOffset = 0;
+                }
+            }
+            else
+            {
+                var parent = _cursorDomNode.Parent;
+                if (parent != null)
+                {
+                    int idx = parent.Children.IndexOf(_cursorDomNode);
+                    if (idx >= 0 && idx + 1 < parent.Children.Count)
+                    {
+                        var next = parent.Children[idx + 1];
+                        if (next is HtmlDomElement nextElem && nextElem.TagName == "br")
+                            parent.RemoveChild(nextElem);
+                        else if (next is HtmlDomText nextText && nextText.TextContent.Length > 0)
+                            nextText.TextContent = nextText.TextContent[1..];
+                    }
+                }
+            }
+        }
+
+        SyncHtmlAndInvalidate();
+    }
+
+    private void MoveCursorLeft(bool shift)
+    {
+        if (_document?.DocumentElement == null) return;
+        EnsureCursorValid();
+
+        if (_cursorDomNode != null && _cursorDomOffset > 0)
+        {
+            _cursorDomOffset--;
+        }
+        else if (_cursorDomNode != null)
+        {
+            var sibling = _cursorDomNode.PreviousSibling;
+            if (sibling is HtmlDomText prevText)
+            {
+                _cursorDomNode = prevText;
+                _cursorDomOffset = prevText.TextContent.Length;
+            }
+            else if (sibling is HtmlDomElement { TagName: "br" })
+            {
+                _cursorDomNode = null;
+                _cursorDomOffset = 0;
+            }
+        }
+
+        if (!shift)
+        {
+            Selection.StartNode = _cursorDomNode;
+            Selection.StartOffset = _cursorDomOffset;
+            Selection.EndNode = _cursorDomNode;
+            Selection.EndOffset = _cursorDomOffset;
+        }
+        else
+        {
+            Selection.EndNode = _cursorDomNode;
+            Selection.EndOffset = _cursorDomOffset;
+        }
+    }
+
+    private void MoveCursorRight(bool shift)
+    {
+        if (_document?.DocumentElement == null) return;
+        EnsureCursorValid();
+
+        if (_cursorDomNode != null && _cursorDomOffset < _cursorDomNode.TextContent.Length)
+        {
+            _cursorDomOffset++;
+        }
+        else if (_cursorDomNode != null)
+        {
+            var sibling = _cursorDomNode.NextSibling;
+            if (sibling is HtmlDomText nextText)
+            {
+                _cursorDomNode = nextText;
+                _cursorDomOffset = 0;
+            }
+            else if (sibling is HtmlDomElement { TagName: "br" })
+            {
+                _cursorDomNode = null;
+                _cursorDomOffset = 0;
+            }
+        }
+
+        if (!shift)
+        {
+            Selection.StartNode = _cursorDomNode;
+            Selection.StartOffset = _cursorDomOffset;
+            Selection.EndNode = _cursorDomNode;
+            Selection.EndOffset = _cursorDomOffset;
+        }
+        else
+        {
+            Selection.EndNode = _cursorDomNode;
+            Selection.EndOffset = _cursorDomOffset;
+        }
+    }
+
+    private void EnsureCursorValid()
+    {
+        if (_document?.DocumentElement == null) return;
+
+        if (_cursorDomNode != null)
+        {
+            if (!_document.DocumentElement.Descendants().Contains(_cursorDomNode))
+            {
+                _cursorDomNode = null;
+                _cursorDomOffset = 0;
+            }
+            return;
+        }
+
+        var lastText = _document.DocumentElement.Descendants().OfType<HtmlDomText>().LastOrDefault();
+        if (lastText != null)
+        {
+            _cursorDomNode = lastText;
+            _cursorDomOffset = lastText.TextContent.Length;
+        }
+    }
+
+    private void SyncHtmlAndInvalidate()
     {
         _html = _document!.DocumentElement!.OuterHtml;
-        ParseHtml();
-        UpdateCursorX();
+        Invalidate();
         ContentChanged?.Invoke(this, EventArgs.Empty);
     }
-
-    private void MoveCursor(int direction) { }
-    private void MoveCursorLine(int direction) { }
 
     public override void Invalidate()
     {

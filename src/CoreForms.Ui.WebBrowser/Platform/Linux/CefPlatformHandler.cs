@@ -154,6 +154,11 @@ public class CefPlatformHandler : IWebViewPlatformHandler
     private string _currentUrl = string.Empty;
     private string? _pendingUrl;
     private CoreForms.Ui.Core.MouseButtons _mouseButtons;
+    private double _browserZoomLevel;
+
+    // Device-aware size (multiplied by EffectiveZoom)
+    private int DeviceWidth => Math.Max((int)(_webView.Width * _webView.EffectiveZoom), 1);
+    private int DeviceHeight => Math.Max((int)(_webView.Height * _webView.EffectiveZoom), 1);
 
     public int Width { get; private set; } = 640;
     public int Height { get; private set; } = 480;
@@ -215,9 +220,9 @@ public class CefPlatformHandler : IWebViewPlatformHandler
             InitializeCef();
             CoreForms.Ui.Platform.Platform.OnFrame += CefRuntime.DoMessageLoopWork;
 
-            // Use the actual WebView size from the start
-            Width = Math.Max(_webView.Width, 1);
-            Height = Math.Max(_webView.Height, 1);
+            // Use the actual WebView size from the start (device-aware)
+            Width = DeviceWidth;
+            Height = DeviceHeight;
 
             var windowInfo = CefWindowInfo.Create();
             windowInfo.SetAsWindowless(IntPtr.Zero, false);
@@ -271,8 +276,8 @@ public class CefPlatformHandler : IWebViewPlatformHandler
 
     public void UpdateBounds(Rectangle bounds)
     {
-        Width = Math.Max(bounds.Width, 1);
-        Height = Math.Max(bounds.Height, 1);
+        Width = DeviceWidth;
+        Height = DeviceHeight;
         _browserHost?.WasResized();
     }
 
@@ -314,8 +319,25 @@ public class CefPlatformHandler : IWebViewPlatformHandler
     {
         if (_browserHost == null) return;
         var cefEvent = new CefMouseEvent { X = ScaleX(e.X), Y = ScaleY(e.Y) };
-        // Smooth scrolling: accumulate small deltas and scale to WHEEL_DELTA
         _browserHost.SendMouseWheelEvent(cefEvent, 0, e.Delta * 40);
+    }
+
+    public void ZoomIn()
+    {
+        _browserZoomLevel = Math.Min(_browserZoomLevel + 0.15, 5.0);
+        _browserHost?.SetZoomLevel(_browserZoomLevel);
+    }
+
+    public void ZoomOut()
+    {
+        _browserZoomLevel = Math.Max(_browserZoomLevel - 0.15, -5.0);
+        _browserHost?.SetZoomLevel(_browserZoomLevel);
+    }
+
+    public void ResetZoom()
+    {
+        _browserZoomLevel = 0;
+        _browserHost?.SetZoomLevel(0);
     }
 
     public void SendKeyDown(KeyEventArgs e)
@@ -409,8 +431,9 @@ public class CefPlatformHandler : IWebViewPlatformHandler
 
     // ── Helpers ───────────────────────────────────────────────────
 
-    private int ScaleX(float x) => (int)(x * Width / (float)_webView.Width);
-    private int ScaleY(float y) => (int)(y * Height / (float)_webView.Height);
+    // Convert from WebView logical coordinates to CEF device coordinates
+    private int ScaleX(float x) => (int)(x * _webView.EffectiveZoom);
+    private int ScaleY(float y) => (int)(y * _webView.EffectiveZoom);
 
     private static CefMouseButtonType MapMouseButton(CoreForms.Ui.Core.MouseButtons btn) => btn switch
     {

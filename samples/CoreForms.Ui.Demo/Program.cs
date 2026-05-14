@@ -747,12 +747,21 @@ class Program
         var page = new TabPage { Text = "Web Browser" };
 
         var toolStrip = new ToolStrip { Dock = DockStyle.Top };
+
+        // Navigation buttons
         var backButton = new ToolStripButton("← Back");
         var forwardButton = new ToolStripButton("Forward →");
-        var refreshButton = new ToolStripButton("↻ Refresh");
-        var stopButton = new ToolStripButton("✕ Stop");
+        var refreshButton = new ToolStripButton("", Icons.ArrowSync24!) { DisplayStyle = ToolStripItemDisplayStyle.Image };
+        var stopButton = new ToolStripButton("", Icons.DismissCircle24!) { DisplayStyle = ToolStripItemDisplayStyle.Image };
+
+        // URL bar
         var urlTextBox = new ToolStripTextBox { TextBoxWidth = 400 };
-        var goButton = new ToolStripButton("Go");
+        var goButton = new ToolStripButton("", Icons.SearchSparkle24!) { DisplayStyle = ToolStripItemDisplayStyle.Image };
+
+        // Zoom buttons
+        var zoomInButton = new ToolStripButton("", Icons.AddCircle24!) { DisplayStyle = ToolStripItemDisplayStyle.Image };
+        var zoomOutButton = new ToolStripButton("", Icons.DismissCircle24!) { DisplayStyle = ToolStripItemDisplayStyle.Image };
+        var zoomResetButton = new ToolStripButton("100%");
 
         var webView = new WebView
         {
@@ -763,11 +772,42 @@ class Program
         forwardButton.Click += (s, e) => webView.GoForward();
         refreshButton.Click += (s, e) => webView.Refresh();
         stopButton.Click += (s, e) => webView.Stop();
-        goButton.Click += (s, e) =>
+        zoomInButton.Click += (s, e) => webView.ZoomIn();
+        zoomOutButton.Click += (s, e) => webView.ZoomOut();
+        zoomResetButton.Click += (s, e) => webView.ResetZoom();
+
+        void NavigateToUrl()
         {
             var url = urlTextBox.Text;
             if (!string.IsNullOrWhiteSpace(url))
                 webView.Navigate(url);
+        }
+
+        goButton.Click += (s, e) => NavigateToUrl();
+
+        // Enter in URL box triggers navigation
+        toolStrip.KeyDown += (s, e) =>
+        {
+            if (urlTextBox.Focused && e is CoreForms.Ui.Core.KeyEventArgs ke && ke.KeyCode == CoreForms.Ui.Core.Keys.Enter)
+            {
+                NavigateToUrl();
+                ke.Handled = true;
+            }
+        };
+
+        // Ctrl+0 for reset zoom
+        webView.KeyDown += (s, e) =>
+        {
+            if (e is CoreForms.Ui.Core.KeyEventArgs ke && ke.Modifiers.HasFlag(CoreForms.Ui.Core.ModifierKeys.Control))
+            {
+                switch (ke.KeyCode)
+                {
+                    case CoreForms.Ui.Core.Keys.D0:
+                        webView.ResetZoom();
+                        ke.Handled = true;
+                        break;
+                }
+            }
         };
 
         webView.Navigated += (s, e) =>
@@ -779,7 +819,9 @@ class Program
         {
             backButton, forwardButton, refreshButton, stopButton,
             new ToolStripSeparator(),
-            urlTextBox, goButton
+            urlTextBox, goButton,
+            new ToolStripSeparator(),
+            zoomInButton, zoomOutButton, zoomResetButton
         });
 
         page.Controls.Add(toolStrip);

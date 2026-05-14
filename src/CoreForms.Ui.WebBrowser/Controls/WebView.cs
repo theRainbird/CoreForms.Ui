@@ -151,6 +151,33 @@ public class WebView : Control
     }
 
     /// <summary>
+    /// Increases the browser content zoom level.
+    /// </summary>
+    public void ZoomIn()
+    {
+        if (_platformHandler is Platform.Linux.CefPlatformHandler cef)
+            cef.ZoomIn();
+    }
+
+    /// <summary>
+    /// Decreases the browser content zoom level.
+    /// </summary>
+    public void ZoomOut()
+    {
+        if (_platformHandler is Platform.Linux.CefPlatformHandler cef)
+            cef.ZoomOut();
+    }
+
+    /// <summary>
+    /// Resets the browser content zoom level to 100%.
+    /// </summary>
+    public void ResetZoom()
+    {
+        if (_platformHandler is Platform.Linux.CefPlatformHandler cef)
+            cef.ResetZoom();
+    }
+
+    /// <summary>
     /// Executes JavaScript in the current page.
     /// </summary>
     /// <param name="script">The JavaScript code to execute.</param>
@@ -253,7 +280,17 @@ public class WebView : Control
     {
         base.OnMouseWheel(e);
         if (_platformHandler is Platform.Linux.CefPlatformHandler cef && e is MouseEventArgs me)
-            cef.SendMouseWheel(me);
+        {
+            if (CoreForms.Ui.Platform.Platform.GetCurrentModifiers().HasFlag(CoreForms.Ui.Core.ModifierKeys.Control))
+            {
+                if (me.Delta > 0) cef.ZoomIn();
+                else cef.ZoomOut();
+            }
+            else
+            {
+                cef.SendMouseWheel(me);
+            }
+        }
     }
 
     /// <inheritdoc/>

@@ -799,6 +799,22 @@ public static class Platform
     /// Gets the text content from the system clipboard.
     /// </summary>
     /// <returns>The clipboard text, or null if empty or not text.</returns>
+    /// <summary>
+    /// Gets the currently pressed modifier keys.
+    /// </summary>
+    /// <summary>
+    /// Gets the currently pressed modifier keys.
+    /// </summary>
+    public static ModifierKeys GetCurrentModifiers()
+    {
+        if (_keyboard == null) return ModifierKeys.None;
+        return MapModifierKeys(_keyboard);
+    }
+
+    /// <summary>
+    /// Gets the text content from the system clipboard.
+    /// </summary>
+    /// <returns>The clipboard text, or null if empty or not text.</returns>
     public static string? GetClipboardText()
     {
         return _keyboard?.ClipboardText;

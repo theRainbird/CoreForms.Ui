@@ -52,6 +52,7 @@ public class Application
         while (_running && !_forms.IsEmpty)
         {
             ProcessEvents();
+            ProcessKeyRepeats();
             Application.DoEvents();
         }
     }
@@ -59,6 +60,14 @@ public class Application
     private void ExitInternal()
     {
         _running = false;
+    }
+
+    private void ProcessKeyRepeats()
+    {
+        foreach (var form in _forms.Values)
+        {
+            form.ProcessKeyRepeat();
+        }
     }
 
     private void ProcessEvents()

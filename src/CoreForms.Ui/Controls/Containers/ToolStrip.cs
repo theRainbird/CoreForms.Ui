@@ -714,6 +714,17 @@ public class ToolStrip : ContainerControl
         ItemRemoved?.Invoke(this, new ToolStripItemEventArgs(item));
         Invalidate();
     }
+
+    internal void ClearTextBoxFocus()
+    {
+        foreach (var item in _items)
+        {
+            if (item is ToolStripTextBox tb)
+            {
+                tb.Focused = false;
+            }
+        }
+    }
 }
 
 /// <summary>

@@ -387,6 +387,7 @@ if (_focused != value)
                 {
                     ClearFocusRecursive(form, this);
                     form.ActiveControl = this;
+                    ClearToolStripTextBoxFocus(form, this);
                 }
             }
             _focused = value;
@@ -414,6 +415,22 @@ if (_focused != value)
             if (child is ContainerControl container)
             {
                 ClearFocusRecursive(container, except);
+            }
+        }
+    }
+
+    private static void ClearToolStripTextBoxFocus(Control parent, Control except)
+    {
+        for (int i = 0; i < parent.Controls.Count; i++)
+        {
+            var child = parent.Controls[i];
+            if (child != except && child is Controls.Containers.ToolStrip toolStrip)
+            {
+                toolStrip.ClearTextBoxFocus();
+            }
+            if (child is ContainerControl container)
+            {
+                ClearToolStripTextBoxFocus(container, except);
             }
         }
     }

@@ -44,4 +44,14 @@ public abstract class HtmlDomNode
     public HtmlDomNode? FirstChild => Children.Count > 0 ? Children[0] : null;
     public HtmlDomNode? LastChild => Children.Count > 0 ? Children[^1] : null;
     public bool HasChildren => Children.Count > 0;
+
+    public IEnumerable<HtmlDomNode> Descendants()
+    {
+        foreach (var child in Children)
+        {
+            yield return child;
+            foreach (var desc in child.Descendants())
+                yield return desc;
+        }
+    }
 }

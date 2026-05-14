@@ -459,6 +459,54 @@ public class HtmlRenderer
         return found ? (lastX, lastY, lastH) : null;
     }
 
+    public (HtmlDomNode? node, int offset, int x, int y, int lineWidth) HitTestTextWithPos(int x, int y)
+    {
+        foreach (var kvp in _layoutCache)
+        {
+            foreach (var line in kvp.Value)
+            {
+                if (line.TextNode != null)
+                {
+                    if (x >= line.X && x <= line.X + line.Width &&
+                        y >= line.Y && y <= line.Y + line.Height)
+                    {
+                        int offset = 0;
+                        if (line.Width > 0 && line.Text.Length > 0)
+                            offset = (int)((x - line.X) / (line.Width / (double)line.Text.Length));
+                        offset = Math.Max(0, Math.Min(line.Text.Length, offset));
+                        int charX = line.X + (line.Width > 0 && line.Text.Length > 0
+                            ? (int)(offset * (line.Width / (double)line.Text.Length)) : 0);
+                        return (line.TextNode, offset, charX, line.Y, line.Width);
+                    }
+                }
+            }
+        }
+        return (null, 0, 0, 0, 0);
+    }
+
+    public (int x, int y)? GetTextPosition(HtmlDomText? textNode, int offset)
+    {
+        if (textNode == null) return null;
+        foreach (var kvp in _layoutCache)
+        {
+            foreach (var line in kvp.Value)
+            {
+                if (line.TextNode == textNode)
+                {
+                    int charX = line.X;
+                    if (line.Width > 0 && line.Text.Length > 0)
+                    {
+                        double charWidth = line.Width / (double)line.Text.Length;
+                        charX += (int)(offset * charWidth);
+                    }
+                    int charY = line.Y;
+                    return (charX, charY);
+                }
+            }
+        }
+        return null;
+    }
+
     public void SetDocument(HtmlDomDocument doc) => _documentRoot = doc?.DocumentElement;
 
     public (HtmlDomNode? node, int offset) HitTestText(int x, int y)
