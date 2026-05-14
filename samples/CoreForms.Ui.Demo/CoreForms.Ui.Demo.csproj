@@ -10,6 +10,16 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\CoreForms.Ui\CoreForms.Ui.csproj" />
+    <ProjectReference Include="..\..\src\CoreForms.Ui.WebBrowser\CoreForms.Ui.WebBrowser.csproj" />
+    <ProjectReference Include="..\..\src\CoreForms.Ui.WebBrowser.Helper\CoreForms.Ui.WebBrowser.Helper.csproj" ReferenceOutputAssembly="false" />
   </ItemGroup>
+
+  <Target Name="CopyHelper" AfterTargets="Build">
+    <ItemGroup>
+      <_HelperFiles Include="..\..\src\CoreForms.Ui.WebBrowser.Helper\bin\$(Configuration)\net10.0\CoreForms.Ui.WebBrowser.Helper*" />
+      <_HelperFiles Include="..\..\src\CoreForms.Ui.WebBrowser.Helper\bin\$(Configuration)\net10.0\WebBrowserHelper*" />
+    </ItemGroup>
+    <Copy SourceFiles="@(_HelperFiles)" DestinationFolder="$(OutputPath)" SkipUnchangedFiles="true" />
+  </Target>
 
 </Project>

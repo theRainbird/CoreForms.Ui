@@ -15,8 +15,10 @@ public class HtmlBox : Control
     private HtmlRenderer? _renderer;
     private bool _readOnly = true;
     private LinkBehavior _linkBehavior = LinkBehavior.RaiseEvent;
-    private bool _dirty = true;
+    #pragma warning disable CS0414, CS0649
+    private bool _needsLayout;
     private int _scrollOffsetY;
+    #pragma warning restore CS0414, CS0649
 
     public HtmlBox()
     {
@@ -67,7 +69,7 @@ public class HtmlBox : Control
         {
             _document = new HtmlDomDocument();
             _renderer = new HtmlRenderer();
-            _dirty = false;
+            _needsLayout = false;
             return;
         }
 
@@ -87,7 +89,7 @@ public class HtmlBox : Control
         }
         _renderer = new HtmlRenderer(styles);
 
-        _dirty = true;
+        _needsLayout = true;
         Invalidate();
     }
 
@@ -153,9 +155,136 @@ public class HtmlBox : Control
         Focused = true;
     }
 
+    protected internal override void OnKeyDown(KeyEventArgs e)
+    {
+        if (_readOnly)
+        {
+            base.OnKeyDown(e);
+            return;
+        }
+
+        switch (e.KeyCode)
+        {
+            case Keys.Back:
+                DeleteText(-1);
+                e.Handled = true;
+                break;
+            case Keys.Delete:
+                DeleteText(0);
+                e.Handled = true;
+                break;
+            case Keys.Enter:
+                InsertText("\n");
+                e.Handled = true;
+                break;
+            case Keys.Left:
+                MoveCursor(-1);
+                e.Handled = true;
+                break;
+            case Keys.Right:
+                MoveCursor(1);
+                e.Handled = true;
+                break;
+            case Keys.Up:
+                MoveCursorLine(-1);
+                e.Handled = true;
+                break;
+            case Keys.Down:
+                MoveCursorLine(1);
+                e.Handled = true;
+                break;
+        }
+
+        base.OnKeyDown(e);
+    }
+
+    protected internal override void OnTextInput(string text)
+    {
+        if (_readOnly || string.IsNullOrEmpty(text)) return;
+        InsertText(text);
+    }
+
+    private void InsertText(string text)
+    {
+        if (string.IsNullOrEmpty(text)) return;
+
+        if (_document?.DocumentElement == null) return;
+
+        var body = _document.DocumentElement;
+        var textNode = new HtmlDomText(text);
+        body.AppendChild(textNode);
+
+        _html = _document.DocumentElement.OuterHtml;
+        ParseHtml();
+        ContentChanged?.Invoke(this, EventArgs.Empty);
+    }
+
+    private void DeleteText(int direction)
+    {
+        if (_document?.DocumentElement == null) return;
+
+        var children = _document.DocumentElement.Children;
+        if (children.Count == 0) return;
+
+        if (direction < 0)
+        {
+            var lastChild = children[^1];
+            if (lastChild is HtmlDomText textNode)
+            {
+                if (textNode.TextContent.Length > 0)
+                {
+                    textNode.TextContent = textNode.TextContent[..^1];
+                    if (string.IsNullOrEmpty(textNode.TextContent))
+                        _document.DocumentElement.RemoveChild(textNode);
+                }
+                else
+                {
+                    _document.DocumentElement.RemoveChild(lastChild);
+                }
+            }
+            else
+            {
+                _document.DocumentElement.RemoveChild(lastChild);
+            }
+        }
+        else
+        {
+            var firstChild = children[0];
+            if (firstChild is HtmlDomText textNode)
+            {
+                if (textNode.TextContent.Length > 0)
+                {
+                    textNode.TextContent = textNode.TextContent[1..];
+                    if (string.IsNullOrEmpty(textNode.TextContent))
+                        _document.DocumentElement.RemoveChild(textNode);
+                }
+                else
+                {
+                    _document.DocumentElement.RemoveChild(firstChild);
+                }
+            }
+            else
+            {
+                _document.DocumentElement.RemoveChild(firstChild);
+            }
+        }
+
+        _html = _document.DocumentElement.OuterHtml;
+        ParseHtml();
+        ContentChanged?.Invoke(this, EventArgs.Empty);
+    }
+
+    private void MoveCursor(int direction)
+    {
+    }
+
+    private void MoveCursorLine(int direction)
+    {
+    }
+
     public override void Invalidate()
     {
-        _dirty = true;
+        _needsLayout = true;
         base.Invalidate();
     }
 
@@ -171,6 +300,52 @@ public class HtmlBox : Control
     public event EventHandler<HtmlErrorEventArgs>? ParseError;
     public event EventHandler<HtmlLinkEventArgs>? LinkClick;
     public event EventHandler? ContentChanged;
+
+    public void ApplyFormat(string formatType)
+    {
+        switch (formatType)
+        {
+            case "bold":
+                WrapSelectionWithTag("b");
+                break;
+            case "italic":
+                WrapSelectionWithTag("i");
+                break;
+            case "underline":
+                WrapSelectionWithTag("u");
+                break;
+            case "insertUnorderedList":
+                WrapSelectionWithTag("ul");
+                break;
+            case "insertOrderedList":
+                WrapSelectionWithTag("ol");
+                break;
+            case "createLink":
+                WrapSelectionWithTag("a", "href=\"https://example.com\"");
+                break;
+            case "insertImage":
+                InsertHtml("<img src=\"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAABHNCSVQICAgIfAhkiAAAAAlwSFlzAAAA7AAAAOwBeShxvQAAABl0RVh0U29mdHdhcmUAd3d3Lmlua3NjYXBlLm9yZ5vuPBoAAAGJSURBVFiF7ZY9TsNAEIW/NYkUkhBKQYGgoKCgoKChoeEJPABcgCugoaGhoaGhoaGhoaGhoaGhoaGhoaGhoaGhoaGhoaGhoQGioECQAhISKSSKxMaWHUdZJCtK4pC1Zn/ezFvv2IkDfxj9+PHjZ9jb2/tmGHdJkmwBlwBToAlcAPdN0yiRSAT6/X7fMAx9IBAITk9P9yzL2gWmgUFgAhgBBoF+YBAYAIaBQaAfGAT6gAGgD+gF+oA+oA/oBfqAPqAX6AV6gB6gG+gGuoAuoAvoBLqALqAL6AQ6gQ6gA2gH2oE2oA1oAdqAZqAZaAKagWagGWgCmoBmoAloApqBJqAJaAKagCagEWgEGoFGoBFoBBqBRqAbaAbagdagNWgNWoPWoDVoDVqD1qA1aA1ag9agNWgNWoPWoDVoDVqD1qA1aA1ag9agNWgNWgM=\" />");
+                break;
+        }
+    }
+
+    private void WrapSelectionWithTag(string tagName, string? attributes = null)
+    {
+        var selectedText = Selection.GetSelectedText();
+        if (string.IsNullOrEmpty(selectedText)) return;
+
+        var attrStr = string.IsNullOrEmpty(attributes) ? "" : " " + attributes;
+        var html = $"<{tagName}{attrStr}>{selectedText}</{tagName}>";
+        InsertHtml(html);
+    }
+
+    private void InsertHtml(string html)
+    {
+        var selectedText = Selection.GetSelectedText();
+        var newHtml = _html.Insert(_html.IndexOf(selectedText, StringComparison.Ordinal), html);
+        Html = newHtml;
+        ContentChanged?.Invoke(this, EventArgs.Empty);
+    }
 }
 
 public enum LinkBehavior

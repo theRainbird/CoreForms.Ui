@@ -21,12 +21,38 @@ public class GroupBox : ContainerControl
     }
 
     /// <summary>
+    /// Gets the vertical offset for child controls due to the title area.
+    /// </summary>
+    protected virtual int ContentOffsetY
+    {
+        get
+        {
+            var font = EffectiveFont;
+            float zoom = EffectiveZoom;
+            int titleHeight = (int)(font.Size * zoom);
+            return titleHeight / 2;
+        }
+    }
+
+    /// <summary>
     /// Called when the theme changes. Keeps the transparent background.
     /// </summary>
     /// <param name="newTheme">The new theme that was activated.</param>
     public override void OnThemeChanged(Theme newTheme)
     {
         Invalidate();
+    }
+
+    /// <summary>
+    /// Gets the deepest child control at the specified point, accounting for the title offset.
+    /// </summary>
+    /// <param name="point">The point in this container's coordinate space.</param>
+    /// <param name="localPoint">The resulting point in the deepest child's coordinate space.</param>
+    /// <returns>The deepest child control, or null if none found.</returns>
+    protected override Control? GetDeepestChildAtPoint(Point point, out Point localPoint)
+    {
+        var adjustedPoint = new Point(point.X, point.Y - ContentOffsetY);
+        return base.GetDeepestChildAtPoint(adjustedPoint, out localPoint);
     }
 
     /// <summary>
@@ -41,14 +67,17 @@ public class GroupBox : ContainerControl
         var borderColor = theme.ControlDark;
         var font = EffectiveFont;
         float zoom = EffectiveZoom;
+        int offsetY = ContentOffsetY;
 
         int titleHeight = (int)(font.Size * zoom);
         int titleWidth = Text.Length > 0 ? (int)(Text.Length * font.Size * zoom * 0.6f) + 10 : 0;
-        int halfTitle = titleHeight / 2;
 
         g.FillRectangle(BackColor, 0, 0, Width, Height);
 
+        g.Save();
+        g.TranslateTransform(0, offsetY);
         base.Render(g);
+        g.Restore();
 
         if (!string.IsNullOrEmpty(Text))
         {
@@ -56,11 +85,28 @@ public class GroupBox : ContainerControl
             g.DrawString(Text, font, ForeColor, 6, 0);
         }
 
-        g.DrawLine(borderColor, 2, halfTitle, 4, halfTitle, 1);
-        g.DrawLine(borderColor, titleWidth + 4, halfTitle, Width - 1, halfTitle, 1);
+        g.DrawLine(borderColor, 2, offsetY, 4, offsetY, 1);
+        g.DrawLine(borderColor, titleWidth + 4, offsetY, Width - 1, offsetY, 1);
 
-        g.DrawLine(borderColor, 0, halfTitle, 0, Height - 1, 1);
+        g.DrawLine(borderColor, 0, offsetY, 0, Height - 1, 1);
         g.DrawLine(borderColor, 0, Height - 1, Width - 1, Height - 1, 1);
-        g.DrawLine(borderColor, Width - 1, halfTitle, Width - 1, Height - 1, 1);
+        g.DrawLine(borderColor, Width - 1, offsetY, Width - 1, Height - 1, 1);
+    }
+
+    /// <summary>
+    /// Renders the overlay with the same offset as Render to ensure child overlays
+    /// (like ComboBox dropdowns) are positioned correctly.
+    /// </summary>
+    /// <param name="g">The Graphics object to use for rendering.</param>
+    public override void RenderOverlay(Graphics g)
+    {
+        if (!Visible) return;
+
+        int offsetY = ContentOffsetY;
+
+        g.Save();
+        g.TranslateTransform(0, offsetY);
+        base.RenderOverlay(g);
+        g.Restore();
     }
 }

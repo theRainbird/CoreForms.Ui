@@ -17,6 +17,7 @@ public class Form : ContainerControl
     private IntPtr _handle;
     private Control? _captureControl;
     private float _zoom = Dpi.GetDefaultZoom();
+    private bool _processingKeyDown;
 
     /// <summary>
     /// Initializes a new instance of Form.
@@ -582,7 +583,11 @@ public class Form : ContainerControl
     /// <param name="e">A KeyEventArgs that contains the event data.</param>
     protected internal override void OnKeyDown(KeyEventArgs e)
     {
-        if (!Enabled) return;
+        if (!Enabled || _processingKeyDown) return;
+
+        _processingKeyDown = true;
+        try
+        {
 
         var modalOverlay = GetVisibleModalOverlay();
         if (modalOverlay != null)
@@ -686,6 +691,11 @@ public class Form : ContainerControl
         }
 
         base.OnKeyDown(e);
+        }
+        finally
+        {
+            _processingKeyDown = false;
+        }
     }
 
     /// <summary>

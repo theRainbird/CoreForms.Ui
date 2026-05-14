@@ -79,4 +79,20 @@ public class HtmlDomElement : HtmlDomNode
         var cur = this; while (cur != null) { if (cur is HtmlDomElement e && e.MatchesSelector(selector)) return e; cur = cur.Parent as HtmlDomElement; }
         return null;
     }
+
+    public string OuterHtml
+    {
+        get
+        {
+            if (IsVoidElement)
+            {
+                var attrs = string.Join("", Attributes.Select(a => $" {a.Key}=\"{a.Value}\""));
+                return $"<{TagName}{attrs} />";
+            }
+
+            var innerHtml = string.Join("", Children.Select(c => c is HtmlDomElement e ? e.OuterHtml : c is HtmlDomText t ? t.OuterHtml : ""));
+            var attrStr = string.Join("", Attributes.Select(a => $" {a.Key}=\"{a.Value}\""));
+            return $"<{TagName}{attrStr}>{innerHtml}</{TagName}>";
+        }
+    }
 }

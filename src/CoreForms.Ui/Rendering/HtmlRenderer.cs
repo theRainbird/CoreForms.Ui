@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Linq;
 using CoreForms.Ui.Html.Dom;
 using CoreForms.Ui.Html.Styles;
 using CoreForms.Ui.Core;
@@ -69,6 +70,7 @@ public class HtmlRenderer
             var lines = new List<RenderedLine>();
             int lineY = startY + paddingTop;
             int lineHeight = 20;
+            int maxLineHeight = 20;
 
             foreach (var child in element.Children)
             {
@@ -78,7 +80,7 @@ public class HtmlRenderer
                     if (childElement.RenderedHeight > 0)
                     {
                         lineHeight = Math.Max(lineHeight, childElement.RenderedHeight);
-                        lineY += childElement.RenderedHeight;
+                        maxLineHeight = Math.Max(maxLineHeight, childElement.RenderedHeight);
                     }
                 }
                 else if (child is HtmlDomText textNode)
@@ -89,14 +91,21 @@ public class HtmlRenderer
                         lines.Add(textLine);
                         lineHeight = Math.Max(lineHeight, textLine.Height);
                     }
+                    if (textLines.Count > 0)
+                    {
+                        int totalTextHeight = textLines.Sum(tl => tl.Height);
+                        lineY += totalTextHeight;
+                        maxLineHeight = Math.Max(maxLineHeight, textLines.Max(tl => tl.Height));
+                    }
                 }
             }
 
-            int elementHeight = marginTop + paddingTop + lineY - startY + paddingBottom + marginBottom;
+            lineY += paddingBottom;
+            int elementHeight = marginTop + paddingTop + (lineY - startY - paddingTop) + paddingBottom + marginBottom;
             element.RenderedX = startX;
             element.RenderedY = startY;
             element.RenderedWidth = availableWidth;
-            element.RenderedHeight = elementHeight > 0 ? elementHeight : lineHeight + paddingTop + paddingBottom;
+            element.RenderedHeight = elementHeight > 0 ? elementHeight : maxLineHeight + paddingTop + paddingBottom;
 
             _layoutCache[element] = lines;
             y = startY + element.RenderedHeight + marginBottom;
@@ -143,6 +152,31 @@ public class HtmlRenderer
             var lines = new List<RenderedLine>();
             int lineY = startY + paddingTop;
 
+            string tagNameLower = element.TagName.ToLowerInvariant();
+
+            if (tagNameLower == "img")
+            {
+                int imgWidth = 100;
+                int imgHeight = 100;
+
+                string? widthAttr = element.GetAttribute("width");
+                string? heightAttr = element.GetAttribute("height");
+
+                if (!string.IsNullOrEmpty(widthAttr) && int.TryParse(widthAttr, out int w))
+                    imgWidth = w;
+                if (!string.IsNullOrEmpty(heightAttr) && int.TryParse(heightAttr, out int h))
+                    imgHeight = h;
+
+                element.RenderedX = startX + paddingLeft;
+                element.RenderedY = lineY;
+                element.RenderedWidth = imgWidth;
+                element.RenderedHeight = imgHeight;
+
+                lineY += imgHeight + paddingBottom;
+                y = startY + (lineY - startY) + marginBottom;
+                return;
+            }
+
             foreach (var child in element.Children)
             {
                 if (child is HtmlDomElement childElement)
@@ -153,6 +187,8 @@ public class HtmlRenderer
                 {
                     var textLines = LayoutText(textNode, startX + paddingLeft, lineY, contentWidth - paddingLeft - paddingRight, styles);
                     lines.AddRange(textLines);
+                    if (textLines.Count > 0)
+                        lineY += textLines[0].Height;
                 }
             }
 
@@ -263,11 +299,63 @@ public class HtmlRenderer
 
         int contentX = x + marginLeft + paddingLeft;
         int contentY = y + marginTop + paddingTop;
-        int contentWidth = w - marginLeft - paddingLeft - HtmlStyleResolver.ParseLengthValue(styles.MarginRight, w) - HtmlStyleResolver.ParseLengthValue(styles.PaddingRight, w);
 
         string tagName = element.TagName.ToLowerInvariant();
         bool isLink = tagName == "a";
         Color linkColor = ParseColor("#0000ee");
+
+        if (_layoutCache.TryGetValue(element, out var textLines))
+        {
+            foreach (var line in textLines)
+            {
+                if (line.TextNode != null)
+                {
+                    string text = line.TextNode.TextContent;
+                    if (!string.IsNullOrEmpty(text))
+                    {
+                        Color textColor = isLink ? linkColor : ParseColor(HtmlStyleResolver.ResolveColor(styles.Color));
+                        var font = CreateFont(styles);
+                        g.DrawString(text, font, textColor, line.X, line.Y);
+
+                        line.TextNode.RenderedX = line.X;
+                        line.TextNode.RenderedY = line.Y;
+                        line.TextNode.RenderedWidth = line.Width;
+                        line.TextNode.RenderedHeight = line.Height;
+                    }
+                }
+            }
+        }
+
+        if (tagName == "img")
+        {
+            string? src = element.GetAttribute("src");
+            if (!string.IsNullOrEmpty(src))
+            {
+                try
+                {
+                    CoreForms.Ui.Core.RasterImage? rasterImage = null;
+
+                    if (src.StartsWith("data:image", StringComparison.OrdinalIgnoreCase))
+                    {
+                        var base64Data = src.Substring(src.IndexOf(",", StringComparison.OrdinalIgnoreCase) + 1);
+                        var imageBytes = System.Convert.FromBase64String(base64Data);
+                        rasterImage = CoreForms.Ui.Core.RasterImage.FromBytes(imageBytes);
+                    }
+                    else if (System.IO.File.Exists(src))
+                    {
+                        rasterImage = CoreForms.Ui.Core.RasterImage.FromFile(src);
+                    }
+
+                    if (rasterImage != null)
+                    {
+                        int drawW = w > 0 ? w : rasterImage.Width;
+                        int drawH = h > 0 ? h : rasterImage.Height;
+                        g.DrawImage(rasterImage, x, y, drawW, drawH);
+                    }
+                }
+                catch { }
+            }
+        }
 
         foreach (var child in element.Children)
         {
@@ -275,37 +363,6 @@ public class HtmlRenderer
             {
                 RenderElement(g, childElement);
             }
-            else if (child is HtmlDomText textNode)
-            {
-                string text = textNode.TextContent;
-                if (!string.IsNullOrEmpty(text))
-                {
-                    Color textColor;
-                    if (isLink)
-                    {
-                        textColor = linkColor;
-                    }
-                    else
-                    {
-                        string colorVal = HtmlStyleResolver.ResolveColor(styles.Color);
-                        textColor = ParseColor(colorVal);
-                    }
-
-                    var font = CreateFont(styles);
-                    float fontSize = font.Size * g.Zoom;
-
-                    g.DrawString(text, font, textColor, contentX, contentY);
-
-                    textNode.RenderedX = contentX;
-                    textNode.RenderedY = contentY;
-                    textNode.RenderedWidth = (int)(text.Length * fontSize * 0.6);
-                    textNode.RenderedHeight = (int)fontSize;
-                }
-            }
-        }
-
-        if (element.TagName == "br")
-        {
         }
     }
 

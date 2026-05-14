@@ -144,7 +144,7 @@ public class ComboBox : Control
         var scrollBarWidth = 16;
         var needsScrollbar = totalHeight > _dropDownHeight;
         var listWidth = needsScrollbar ? Width - scrollBarWidth : Width;
-        int dropY = Height + 25;
+        int dropY = Height;
 
         g.FillRectangle(theme.MenuDropdownBackground, 0, dropY, Width, _dropDownHeight);
         g.DrawRectangle(theme.MenuDropdownBorder, 0, dropY, Width, _dropDownHeight, 1);
@@ -247,7 +247,7 @@ public class ComboBox : Control
             if (args != null)
             {
                 var itemHeight = GetItemHeight();
-                int dropY = Height + 25;
+                int dropY = Height;
                 int dropDownHeight = _dropDownHeight;
 
                 if (args.X >= 0 && args.X < Width && args.Y >= dropY && args.Y < dropY + dropDownHeight)
@@ -334,7 +334,7 @@ public class ComboBox : Control
             if (args != null)
             {
                 var itemHeight = GetItemHeight();
-                int dropY = Height + 25;
+                int dropY = Height;
 
                 if (args.Y >= dropY && args.Y < dropY + _dropDownHeight)
                 {

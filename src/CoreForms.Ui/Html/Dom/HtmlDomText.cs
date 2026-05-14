@@ -14,4 +14,6 @@ public class HtmlDomText : HtmlDomNode
     public override void SetTextContent(string text) { TextContent = text ?? string.Empty; }
     public string GetWhitespaceNormalizedText() => System.Text.RegularExpressions.Regex.Replace(TextContent, @"\s+", " ").Trim();
     public bool IsWhitespaceOnly() => string.IsNullOrWhiteSpace(TextContent);
+
+    public string OuterHtml => TextContent;
 }

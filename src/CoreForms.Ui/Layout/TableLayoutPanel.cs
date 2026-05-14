@@ -131,6 +131,9 @@ public class TableLayoutPanel : ContainerControl
             g.DrawLine(theme.TableLayoutGridLine, col * cellWidth + padLeft, padTop, col * cellWidth + padLeft, Height - Padding.Bottom - 2);
         }
 
+        g.Save();
+        g.TranslateTransform(padLeft, padTop);
         base.Render(g);
+        g.Restore();
     }
 }

@@ -3,8 +3,9 @@ using CoreForms.Ui.Core;
 using CoreForms.Ui.Controls.Basic;
 using CoreForms.Ui.Controls.Containers;
 using CoreForms.Ui.Controls;
-using CoreForms.Ui.Resources;
+using CoreForms.Ui.WebBrowser.Controls;
 using CoreForms.Ui.Theming;
+using CoreForms.Ui.Resources;
 using SkiaSharp;
 using System.Collections.Generic;
 
@@ -275,6 +276,8 @@ class Program
         tabControl.AddTabPage(CreateDockAnchorPage());
         tabControl.AddTabPage(CreateTreeViewPage());
         tabControl.AddTabPage(CreateUserControlPage());
+        tabControl.AddTabPage(CreateWebBrowserPage());
+        tabControl.AddTabPage(CreateHtmlEditorPage());
 
         return tabControl;
     }
@@ -720,6 +723,109 @@ class Program
         using var image = SKImage.FromBitmap(bitmap);
         using var data = image.Encode(SKEncodedImageFormat.Png, 100);
         return data.ToArray();
+    }
+
+    static TabPage CreateWebBrowserPage()
+    {
+        var page = new TabPage { Text = "Web Browser" };
+
+        var toolStrip = new ToolStrip { Dock = DockStyle.Top };
+        var backButton = new ToolStripButton("← Back");
+        var forwardButton = new ToolStripButton("Forward →");
+        var refreshButton = new ToolStripButton("↻ Refresh");
+        var stopButton = new ToolStripButton("✕ Stop");
+        var urlTextBox = new ToolStripTextBox { TextBoxWidth = 400 };
+        var goButton = new ToolStripButton("Go");
+
+        var webView = new WebView
+        {
+            Dock = DockStyle.Fill
+        };
+
+        backButton.Click += (s, e) => webView.GoBack();
+        forwardButton.Click += (s, e) => webView.GoForward();
+        refreshButton.Click += (s, e) => webView.Refresh();
+        stopButton.Click += (s, e) => webView.Stop();
+        goButton.Click += (s, e) =>
+        {
+            var url = urlTextBox.Text;
+            if (!string.IsNullOrWhiteSpace(url))
+                webView.Navigate(url);
+        };
+
+        webView.Navigated += (s, e) =>
+        {
+            urlTextBox.Text = e.Url ?? string.Empty;
+        };
+
+        toolStrip.Items.AddRange(new ToolStripItem[]
+        {
+            backButton, forwardButton, refreshButton, stopButton,
+            new ToolStripSeparator(),
+            urlTextBox, goButton
+        });
+
+        page.Controls.Add(toolStrip);
+        page.Controls.Add(webView);
+
+        return page;
+    }
+
+    static TabPage CreateHtmlEditorPage()
+    {
+        var page = new TabPage { Text = "HTML Editor" };
+
+        var toolStrip = new ToolStrip { Dock = DockStyle.Top, GripStyle = ToolStripGripStyle.Hidden };
+
+        var boldButton = new ToolStripButton("B", Icons.TextEditStyle24!) { DisplayStyle = ToolStripItemDisplayStyle.ImageAndText };
+        var italicButton = new ToolStripButton("I") { DisplayStyle = ToolStripItemDisplayStyle.Text };
+        var underlineButton = new ToolStripButton("U") { DisplayStyle = ToolStripItemDisplayStyle.Text };
+        var bulletListButton = new ToolStripButton("", Icons.TextBulletListSquare24!) { DisplayStyle = ToolStripItemDisplayStyle.Image };
+        var numberListButton = new ToolStripButton("", Icons.NumberSymbolSquare24!) { DisplayStyle = ToolStripItemDisplayStyle.Image };
+        var linkButton = new ToolStripButton("", Icons.Link24!) { DisplayStyle = ToolStripItemDisplayStyle.Image };
+        var imageButton = new ToolStripButton("", Icons.Image24!) { DisplayStyle = ToolStripItemDisplayStyle.Image };
+
+        var htmlBox = new HtmlBox
+        {
+            Dock = DockStyle.Fill,
+            ReadOnly = false,
+            Html = @"<h1>HTML Editor</h1>
+<p>Welcome to the <b>CoreForms</b> HTML editor!</p>
+<p>This is a <a href=""https://example.com"">link</a> example.</p>
+<ul>
+<li>First item</li>
+<li>Second item</li>
+<li>Third item</li>
+</ul>
+<ol>
+<li>Number one</li>
+<li>Number two</li>
+<li>Number three</li>
+</ol>"
+        };
+
+        boldButton.Click += (s, e) => { htmlBox.ApplyFormat("bold"); };
+        italicButton.Click += (s, e) => { htmlBox.ApplyFormat("italic"); };
+        underlineButton.Click += (s, e) => { htmlBox.ApplyFormat("underline"); };
+        bulletListButton.Click += (s, e) => { htmlBox.ApplyFormat("insertUnorderedList"); };
+        numberListButton.Click += (s, e) => { htmlBox.ApplyFormat("insertOrderedList"); };
+        linkButton.Click += (s, e) => { htmlBox.ApplyFormat("createLink"); };
+        imageButton.Click += (s, e) => { htmlBox.ApplyFormat("insertImage"); };
+
+        toolStrip.Items.Add(boldButton);
+        toolStrip.Items.Add(italicButton);
+        toolStrip.Items.Add(underlineButton);
+        toolStrip.Items.Add(new ToolStripSeparator());
+        toolStrip.Items.Add(bulletListButton);
+        toolStrip.Items.Add(numberListButton);
+        toolStrip.Items.Add(new ToolStripSeparator());
+        toolStrip.Items.Add(linkButton);
+        toolStrip.Items.Add(imageButton);
+
+        page.Controls.Add(toolStrip);
+        page.Controls.Add(htmlBox);
+
+        return page;
     }
 }
 

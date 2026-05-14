@@ -13,6 +13,8 @@ public class TabControl : ContainerControl
     private int _selectedIndex = 0;
     private int _tabHeight = 24;
 
+    private int TabHeaderHeight => _tabHeight + 2;
+
     /// <summary>
     /// Initializes a new instance of TabControl.
     /// </summary>
@@ -56,7 +58,7 @@ public class TabControl : ContainerControl
     /// </summary>
     protected override void OnLayout()
     {
-        var tabHeaderHeight = _tabHeight + 2;
+        var tabHeaderHeight = TabHeaderHeight;
         foreach (var page in _tabPages)
         {
             page.Bounds = new Rectangle(0, 0, Width, Math.Max(0, Height - tabHeaderHeight));
@@ -126,7 +128,7 @@ public class TabControl : ContainerControl
     /// <returns>The child control at the point, or null if in the header area.</returns>
     protected override Control? GetChildAtPoint(Point point)
     {
-        var tabHeaderHeight = _tabHeight + 2;
+        var tabHeaderHeight = TabHeaderHeight;
         if (point.Y < tabHeaderHeight)
             return null;
         var contentPoint = new Point(point.X, point.Y - tabHeaderHeight);
@@ -143,7 +145,7 @@ public class TabControl : ContainerControl
     /// </summary>
     protected override Control? GetDeepestChildAtPoint(Point point, out Point localPoint)
     {
-        var tabHeaderHeight = _tabHeight + 2;
+        var tabHeaderHeight = TabHeaderHeight;
         if (point.Y < tabHeaderHeight)
         {
             localPoint = point;
@@ -197,7 +199,7 @@ public class TabControl : ContainerControl
 
         var theme = ThemeManager.CurrentTheme;
         var font = EffectiveFont;
-        var tabHeaderHeight = _tabHeight + 2;
+        var tabHeaderHeight = TabHeaderHeight;
         const int horizontalPadding = 16;
 
         var (tabPositions, tabWidths) = CalculateTabLayout();
@@ -272,6 +274,26 @@ public class TabControl : ContainerControl
     }
 
     /// <summary>
+    /// Renders overlays (like dropdowns) with the same offset as Render to ensure
+    /// child controls are positioned correctly.
+    /// </summary>
+    /// <param name="g">The Graphics object to use for rendering.</param>
+    public override void RenderOverlay(Graphics g)
+    {
+        if (!Visible) return;
+
+        var tabHeaderHeight = TabHeaderHeight;
+
+        if (SelectedTab != null)
+        {
+            g.Save();
+            g.TranslateTransform(0, tabHeaderHeight);
+            SelectedTab.RenderOverlay(g);
+            g.Restore();
+        }
+    }
+
+    /// <summary>
     /// Raises the MouseDown event to handle tab header clicks.
     /// Content area clicks are routed to child controls by the base ContainerControl.
     /// </summary>
@@ -281,7 +303,7 @@ public class TabControl : ContainerControl
         var args = e as MouseEventArgs;
         if (args != null && _tabPages.Count > 0)
         {
-            var tabHeaderHeight = _tabHeight + 2;
+            var tabHeaderHeight = TabHeaderHeight;
             if (args.Y < tabHeaderHeight)
             {
                 var (tabPositions, tabWidths) = CalculateTabLayout();
@@ -426,6 +448,19 @@ public class TabPage : ContainerControl
         Size = new Size(400, 250);
         _backColor = ThemeManager.CurrentTheme.TabContentBackground;
         TabStop = false;
+    }
+
+    /// <summary>
+    /// Gets the cumulative position of this control relative to the parent Form,
+    /// accounting for the TabControl's tab header offset.
+    /// </summary>
+    /// <returns>A point representing the control's position in form coordinates.</returns>
+    public override Point GetFormRelativePosition()
+    {
+        var pos = base.GetFormRelativePosition();
+        if (Parent is TabControl tabControl)
+            pos = new Point(pos.X, pos.Y + tabControl.TabHeight + 2);
+        return pos;
     }
 
     /// <summary>

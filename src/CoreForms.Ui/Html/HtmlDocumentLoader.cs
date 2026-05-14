@@ -25,7 +25,34 @@ public static class HtmlDocumentLoader
         }
 
         var root = ConvertNode(htmlDoc.DocumentNode, doc);
-        if (root is HtmlDomElement converted) { doc.DocumentElement = converted; doc.DocumentElement.OwnerDocument = doc; WalkTree(doc.DocumentElement, n => n.OwnerDocument = doc); }
+        if (root is HtmlDomElement converted)
+        {
+            if (converted.TagName == "#document" && converted.Children.Count > 0)
+            {
+                var firstChild = converted.Children[0] as HtmlDomElement;
+                if (firstChild != null)
+                {
+                    doc.DocumentElement = firstChild;
+                    doc.DocumentElement.OwnerDocument = doc;
+                    WalkTree(doc.DocumentElement, n => n.OwnerDocument = doc);
+                }
+                else
+                {
+                    var body = new HtmlDomElement("body");
+                    body.OwnerDocument = doc;
+                    foreach (var child in converted.Children)
+                        body.AppendChild(child);
+                    doc.DocumentElement = body;
+                    WalkTree(doc.DocumentElement, n => n.OwnerDocument = doc);
+                }
+            }
+            else
+            {
+                doc.DocumentElement = converted;
+                doc.DocumentElement.OwnerDocument = doc;
+                WalkTree(doc.DocumentElement, n => n.OwnerDocument = doc);
+            }
+        }
 
         if (htmlDoc.ParseErrors.Count() > 0) foreach (var e in htmlDoc.ParseErrors) doc.ParseErrors.Add($"Line {e.Line}: {e.Reason}");
         return doc;

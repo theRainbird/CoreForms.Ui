@@ -568,7 +568,7 @@ if (_focused != value)
     /// Sums the X/Y coordinates of all parent controls up to the Form.
     /// </summary>
     /// <returns>A point representing the control's position in form coordinates.</returns>
-    public Point GetFormRelativePosition()
+    public virtual Point GetFormRelativePosition()
     {
         int x = X;
         int y = Y;
