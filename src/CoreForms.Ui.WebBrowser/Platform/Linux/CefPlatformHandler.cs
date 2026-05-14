@@ -1,11 +1,12 @@
 using System;
 using System.Collections.Concurrent;
-using System.Diagnostics;
 using System.IO;
 using System.Runtime.InteropServices;
 using System.Threading.Tasks;
 using CoreForms.Ui.WebBrowser.Controls;
 using CoreForms.Ui.WebBrowser.Events;
+using KeyEventArgs = CoreForms.Ui.Core.KeyEventArgs;
+using MouseEventArgs = CoreForms.Ui.Core.MouseEventArgs;
 using Rectangle = CoreForms.Ui.Core.Rectangle;
 using Xilium.CefGlue;
 
@@ -25,9 +26,7 @@ internal sealed class CefRenderHandlerImpl : CefRenderHandler
     }
 
     protected override void OnPaint(CefBrowser browser, CefPaintElementType type, CefRectangle[] dirtyRects, IntPtr buffer, int width, int height)
-    {
-        _owner.OnPaintBuffer(buffer, width, height);
-    }
+        => _owner.OnPaintBuffer(buffer, width, height);
 
     protected override void OnAcceleratedPaint(CefBrowser browser, CefPaintElementType type, CefRectangle[] dirtyRects, IntPtr sharedHandle) { }
     protected override void OnPopupSize(CefBrowser browser, CefRectangle rect) { }
@@ -45,10 +44,7 @@ internal sealed class CefLifeSpanHandlerImpl : CefLifeSpanHandler
     private readonly CefPlatformHandler _owner;
     public CefLifeSpanHandlerImpl(CefPlatformHandler owner) => _owner = owner;
 
-    protected override void OnAfterCreated(CefBrowser browser)
-    {
-        _owner.OnAfterCreated(browser);
-    }
+    protected override void OnAfterCreated(CefBrowser browser) => _owner.OnAfterCreated(browser);
 
     protected override bool OnBeforePopup(CefBrowser browser, CefFrame frame, string targetUrl, string targetFrameName, CefWindowOpenDisposition targetDisposition, bool userGesture, CefPopupFeatures popupFeatures, CefWindowInfo windowInfo, ref CefClient client, CefBrowserSettings settings, ref CefDictionaryValue extraInfo, ref bool noJavascriptAccess)
     {
@@ -77,6 +73,20 @@ internal sealed class CefRequestHandlerImpl : CefRequestHandler
 {
     protected override bool OnBeforeBrowse(CefBrowser browser, CefFrame frame, CefRequest request, bool userGesture, bool isRedirect) => false;
     protected override CefResourceRequestHandler? GetResourceRequestHandler(CefBrowser browser, CefFrame frame, CefRequest request, bool isNavigation, bool isDownload, string requestInitiator, ref bool disableDefaultHandling) => null;
+    protected override bool OnCertificateError(CefBrowser browser, CefErrorCode certError, string requestUrl, CefSslInfo sslInfo, CefCallback callback)
+    {
+        callback.Continue();
+        return true;
+    }
+}
+
+internal sealed class CefFocusHandlerImpl : CefFocusHandler
+{
+    private readonly CefPlatformHandler _owner;
+    public CefFocusHandlerImpl(CefPlatformHandler owner) => _owner = owner;
+    protected override void OnGotFocus(CefBrowser browser) { }
+    protected override bool OnSetFocus(CefBrowser browser, CefFocusSource source) => false;
+    protected override void OnTakeFocus(CefBrowser browser, bool next) { }
 }
 
 internal sealed class CefClientImpl : CefClient
@@ -86,6 +96,7 @@ internal sealed class CefClientImpl : CefClient
     private readonly CefLifeSpanHandler _lifeSpan;
     private readonly CefLoadHandler _loader;
     private readonly CefRequestHandler _request;
+    private readonly CefFocusHandler _focus;
 
     public CefClientImpl(CefPlatformHandler owner)
     {
@@ -94,26 +105,25 @@ internal sealed class CefClientImpl : CefClient
         _lifeSpan = new CefLifeSpanHandlerImpl(owner);
         _loader = new CefLoadHandlerImpl(owner);
         _request = new CefRequestHandlerImpl();
+        _focus = new CefFocusHandlerImpl(owner);
     }
 
     protected override CefRenderHandler GetRenderHandler() => _renderer;
     protected override CefLifeSpanHandler GetLifeSpanHandler() => _lifeSpan;
     protected override CefLoadHandler GetLoadHandler() => _loader;
     protected override CefRequestHandler GetRequestHandler() => _request;
+    protected override CefFocusHandler GetFocusHandler() => _focus;
 }
 
 internal sealed class CefBrowserProcessHandlerImpl : CefBrowserProcessHandler
 {
-    protected override void OnContextInitialized()
-    {
+    protected override void OnContextInitialized() =>
         Console.WriteLine("[CefPlatformHandler] CEF context initialized");
-    }
 }
 
 internal sealed class CefAppImpl : CefApp
 {
     private readonly CefBrowserProcessHandler _browserProcessHandler = new CefBrowserProcessHandlerImpl();
-
     protected override CefBrowserProcessHandler GetBrowserProcessHandler() => _browserProcessHandler;
 
     protected override void OnBeforeCommandLineProcessing(string processType, CefCommandLine commandLine)
@@ -136,17 +146,19 @@ public class CefPlatformHandler : IWebViewPlatformHandler
     private static bool _cefInitialized;
     private static readonly object _cefLock = new();
     private CefBrowser? _browser;
+    private CefBrowserHost? _browserHost;
     private byte[]? _pixelBuffer;
     private int _bufferWidth;
     private int _bufferHeight;
     private bool _disposed;
     private string _currentUrl = string.Empty;
+    private string? _pendingUrl;
 
     public int Width { get; private set; } = 640;
     public int Height { get; private set; } = 480;
 
-    public bool CanGoBack => false;
-    public bool CanGoForward => false;
+    public bool CanGoBack => _browser?.CanGoBack ?? false;
+    public bool CanGoForward => _browser?.CanGoForward ?? false;
     public bool IsInitialized => _browser != null;
 
     public event EventHandler<WebNavigatingEventArgs>? Navigating;
@@ -165,8 +177,7 @@ public class CefPlatformHandler : IWebViewPlatformHandler
 
             var mainArgs = new CefMainArgs(new string[] { });
             var exitCode = CefRuntime.ExecuteProcess(mainArgs, _cefApp, IntPtr.Zero);
-            if (exitCode >= 0)
-                Environment.Exit(exitCode);
+            if (exitCode >= 0) Environment.Exit(exitCode);
 
             var settings = new CefSettings
             {
@@ -182,12 +193,10 @@ public class CefPlatformHandler : IWebViewPlatformHandler
             var browserProcessPath = Path.Combine(AppContext.BaseDirectory, "CefGlueBrowserProcess", "Xilium.CefGlue.BrowserProcess");
             if (File.Exists(browserProcessPath))
                 settings.BrowserSubprocessPath = browserProcessPath;
-            else if (File.Exists(browserProcessPath + ".exe"))
-                settings.BrowserSubprocessPath = browserProcessPath + ".exe";
 
             CefRuntime.Initialize(mainArgs, settings, _cefApp, IntPtr.Zero);
             _cefInitialized = true;
-            Console.WriteLine("[CefPlatformHandler] CEF initialized (single-threaded mode)");
+            Console.WriteLine("[CefPlatformHandler] CEF initialized");
         }
     }
 
@@ -195,8 +204,7 @@ public class CefPlatformHandler : IWebViewPlatformHandler
     {
         var baseDir = AppContext.BaseDirectory;
         var cefDir = Path.Combine(baseDir, "CefGlueBrowserProcess");
-        if (Directory.Exists(cefDir)) return cefDir;
-        return baseDir;
+        return Directory.Exists(cefDir) ? cefDir : baseDir;
     }
 
     public void Initialize(uint parentWindowId)
@@ -204,8 +212,6 @@ public class CefPlatformHandler : IWebViewPlatformHandler
         try
         {
             InitializeCef();
-
-            // Register CEF message pump
             CoreForms.Ui.Platform.Platform.OnFrame += CefRuntime.DoMessageLoopWork;
 
             var windowInfo = CefWindowInfo.Create();
@@ -221,7 +227,7 @@ public class CefPlatformHandler : IWebViewPlatformHandler
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"[CefPlatformHandler] Init failed: {ex.GetType().Name}: {ex.Message}");
+            Console.WriteLine($"[CefPlatformHandler] Init failed: {ex}");
         }
     }
 
@@ -232,51 +238,145 @@ public class CefPlatformHandler : IWebViewPlatformHandler
         Navigating?.Invoke(this, args);
         if (!args.Cancel)
         {
-            _browser?.GetMainFrame()?.LoadUrl(url);
+            if (_browser != null)
+            {
+                _pendingUrl = null;
+                _browser.GetMainFrame()?.LoadUrl(url);
+            }
+            else
+            {
+                _pendingUrl = url;
+            }
         }
     }
 
     public void NavigateToString(string html)
     {
+        if (_browser == null) return;
         var escaped = html.Replace("\\", "\\\\").Replace("\"", "\\\"").Replace("\n", "\\n").Replace("\r", "\\r");
-        _browser?.GetMainFrame()?.ExecuteJavaScript($"document.body.innerHTML=\"{escaped}\"", string.Empty, 0);
+        _browser.GetMainFrame()?.ExecuteJavaScript($"document.body.innerHTML=\"{escaped}\"", string.Empty, 0);
     }
 
-    public void GoBack() => _browser?.GetMainFrame()?.ExecuteJavaScript("history.back()", string.Empty, 0);
-    public void GoForward() => _browser?.GetMainFrame()?.ExecuteJavaScript("history.forward()", string.Empty, 0);
+    public void GoBack() => _browser?.GoBack();
+    public void GoForward() => _browser?.GoForward();
     public void Refresh() => _browser?.ReloadIgnoreCache();
     public void Stop() => _browser?.StopLoad();
 
-    public Task<string> EvaluateScriptAsync(string script)
-    {
-        return Task.FromResult(string.Empty);
-    }
+    public Task<string> EvaluateScriptAsync(string script) => Task.FromResult(string.Empty);
 
     public void UpdateBounds(Rectangle bounds)
     {
         Width = Math.Max(bounds.Width, 1);
         Height = Math.Max(bounds.Height, 1);
-        _browser?.GetHost()?.WasResized();
+        _browserHost?.WasResized();
     }
 
     public void SetVisible(bool visible)
     {
-        if (visible) _browser?.GetHost()?.WasResized();
-        else _browser?.GetHost()?.WasHidden(true);
+        if (visible) _browserHost?.WasResized();
+        else _browserHost?.WasHidden(true);
     }
 
     public void SetEnabled(bool enabled) { }
 
+    // ── Input Forwarding ──────────────────────────────────────────
+
+    public void SendMouseDown(MouseEventArgs e)
+    {
+        if (_browserHost == null) return;
+        var cefEvent = new CefMouseEvent { X = e.X, Y = e.Y };
+        _browserHost.SendMouseClickEvent(cefEvent, MapMouseButton(e.Button), false, Math.Max(e.Clicks, 1));
+        _browserHost.SetFocus(true);
+    }
+
+    public void SendMouseUp(MouseEventArgs e)
+    {
+        if (_browserHost == null) return;
+        var cefEvent = new CefMouseEvent { X = e.X, Y = e.Y };
+        _browserHost.SendMouseClickEvent(cefEvent, MapMouseButton(e.Button), true, Math.Max(e.Clicks, 1));
+    }
+
+    public void SendMouseMove(int x, int y)
+    {
+        if (_browserHost == null) return;
+        var cefEvent = new CefMouseEvent { X = x, Y = y };
+        _browserHost.SendMouseMoveEvent(cefEvent, false);
+    }
+
+    public void SendMouseWheel(MouseEventArgs e)
+    {
+        if (_browserHost == null) return;
+        var cefEvent = new CefMouseEvent { X = e.X, Y = e.Y };
+        _browserHost.SendMouseWheelEvent(cefEvent, 0, e.Delta);
+    }
+
+    public void SendKeyDown(KeyEventArgs e)
+    {
+        if (_browserHost == null) return;
+
+        var cefEvent = new CefKeyEvent
+        {
+            EventType = CefKeyEventType.RawKeyDown,
+            WindowsKeyCode = MapKeyCode(e.KeyCode),
+            NativeKeyCode = (int)e.KeyCode,
+            Modifiers = MapModifiers(e.Modifiers),
+            IsSystemKey = false
+        };
+        _browserHost.SendKeyEvent(cefEvent);
+    }
+
+    public void SendKeyUp(KeyEventArgs e)
+    {
+        if (_browserHost == null) return;
+
+        var cefEvent = new CefKeyEvent
+        {
+            EventType = CefKeyEventType.KeyUp,
+            WindowsKeyCode = MapKeyCode(e.KeyCode),
+            NativeKeyCode = (int)e.KeyCode,
+            Modifiers = MapModifiers(e.Modifiers),
+            IsSystemKey = false
+        };
+        _browserHost.SendKeyEvent(cefEvent);
+    }
+
+    public void SendTextInput(string text)
+    {
+        if (_browserHost == null || string.IsNullOrEmpty(text)) return;
+
+        foreach (char c in text)
+        {
+            var cefEvent = new CefKeyEvent
+            {
+                EventType = CefKeyEventType.Char,
+                WindowsKeyCode = c,
+                NativeKeyCode = c,
+                Character = c,
+                UnmodifiedCharacter = c,
+                IsSystemKey = false
+            };
+            _browserHost.SendKeyEvent(cefEvent);
+        }
+    }
+
+    // ── Internal Callbacks ────────────────────────────────────────
+
     internal void OnAfterCreated(CefBrowser browser)
     {
         _browser = browser;
+        _browserHost = browser.GetHost();
         Console.WriteLine("[CefPlatformHandler] Browser ready");
 
-        // Force initial resize to trigger first paint
-        var host = browser.GetHost();
-        host.WasResized();
-        host.SetFocus(true);
-        host.NotifyMoveOrResizeStarted();
+        // Navigate to pending URL if set before browser was ready
+        if (_pendingUrl != null)
+        {
+            var url = _pendingUrl;
+            _pendingUrl = null;
+            browser.GetMainFrame()?.LoadUrl(url);
+        }
+
+        _browserHost.WasResized();
+        _browserHost.SetFocus(true);
     }
 
     internal void OnPaintBuffer(IntPtr buffer, int width, int height)
@@ -287,8 +387,6 @@ public class CefPlatformHandler : IWebViewPlatformHandler
         Marshal.Copy(buffer, _pixelBuffer, 0, size);
         _bufferWidth = width;
         _bufferHeight = height;
-        if (_pixelBuffer != null)
-            Console.WriteLine($"[CefPlatformHandler] OnPaint: {width}x{height}");
     }
 
     internal void OnNavigated(string url)
@@ -301,11 +399,36 @@ public class CefPlatformHandler : IWebViewPlatformHandler
     public int BufferWidth => _bufferWidth;
     public int BufferHeight => _bufferHeight;
 
+    // ── Helpers ───────────────────────────────────────────────────
+
+    private static CefMouseButtonType MapMouseButton(CoreForms.Ui.Core.MouseButtons btn) => btn switch
+    {
+        CoreForms.Ui.Core.MouseButtons.Right => CefMouseButtonType.Right,
+        CoreForms.Ui.Core.MouseButtons.Middle => CefMouseButtonType.Middle,
+        _ => CefMouseButtonType.Left
+    };
+
+    private static CefEventFlags MapModifiers(CoreForms.Ui.Core.ModifierKeys mods)
+    {
+        var flags = CefEventFlags.None;
+        if (mods.HasFlag(CoreForms.Ui.Core.ModifierKeys.Shift)) flags |= CefEventFlags.ShiftDown;
+        if (mods.HasFlag(CoreForms.Ui.Core.ModifierKeys.Control)) flags |= CefEventFlags.ControlDown;
+        if (mods.HasFlag(CoreForms.Ui.Core.ModifierKeys.Alt)) flags |= CefEventFlags.AltDown;
+        return flags;
+    }
+
+    private static int MapKeyCode(CoreForms.Ui.Core.Keys key)
+    {
+        // Direct mapping for common keys — works because our Keys enum
+        // follows Windows virtual-key codes which CEF also uses.
+        return (int)key;
+    }
+
     public void Dispose()
     {
         if (_disposed) return;
         _disposed = true;
-        try { _browser?.GetHost()?.CloseBrowser(true); } catch { }
+        try { _browserHost?.CloseBrowser(true); } catch { }
         try { _browser?.Dispose(); } catch { }
         GC.SuppressFinalize(this);
     }

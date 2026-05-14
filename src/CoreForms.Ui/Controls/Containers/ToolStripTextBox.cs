@@ -16,6 +16,7 @@ public class ToolStripTextBox : ToolStripItem
     private bool _useSystemPasswordChar;
     private bool _focused;
     private int _width = 100;
+    private int _scrollOffset;
 
     private static readonly int CursorBlinkInterval = 530;
     private static readonly string BulletChar = "\u25CF";
@@ -54,6 +55,7 @@ public class ToolStripTextBox : ToolStripItem
                 _cursorPosition = _text.Length;
                 _selectionAnchor = _cursorPosition;
                 _selectionLength = 0;
+                EnsureCursorVisible();
                 RaiseTextChanged();
                 Owner?.Invalidate();
             }
@@ -167,6 +169,62 @@ public class ToolStripTextBox : ToolStripItem
         return (int)(measured.width / zoom);
     }
 
+    private void EnsureCursorVisible()
+    {
+        if (string.IsNullOrEmpty(_text))
+        {
+            _scrollOffset = 0;
+            return;
+        }
+
+        int textAreaWidth = _width - 8;
+        if (textAreaWidth <= 0)
+        {
+            _scrollOffset = 0;
+            return;
+        }
+
+        var font = Owner?.Font ?? Font.Default;
+        float zoom = Owner?.EffectiveZoom ?? 1.0f;
+
+        string displayText = GetDisplayText();
+        int cursorLogicalX;
+
+        if (_useSystemPasswordChar)
+        {
+            var measured = Platform.Platform.MeasureText(BulletChar, font, zoom);
+            int bulletWidth = (int)(measured.width / zoom);
+            cursorLogicalX = _cursorPosition * bulletWidth;
+        }
+        else
+        {
+            string textBeforeCursor = displayText.Substring(0, _cursorPosition);
+            cursorLogicalX = MeasureLocalTextWidth(textBeforeCursor, font, zoom);
+        }
+
+        int cursorVisualX = 4 + cursorLogicalX - _scrollOffset;
+
+        if (cursorVisualX < 4)
+            _scrollOffset = cursorLogicalX;
+        else if (cursorVisualX > 4 + textAreaWidth)
+            _scrollOffset = cursorLogicalX - textAreaWidth;
+
+        int totalTextWidth;
+        if (_useSystemPasswordChar)
+        {
+            var measured = Platform.Platform.MeasureText(BulletChar, font, zoom);
+            int bulletWidth = (int)(measured.width / zoom);
+            totalTextWidth = bulletWidth * _text.Length;
+        }
+        else
+        {
+            totalTextWidth = MeasureLocalTextWidth(_text, font, zoom);
+        }
+
+        int maxScroll = Math.Max(0, totalTextWidth - textAreaWidth);
+        _scrollOffset = Math.Max(0, Math.Min(_scrollOffset, maxScroll));
+    }
+
     /// <summary>
     /// Renders the text box with its text, selection, and cursor.
     /// </summary>
@@ -196,7 +254,9 @@ public class ToolStripTextBox : ToolStripItem
             g.DrawRectangle(Color.FromArgb(128, 128, 128), tbX, tbY, tbWidth, tbHeight, 1);
 
         float textY = tbY + (tbHeight - font.Size * zoom) / 2f;
-        float textX = tbX + 4;
+        float textX = tbX + 4 - _scrollOffset;
+
+        g.SetClip(new Rectangle(tbX + 4, tbY, tbWidth - 8, tbHeight));
 
         string displayText = GetDisplayText();
 
@@ -229,6 +289,8 @@ public class ToolStripTextBox : ToolStripItem
                 g.DrawLine(Color.Black, cursorX, textY, cursorX, textY + font.Size * zoom, 1);
             }
         }
+
+        g.ResetClip();
     }
 
     /// <summary>

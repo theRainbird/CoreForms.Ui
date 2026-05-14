@@ -18,6 +18,7 @@ public class Form : ContainerControl
     private Control? _captureControl;
     private float _zoom = Dpi.GetDefaultZoom();
     private bool _processingKeyDown;
+    private bool _processingKeyUp;
 
     /// <summary>
     /// Initializes a new instance of Form.
@@ -704,13 +705,21 @@ public class Form : ContainerControl
     /// <param name="e">A KeyEventArgs that contains the event data.</param>
     protected internal override void OnKeyUp(KeyEventArgs e)
     {
-        if (!Enabled) return;
-        if (ActiveControl != null)
+        if (!Enabled || _processingKeyUp) return;
+        _processingKeyUp = true;
+        try
         {
-            ActiveControl.OnKeyUp(e);
-            if (e.Handled) return;
+            if (ActiveControl != null)
+            {
+                ActiveControl.OnKeyUp(e);
+                if (e.Handled) return;
+            }
+            base.OnKeyUp(e);
         }
-        base.OnKeyUp(e);
+        finally
+        {
+            _processingKeyUp = false;
+        }
     }
 
     /// <summary>

@@ -381,6 +381,7 @@ if (_focused != value)
         {
             if (value)
             {
+                if (this is Form) return;
                 var form = FindForm();
                 if (form != null)
                 {

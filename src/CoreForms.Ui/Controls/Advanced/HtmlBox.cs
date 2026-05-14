@@ -16,6 +16,7 @@ public class HtmlBox : Control
     private bool _readOnly = true;
     private LinkBehavior _linkBehavior = LinkBehavior.RaiseEvent;
     private int _cursorCharIndex;
+    private int _cursorRenderX = 6;
     private static readonly int CursorBlinkInterval = 530;
     private int _selectionStartX, _selectionStartY, _selectionEndX, _selectionEndY;
     private bool _isSelecting;
@@ -105,10 +106,7 @@ public class HtmlBox : Control
 
         g.FillRectangle(BackColor, 0, 0, Width, Height);
 
-        if (Focused)
-            g.DrawRectangle(ThemeManager.CurrentTheme.TextBoxFocusBorder, 0, 0, Width, Height, 2);
-        else
-            g.DrawRectangle(ThemeManager.CurrentTheme.TextBoxBorder, 0, 0, Width, Height, 1);
+        int contentHeight = 0;
 
         if (_renderer != null && _document != null)
         {
@@ -117,36 +115,41 @@ public class HtmlBox : Control
 
             _renderer.Layout(_document, Width - 4);
             _renderer.Render(g, _document);
+            contentHeight = _renderer.GetContentHeight();
 
             if (_isSelecting)
             {
                 int selX = Math.Min(_selectionStartX, _selectionEndX);
                 int selY = Math.Min(_selectionStartY, _selectionEndY);
-                int selW = Math.Abs(_selectionEndX - _selectionStartX);
-                int selH = Math.Abs(_selectionEndY - _selectionStartY);
-                if (selW > 0 || selH > 0)
+                int selW = Math.Abs(_selectionEndX - _selectionStartX) + 1;
+                int selH = Math.Abs(_selectionEndY - _selectionStartY) + 1;
+                if (selW > 0 && selH > 0)
                 {
-                    if (selW < 4) selW = 4;
-                    if (selH < 14) selH = 14;
+                    if (selW < 5) selW = 5;
+                    if (selH < 16) selH = 16;
                     g.FillRectangle(SystemColors.Highlight, selX, selY, selW, selH);
                 }
             }
 
-            if (Focused && !_readOnly)
-            {
-                bool cursorVisible = (Environment.TickCount % (CursorBlinkInterval * 2)) < CursorBlinkInterval;
-                if (cursorVisible)
-                {
-                    int cursorX = 4;
-                    int cursorY = _renderer.GetContentHeight();
-                    if (cursorY < 4) cursorY = 4;
-                    if (cursorY >= Height) cursorY = Height - 16;
-                    if (cursorY < 0) cursorY = 4;
-                    g.DrawLine(ForeColor, cursorX, cursorY, cursorX, cursorY + 14, 1);
-                }
-            }
-
             g.Restore();
+        }
+
+        if (Focused)
+            g.DrawRectangle(ThemeManager.CurrentTheme.TextBoxFocusBorder, 0, 0, Width, Height, 2);
+        else
+            g.DrawRectangle(ThemeManager.CurrentTheme.TextBoxBorder, 0, 0, Width, Height, 1);
+
+        if (Focused && !_readOnly)
+        {
+            bool cursorVisible = (Environment.TickCount % (CursorBlinkInterval * 2)) < CursorBlinkInterval;
+            if (cursorVisible)
+            {
+                int cursorX = _cursorRenderX;
+                int cursorY = contentHeight > 0 ? contentHeight : 6;
+                if (cursorY + 16 >= Height) cursorY = Height - 18;
+                if (cursorY < 4) cursorY = 4;
+                g.DrawLine(ForeColor, cursorX, cursorY, cursorX, cursorY + 14, 2);
+            }
         }
 
         base.Render(g);
@@ -158,7 +161,16 @@ public class HtmlBox : Control
         if (mouseArgs != null && _renderer != null)
         {
             int testX = mouseArgs.X;
-            int testY = mouseArgs.Y + _scrollOffsetY;
+            int testY = mouseArgs.Y;
+
+            var (node, offset) = _renderer.HitTestText(testX, testY);
+            if (node != null)
+            {
+                Selection.StartNode = node;
+                Selection.StartOffset = offset;
+                Selection.EndNode = node;
+                Selection.EndOffset = offset;
+            }
 
             _selectionStartX = testX;
             _selectionStartY = testY;
@@ -198,10 +210,18 @@ public class HtmlBox : Control
     protected internal override void OnMouseMove(EventArgs e)
     {
         var mouseArgs = e as MouseEventArgs;
-        if (mouseArgs != null && _isSelecting)
+        if (mouseArgs != null && _isSelecting && _renderer != null)
         {
             _selectionEndX = mouseArgs.X;
-            _selectionEndY = mouseArgs.Y + _scrollOffsetY;
+            _selectionEndY = mouseArgs.Y;
+
+            var (hitNode, offset) = _renderer.HitTestText(mouseArgs.X, mouseArgs.Y);
+            if (hitNode != null)
+            {
+                Selection.EndNode = hitNode;
+                Selection.EndOffset = offset;
+            }
+
             Invalidate();
         }
         base.OnMouseMove(e);
@@ -239,9 +259,17 @@ public class HtmlBox : Control
                 e.Handled = true;
                 break;
             case Keys.Left:
+                if (shift && Selection.EndNode is HtmlDomText leftText && Selection.EndOffset > 0)
+                    Selection.EndOffset--;
                 e.Handled = true;
                 break;
             case Keys.Right:
+                if (shift && Selection.EndNode is HtmlDomText rightText)
+                {
+                    int max = rightText.TextContent.Length;
+                    if (Selection.EndOffset < max)
+                        Selection.EndOffset++;
+                }
                 e.Handled = true;
                 break;
             case Keys.Up:
@@ -273,6 +301,7 @@ public class HtmlBox : Control
 
         _cursorCharIndex += text.Length;
         RebuildAndInvalidate();
+        UpdateCursorX();
     }
 
     private void InsertHtmlAtEnd(string html)
@@ -286,6 +315,17 @@ public class HtmlBox : Control
         _cursorCharIndex += html.Length;
         ParseHtml();
         ContentChanged?.Invoke(this, EventArgs.Empty);
+        UpdateCursorX();
+    }
+
+    private void UpdateCursorX()
+    {
+        if (_renderer != null && _document != null)
+        {
+            _renderer.Layout(_document, Width - 4);
+            var lastPos = _renderer.GetLastTextPosition();
+            _cursorRenderX = lastPos.HasValue ? lastPos.Value.x + 2 : 6;
+        }
     }
 
     private void DeleteText(int direction)
@@ -332,6 +372,7 @@ public class HtmlBox : Control
     {
         _html = _document!.DocumentElement!.OuterHtml;
         ParseHtml();
+        UpdateCursorX();
         ContentChanged?.Invoke(this, EventArgs.Empty);
     }
 
@@ -391,15 +432,26 @@ public class HtmlBox : Control
         if (string.IsNullOrEmpty(selectedText)) return;
 
         var attrStr = string.IsNullOrEmpty(attributes) ? "" : " " + attributes;
-        var html = $"<{tagName}{attrStr}>{selectedText}</{tagName}>";
-        InsertHtmlForSelection(html);
+        var replacement = $"<{tagName}{attrStr}>{selectedText}</{tagName}>";
+
+        int startIndex = _html.IndexOf(selectedText, StringComparison.Ordinal);
+        if (startIndex < 0) return;
+
+        _html = _html.Remove(startIndex, selectedText.Length).Insert(startIndex, replacement);
+        Html = _html;
+        ContentChanged?.Invoke(this, EventArgs.Empty);
     }
 
     private void InsertHtmlForSelection(string html)
     {
         var selectedText = Selection.GetSelectedText();
-        var newHtml = _html.Insert(_html.IndexOf(selectedText, StringComparison.Ordinal), html);
-        Html = newHtml;
+        if (string.IsNullOrEmpty(selectedText)) return;
+
+        int startIndex = _html.IndexOf(selectedText, StringComparison.Ordinal);
+        if (startIndex < 0) return;
+
+        _html = _html.Remove(startIndex, selectedText.Length).Insert(startIndex, html);
+        Html = _html;
         ContentChanged?.Invoke(this, EventArgs.Empty);
     }
 }

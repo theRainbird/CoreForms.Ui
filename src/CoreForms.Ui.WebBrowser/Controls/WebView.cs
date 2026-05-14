@@ -225,6 +225,68 @@ public class WebView : Control
     }
 
     /// <inheritdoc/>
+    protected override void OnMouseDown(EventArgs e)
+    {
+        base.OnMouseDown(e);
+        if (_platformHandler is Platform.Linux.CefPlatformHandler cef && e is MouseEventArgs me)
+            cef.SendMouseDown(me);
+    }
+
+    /// <inheritdoc/>
+    protected override void OnMouseUp(EventArgs e)
+    {
+        base.OnMouseUp(e);
+        if (_platformHandler is Platform.Linux.CefPlatformHandler cef && e is MouseEventArgs me)
+            cef.SendMouseUp(me);
+    }
+
+    /// <inheritdoc/>
+    protected override void OnMouseMove(EventArgs e)
+    {
+        base.OnMouseMove(e);
+        if (_platformHandler is Platform.Linux.CefPlatformHandler cef && e is MouseEventArgs me)
+            cef.SendMouseMove(me.X, me.Y);
+    }
+
+    /// <inheritdoc/>
+    protected override void OnMouseWheel(EventArgs e)
+    {
+        base.OnMouseWheel(e);
+        if (_platformHandler is Platform.Linux.CefPlatformHandler cef && e is MouseEventArgs me)
+            cef.SendMouseWheel(me);
+    }
+
+    /// <inheritdoc/>
+    protected override void OnKeyDown(KeyEventArgs e)
+    {
+        base.OnKeyDown(e);
+        if (_platformHandler is Platform.Linux.CefPlatformHandler cef)
+        {
+            cef.SendKeyDown(e);
+            e.Handled = true;
+        }
+    }
+
+    /// <inheritdoc/>
+    protected override void OnKeyUp(KeyEventArgs e)
+    {
+        base.OnKeyUp(e);
+        if (_platformHandler is Platform.Linux.CefPlatformHandler cef)
+        {
+            cef.SendKeyUp(e);
+            e.Handled = true;
+        }
+    }
+
+    /// <inheritdoc/>
+    protected override void OnTextInput(string text)
+    {
+        base.OnTextInput(text);
+        if (_platformHandler is Platform.Linux.CefPlatformHandler cef)
+            cef.SendTextInput(text);
+    }
+
+    /// <inheritdoc/>
     protected override void Dispose(bool disposing)
     {
         if (disposing)

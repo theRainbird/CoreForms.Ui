@@ -33,7 +33,7 @@ public class HtmlStyleResolver
     {
         switch (tn.ToLowerInvariant())
         {
-            case "body": s["display"] = "block"; s["margin"] = "8px"; s["font-size"] = "16px"; break;
+            case "body": s["display"] = "block"; s["margin"] = "8px"; s["font-size"] = "12px"; break;
             case "h1": s["display"] = "block"; s["font-size"] = "2em"; s["font-weight"] = "bold"; break;
             case "h2": s["display"] = "block"; s["font-size"] = "1.5em"; s["font-weight"] = "bold"; break;
             case "h3": s["display"] = "block"; s["font-size"] = "1.17em"; s["font-weight"] = "bold"; break;

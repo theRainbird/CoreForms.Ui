@@ -13,6 +13,7 @@ public class TextBox : Control
     private int _cursorPosition;
     private int _selectionAnchor;
     private int _selectionLength;
+    private int _scrollOffset;
     private static readonly int CursorBlinkInterval = 530;
 
     /// <summary>
@@ -54,6 +55,7 @@ public class TextBox : Control
                 _cursorPosition = _text.Length;
                 _selectionAnchor = _cursorPosition;
                 _selectionLength = 0;
+                EnsureCursorVisible();
                 OnTextChanged();
                 Invalidate();
             }
@@ -143,6 +145,50 @@ public class TextBox : Control
         return MeasureTextWidth(_text);
     }
 
+    private void EnsureCursorVisible()
+    {
+        if (string.IsNullOrEmpty(_text))
+        {
+            _scrollOffset = 0;
+            return;
+        }
+
+        int textAreaWidth = Width - 8;
+        if (textAreaWidth <= 0)
+        {
+            _scrollOffset = 0;
+            return;
+        }
+
+        string displayText = GetDisplayText();
+        int cursorLogicalX;
+
+        if (_useSystemPasswordChar)
+        {
+            var font = EffectiveFont;
+            var zoom = EffectiveZoom;
+            var bulletMeasured = Platform.Platform.MeasureText(BulletChar, font, zoom);
+            int bulletWidth = (int)(bulletMeasured.width / zoom);
+            cursorLogicalX = _cursorPosition * bulletWidth;
+        }
+        else
+        {
+            string textBeforeCursor = displayText.Substring(0, _cursorPosition);
+            cursorLogicalX = MeasureTextWidth(textBeforeCursor);
+        }
+
+        int cursorVisualX = 4 + cursorLogicalX - _scrollOffset;
+
+        if (cursorVisualX < 4)
+            _scrollOffset = cursorLogicalX;
+        else if (cursorVisualX > 4 + textAreaWidth)
+            _scrollOffset = cursorLogicalX - textAreaWidth;
+
+        int totalTextWidth = MeasureDisplayWidth();
+        int maxScroll = Math.Max(0, totalTextWidth - textAreaWidth);
+        _scrollOffset = Math.Max(0, Math.Min(_scrollOffset, maxScroll));
+    }
+
     /// <summary>
     /// Renders the text box with its text, selection, and cursor.
     /// </summary>
@@ -164,7 +210,9 @@ public class TextBox : Control
         float zoom = EffectiveZoom;
         float scaledFontSize = font.Size * zoom;
         float textY = CoordinateTransform.CenterVertically(Height, font, zoom);
-        float textX = 4;
+        float textX = 4 - _scrollOffset;
+
+        g.SetClip(new Rectangle(4, 0, Width - 8, Height));
 
         string displayText = GetDisplayText();
 
@@ -197,6 +245,8 @@ public class TextBox : Control
                 g.DrawLine(theme.CursorLine, cursorX, textY, cursorX, textY + scaledFontSize, 1);
             }
         }
+
+        g.ResetClip();
 
         base.Render(g);
     }
@@ -257,6 +307,7 @@ public class TextBox : Control
         _cursorPosition += text.Length;
         _selectionAnchor = _cursorPosition;
         _selectionLength = 0;
+        EnsureCursorVisible();
         OnTextChanged();
     }
 
@@ -268,6 +319,7 @@ public class TextBox : Control
         _selectionAnchor = 0;
         _cursorPosition = _text.Length;
         _selectionLength = _cursorPosition - _selectionAnchor;
+        EnsureCursorVisible();
     }
 
     /// <summary>
@@ -279,7 +331,7 @@ public class TextBox : Control
         var mouseArgs = e as MouseEventArgs;
         if (mouseArgs != null)
         {
-            int xPos = mouseArgs.X - 4;
+            int xPos = mouseArgs.X - 4 + _scrollOffset;
 
             if (_useSystemPasswordChar && _text.Length > 0)
             {
@@ -312,6 +364,7 @@ public class TextBox : Control
             _selectionLength = 0;
         }
 
+        EnsureCursorVisible();
         Focused = true;
         base.OnMouseDown(e);
     }
@@ -345,6 +398,7 @@ public class TextBox : Control
                     e.Handled = true;
                     break;
             }
+            EnsureCursorVisible();
             base.OnKeyDown(e);
             return;
         }
@@ -461,6 +515,7 @@ public class TextBox : Control
                 e.Handled = true;
                 break;
         }
+        EnsureCursorVisible();
         base.OnKeyDown(e);
     }
 
@@ -473,6 +528,7 @@ public class TextBox : Control
         _cursorPosition = start;
         _selectionAnchor = start;
         _selectionLength = 0;
+        EnsureCursorVisible();
     }
 
     /// <summary>
@@ -490,6 +546,7 @@ public class TextBox : Control
         _cursorPosition += text.Length;
         _selectionAnchor = _cursorPosition;
         _selectionLength = 0;
+        EnsureCursorVisible();
         OnTextChanged();
     }
 
