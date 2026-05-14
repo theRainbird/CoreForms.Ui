@@ -153,6 +153,7 @@ public class CefPlatformHandler : IWebViewPlatformHandler
     private bool _disposed;
     private string _currentUrl = string.Empty;
     private string? _pendingUrl;
+    private CoreForms.Ui.Core.MouseButtons _mouseButtons;
 
     public int Width { get; private set; } = 640;
     public int Height { get; private set; } = 480;
@@ -213,6 +214,10 @@ public class CefPlatformHandler : IWebViewPlatformHandler
         {
             InitializeCef();
             CoreForms.Ui.Platform.Platform.OnFrame += CefRuntime.DoMessageLoopWork;
+
+            // Use the actual WebView size from the start
+            Width = Math.Max(_webView.Width, 1);
+            Height = Math.Max(_webView.Height, 1);
 
             var windowInfo = CefWindowInfo.Create();
             windowInfo.SetAsWindowless(IntPtr.Zero, false);
@@ -284,7 +289,8 @@ public class CefPlatformHandler : IWebViewPlatformHandler
     public void SendMouseDown(MouseEventArgs e)
     {
         if (_browserHost == null) return;
-        var cefEvent = new CefMouseEvent { X = e.X, Y = e.Y };
+        _mouseButtons |= e.Button;
+        var cefEvent = new CefMouseEvent { X = ScaleX(e.X), Y = ScaleY(e.Y), Modifiers = MapButtons(_mouseButtons) };
         _browserHost.SendMouseClickEvent(cefEvent, MapMouseButton(e.Button), false, Math.Max(e.Clicks, 1));
         _browserHost.SetFocus(true);
     }
@@ -292,22 +298,24 @@ public class CefPlatformHandler : IWebViewPlatformHandler
     public void SendMouseUp(MouseEventArgs e)
     {
         if (_browserHost == null) return;
-        var cefEvent = new CefMouseEvent { X = e.X, Y = e.Y };
+        var cefEvent = new CefMouseEvent { X = ScaleX(e.X), Y = ScaleY(e.Y), Modifiers = MapButtons(_mouseButtons) };
         _browserHost.SendMouseClickEvent(cefEvent, MapMouseButton(e.Button), true, Math.Max(e.Clicks, 1));
+        _mouseButtons &= ~e.Button;
     }
 
     public void SendMouseMove(int x, int y)
     {
         if (_browserHost == null) return;
-        var cefEvent = new CefMouseEvent { X = x, Y = y };
+        var cefEvent = new CefMouseEvent { X = ScaleX(x), Y = ScaleY(y), Modifiers = MapButtons(_mouseButtons) };
         _browserHost.SendMouseMoveEvent(cefEvent, false);
     }
 
     public void SendMouseWheel(MouseEventArgs e)
     {
         if (_browserHost == null) return;
-        var cefEvent = new CefMouseEvent { X = e.X, Y = e.Y };
-        _browserHost.SendMouseWheelEvent(cefEvent, 0, e.Delta);
+        var cefEvent = new CefMouseEvent { X = ScaleX(e.X), Y = ScaleY(e.Y) };
+        // Smooth scrolling: accumulate small deltas and scale to WHEEL_DELTA
+        _browserHost.SendMouseWheelEvent(cefEvent, 0, e.Delta * 40);
     }
 
     public void SendKeyDown(KeyEventArgs e)
@@ -401,12 +409,24 @@ public class CefPlatformHandler : IWebViewPlatformHandler
 
     // ── Helpers ───────────────────────────────────────────────────
 
+    private int ScaleX(float x) => (int)(x * Width / (float)_webView.Width);
+    private int ScaleY(float y) => (int)(y * Height / (float)_webView.Height);
+
     private static CefMouseButtonType MapMouseButton(CoreForms.Ui.Core.MouseButtons btn) => btn switch
     {
         CoreForms.Ui.Core.MouseButtons.Right => CefMouseButtonType.Right,
         CoreForms.Ui.Core.MouseButtons.Middle => CefMouseButtonType.Middle,
         _ => CefMouseButtonType.Left
     };
+
+    private static CefEventFlags MapButtons(CoreForms.Ui.Core.MouseButtons btns)
+    {
+        var flags = CefEventFlags.None;
+        if (btns.HasFlag(CoreForms.Ui.Core.MouseButtons.Left)) flags |= CefEventFlags.LeftMouseButton;
+        if (btns.HasFlag(CoreForms.Ui.Core.MouseButtons.Right)) flags |= CefEventFlags.RightMouseButton;
+        if (btns.HasFlag(CoreForms.Ui.Core.MouseButtons.Middle)) flags |= CefEventFlags.MiddleMouseButton;
+        return flags;
+    }
 
     private static CefEventFlags MapModifiers(CoreForms.Ui.Core.ModifierKeys mods)
     {

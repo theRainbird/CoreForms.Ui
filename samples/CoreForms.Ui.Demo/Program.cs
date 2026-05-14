@@ -2,6 +2,7 @@ using CoreForms.Ui.Controls.Advanced;
 using CoreForms.Ui.Core;
 using CoreForms.Ui.Controls.Basic;
 using CoreForms.Ui.Controls.Containers;
+using CoreForms.Ui.Controls.Separators;
 using CoreForms.Ui.Controls;
 using CoreForms.Ui.WebBrowser.Controls;
 using CoreForms.Ui.Theming;
@@ -529,18 +530,34 @@ class Program
         var dockedTopLabel = new Label { Text = "Dock=Top", Size = new Size(250, 22) };
         dockedTopLabel.Dock = DockStyle.Top;
 
+        var hSep = new SeperatorControl
+        {
+            Orientation = SeperatorOrientation.Horizontal,
+            Size = new Size(250, 2),
+            Dock = DockStyle.Top
+        };
+
         var dockedBottomLabel = new Label { Text = "Dock=Bottom", Size = new Size(250, 22) };
         dockedBottomLabel.Dock = DockStyle.Bottom;
 
         var dockedLeftLabel = new Label { Text = "L", Size = new Size(30, 176) };
         dockedLeftLabel.Dock = DockStyle.Left;
 
+        var vSep = new SeperatorControl
+        {
+            Orientation = SeperatorOrientation.Vertical,
+            Size = new Size(2, 176),
+            Dock = DockStyle.Left
+        };
+
         var centerLabel = new Label { Text = "Dock=Fill", Size = new Size(50, 50) };
         centerLabel.Dock = DockStyle.Fill;
 
         dockPanel.Controls.Add(dockedTopLabel);
+        dockPanel.Controls.Add(hSep);
         dockPanel.Controls.Add(dockedBottomLabel);
         dockPanel.Controls.Add(dockedLeftLabel);
+        dockPanel.Controls.Add(vSep);
         dockPanel.Controls.Add(centerLabel);
 
         var anchorPanel = new Panel

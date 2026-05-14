@@ -9,17 +9,10 @@ namespace CoreForms.Ui.Controls.Containers;
 /// </summary>
 public class ToolStripTextBox : ToolStripItem
 {
-    private string _text = string.Empty;
-    private int _cursorPosition;
-    private int _selectionAnchor;
-    private int _selectionLength;
-    private bool _useSystemPasswordChar;
+    private readonly TextEditorEngine _engine = new();
+    private TextEditorContext? _context;
     private bool _focused;
     private int _width = 100;
-    private int _scrollOffset;
-
-    private static readonly int CursorBlinkInterval = 530;
-    private static readonly string BulletChar = "\u25CF";
 
     /// <summary>
     /// Initializes a new instance of ToolStripTextBox.
@@ -27,6 +20,7 @@ public class ToolStripTextBox : ToolStripItem
     public ToolStripTextBox()
     {
         DisplayStyle = ToolStripItemDisplayStyle.Text;
+        _engine.TextChanged += (s, e) => { RaiseTextChanged(); Owner?.Invalidate(); };
     }
 
     /// <summary>
@@ -35,30 +29,27 @@ public class ToolStripTextBox : ToolStripItem
     /// <param name="text">The initial text.</param>
     public ToolStripTextBox(string text)
     {
-        _text = text;
-        _cursorPosition = _text.Length;
-        _selectionAnchor = _cursorPosition;
+        _engine.Text = text;
+        _engine.EnsureCursorVisible(Context);
         DisplayStyle = ToolStripItemDisplayStyle.Text;
+        _engine.TextChanged += (s, e) => { RaiseTextChanged(); Owner?.Invalidate(); };
     }
+
+    private TextEditorContext Context => _context ??= new TextEditorContext(this);
 
     /// <summary>
     /// Gets or sets the text in the text box.
     /// </summary>
     public new string Text
     {
-        get => _text;
+        get => _engine.Text;
         set
         {
-            if (_text != value)
-            {
-                _text = value;
-                _cursorPosition = _text.Length;
-                _selectionAnchor = _cursorPosition;
-                _selectionLength = 0;
-                EnsureCursorVisible();
-                RaiseTextChanged();
-                Owner?.Invalidate();
-            }
+            if (_engine.Text == value) return;
+            _engine.Text = value;
+            _engine.EnsureCursorVisible(Context);
+            RaiseTextChanged();
+            Owner?.Invalidate();
         }
     }
 
@@ -67,8 +58,8 @@ public class ToolStripTextBox : ToolStripItem
     /// </summary>
     public int SelectionStart
     {
-        get => _selectionLength > 0 ? Math.Min(_selectionAnchor, _cursorPosition) : _cursorPosition;
-        set => _selectionAnchor = value;
+        get => _engine.SelectionStart;
+        set => _engine.SelectionStart = value;
     }
 
     /// <summary>
@@ -76,38 +67,26 @@ public class ToolStripTextBox : ToolStripItem
     /// </summary>
     public int SelectionLength
     {
-        get => _selectionLength;
-        set => _selectionLength = value;
+        get => _engine.SelectionLength;
+        set => _engine.SelectionLength = value;
     }
 
     /// <summary>
     /// Gets the selected text.
     /// </summary>
-    public string SelectedText
-    {
-        get
-        {
-            if (_selectionLength <= 0) return string.Empty;
-            int start = Math.Min(_selectionAnchor, _cursorPosition);
-            int len = Math.Abs(_selectionLength);
-            if (start + len > _text.Length) len = _text.Length - start;
-            return _text.Substring(start, len);
-        }
-    }
+    public string SelectedText => _engine.SelectedText;
 
     /// <summary>
     /// Gets or sets whether the text box uses password mode.
     /// </summary>
     public bool UseSystemPasswordChar
     {
-        get => _useSystemPasswordChar;
+        get => _engine.UseSystemPasswordChar;
         set
         {
-            if (_useSystemPasswordChar != value)
-            {
-                _useSystemPasswordChar = value;
-                Owner?.Invalidate();
-            }
+            if (_engine.UseSystemPasswordChar == value) return;
+            _engine.UseSystemPasswordChar = value;
+            Owner?.Invalidate();
         }
     }
 
@@ -124,7 +103,7 @@ public class ToolStripTextBox : ToolStripItem
                 _focused = value;
                 if (!_focused)
                 {
-                    _selectionLength = 0;
+                    _engine.SelectionLength = 0;
                 }
                 Owner?.Invalidate();
             }
@@ -157,86 +136,9 @@ public class ToolStripTextBox : ToolStripItem
         TextChanged?.Invoke(this, EventArgs.Empty);
     }
 
-    private string GetDisplayText()
-    {
-        return _useSystemPasswordChar ? new string('\u25CF', _text.Length) : _text;
-    }
-
-    private int MeasureLocalTextWidth(string text, Font font, float zoom)
-    {
-        if (string.IsNullOrEmpty(text)) return 0;
-        var measured = Platform.Platform.MeasureText(text, font, zoom);
-        return (int)(measured.width / zoom);
-    }
-
-    private void EnsureCursorVisible()
-    {
-        if (string.IsNullOrEmpty(_text))
-        {
-            _scrollOffset = 0;
-            return;
-        }
-
-        int textAreaWidth = _width - 8;
-        if (textAreaWidth <= 0)
-        {
-            _scrollOffset = 0;
-            return;
-        }
-
-        var font = Owner?.Font ?? Font.Default;
-        float zoom = Owner?.EffectiveZoom ?? 1.0f;
-
-        string displayText = GetDisplayText();
-        int cursorLogicalX;
-
-        if (_useSystemPasswordChar)
-        {
-            var measured = Platform.Platform.MeasureText(BulletChar, font, zoom);
-            int bulletWidth = (int)(measured.width / zoom);
-            cursorLogicalX = _cursorPosition * bulletWidth;
-        }
-        else
-        {
-            string textBeforeCursor = displayText.Substring(0, _cursorPosition);
-            cursorLogicalX = MeasureLocalTextWidth(textBeforeCursor, font, zoom);
-        }
-
-        int cursorVisualX = 4 + cursorLogicalX - _scrollOffset;
-
-        if (cursorVisualX < 4)
-            _scrollOffset = cursorLogicalX;
-        else if (cursorVisualX > 4 + textAreaWidth)
-            _scrollOffset = cursorLogicalX - textAreaWidth;
-
-        int totalTextWidth;
-        if (_useSystemPasswordChar)
-        {
-            var measured = Platform.Platform.MeasureText(BulletChar, font, zoom);
-            int bulletWidth = (int)(measured.width / zoom);
-            totalTextWidth = bulletWidth * _text.Length;
-        }
-        else
-        {
-            totalTextWidth = MeasureLocalTextWidth(_text, font, zoom);
-        }
-
-        int maxScroll = Math.Max(0, totalTextWidth - textAreaWidth);
-        _scrollOffset = Math.Max(0, Math.Min(_scrollOffset, maxScroll));
-    }
-
     /// <summary>
     /// Renders the text box with its text, selection, and cursor.
     /// </summary>
-    /// <param name="g">The Graphics object to use for rendering.</param>
-    /// <param name="x">The x-coordinate of the item bounds.</param>
-    /// <param name="y">The y-coordinate of the item bounds.</param>
-    /// <param name="width">The width of the item bounds.</param>
-    /// <param name="height">The height of the item bounds.</param>
-    /// <param name="font">The font to use for text rendering.</param>
-    /// <param name="zoom">The current zoom factor.</param>
-    /// <param name="hovered">Whether the item is currently hovered.</param>
-    /// <param name="pressed">Whether the item is currently pressed.</param>
     public override void OnPaint(Graphics g, int x, int y, int width, int height, Font font, float zoom, bool hovered, bool pressed)
     {
         if (!Visible) return;
@@ -254,16 +156,17 @@ public class ToolStripTextBox : ToolStripItem
             g.DrawRectangle(Color.FromArgb(128, 128, 128), tbX, tbY, tbWidth, tbHeight, 1);
 
         float textY = tbY + (tbHeight - font.Size * zoom) / 2f;
-        float textX = tbX + 4 - _scrollOffset;
+        float textX = tbX + 4 - _engine.ScrollOffset;
 
         g.SetClip(new Rectangle(tbX + 4, tbY, tbWidth - 8, tbHeight));
 
-        string displayText = GetDisplayText();
+        string displayText = _engine.DisplayText;
+        var context = Context;
 
-        if (_selectionLength > 0 && _focused)
+        if (_engine.HasSelection && _focused)
         {
-            int selStart = Math.Min(_selectionAnchor, _cursorPosition);
-            int selEnd = Math.Max(_selectionAnchor, _cursorPosition);
+            int selStart = _engine.SelectionStartIndex;
+            int selEnd = _engine.SelectionEndIndex;
 
             string beforeSel = displayText.Substring(0, selStart);
             string selStr = displayText.Substring(selStart, selEnd - selStart);
@@ -279,26 +182,26 @@ public class ToolStripTextBox : ToolStripItem
             g.DrawString(displayText, font, Color.Black, textX, textY);
         }
 
-        if (_focused)
+        if (_focused && TextEditorEngine.IsCursorBlinkVisible)
         {
-            bool cursorVisible = (Environment.TickCount % (CursorBlinkInterval * 2)) < CursorBlinkInterval;
-            if (cursorVisible)
-            {
-                string textBeforeCursor = displayText.Substring(0, _cursorPosition);
-                float cursorX = textX + MeasureLocalTextWidth(textBeforeCursor, font, zoom);
-                g.DrawLine(Color.Black, cursorX, textY, cursorX, textY + font.Size * zoom, 1);
-            }
+            string textBeforeCursor = displayText.Substring(0, _engine.CursorPosition);
+            float cursorX = textX + MeasureLocalTextWidth(textBeforeCursor, font, zoom);
+            g.DrawLine(Color.Black, cursorX, textY, cursorX, textY + font.Size * zoom, 1);
         }
 
         g.ResetClip();
     }
 
+    private int MeasureLocalTextWidth(string text, Font font, float zoom)
+    {
+        if (string.IsNullOrEmpty(text)) return 0;
+        var measured = Platform.Platform.MeasureText(text, font, zoom);
+        return (int)(measured.width / zoom);
+    }
+
     /// <summary>
     /// Calculates the preferred width for layout.
     /// </summary>
-    /// <param name="font">The font (unused for text box width).</param>
-    /// <param name="zoom">The current zoom factor.</param>
-    /// <returns>The configured text box width.</returns>
     public override int GetPreferredWidth(Font font, float zoom)
     {
         return _width + 4;
@@ -311,37 +214,9 @@ public class ToolStripTextBox : ToolStripItem
     {
         Focused = true;
 
-        int xPos = x - itemX - 6;
-        var font = Owner?.Font ?? Font.Default;
-        float zoom = Owner?.EffectiveZoom ?? 1.0f;
+        int logicalX = x - itemX - 6 + _engine.ScrollOffset;
+        _engine.HandleMouseDown(logicalX, Context);
 
-        if (_useSystemPasswordChar && _text.Length > 0)
-        {
-            var measured = Platform.Platform.MeasureText(BulletChar, font, zoom);
-            int bulletWidth = (int)(measured.width / zoom);
-            _cursorPosition = Math.Min(xPos / bulletWidth + 1, _text.Length);
-        }
-        else
-        {
-            int bestPos = 0;
-            int bestDist = Math.Abs(xPos);
-
-            for (int i = 1; i <= _text.Length; i++)
-            {
-                int w = MeasureLocalTextWidth(_text.Substring(0, i), font, zoom);
-                int dist = Math.Abs(xPos - w);
-                if (dist < bestDist)
-                {
-                    bestDist = dist;
-                    bestPos = i;
-                }
-            }
-
-            _cursorPosition = bestPos;
-        }
-
-        _selectionAnchor = _cursorPosition;
-        _selectionLength = 0;
         Owner?.Invalidate();
     }
 
@@ -350,17 +225,7 @@ public class ToolStripTextBox : ToolStripItem
     /// </summary>
     internal void HandleTextInput(string text)
     {
-        if (string.IsNullOrEmpty(text)) return;
-
-        if (_selectionLength > 0)
-            DeleteSelection();
-
-        _text = _text.Insert(_cursorPosition, text);
-        _cursorPosition += text.Length;
-        _selectionAnchor = _cursorPosition;
-        _selectionLength = 0;
-        RaiseTextChanged();
-        Owner?.Invalidate();
+        _engine.HandleTextInput(text, Context);
     }
 
     /// <summary>
@@ -368,217 +233,52 @@ public class ToolStripTextBox : ToolStripItem
     /// </summary>
     internal bool HandleKeyDown(KeyEventArgs e)
     {
-        if (e.Modifiers.HasFlag(ModifierKeys.Control))
+        if (e.KeyCode == Keys.Escape)
         {
-            switch (e.KeyCode)
-            {
-                case Keys.A:
-                    _selectionAnchor = 0;
-                    _cursorPosition = _text.Length;
-                    _selectionLength = _cursorPosition - _selectionAnchor;
-                    e.Handled = true;
-                    break;
-                case Keys.C:
-                    CopyToClipboard();
-                    e.Handled = true;
-                    break;
-                case Keys.X:
-                    Cut();
-                    e.Handled = true;
-                    break;
-                case Keys.V:
-                    Paste();
-                    e.Handled = true;
-                    break;
-            }
+            Focused = false;
+            e.Handled = true;
+            return true;
+        }
+
+        bool handled = _engine.HandleKeyDown(e, Context);
+        if (handled)
+        {
             Owner?.Invalidate();
-            return e.Handled;
         }
-
-        bool shift = e.Modifiers.HasFlag(ModifierKeys.Shift);
-
-        switch (e.KeyCode)
-        {
-            case Keys.Back:
-                if (_selectionLength > 0)
-                    DeleteSelection();
-                else if (_cursorPosition > 0)
-                {
-                    _text = _text.Remove(_cursorPosition - 1, 1);
-                    _cursorPosition--;
-                    _selectionAnchor = _cursorPosition;
-                    _selectionLength = 0;
-                }
-                RaiseTextChanged();
-                e.Handled = true;
-                break;
-
-            case Keys.Delete:
-                if (_selectionLength > 0)
-                    DeleteSelection();
-                else if (_cursorPosition < _text.Length)
-                    _text = _text.Remove(_cursorPosition, 1);
-                RaiseTextChanged();
-                e.Handled = true;
-                break;
-
-            case Keys.Left:
-                if (_selectionLength > 0 && !shift)
-                {
-                    _cursorPosition = Math.Min(_selectionAnchor, _cursorPosition);
-                    _selectionLength = 0;
-                    _selectionAnchor = _cursorPosition;
-                }
-                else if (_cursorPosition > 0)
-                {
-                    if (shift)
-                    {
-                        if (_selectionLength == 0) _selectionAnchor = _cursorPosition;
-                        _cursorPosition--;
-                        _selectionLength = Math.Abs(_cursorPosition - _selectionAnchor);
-                    }
-                    else
-                    {
-                        _cursorPosition--;
-                        _selectionAnchor = _cursorPosition;
-                        _selectionLength = 0;
-                    }
-                }
-                e.Handled = true;
-                break;
-
-            case Keys.Right:
-                if (_selectionLength > 0 && !shift)
-                {
-                    _cursorPosition = Math.Max(_selectionAnchor, _cursorPosition);
-                    _selectionLength = 0;
-                    _selectionAnchor = _cursorPosition;
-                }
-                else if (_cursorPosition < _text.Length)
-                {
-                    if (shift)
-                    {
-                        if (_selectionLength == 0) _selectionAnchor = _cursorPosition;
-                        _cursorPosition++;
-                        _selectionLength = Math.Abs(_cursorPosition - _selectionAnchor);
-                    }
-                    else
-                    {
-                        _cursorPosition++;
-                        _selectionAnchor = _cursorPosition;
-                        _selectionLength = 0;
-                    }
-                }
-                e.Handled = true;
-                break;
-
-            case Keys.Home:
-                if (shift)
-                {
-                    if (_selectionLength == 0) _selectionAnchor = _cursorPosition;
-                    _cursorPosition = 0;
-                    _selectionLength = Math.Abs(_cursorPosition - _selectionAnchor);
-                }
-                else
-                {
-                    _cursorPosition = 0;
-                    _selectionAnchor = 0;
-                    _selectionLength = 0;
-                }
-                e.Handled = true;
-                break;
-
-            case Keys.End:
-                if (shift)
-                {
-                    if (_selectionLength == 0) _selectionAnchor = _cursorPosition;
-                    _cursorPosition = _text.Length;
-                    _selectionLength = Math.Abs(_cursorPosition - _selectionAnchor);
-                }
-                else
-                {
-                    _cursorPosition = _text.Length;
-                    _selectionAnchor = _cursorPosition;
-                    _selectionLength = 0;
-                }
-                e.Handled = true;
-                break;
-
-            case Keys.Escape:
-                Focused = false;
-                e.Handled = true;
-                break;
-        }
-
-        Owner?.Invalidate();
-        return e.Handled;
-    }
-
-    private void DeleteSelection()
-    {
-        int start = Math.Min(_selectionAnchor, _cursorPosition);
-        int end = Math.Max(_selectionAnchor, _cursorPosition);
-        if (end > _text.Length) end = _text.Length;
-        _text = _text.Remove(start, end - start);
-        _cursorPosition = start;
-        _selectionAnchor = start;
-        _selectionLength = 0;
+        return handled;
     }
 
     /// <summary>
     /// Copies the selected text or all text to the clipboard.
     /// </summary>
-    public void CopyToClipboard()
-    {
-        string text = _selectionLength > 0 ? SelectedText : _text;
-        if (!string.IsNullOrEmpty(text))
-        {
-            Clipboard.SetText(text);
-        }
-    }
+    public void CopyToClipboard() => _engine.CopyToClipboard();
 
     /// <summary>
     /// Cuts the selected text and copies it to the clipboard.
     /// </summary>
-    public void Cut()
-    {
-        if (_selectionLength > 0)
-        {
-            var selected = SelectedText;
-            DeleteSelection();
-            Clipboard.SetText(selected);
-            RaiseTextChanged();
-            Owner?.Invalidate();
-        }
-    }
+    public void Cut() => _engine.Cut(Context);
 
     /// <summary>
     /// Pastes the clipboard text at the current cursor position.
     /// </summary>
-    public void Paste()
-    {
-        var text = Clipboard.GetText();
-        if (string.IsNullOrEmpty(text)) return;
-
-        if (_selectionLength > 0)
-            DeleteSelection();
-
-        _text = _text.Insert(_cursorPosition, text);
-        _cursorPosition += text.Length;
-        _selectionAnchor = _cursorPosition;
-        _selectionLength = 0;
-        RaiseTextChanged();
-        Owner?.Invalidate();
-    }
+    public void Paste() => _engine.Paste(Context);
 
     /// <summary>
     /// Selects all text in the text box.
     /// </summary>
     public void SelectAll()
     {
-        _selectionAnchor = 0;
-        _cursorPosition = _text.Length;
-        _selectionLength = _cursorPosition - _selectionAnchor;
+        _engine.SelectAll(Context);
         Owner?.Invalidate();
+    }
+
+    private sealed class TextEditorContext : ITextEditorContext
+    {
+        private readonly ToolStripTextBox _owner;
+        public TextEditorContext(ToolStripTextBox owner) => _owner = owner;
+        public Font Font => _owner.Owner?.Font ?? Font.Default;
+        public float Zoom => _owner.Owner?.EffectiveZoom ?? 1.0f;
+        public int TextAreaWidth => _owner._width - 8;
+        public void Invalidate() => _owner.Owner?.Invalidate();
     }
 }

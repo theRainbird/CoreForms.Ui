@@ -347,6 +347,16 @@ public abstract class Theme
     /// </summary>
     public abstract Color CursorLine { get; }
 
+    /// <summary>
+    /// Gets the dark separator line color used by SeperatorControl.
+    /// </summary>
+    public abstract Color SeparatorDark { get; }
+
+    /// <summary>
+    /// Gets the light separator line color used by SeperatorControl.
+    /// </summary>
+    public abstract Color SeparatorLight { get; }
+
     // Fonts
     /// <summary>
     /// Gets the default font for controls.

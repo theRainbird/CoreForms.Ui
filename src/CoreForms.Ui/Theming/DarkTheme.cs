@@ -208,6 +208,12 @@ public class DarkTheme : Theme
     /// <inheritdoc />
     public override Color CursorLine => Color.FromArgb(220, 220, 220);
 
+    /// <inheritdoc />
+    public override Color SeparatorDark => Color.FromArgb(90, 90, 93);
+
+    /// <inheritdoc />
+    public override Color SeparatorLight => Color.FromArgb(60, 60, 63);
+
     // Fonts
     /// <inheritdoc />
     public override Font DefaultFont => ResolveFont(new[] { "Segoe UI", "Liberation Sans", "DejaVu Sans", "FreeSans", "Arial" }, 14f);
