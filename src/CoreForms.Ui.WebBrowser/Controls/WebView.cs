@@ -216,24 +216,20 @@ public class WebView : Control
                 _cachedPixelImage?.Dispose();
                 _cachedPixelImage = new Rendering.PixelImage(
                     pixels, cef.BufferWidth, cef.BufferHeight);
-                Console.WriteLine($"[WebView] Draw CEF {cef.BufferWidth}x{cef.BufferHeight} -> {Width}x{Height} image={_cachedPixelImage.NativeImage != null}");
                 g.DrawImage(_cachedPixelImage, 0, 0, Width, Height);
                 return;
             }
         }
 
-        if (_initFailed || _platformHandler == null)
+        if (_initFailed)
         {
             g.FillRectangle(Color.White, 0, 0, Width, Height);
             g.DrawRectangle(Color.FromArgb(180, 180, 180), 0, 0, Width, Height, 1);
-
-            string line1 = "WebView";
-            string line2 = !string.IsNullOrEmpty(_source) ? _source : "(no URL)";
-            string line3 = _initFailed ? $"Error: {_initError}" : "Platform handler not available";
-
-            g.DrawString(line1, Font.Default, Color.FromArgb(60, 60, 60), 10, 10);
-            g.DrawString(line2, Font.Default, Color.FromArgb(100, 100, 200), 10, 30);
-            g.DrawString(line3, Font.Default, Color.FromArgb(200, 60, 60), 10, 50);
+            g.DrawString($"Error: {_initError}", Font.Default, Color.FromArgb(200, 60, 60), 10, 10);
+        }
+        else if (_platformHandler == null)
+        {
+            g.FillRectangle(Color.White, 0, 0, Width, Height);
         }
     }
 

@@ -785,10 +785,10 @@ class Program
 
         goButton.Click += (s, e) => NavigateToUrl();
 
-        // Enter in URL box triggers navigation
+        // Enter in URL box triggers navigation (via ToolStrip.KeyDown)
         toolStrip.KeyDown += (s, e) =>
         {
-            if (urlTextBox.Focused && e is CoreForms.Ui.Core.KeyEventArgs ke && ke.KeyCode == CoreForms.Ui.Core.Keys.Enter)
+            if (e is CoreForms.Ui.Core.KeyEventArgs ke && ke.KeyCode == CoreForms.Ui.Core.Keys.Enter)
             {
                 NavigateToUrl();
                 ke.Handled = true;

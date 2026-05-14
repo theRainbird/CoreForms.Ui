@@ -212,10 +212,14 @@ public class HtmlRenderer
         if (string.IsNullOrEmpty(textNode.TextContent))
             return lines;
 
+        float fontSize = GetFontSize(parentStyles);
+        int textWidth = (int)(textNode.TextContent.Length * fontSize * 0.6);
+        int lineHeight = (int)fontSize + 4;
+
         textNode.RenderedX = x;
         textNode.RenderedY = y;
-        textNode.RenderedWidth = 0;
-        textNode.RenderedHeight = 16;
+        textNode.RenderedWidth = textWidth;
+        textNode.RenderedHeight = lineHeight;
 
         lines.Add(new RenderedLine
         {
@@ -223,12 +227,20 @@ public class HtmlRenderer
             TextNode = textNode,
             X = x,
             Y = y,
-            Width = 0,
-            Height = 16,
+            Width = textWidth,
+            Height = lineHeight,
             Text = textNode.TextContent
         });
 
         return lines;
+    }
+
+    private static float GetFontSize(CssStyleDeclaration styles)
+    {
+        string sizeStr = styles.FontSize;
+        if (string.IsNullOrEmpty(sizeStr) || sizeStr == "inherit") return 12;
+        float size = HtmlStyleResolver.ParseLengthValue(sizeStr, 16);
+        return size > 0 ? size : 12;
     }
 
     private void LayoutTable(HtmlDomElement element, int x, ref int y, int availableWidth, int marginLeft, int marginTop, int marginRight, int marginBottom, int paddingLeft, int paddingRight, int paddingTop, int paddingBottom)

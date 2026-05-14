@@ -440,7 +440,7 @@ public class ToolStrip : ContainerControl
 
                 case Keys.Enter:
                 case Keys.Space:
-                    if (_hoveredItem != null)
+                    if (_hoveredItem != null && focusedTextBox == null)
                     {
                         if (_hoveredItem is ToolStripButton tsb && tsb.DropDownItems.Count > 0)
                             OpenDropDown(tsb);
