@@ -71,6 +71,10 @@ public class HtmlBox : Control
     public event EventHandler<HtmlLinkEventArgs>? LinkClick;
     public event EventHandler? ContentChanged;
 
+    public bool IsBold => _engine.GetFontStyleAtCursor().HasFlag(FontStyle.Bold);
+    public bool IsItalic => _engine.GetFontStyleAtCursor().HasFlag(FontStyle.Italic);
+    public bool IsUnderline => _engine.GetFontStyleAtCursor().HasFlag(FontStyle.Underline);
+
     public void ApplyFormat(string formatType)
     {
         switch (formatType)
@@ -133,8 +137,11 @@ public class HtmlBox : Control
 
                     string beforeSel = run.Text[..localSelStart];
                     string selText = run.Text[localSelStart..localSelEnd];
-                    int selX = 4 + Platform.Platform.MeasureText(beforeSel, font, zoom).width;
-                    int selW = Platform.Platform.MeasureText(selText, font, zoom).width;
+                    float selBeforeWidth = Platform.Platform.MeasureText(beforeSel, font, zoom).width / zoom;
+                    float selTextWidth = Platform.Platform.MeasureText(selText, font, zoom).width / zoom;
+                    int selX = 4 + (int)selBeforeWidth;
+                    int selW = (int)selTextWidth;
+                    if (selW < 2) selW = 2;
                     g.FillRectangle(SystemColors.Highlight, selX, y, selW, runHeight);
                     g.DrawString(selText, font, SystemColors.HighlightText, selX, y);
                 }
@@ -144,7 +151,8 @@ public class HtmlBox : Control
                 {
                     int localOff = cursorFlat - runStartFlat;
                     string beforeCursor = run.Text[..localOff];
-                    _cursorScreenX = 4 + Platform.Platform.MeasureText(beforeCursor, font, zoom).width;
+                    float measuredWidth = Platform.Platform.MeasureText(beforeCursor, font, zoom).width;
+                    _cursorScreenX = (int)(4 + measuredWidth / zoom);
                     _cursorScreenY = y;
                     _cursorScreenValid = true;
                 }
@@ -228,6 +236,7 @@ public class HtmlBox : Control
                         _engine.SelectionRun = _engine.CursorRun;
                         _engine.SelectionOffset = _engine.CursorOffset;
                         Invalidate();
+                        ContentChanged?.Invoke(this, EventArgs.Empty);
                         base.OnMouseDown(e);
                         Focused = true;
                         return;
@@ -293,7 +302,30 @@ public class HtmlBox : Control
                 if (!shift) _engine.SelectionRun = _engine.CursorRun;
                 if (!shift) _engine.SelectionOffset = _engine.CursorOffset;
                 break;
-            case Keys.Up: case Keys.Down: break;
+            case Keys.Up:
+                if (_engine.CursorBlock > 0)
+                {
+                    _engine.CursorBlock--;
+                    var prevBlock = _engine.Document.Blocks[_engine.CursorBlock];
+                    _engine.CursorRun = prevBlock.Runs.Count - 1;
+                    _engine.CursorOffset = _engine.CursorRun >= 0 ? prevBlock.Runs[_engine.CursorRun].Length : 0;
+                    if (_engine.CursorRun < 0) { _engine.CursorRun = 0; _engine.CursorOffset = 0; }
+                    if (!shift) _engine.SelectionBlock = _engine.CursorBlock;
+                    if (!shift) _engine.SelectionRun = _engine.CursorRun;
+                    if (!shift) _engine.SelectionOffset = _engine.CursorOffset;
+                }
+                break;
+            case Keys.Down:
+                if (_engine.CursorBlock + 1 < _engine.Document.Blocks.Count)
+                {
+                    _engine.CursorBlock++;
+                    _engine.CursorRun = 0;
+                    _engine.CursorOffset = 0;
+                    if (!shift) _engine.SelectionBlock = _engine.CursorBlock;
+                    if (!shift) _engine.SelectionRun = _engine.CursorRun;
+                    if (!shift) _engine.SelectionOffset = _engine.CursorOffset;
+                }
+                break;
             default: base.OnKeyDown(e); return;
         }
         e.Handled = true;

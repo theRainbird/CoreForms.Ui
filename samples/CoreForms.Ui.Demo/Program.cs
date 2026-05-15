@@ -241,12 +241,35 @@ class Program
 
         toolStrip.Items.Add(new ToolStripSeparator());
 
+        var toggleEnabledButton = new ToolStripButton("Toggle Enabled");
+        toggleEnabledButton.DisplayStyle = ToolStripItemDisplayStyle.ImageAndText;
+        toggleEnabledButton.Click += (s, e) =>
+        {
+            ToggleControlsEnabled(form, toolStrip);
+            _statusLabel!.Text = "Controls enabled state toggled";
+        };
+        toolStrip.Items.Add(toggleEnabledButton);
+
+        toolStrip.Items.Add(new ToolStripSeparator());
+
         var helpButton = new ToolStripButton("Help", Icons.QuestionCircle24!);
         helpButton.DisplayStyle = ToolStripItemDisplayStyle.ImageAndText;
         helpButton.Click += (s, e) => MessageBox.Show("CoreForms.Ui ToolStrip Demo\n\nDemonstrates all ToolStrip item types.", "Help", MessageBoxButtons.OK, MessageBoxIcon.Information);
         toolStrip.Items.Add(helpButton);
 
         return toolStrip;
+    }
+
+    static void ToggleControlsEnabled(Control parent, Control exclude)
+    {
+        foreach (var control in parent.Controls)
+        {
+            if (control == exclude)
+                continue;
+            control.Enabled = !control.Enabled;
+            if (control.Controls.Count > 0)
+                ToggleControlsEnabled(control, exclude);
+        }
     }
 
     static Panel CreateStatusStrip()
@@ -277,6 +300,7 @@ class Program
         tabControl.AddTabPage(CreateDockAnchorPage());
         tabControl.AddTabPage(CreateTreeViewPage());
         tabControl.AddTabPage(CreateUserControlPage());
+        tabControl.AddTabPage(CreateSplitPanelPage());
         tabControl.AddTabPage(CreateWebBrowserPage());
         tabControl.AddTabPage(CreateHtmlEditorPage());
 
@@ -750,6 +774,136 @@ class Program
         return data.ToArray();
     }
 
+    static TabPage CreateSplitPanelPage()
+    {
+        var page = new TabPage { Text = "Split Panel" };
+
+        var verticalSplit = new SplitPanel
+        {
+            Location = new Point(10, 10),
+            Size = new Size(300, 250),
+            Orientation = SplitOrientation.Vertical,
+            SplitterDistance = 120
+        };
+
+        var topLabel = new Label
+        {
+            Text = "Top Panel\n(Panel1)",
+            Location = new Point(10, 10),
+            Size = new Size(100, 30)
+        };
+        var topButton = new Button
+        {
+            Text = "Button in Top",
+            Location = new Point(10, 50),
+            Size = new Size(120, 25)
+        };
+        topButton.Click += (s, e) => _statusLabel!.Text = "Top button clicked!";
+        verticalSplit.Panel1.Controls.Add(topLabel);
+        verticalSplit.Panel1.Controls.Add(topButton);
+
+        var bottomTextBox = new TextBox
+        {
+            Text = "Bottom Panel (Panel2)",
+            Location = new Point(10, 10),
+            Size = new Size(260, 25)
+        };
+        verticalSplit.Panel2.Controls.Add(bottomTextBox);
+
+        var horizontalSplit = new SplitPanel
+        {
+            Location = new Point(320, 10),
+            Size = new Size(300, 250),
+            Orientation = SplitOrientation.Horizontal,
+            SplitterDistance = 120
+        };
+
+        var leftLabel = new Label
+        {
+            Text = "Left Panel\n(Panel1)",
+            Location = new Point(10, 10),
+            Size = new Size(100, 30)
+        };
+        horizontalSplit.Panel1.Controls.Add(leftLabel);
+
+        var rightLabel = new Label
+        {
+            Text = "Right Panel\n(Panel2)",
+            Location = new Point(10, 10),
+            Size = new Size(140, 30)
+        };
+        var rightButton = new Button
+        {
+            Text = "Button in Right",
+            Location = new Point(10, 50),
+            Size = new Size(120, 25)
+        };
+        rightButton.Click += (s, e) => _statusLabel!.Text = "Right button clicked!";
+        horizontalSplit.Panel2.Controls.Add(rightLabel);
+        horizontalSplit.Panel2.Controls.Add(rightButton);
+
+        var distanceLabel = new Label
+        {
+            Text = $"SplitterDist: {verticalSplit.SplitterDistance}",
+            Location = new Point(10, 275),
+            Size = new Size(200, 20)
+        };
+
+        var set200Button = new Button
+        {
+            Text = "Set Dist 200",
+            Location = new Point(10, 300),
+            Size = new Size(120, 25)
+        };
+        set200Button.Click += (s, e) =>
+        {
+            verticalSplit.SplitterDistance = 200;
+            distanceLabel.Text = $"SplitterDist: {verticalSplit.SplitterDistance}";
+            _statusLabel!.Text = "Splitter distance set to 200";
+        };
+
+        var toggleOrientationButton = new Button
+        {
+            Text = "Toggle Orientation",
+            Location = new Point(140, 300),
+            Size = new Size(150, 25)
+        };
+        toggleOrientationButton.Click += (s, e) =>
+        {
+            horizontalSplit.Orientation = horizontalSplit.Orientation == SplitOrientation.Horizontal
+                ? SplitOrientation.Vertical
+                : SplitOrientation.Horizontal;
+            _statusLabel!.Text = $"Orientation: {horizontalSplit.Orientation}";
+        };
+
+        var incMinSizeButton = new Button
+        {
+            Text = "Panel1 Min +10",
+            Location = new Point(10, 335),
+            Size = new Size(120, 25)
+        };
+        incMinSizeButton.Click += (s, e) =>
+        {
+            verticalSplit.Panel1MinSize += 10;
+            _statusLabel!.Text = $"Panel1MinSize: {verticalSplit.Panel1MinSize}";
+        };
+
+        verticalSplit.SplitterMoved += (s, e) =>
+        {
+            distanceLabel.Text = $"SplitterDist: {verticalSplit.SplitterDistance}";
+            _statusLabel!.Text = $"Splitter moved to {verticalSplit.SplitterDistance}";
+        };
+
+        page.Controls.Add(verticalSplit);
+        page.Controls.Add(horizontalSplit);
+        page.Controls.Add(distanceLabel);
+        page.Controls.Add(set200Button);
+        page.Controls.Add(toggleOrientationButton);
+        page.Controls.Add(incMinSizeButton);
+
+        return page;
+    }
+
     static TabPage CreateWebBrowserPage()
     {
         var page = new TabPage { Text = "Web Browser" };
@@ -871,13 +1025,21 @@ class Program
 </ol>"
         };
 
-        boldButton.Click += (s, e) => { htmlBox.ApplyFormat("bold"); };
-        italicButton.Click += (s, e) => { htmlBox.ApplyFormat("italic"); };
-        underlineButton.Click += (s, e) => { htmlBox.ApplyFormat("underline"); };
+        void UpdateFormatButtons()
+        {
+            boldButton.Checked = htmlBox.IsBold;
+            italicButton.Checked = htmlBox.IsItalic;
+            underlineButton.Checked = htmlBox.IsUnderline;
+        }
+
+        boldButton.Click += (s, e) => { htmlBox.ApplyFormat("bold"); UpdateFormatButtons(); };
+        italicButton.Click += (s, e) => { htmlBox.ApplyFormat("italic"); UpdateFormatButtons(); };
+        underlineButton.Click += (s, e) => { htmlBox.ApplyFormat("underline"); UpdateFormatButtons(); };
         bulletListButton.Click += (s, e) => { htmlBox.ApplyFormat("insertUnorderedList"); };
         numberListButton.Click += (s, e) => { htmlBox.ApplyFormat("insertOrderedList"); };
         linkButton.Click += (s, e) => { htmlBox.ApplyFormat("createLink"); };
         imageButton.Click += (s, e) => { htmlBox.ApplyFormat("insertImage"); };
+        htmlBox.ContentChanged += (s, e) => UpdateFormatButtons();
 
         toolStrip.Items.Add(boldButton);
         toolStrip.Items.Add(italicButton);

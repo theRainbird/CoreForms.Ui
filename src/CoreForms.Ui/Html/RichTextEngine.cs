@@ -456,6 +456,14 @@ public class RichTextEngine
         if (!HasSelection || true) SyncSelection();
     }
 
+    public FontStyle GetFontStyleAtCursor()
+    {
+        if (CursorBlock < 0 || CursorBlock >= Document.Blocks.Count) return FontStyle.Regular;
+        var block = Document.Blocks[CursorBlock];
+        if (CursorRun < 0 || CursorRun >= block.Runs.Count) return FontStyle.Regular;
+        return block.Runs[CursorRun].Style;
+    }
+
     public void MoveRight()
     {
         if (Document.Blocks.Count == 0) return;
