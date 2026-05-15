@@ -99,14 +99,15 @@ public class ProgressBar : Control
         {
             var percent = (float)(_value - _minimum) / (_maximum - _minimum);
             var fillWidth = (int)((Width - 2) * percent);
+            var fillColor = Enabled ? theme.ProgressBarFill : theme.GrayText;
 
             if (_orientation == Orientation.Horizontal)
             {
-                g.FillRectangle(theme.ProgressBarFill, 1, 1, fillWidth, Height - 2);
+                g.FillRectangle(fillColor, 1, 1, fillWidth, Height - 2);
             }
             else
             {
-                g.FillRectangle(theme.ProgressBarFill, 1, Height - 1 - fillWidth, Width - 2, fillWidth);
+                g.FillRectangle(fillColor, 1, Height - 1 - fillWidth, Width - 2, fillWidth);
             }
         }
 

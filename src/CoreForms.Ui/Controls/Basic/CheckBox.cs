@@ -57,8 +57,9 @@ public class CheckBox : Control
             g.DrawLine(theme.CheckboxCheck, 6, boxY + 11, 13, boxY + 4, 3);
         }
 
+        var textColor = Enabled ? ForeColor : theme.GrayText;
         var font = EffectiveFont;
-        g.DrawString(Text, font, ForeColor, 20, CoordinateTransform.CenterVertically(Height, font, EffectiveZoom));
+        g.DrawString(Text, font, textColor, 20, CoordinateTransform.CenterVertically(Height, font, EffectiveZoom));
 
         base.Render(g);
     }
@@ -69,6 +70,7 @@ public class CheckBox : Control
     /// <param name="e">The event arguments.</param>
     protected override void OnClick(EventArgs e)
     {
+        if (!Enabled) return;
         Checked = !Checked;
         base.OnClick(e);
     }
@@ -79,7 +81,7 @@ public class CheckBox : Control
     /// <param name="e">A KeyEventArgs that contains the event data.</param>
     protected internal override void OnKeyDown(KeyEventArgs e)
     {
-        if (e.KeyCode == Keys.Space)
+        if (Enabled && e.KeyCode == Keys.Space)
         {
             Checked = !Checked;
             e.Handled = true;

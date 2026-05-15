@@ -19,6 +19,7 @@ public class WebView : Control
     private bool _initFailed;
     private string? _initError;
     private Rendering.PixelImage? _cachedPixelImage;
+    private Rendering.PixelImage? _popupPixelImage;
 
     #region Properties
 
@@ -217,6 +218,26 @@ public class WebView : Control
                 _cachedPixelImage = new Rendering.PixelImage(
                     pixels, cef.BufferWidth, cef.BufferHeight);
                 g.DrawImage(_cachedPixelImage, 0, 0, Width, Height);
+
+                // Draw OSR popup overlay (e.g. <select> dropdown)
+                if (cef.IsPopupVisible)
+                {
+                    var popupPixels = cef.GetPopupBuffer();
+                    if (popupPixels != null)
+                    {
+                        float z = EffectiveZoom;
+                        float popupX = cef.PopupRectX / z;
+                        float popupY = cef.PopupRectY / z;
+                        float popupW = cef.PopupRectWidth / z;
+                        float popupH = cef.PopupRectHeight / z;
+
+                        _popupPixelImage?.Dispose();
+                        _popupPixelImage = new Rendering.PixelImage(
+                            popupPixels, cef.PopupBufferWidth, cef.PopupBufferHeight);
+                        g.DrawImage(_popupPixelImage, popupX, popupY, popupW, popupH);
+                    }
+                }
+
                 return;
             }
         }
@@ -326,6 +347,8 @@ public class WebView : Control
         {
             _cachedPixelImage?.Dispose();
             _cachedPixelImage = null;
+            _popupPixelImage?.Dispose();
+            _popupPixelImage = null;
             _platformHandler?.Dispose();
             _platformHandler = null;
         }

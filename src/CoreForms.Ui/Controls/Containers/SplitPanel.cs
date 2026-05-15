@@ -28,7 +28,7 @@ public class SplitPanel : ContainerControl
 {
     private SplitOrientation _orientation = SplitOrientation.Vertical;
     private int _splitterWidth = 10;
-    private int _splitterDistance = 100;
+    private int _splitterDistance;
     private int _panel1MinSize = 25;
     private int _panel2MinSize = 25;
     private BorderStyle _borderStyle = BorderStyle.None;
@@ -209,7 +209,6 @@ public class SplitPanel : ContainerControl
             return;
         }
 
-        int totalSize = _orientation == SplitOrientation.Vertical ? Height : Width;
         _splitterDistance = ClampSplitterDistance(_splitterDistance);
 
         if (_orientation == SplitOrientation.Vertical)

@@ -838,6 +838,7 @@ if (_controls == null || _controls.Count == 0) return;
     /// </summary>
     protected virtual void OnEnabledChanged()
     {
+        Invalidate();
     }
 
     /// <summary>
@@ -916,13 +917,21 @@ if (_controls == null || _controls.Count == 0) return;
     /// Raises the Click event.
     /// </summary>
     /// <param name="e">An EventArgs that contains the event data.</param>
-    protected virtual void OnClick(EventArgs e) => Click?.Invoke(this, e);
+    protected virtual void OnClick(EventArgs e)
+    {
+        if (!Enabled) return;
+        Click?.Invoke(this, e);
+    }
 
     /// <summary>
     /// Raises the DoubleClick event.
     /// </summary>
     /// <param name="e">An EventArgs that contains the event data.</param>
-    protected virtual void OnDoubleClick(EventArgs e) => DoubleClick?.Invoke(this, e);
+    protected virtual void OnDoubleClick(EventArgs e)
+    {
+        if (!Enabled) return;
+        DoubleClick?.Invoke(this, e);
+    }
 
     /// <summary>
     /// Raises the MouseEnter event and sets the Hovered state.
@@ -930,6 +939,7 @@ if (_controls == null || _controls.Count == 0) return;
     /// <param name="e">An EventArgs that contains the event data.</param>
     protected virtual void OnMouseEnter(EventArgs e)
     {
+        if (!Enabled) return;
         if (!IsHovered)
         {
             State |= ControlState.Hovered;
@@ -954,7 +964,11 @@ if (_controls == null || _controls.Count == 0) return;
     /// Raises the MouseMove event.
     /// </summary>
     /// <param name="e">An EventArgs that contains the event data.</param>
-    protected internal virtual void OnMouseMove(EventArgs e) => MouseMove?.Invoke(this, e);
+    protected internal virtual void OnMouseMove(EventArgs e)
+    {
+        if (!Enabled) return;
+        MouseMove?.Invoke(this, e);
+    }
 
     /// <summary>
     /// Raises the MouseDown event and sets the Pressed state.
@@ -962,6 +976,7 @@ if (_controls == null || _controls.Count == 0) return;
     /// <param name="e">An EventArgs that contains the event data.</param>
     protected internal virtual void OnMouseDown(EventArgs e)
     {
+        if (!Enabled) return;
         if (!IsPressed)
         {
             State |= ControlState.Pressed;
@@ -975,6 +990,7 @@ if (_controls == null || _controls.Count == 0) return;
     /// <param name="e">An EventArgs that contains the event data.</param>
     protected internal virtual void OnMouseUp(EventArgs e)
     {
+        if (!Enabled) return;
         if (IsPressed)
         {
             State &= ~ControlState.Pressed;
@@ -987,31 +1003,50 @@ if (_controls == null || _controls.Count == 0) return;
     /// Raises the MouseWheel event.
     /// </summary>
     /// <param name="e">An EventArgs that contains the event data.</param>
-    protected internal virtual void OnMouseWheel(EventArgs e) => MouseWheel?.Invoke(this, e);
+    protected internal virtual void OnMouseWheel(EventArgs e)
+    {
+        if (!Enabled) return;
+        MouseWheel?.Invoke(this, e);
+    }
 
     /// <summary>
     /// Raises the KeyDown event.
     /// </summary>
     /// <param name="e">A KeyEventArgs that contains the event data.</param>
-    protected internal virtual void OnKeyDown(KeyEventArgs e) => KeyDown?.Invoke(this, e);
+    protected internal virtual void OnKeyDown(KeyEventArgs e)
+    {
+        if (!Enabled) return;
+        KeyDown?.Invoke(this, e);
+    }
 
     /// <summary>
     /// Raises the KeyPress event.
     /// </summary>
     /// <param name="e">A KeyPressEventArgs that contains the event data.</param>
-    protected internal virtual void OnKeyPress(KeyPressEventArgs e) => KeyPress?.Invoke(this, e);
+    protected internal virtual void OnKeyPress(KeyPressEventArgs e)
+    {
+        if (!Enabled) return;
+        KeyPress?.Invoke(this, e);
+    }
 
     /// <summary>
     /// Raises the KeyUp event.
     /// </summary>
     /// <param name="e">A KeyEventArgs that contains the event data.</param>
-    protected internal virtual void OnKeyUp(KeyEventArgs e) => KeyUp?.Invoke(this, e);
+    protected internal virtual void OnKeyUp(KeyEventArgs e)
+    {
+        if (!Enabled) return;
+        KeyUp?.Invoke(this, e);
+    }
 
     /// <summary>
     /// Called when text input is received.
     /// </summary>
     /// <param name="text">The input text.</param>
-    protected internal virtual void OnTextInput(string text) { }
+    protected internal virtual void OnTextInput(string text)
+    {
+        if (!Enabled) return;
+    }
 
     /// <summary>
     /// Raises the GotFocus event.

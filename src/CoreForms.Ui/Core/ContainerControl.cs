@@ -39,7 +39,7 @@ public class ContainerControl : Control
         for (int i = Controls.Count - 1; i >= 0; i--)
         {
             var child = Controls[i];
-            if (child.Visible && child.HitTest(point))
+            if (child.Visible && child.Enabled && child.HitTest(point))
             {
                 return child;
             }

@@ -28,22 +28,27 @@ public class Button : Control
 
         var theme = ThemeManager.CurrentTheme;
         var bgColor = BackColor;
-        if (IsPressed)
-            bgColor = theme.ButtonPressedBackground;
-        else if (IsHovered)
-            bgColor = theme.ButtonHoverBackground;
+        if (Enabled)
+        {
+            if (IsPressed)
+                bgColor = theme.ButtonPressedBackground;
+            else if (IsHovered)
+                bgColor = theme.ButtonHoverBackground;
+        }
 
         g.FillRectangle(bgColor, 0, 0, Width, Height);
         g.DrawRectangle(theme.ButtonBorder, 0, 0, Width, Height, 1);
 
-        DrawFocusIndicator(g);
+        if (Focused && Enabled)
+            DrawFocusIndicator(g);
 
+        var textColor = Enabled ? ForeColor : theme.GrayText;
         var font = EffectiveFont;
         float zoom = EffectiveZoom;
         var textSize = Text.Length * font.Size * zoom * 0.6f;
         var x = (Width - textSize) / 2;
         var y = CoordinateTransform.CenterVertically(Height, font, zoom);
-        g.DrawString(Text, font, ForeColor, x > 0 ? x : 3, y > 0 ? y : 3);
+        g.DrawString(Text, font, textColor, x > 0 ? x : 3, y > 0 ? y : 3);
 
         base.Render(g);
     }
@@ -54,7 +59,7 @@ public class Button : Control
     /// <param name="e">A KeyEventArgs that contains the event data.</param>
     protected internal override void OnKeyDown(KeyEventArgs e)
     {
-        if (e.KeyCode == Keys.Enter || e.KeyCode == Keys.Space)
+        if (Enabled && (e.KeyCode == Keys.Enter || e.KeyCode == Keys.Space))
         {
             PerformClick();
             e.Handled = true;

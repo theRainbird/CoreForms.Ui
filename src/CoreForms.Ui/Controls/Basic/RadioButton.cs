@@ -75,8 +75,9 @@ public class RadioButton : Control
             g.FillRectangle(theme.CheckboxCheck, 4, centerY - 4, 8, 8);
         }
 
+        var textColor = Enabled ? ForeColor : theme.GrayText;
         var font = EffectiveFont;
-        g.DrawString(Text, font, ForeColor, 20, CoordinateTransform.CenterVertically(Height, font, EffectiveZoom));
+        g.DrawString(Text, font, textColor, 20, CoordinateTransform.CenterVertically(Height, font, EffectiveZoom));
 
         base.Render(g);
     }
@@ -87,6 +88,7 @@ public class RadioButton : Control
     /// <param name="e">The event arguments.</param>
     protected override void OnClick(EventArgs e)
     {
+        if (!Enabled) return;
         Checked = true;
         base.OnClick(e);
     }
@@ -97,7 +99,7 @@ public class RadioButton : Control
     /// <param name="e">A KeyEventArgs that contains the event data.</param>
     protected internal override void OnKeyDown(KeyEventArgs e)
     {
-        if (e.KeyCode == Keys.Space)
+        if (Enabled && e.KeyCode == Keys.Space)
         {
             Checked = true;
             e.Handled = true;

@@ -213,6 +213,9 @@ public class TabControl : ContainerControl
         // Draw tab headers background
         g.FillRectangle(theme.TabHeaderBackground, 0, 0, Width, tabHeaderHeight);
 
+        var tabTextColor = Enabled ? theme.TabSelectedText : theme.GrayText;
+        var unselectedTabTextColor = Enabled ? theme.TabUnselectedText : theme.GrayText;
+
         // Draw individual tabs with vertical separators
         for (int i = 0; i < _tabPages.Count; i++)
         {
@@ -229,13 +232,13 @@ public class TabControl : ContainerControl
                 g.DrawLine(theme.TabSelectedBorder, x, 0, x, tabHeaderHeight);
                 // Right border
                 g.DrawLine(theme.TabSelectedBorder, x + tabWidth, 0, x + tabWidth, tabHeaderHeight);
-                g.DrawString(_tabPages[i].Text, font, theme.TabSelectedText, x + horizontalPadding / 2, CoordinateTransform.CenterVertically(0, tabHeaderHeight, font, EffectiveZoom));
+                g.DrawString(_tabPages[i].Text, font, tabTextColor, x + horizontalPadding / 2, CoordinateTransform.CenterVertically(0, tabHeaderHeight, font, EffectiveZoom));
             }
             else
             {
                 // Unselected tabs: gray background
                 g.FillRectangle(theme.TabUnselectedBackground, x, 0, tabWidth, tabHeaderHeight);
-                g.DrawString(_tabPages[i].Text, font, theme.TabUnselectedText, x + horizontalPadding / 2, CoordinateTransform.CenterVertically(0, tabHeaderHeight, font, EffectiveZoom));
+                g.DrawString(_tabPages[i].Text, font, unselectedTabTextColor, x + horizontalPadding / 2, CoordinateTransform.CenterVertically(0, tabHeaderHeight, font, EffectiveZoom));
             }
 
             // Vertical separator between tabs (except after last tab)
@@ -306,6 +309,7 @@ public class TabControl : ContainerControl
     /// <param name="e">The event arguments.</param>
     protected internal override void OnMouseDown(EventArgs e)
     {
+        if (!Enabled) return;
         var args = e as MouseEventArgs;
         if (args != null && _tabPages.Count > 0)
         {
@@ -360,6 +364,7 @@ public class TabControl : ContainerControl
     /// <param name="e">A KeyEventArgs that contains the event data.</param>
     protected internal override void OnKeyDown(KeyEventArgs e)
     {
+        if (!Enabled) return;
         switch (e.KeyCode)
         {
             case Keys.Left:

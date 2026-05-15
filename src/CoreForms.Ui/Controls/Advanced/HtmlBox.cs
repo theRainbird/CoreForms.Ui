@@ -291,18 +291,42 @@ public class HtmlBox : Control
             case Keys.Delete: _engine.HandleDelete(); break;
             case Keys.Enter: _engine.HandleEnter(); break;
             case Keys.Left:
+                if (shift && !_engine.HasSelection)
+                {
+                    _engine.SelectionBlock = _engine.CursorBlock;
+                    _engine.SelectionRun = _engine.CursorRun;
+                    _engine.SelectionOffset = _engine.CursorOffset;
+                }
                 _engine.MoveLeft();
-                if (!shift) _engine.SelectionBlock = _engine.CursorBlock;
-                if (!shift) _engine.SelectionRun = _engine.CursorRun;
-                if (!shift) _engine.SelectionOffset = _engine.CursorOffset;
+                if (!shift)
+                {
+                    _engine.SelectionBlock = _engine.CursorBlock;
+                    _engine.SelectionRun = _engine.CursorRun;
+                    _engine.SelectionOffset = _engine.CursorOffset;
+                }
                 break;
             case Keys.Right:
+                if (shift && !_engine.HasSelection)
+                {
+                    _engine.SelectionBlock = _engine.CursorBlock;
+                    _engine.SelectionRun = _engine.CursorRun;
+                    _engine.SelectionOffset = _engine.CursorOffset;
+                }
                 _engine.MoveRight();
-                if (!shift) _engine.SelectionBlock = _engine.CursorBlock;
-                if (!shift) _engine.SelectionRun = _engine.CursorRun;
-                if (!shift) _engine.SelectionOffset = _engine.CursorOffset;
+                if (!shift)
+                {
+                    _engine.SelectionBlock = _engine.CursorBlock;
+                    _engine.SelectionRun = _engine.CursorRun;
+                    _engine.SelectionOffset = _engine.CursorOffset;
+                }
                 break;
             case Keys.Up:
+                if (shift && !_engine.HasSelection)
+                {
+                    _engine.SelectionBlock = _engine.CursorBlock;
+                    _engine.SelectionRun = _engine.CursorRun;
+                    _engine.SelectionOffset = _engine.CursorOffset;
+                }
                 if (_engine.CursorBlock > 0)
                 {
                     _engine.CursorBlock--;
@@ -310,20 +334,32 @@ public class HtmlBox : Control
                     _engine.CursorRun = prevBlock.Runs.Count - 1;
                     _engine.CursorOffset = _engine.CursorRun >= 0 ? prevBlock.Runs[_engine.CursorRun].Length : 0;
                     if (_engine.CursorRun < 0) { _engine.CursorRun = 0; _engine.CursorOffset = 0; }
-                    if (!shift) _engine.SelectionBlock = _engine.CursorBlock;
-                    if (!shift) _engine.SelectionRun = _engine.CursorRun;
-                    if (!shift) _engine.SelectionOffset = _engine.CursorOffset;
+                    if (!shift)
+                    {
+                        _engine.SelectionBlock = _engine.CursorBlock;
+                        _engine.SelectionRun = _engine.CursorRun;
+                        _engine.SelectionOffset = _engine.CursorOffset;
+                    }
                 }
                 break;
             case Keys.Down:
+                if (shift && !_engine.HasSelection)
+                {
+                    _engine.SelectionBlock = _engine.CursorBlock;
+                    _engine.SelectionRun = _engine.CursorRun;
+                    _engine.SelectionOffset = _engine.CursorOffset;
+                }
                 if (_engine.CursorBlock + 1 < _engine.Document.Blocks.Count)
                 {
                     _engine.CursorBlock++;
                     _engine.CursorRun = 0;
                     _engine.CursorOffset = 0;
-                    if (!shift) _engine.SelectionBlock = _engine.CursorBlock;
-                    if (!shift) _engine.SelectionRun = _engine.CursorRun;
-                    if (!shift) _engine.SelectionOffset = _engine.CursorOffset;
+                    if (!shift)
+                    {
+                        _engine.SelectionBlock = _engine.CursorBlock;
+                        _engine.SelectionRun = _engine.CursorRun;
+                        _engine.SelectionOffset = _engine.CursorOffset;
+                    }
                 }
                 break;
             default: base.OnKeyDown(e); return;

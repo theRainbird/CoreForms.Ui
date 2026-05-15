@@ -100,12 +100,14 @@ public class ComboBox : Control
         var btnWidth = 17;
         var btnX = Width - btnWidth;
 
-        g.DrawString(selectedText, font, ForeColor, 3, (Height - scaledFontSize) / 2);
+        var textColor = Enabled ? ForeColor : theme.GrayText;
+        g.DrawString(selectedText, font, textColor, 3, (Height - scaledFontSize) / 2);
 
         g.FillRectangle(theme.ControlBackground, btnX, 1, btnWidth, Height - 2);
         g.DrawLine(theme.ComboBoxDropdownButtonSeparator, btnX, 0, btnX, Height);
 
-        DrawFocusIndicator(g);
+        if (Enabled)
+            DrawFocusIndicator(g);
 
         var cx = btnX + btnWidth / 2;
         var cy = Height / 2;
@@ -236,6 +238,8 @@ public class ComboBox : Control
     /// <param name="e">The event arguments.</param>
     protected internal override void OnMouseDown(EventArgs e)
     {
+        if (!Enabled) return;
+
         if (!Focused)
         {
             Focused = true;
@@ -307,6 +311,7 @@ public class ComboBox : Control
     /// <param name="e">The event arguments.</param>
     protected internal override void OnMouseWheel(EventArgs e)
     {
+        if (!Enabled) return;
         if (_droppedDown)
         {
             var args = e as MouseEventArgs;
@@ -328,6 +333,7 @@ public class ComboBox : Control
     /// <param name="e">The event arguments.</param>
     protected internal override void OnMouseMove(EventArgs e)
     {
+        if (!Enabled) return;
         if (_droppedDown)
         {
             var args = e as MouseEventArgs;
@@ -389,6 +395,7 @@ public class ComboBox : Control
     /// <param name="e">A KeyEventArgs that contains the event data.</param>
     protected internal override void OnKeyDown(KeyEventArgs e)
     {
+        if (!Enabled) return;
         switch (e.KeyCode)
         {
             case Keys.F4:

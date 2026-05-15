@@ -2,12 +2,89 @@ using CoreForms.Ui.Core;
 using CoreForms.Ui.Controls.Basic;
 using CoreForms.Ui.Controls.Advanced;
 using CoreForms.Ui.Controls.Containers;
+using CoreForms.Ui.Html;
 using Xunit;
 
 namespace CoreForms.Ui.Tests;
 
 public class ControlTests
 {
+    [Fact]
+    public void RichTextEngine_ToggleBold_OnSelection_TogglesRunStyle()
+    {
+        var engine = new RichTextEngine();
+        engine.InitFromHtml("<p>Hello World</p>");
+
+        Assert.Single(engine.Document.Blocks);
+        Assert.Single(engine.Document.Blocks[0].Runs);
+        Assert.Equal("Hello World", engine.Document.Blocks[0].Runs[0].Text);
+        Assert.Equal(FontStyle.Regular, engine.Document.Blocks[0].Runs[0].Style);
+
+        engine.CursorBlock = 0;
+        engine.CursorRun = 0;
+        engine.CursorOffset = 0;
+        engine.SelectionBlock = 0;
+        engine.SelectionRun = 0;
+        engine.SelectionOffset = 5;
+
+        Assert.True(engine.HasSelection);
+
+        engine.ToggleBold();
+        Assert.Equal(FontStyle.Bold, engine.Document.Blocks[0].Runs[0].Style);
+
+        engine.ToggleBold();
+        Assert.Equal(FontStyle.Regular, engine.Document.Blocks[0].Runs[0].Style);
+    }
+
+    [Fact]
+    public void RichTextEngine_GetFontStyleAtCursor_ReturnsCorrectStyle()
+    {
+        var engine = new RichTextEngine();
+        engine.InitFromHtml("<p>Hello <b>World</b></p>");
+
+        engine.CursorBlock = 0;
+        engine.CursorRun = 0;
+        engine.CursorOffset = 0;
+        Assert.Equal(FontStyle.Regular, engine.GetFontStyleAtCursor());
+
+        engine.CursorBlock = 0;
+        engine.CursorRun = 1;
+        engine.CursorOffset = 0;
+        Assert.Equal(FontStyle.Bold, engine.GetFontStyleAtCursor());
+    }
+
+    [Fact]
+    public void RichTextEngine_ToggleBold_OnCrossRunSelection_TogglesBothRuns()
+    {
+        var engine = new RichTextEngine();
+        engine.InitFromHtml("<p>Hello <b>World</b>!</p>");
+        // runs: "Hello " (Regular), "World" (Bold), "!" (Regular)
+
+        Assert.Equal(3, engine.Document.Blocks[0].Runs.Count);
+
+        // Select "lo World" (cross-run: end of run 0, all of run 1)
+        // Flat index: "Hello " = 6 chars, "World" = 5 chars
+        // "lo World" starts at flat index 3, ends at flat index 11
+        engine.CursorBlock = 0;
+        engine.CursorRun = 0;
+        engine.CursorOffset = 3;
+        engine.SelectionBlock = 0;
+        engine.SelectionRun = 1;
+        engine.SelectionOffset = 5; // end of "World"
+
+        Assert.True(engine.HasSelection);
+        Assert.Equal(3, engine.CursorFlatIndex);
+        Assert.Equal(11, engine.SelectionFlatIndex);
+
+        engine.ToggleBold();
+
+        // Run 0 ("Hello "): only "lo " was selected, so the entire run toggles
+        Assert.Equal(FontStyle.Bold, engine.Document.Blocks[0].Runs[0].Style);
+        // Run 1 ("World"): entirely selected + toggle
+        Assert.Equal(FontStyle.Regular, engine.Document.Blocks[0].Runs[1].Style);
+        // Run 2 ("!"): not selected
+        Assert.Equal(FontStyle.Regular, engine.Document.Blocks[0].Runs[2].Style);
+    }
     [Fact]
     public void Control_Bounds_ShouldInitializeCorrectly()
     {

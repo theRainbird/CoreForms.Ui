@@ -453,7 +453,7 @@ public class RichTextEngine
             CursorOffset = CursorRun >= 0 ? block.Runs[CursorRun].Length : 0;
             if (CursorRun < 0) { CursorRun = 0; CursorOffset = 0; }
         }
-        if (!HasSelection || true) SyncSelection();
+        if (!HasSelection) SyncSelection();
     }
 
     public FontStyle GetFontStyleAtCursor()

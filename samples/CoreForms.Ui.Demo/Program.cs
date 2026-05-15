@@ -783,12 +783,13 @@ class Program
             Location = new Point(10, 10),
             Size = new Size(300, 250),
             Orientation = SplitOrientation.Vertical,
-            SplitterDistance = 120
+            SplitterDistance = 120,
+            BorderStyle = BorderStyle.FixedSingle
         };
 
         var topLabel = new Label
         {
-            Text = "Top Panel\n(Panel1)",
+            Text = "Top Panel (Panel1)",
             Location = new Point(10, 10),
             Size = new Size(100, 30)
         };
@@ -820,7 +821,7 @@ class Program
 
         var leftLabel = new Label
         {
-            Text = "Left Panel\n(Panel1)",
+            Text = "Left Panel (Panel1)",
             Location = new Point(10, 10),
             Size = new Size(100, 30)
         };
@@ -828,7 +829,7 @@ class Program
 
         var rightLabel = new Label
         {
-            Text = "Right Panel\n(Panel2)",
+            Text = "Right Panel (Panel2)",
             Location = new Point(10, 10),
             Size = new Size(140, 30)
         };

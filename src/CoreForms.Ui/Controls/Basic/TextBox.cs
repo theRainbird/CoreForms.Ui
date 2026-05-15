@@ -116,10 +116,11 @@ public class TextBox : Control
 
         g.SetClip(new Rectangle(4, 0, Width - 8, Height));
 
+        var textColor = Enabled ? ForeColor : theme.GrayText;
         string displayText = _engine.DisplayText;
         var context = Context;
 
-        if (_engine.HasSelection && Focused)
+        if (Enabled && _engine.HasSelection && Focused)
         {
             int selStart = _engine.SelectionStartIndex;
             int selEnd = _engine.SelectionEndIndex;
@@ -129,16 +130,16 @@ public class TextBox : Control
             float selX = textX + _engine.MeasureTextWidth(beforeSel, context);
             float selWidth = Math.Max(_engine.MeasureTextWidth(selStr, context), 2);
 
-            g.DrawString(displayText, font, ForeColor, textX, textY);
+            g.DrawString(displayText, font, textColor, textX, textY);
             g.FillRectangle(SystemColors.Highlight, selX, textY, selWidth, scaledFontSize + 2);
             g.DrawString(selStr, font, SystemColors.HighlightText, selX, textY);
         }
         else
         {
-            g.DrawString(displayText, font, ForeColor, textX, textY);
+            g.DrawString(displayText, font, textColor, textX, textY);
         }
 
-        if (Focused && TextEditorEngine.IsCursorBlinkVisible)
+        if (Enabled && Focused && TextEditorEngine.IsCursorBlinkVisible)
         {
             string textBeforeCursor = displayText.Substring(0, _engine.CursorPosition);
             float cursorX = textX + _engine.MeasureTextWidth(textBeforeCursor, context);
@@ -189,6 +190,7 @@ public class TextBox : Control
     /// </summary>
     protected internal override void OnMouseDown(EventArgs e)
     {
+        if (!Enabled) return;
         if (e is MouseEventArgs mouseArgs)
         {
             int logicalX = mouseArgs.X - 4 + _engine.ScrollOffset;
@@ -204,6 +206,7 @@ public class TextBox : Control
     /// </summary>
     protected internal override void OnKeyDown(KeyEventArgs e)
     {
+        if (!Enabled) return;
         _engine.HandleKeyDown(e, Context);
         base.OnKeyDown(e);
     }
@@ -213,6 +216,7 @@ public class TextBox : Control
     /// </summary>
     protected internal override void OnTextInput(string text)
     {
+        if (!Enabled) return;
         _engine.HandleTextInput(text, Context);
     }
 

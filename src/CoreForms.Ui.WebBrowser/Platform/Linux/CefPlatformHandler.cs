@@ -26,11 +26,16 @@ internal sealed class CefRenderHandlerImpl : CefRenderHandler
     }
 
     protected override void OnPaint(CefBrowser browser, CefPaintElementType type, CefRectangle[] dirtyRects, IntPtr buffer, int width, int height)
-        => _owner.OnPaintBuffer(buffer, width, height);
+    {
+        if (type == CefPaintElementType.Popup)
+            _owner.OnPopupPaintBuffer(buffer, width, height);
+        else
+            _owner.OnMainPaintBuffer(buffer, width, height);
+    }
 
     protected override void OnAcceleratedPaint(CefBrowser browser, CefPaintElementType type, CefRectangle[] dirtyRects, IntPtr sharedHandle) { }
-    protected override void OnPopupSize(CefBrowser browser, CefRectangle rect) { }
-    protected override void OnPopupShow(CefBrowser browser, bool show) { }
+    protected override void OnPopupSize(CefBrowser browser, CefRectangle rect) => _owner.OnPopupSize(rect);
+    protected override void OnPopupShow(CefBrowser browser, bool show) => _owner.OnPopupShow(show);
     protected override bool StartDragging(CefBrowser browser, CefDragData dragData, CefDragOperationsMask mask, int x, int y) => false;
     protected override void UpdateDragCursor(CefBrowser browser, CefDragOperationsMask operation) { }
     protected override void OnScrollOffsetChanged(CefBrowser browser, double x, double y) { }
@@ -155,6 +160,13 @@ public class CefPlatformHandler : IWebViewPlatformHandler
     private string? _pendingUrl;
     private CoreForms.Ui.Core.MouseButtons _mouseButtons;
     private double _browserZoomLevel;
+
+    // Popup (select dropdown) tracking
+    private bool _popupVisible;
+    private byte[]? _popupBuffer;
+    private int _popupBufferWidth;
+    private int _popupBufferHeight;
+    private CefRectangle _popupRect;
 
     // Device-aware size (multiplied by EffectiveZoom)
     private int DeviceWidth => Math.Max((int)(_webView.Width * _webView.EffectiveZoom), 1);
@@ -409,7 +421,7 @@ public class CefPlatformHandler : IWebViewPlatformHandler
         _browserHost.SetFocus(true);
     }
 
-    internal void OnPaintBuffer(IntPtr buffer, int width, int height)
+    internal void OnMainPaintBuffer(IntPtr buffer, int width, int height)
     {
         var size = width * height * 4;
         if (_pixelBuffer == null || _pixelBuffer.Length != size)
@@ -418,6 +430,29 @@ public class CefPlatformHandler : IWebViewPlatformHandler
         _bufferWidth = width;
         _bufferHeight = height;
     }
+
+    internal void OnPopupPaintBuffer(IntPtr buffer, int width, int height)
+    {
+        var size = width * height * 4;
+        if (_popupBuffer == null || _popupBuffer.Length != size)
+            _popupBuffer = new byte[size];
+        Marshal.Copy(buffer, _popupBuffer, 0, size);
+        _popupBufferWidth = width;
+        _popupBufferHeight = height;
+    }
+
+    internal void OnPopupShow(bool show) => _popupVisible = show;
+
+    internal void OnPopupSize(CefRectangle rect) => _popupRect = rect;
+
+    internal bool IsPopupVisible => _popupVisible;
+    internal int PopupRectX => _popupRect.X;
+    internal int PopupRectY => _popupRect.Y;
+    internal int PopupRectWidth => _popupRect.Width;
+    internal int PopupRectHeight => _popupRect.Height;
+    internal byte[]? GetPopupBuffer() => _popupBuffer;
+    internal int PopupBufferWidth => _popupBufferWidth;
+    internal int PopupBufferHeight => _popupBufferHeight;
 
     internal void OnNavigated(string url)
     {

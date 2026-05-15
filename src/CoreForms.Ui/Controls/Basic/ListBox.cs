@@ -87,18 +87,20 @@ public class ListBox : Control
         var itemHeight = CoordinateTransform.GetItemHeight(font, EffectiveZoom);
         var y = 2;
 
+        var textColor = Enabled ? ForeColor : theme.GrayText;
         for (int i = 0; i < _items.Count && y < Height; i++)
         {
             var isSelected = i == _selectedIndex;
 
             if (isSelected)
             {
-                g.FillRectangle(SystemColors.Highlight, 1, y, Width - 2, itemHeight);
-                g.DrawString(_items[i]?.ToString() ?? "", font, SystemColors.HighlightText, 4, y + 2);
+                if (Enabled)
+                    g.FillRectangle(SystemColors.Highlight, 1, y, Width - 2, itemHeight);
+                g.DrawString(_items[i]?.ToString() ?? "", font, Enabled ? SystemColors.HighlightText : textColor, 4, y + 2);
             }
             else
             {
-                g.DrawString(_items[i]?.ToString() ?? "", font, ForeColor, 4, y + 2);
+                g.DrawString(_items[i]?.ToString() ?? "", font, textColor, 4, y + 2);
             }
 
             y += itemHeight;
@@ -113,6 +115,7 @@ public class ListBox : Control
     /// <param name="e">The event arguments.</param>
     protected internal override void OnMouseDown(EventArgs e)
     {
+        if (!Enabled) return;
         var mouseArgs = e as MouseEventArgs;
         if (mouseArgs != null)
         {
@@ -135,6 +138,7 @@ public class ListBox : Control
     /// <param name="e">A KeyEventArgs that contains the event data.</param>
     protected internal override void OnKeyDown(KeyEventArgs e)
     {
+        if (!Enabled) return;
         switch (e.KeyCode)
         {
             case Keys.Up:

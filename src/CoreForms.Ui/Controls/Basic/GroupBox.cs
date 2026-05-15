@@ -81,8 +81,9 @@ public class GroupBox : ContainerControl
 
         if (!string.IsNullOrEmpty(Text))
         {
+            var textColor = Enabled ? ForeColor : theme.GrayText;
             g.FillRectangle(BackColor, 4, 0, titleWidth, titleHeight);
-            g.DrawString(Text, font, ForeColor, 6, 0);
+            g.DrawString(Text, font, textColor, 6, 0);
         }
 
         g.DrawLine(borderColor, 2, offsetY, 4, offsetY, 1);

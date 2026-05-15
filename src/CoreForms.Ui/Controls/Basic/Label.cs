@@ -40,8 +40,10 @@ public class Label : Control
                 g.FillRectangle(BackColor, 0, 0, Width, Height);
             }
 
+            var theme = ThemeManager.CurrentTheme;
+            var textColor = Enabled ? ForeColor : theme.GrayText;
             var font = EffectiveFont;
-            g.DrawString(Text, font, ForeColor, 3, CoordinateTransform.CenterVertically(Height, font, EffectiveZoom));
+            g.DrawString(Text, font, textColor, 3, CoordinateTransform.CenterVertically(Height, font, EffectiveZoom));
 
             base.Render(g);
         }
