@@ -694,7 +694,16 @@ public static class Platform
             case DrawCommandType.DrawImage:
                 if (cmd.Image?.NativeImage != null)
                 {
-                    renderer.DrawImage(cmd.Image.NativeImage, cmd.X, cmd.Y, cmd.Width, cmd.Height);
+                    var skImage = cmd.Image.NativeImage;
+                    if (cmd.Image is SvgImage svgImage)
+                    {
+                        int targetW = Math.Max(1, (int)Math.Ceiling(cmd.Width));
+                        int targetH = Math.Max(1, (int)Math.Ceiling(cmd.Height));
+                        var rasterized = svgImage.GetRasterized(targetW, targetH);
+                        if (rasterized != null)
+                            skImage = rasterized;
+                    }
+                    renderer.DrawImage(skImage, cmd.X, cmd.Y, cmd.Width, cmd.Height);
                 }
                 break;
         }

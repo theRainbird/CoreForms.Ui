@@ -1,27 +1,21 @@
 using CoreForms.Ui.Core;
 using CoreForms.Ui.Theming;
 using CoreForms.Ui.Html;
-using CoreForms.Ui.Html.Dom;
-using CoreForms.Ui.Html.Security;
-using CoreForms.Ui.Rendering;
 using Graphics = CoreForms.Ui.Rendering.Graphics;
 
 namespace CoreForms.Ui.Controls.Advanced;
 
 public class HtmlBox : Control
 {
-    private string _html = string.Empty;
-    private HtmlDomDocument? _document;
-    private HtmlRenderer? _renderer;
+    private readonly RichTextEngine _engine = new();
+    private string _htmlBacking = string.Empty;
     private bool _readOnly = true;
     private LinkBehavior _linkBehavior = LinkBehavior.RaiseEvent;
     private static readonly int CursorBlinkInterval = 530;
 
-    private string _editText = string.Empty;
-    private int _cursorPos;
-    private int _selectionStart;
-
-    private bool _isMouseDown;
+    private int _cursorScreenX;
+    private int _cursorScreenY;
+    private bool _cursorScreenValid;
 
     public HtmlBox()
     {
@@ -30,17 +24,19 @@ public class HtmlBox : Control
         _foreColor = theme.TextBoxText;
         Size = new Size(300, 200);
         TabStop = true;
+        _engine.InitFromHtml(string.Empty);
     }
 
     public string Html
     {
-        get => _html;
+        get => _engine.ToHtml();
         set
         {
-            if (_html != value)
+            if (value != _htmlBacking)
             {
-                _html = value;
-                ParseHtml();
+                _htmlBacking = value ?? string.Empty;
+                _engine.InitFromHtml(_htmlBacking);
+                Invalidate();
             }
         }
     }
@@ -64,353 +60,6 @@ public class HtmlBox : Control
         set => _linkBehavior = value;
     }
 
-    public HtmlSelection Selection { get; } = new();
-
-    private void ParseHtml()
-    {
-        if (string.IsNullOrWhiteSpace(_html))
-        {
-            _document = new HtmlDomDocument { DocumentElement = new HtmlDomElement("body") };
-            _document.DocumentElement.OwnerDocument = _document;
-            _renderer = new HtmlRenderer();
-            _renderer.SetDocument(_document);
-            InitEditing();
-            return;
-        }
-
-        var sanitizeResult = HtmlSanitizer.Sanitize(_html);
-        if (sanitizeResult.HasErrors)
-            ParseError?.Invoke(this, new HtmlErrorEventArgs(sanitizeResult.Errors));
-
-        _document = HtmlDocumentLoader.LoadHtml(sanitizeResult.SanitizedHtml);
-
-        var styles = new Html.Styles.HtmlStyleResolver();
-        foreach (var kvp in _document.StyleSheet)
-            styles.AddStylesheet(kvp.Value);
-
-        _renderer = new HtmlRenderer(styles);
-        _renderer.SetDocument(_document);
-        InitEditing();
-        Invalidate();
-    }
-
-    private void InitEditing()
-    {
-        _editText = GetFlatText();
-        if (_cursorPos > _editText.Length) _cursorPos = _editText.Length;
-        _selectionStart = _cursorPos;
-    }
-
-    private string GetFlatText()
-    {
-        if (_document?.DocumentElement == null) return string.Empty;
-        return string.Concat(_document.DocumentElement.Descendants()
-            .OfType<HtmlDomText>().Select(n => n.TextContent));
-    }
-
-    private (HtmlDomText node, int offset) FindTextNodeAt(int flatPos)
-    {
-        if (_document?.DocumentElement == null)
-        {
-            var last = AllTextNodes().LastOrDefault();
-            return (last ?? MakeBodyTextNode(), 0);
-        }
-
-        foreach (var t in AllTextNodes())
-        {
-            if (flatPos <= t.TextContent.Length)
-                return (t, flatPos);
-            flatPos -= t.TextContent.Length;
-        }
-
-        var lastNode = AllTextNodes().LastOrDefault() ?? MakeBodyTextNode();
-        return (lastNode, lastNode.TextContent.Length);
-    }
-
-    private int FlatIndexOf(HtmlDomText target, int offset)
-    {
-        int idx = 0;
-        foreach (var t in AllTextNodes())
-        {
-            if (t == target) return idx + offset;
-            idx += t.TextContent.Length;
-        }
-        return idx;
-    }
-
-    private List<HtmlDomText> AllTextNodes()
-    {
-        if (_document?.DocumentElement == null) return new List<HtmlDomText>();
-        return _document.DocumentElement.Descendants()
-            .OfType<HtmlDomText>().ToList();
-    }
-
-    private HtmlDomText MakeBodyTextNode()
-    {
-        if (_document == null)
-        {
-            _document = new HtmlDomDocument { DocumentElement = new HtmlDomElement("body") };
-            _document.DocumentElement.OwnerDocument = _document;
-        }
-        var t = new HtmlDomText("");
-        _document!.DocumentElement!.AppendChild(t);
-        return t;
-    }
-
-    public override void Render(Graphics g)
-    {
-        if (!Visible) return;
-
-        g.FillRectangle(BackColor, 0, 0, Width, Height);
-
-        if (Focused)
-            g.DrawRectangle(ThemeManager.CurrentTheme.TextBoxFocusBorder, 0, 0, Width, Height, 2);
-        else
-            g.DrawRectangle(ThemeManager.CurrentTheme.TextBoxBorder, 0, 0, Width, Height, 1);
-
-        if (_renderer != null && _document != null)
-        {
-            g.Save();
-            _renderer.Layout(_document, Width - 4);
-            _renderer.Render(g, _document);
-            g.Restore();
-        }
-
-        DrawCursor(g);
-        base.Render(g);
-    }
-
-    private void DrawCursor(Graphics g)
-    {
-        if (!Focused || _readOnly) return;
-
-        int selStart = Math.Min(_selectionStart, _cursorPos);
-        int selEnd = Math.Max(_selectionStart, _cursorPos);
-
-        if (selStart < selEnd)
-        {
-            var (startNode, startOff) = FindTextNodeAt(selStart);
-            var (endNode, endOff) = FindTextNodeAt(selEnd);
-            if (startNode == endNode)
-            {
-                var pos1 = _renderer?.GetTextPosition(startNode, startOff);
-                var pos2 = _renderer?.GetTextPosition(endNode, endOff);
-                if (pos1 != null && pos2 != null)
-                {
-                    int selX = Math.Min(pos1.Value.x, pos2.Value.x);
-                    int selW = Math.Abs(pos2.Value.x - pos1.Value.x);
-                    if (selW < 4) selW = 4;
-                    g.FillRectangle(SystemColors.Highlight, selX, pos1.Value.y, selW, 16);
-                }
-            }
-        }
-
-        bool visible = (Environment.TickCount % (CursorBlinkInterval * 2)) < CursorBlinkInterval;
-        if (!visible) return;
-
-        var (node, offset) = FindTextNodeAt(_cursorPos);
-        var pos = _renderer?.GetTextPosition(node, offset);
-        if (pos == null)
-        {
-            int y = _renderer?.GetContentHeight() ?? 6;
-            if (y < 4) y = 4;
-            if (y >= Height) y = Height - 16;
-            g.DrawLine(ForeColor, 6, y, 6, Math.Min(y + 16, Height), 2);
-            return;
-        }
-
-        int cx = pos.Value.x;
-        int cy = pos.Value.y;
-        if (cy < 0 || cy >= Height) return;
-        g.DrawLine(ForeColor, cx, cy, cx, Math.Min(cy + 16, Height), 2);
-    }
-
-    protected internal override void OnMouseDown(EventArgs e)
-    {
-        if (e is MouseEventArgs mouseArgs && _renderer != null && _document != null)
-        {
-            _renderer.Layout(_document, Width - 4);
-
-            var (node, offset, _, _, _) = _renderer.HitTestTextWithPos(mouseArgs.X, mouseArgs.Y);
-            if (node is HtmlDomText textNode)
-            {
-                _cursorPos = FlatIndexOf(textNode, offset);
-                _selectionStart = _cursorPos;
-            }
-
-            var element = _renderer.HitTest(mouseArgs.X, mouseArgs.Y);
-            if (element != null && element.TagName == "a")
-            {
-                string? href = element.GetAttribute("href");
-                if (!string.IsNullOrEmpty(href))
-                {
-                    var linkEvent = new HtmlLinkEventArgs(href);
-                    LinkClick?.Invoke(this, linkEvent);
-                    if (!linkEvent.Handled && _linkBehavior == LinkBehavior.OpenInBrowser)
-                    {
-                        try { System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo { FileName = href, UseShellExecute = true }); }
-                        catch { }
-                    }
-                }
-            }
-        }
-
-        base.OnMouseDown(e);
-        _isMouseDown = true;
-        Focused = true;
-    }
-
-    protected internal override void OnMouseMove(EventArgs e)
-    {
-        if (_isMouseDown && e is MouseEventArgs mouseArgs && _renderer != null && _document != null)
-        {
-            _renderer.Layout(_document, Width - 4);
-            var (node, offset, _, _, _) = _renderer.HitTestTextWithPos(mouseArgs.X, mouseArgs.Y);
-            if (node is HtmlDomText textNode)
-                _cursorPos = FlatIndexOf(textNode, offset);
-            Invalidate();
-        }
-        base.OnMouseMove(e);
-    }
-
-    protected internal override void OnMouseUp(EventArgs e)
-    {
-        _isMouseDown = false;
-        base.OnMouseUp(e);
-    }
-
-    protected internal override void OnKeyDown(KeyEventArgs e)
-    {
-        if (_readOnly) { base.OnKeyDown(e); return; }
-
-        bool shift = e.Modifiers.HasFlag(ModifierKeys.Shift);
-
-        switch (e.KeyCode)
-        {
-            case Keys.Back: HandleBackspace(); break;
-            case Keys.Delete: HandleDelete(); break;
-            case Keys.Enter: HandleEnter(); break;
-            case Keys.Left: MoveLeft(shift); break;
-            case Keys.Right: MoveRight(shift); break;
-            case Keys.Up: case Keys.Down: break;
-            default: base.OnKeyDown(e); return;
-        }
-        e.Handled = true;
-        base.OnKeyDown(e);
-    }
-
-    protected internal override void OnTextInput(string text)
-    {
-        if (_readOnly || string.IsNullOrEmpty(text)) return;
-        foreach (char c in text) if (c < 32) return;
-        HandleTextInput(text);
-    }
-
-    private void HandleTextInput(string text)
-    {
-        if (_document?.DocumentElement == null) return;
-
-        var (node, offset) = FindTextNodeAt(_cursorPos);
-        node.TextContent = node.TextContent.Insert(offset, text);
-        _cursorPos += text.Length;
-        _editText = GetFlatText();
-        Invalidate();
-        ContentChanged?.Invoke(this, EventArgs.Empty);
-    }
-
-    private void HandleEnter()
-    {
-        if (_document?.DocumentElement == null) return;
-
-        var (node, offset) = FindTextNodeAt(_cursorPos);
-        string before = node.TextContent[..offset];
-        string after = node.TextContent[offset..];
-
-        node.TextContent = before;
-        var br = new HtmlDomElement("br");
-        var parent = node.Parent ?? _document.DocumentElement;
-        parent.InsertAfter(br, node);
-
-        if (after.Length > 0)
-        {
-            var afterNode = new HtmlDomText(after);
-            parent.InsertAfter(afterNode, br);
-        }
-
-        _editText = GetFlatText();
-        Invalidate();
-        ContentChanged?.Invoke(this, EventArgs.Empty);
-    }
-
-    private void HandleBackspace()
-    {
-        if (_document?.DocumentElement == null || _cursorPos <= 0) return;
-
-        var (node, offset) = FindTextNodeAt(_cursorPos);
-
-        if (offset > 0)
-        {
-            node.TextContent = node.TextContent.Remove(offset - 1, 1);
-            _cursorPos--;
-        }
-        else
-        {
-            int nodeIndex = AllTextNodes().IndexOf(node);
-            if (nodeIndex > 0)
-            {
-                var prevNodes = AllTextNodes();
-                var prevNode = prevNodes[nodeIndex - 1];
-                int prevOffset = prevNode.TextContent.Length;
-
-                prevNode.TextContent = prevNode.TextContent.Remove(prevOffset - 1, 1);
-                _cursorPos--;
-            }
-        }
-
-        _editText = GetFlatText();
-        Invalidate();
-        ContentChanged?.Invoke(this, EventArgs.Empty);
-    }
-
-    private void HandleDelete()
-    {
-        if (_document?.DocumentElement == null) return;
-
-        var (node, offset) = FindTextNodeAt(_cursorPos);
-
-        if (offset < node.TextContent.Length)
-        {
-            node.TextContent = node.TextContent.Remove(offset, 1);
-        }
-        else
-        {
-            var nodes = AllTextNodes();
-            int idx = nodes.IndexOf(node);
-            if (idx >= 0 && idx + 1 < nodes.Count)
-                nodes[idx + 1].TextContent = nodes[idx + 1].TextContent.Remove(0, 1);
-        }
-
-        _editText = GetFlatText();
-        Invalidate();
-        ContentChanged?.Invoke(this, EventArgs.Empty);
-    }
-
-    private void MoveLeft(bool shift)
-    {
-        if (_cursorPos <= 0) return;
-        if (!shift) _selectionStart = _cursorPos;
-        _cursorPos--;
-        Invalidate();
-    }
-
-    private void MoveRight(bool shift)
-    {
-        if (_cursorPos >= _editText.Length) return;
-        if (!shift) _selectionStart = _cursorPos;
-        _cursorPos++;
-        Invalidate();
-    }
-
     public override void OnThemeChanged(Theme newTheme)
     {
         if (!_backColorSet) _backColor = newTheme.TextBoxBackground;
@@ -424,28 +73,241 @@ public class HtmlBox : Control
 
     public void ApplyFormat(string formatType)
     {
-        int selStart = Math.Min(_selectionStart, _cursorPos);
-        int selEnd = Math.Max(_selectionStart, _cursorPos);
-        if (selStart >= selEnd) return;
-
-        string selected = _editText[selStart..selEnd];
-        string replacement = formatType switch
+        switch (formatType)
         {
-            "bold" => $"<b>{selected}</b>",
-            "italic" => $"<i>{selected}</i>",
-            "underline" => $"<u>{selected}</u>",
-            "insertUnorderedList" => $"<ul><li>{selected}</li></ul>",
-            "insertOrderedList" => $"<ol><li>{selected}</li></ol>",
-            "createLink" => $"<a href=\"https://example.com\">{selected}</a>",
-            "insertImage" => "<img src=\"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAABHNCSVQICAgIfAhkiAAAAAlwSFlzAAAA7AAAAOwBeShxvQAAABl0RVh0U29mdHdhcmUAd3d3Lmlua3NjYXBlLm9yZ5vuPBoAAAGJSURBVFiF7ZY9TsNAEIW/NYkUkhBKQYGgoKCgoKChoeEJPABcgCugoaGhoaGhoaGhoaGhoaGhoaGhoaGhoaGhoaGhoaGhoQGioECQAhISKSSKxMaWHUdZJCtK4pC1Zn/ezFvv2IkDfxj9+PHjZ9jb2/tmGHdJkmwBlwBToAlcAPdN0yiRSAT6/X7fMAx9IBAITk9P9yzL2gWmgUFgAhgBBoF+YBAYAIaBQaAfGAT6gAGgD+gF+oA+oA/oBfqAPqAX6AV6gB6gG+gGuoAuoAvoBLqALqAL6AQ6gQ6gA2gH2oE2oA1oAdqAZqAZaAKagWagGWgCmoBmoAloApqBJqAJaAKagCagEWgEGoFGoBFoBBqBRqAbaAbagdagNWgNWoPWoDVoDVqD1qA1aA1ag9agNWgNWoPWoDVoDVqD1qA1aA1ag9agNWgNWgM=\" />",
-            _ => selected
-        };
+            case "bold": _engine.ToggleBold(); break;
+            case "italic": _engine.ToggleItalic(); break;
+            case "underline": _engine.ToggleUnderline(); break;
+        }
+        Invalidate();
+        ContentChanged?.Invoke(this, EventArgs.Empty);
+    }
 
-        int startIndex = _html.IndexOf(selected, StringComparison.Ordinal);
-        if (startIndex < 0) return;
+    public override void Render(Graphics g)
+    {
+        if (!Visible) return;
 
-        _html = _html.Remove(startIndex, selected.Length).Insert(startIndex, replacement);
-        ParseHtml();
+        g.FillRectangle(BackColor, 0, 0, Width, Height);
+
+        if (Focused)
+            g.DrawRectangle(ThemeManager.CurrentTheme.TextBoxFocusBorder, 0, 0, Width, Height, 2);
+        else
+            g.DrawRectangle(ThemeManager.CurrentTheme.TextBoxBorder, 0, 0, Width, Height, 1);
+
+        _cursorScreenValid = false;
+
+        int y = 4;
+        float zoom = g.Zoom;
+        var doc = _engine.Document;
+
+        for (int bi = 0; bi < doc.Blocks.Count; bi++)
+        {
+            var block = doc.Blocks[bi];
+            int blockStartFlat = doc.ToFlatIndex(bi, 0, 0);
+            int blockEndFlat = blockStartFlat + block.TotalLength;
+
+            int blockTop = y;
+
+            foreach (var run in block.Runs)
+            {
+                if (string.IsNullOrEmpty(run.Text)) continue;
+
+                float fontSize = GetBlockFontSize(block.Type);
+                var font = new Font("Arial", fontSize, run.Style);
+                var measured = Platform.Platform.MeasureText(run.Text, font, zoom);
+                int runWidth = measured.width;
+                int runHeight = measured.height;
+
+                g.DrawString(run.Text, font, ForeColor, 4, y);
+
+                int runStartFlat = blockStartFlat + GetRunStartOffset(block, run);
+                int runEndFlat = runStartFlat + run.Length;
+
+                int selStart = Math.Min(_engine.CursorFlatIndex, _engine.SelectionFlatIndex);
+                int selEnd = Math.Max(_engine.CursorFlatIndex, _engine.SelectionFlatIndex);
+
+                if (selStart < runEndFlat && selEnd > runStartFlat)
+                {
+                    int localSelStart = Math.Max(0, selStart - runStartFlat);
+                    int localSelEnd = Math.Min(run.Length, selEnd - runStartFlat);
+
+                    string beforeSel = run.Text[..localSelStart];
+                    string selText = run.Text[localSelStart..localSelEnd];
+                    int selX = 4 + Platform.Platform.MeasureText(beforeSel, font, zoom).width;
+                    int selW = Platform.Platform.MeasureText(selText, font, zoom).width;
+                    g.FillRectangle(SystemColors.Highlight, selX, y, selW, runHeight);
+                    g.DrawString(selText, font, SystemColors.HighlightText, selX, y);
+                }
+
+                int cursorFlat = _engine.CursorFlatIndex;
+                if (!_cursorScreenValid && cursorFlat >= runStartFlat && cursorFlat <= runEndFlat)
+                {
+                    int localOff = cursorFlat - runStartFlat;
+                    string beforeCursor = run.Text[..localOff];
+                    _cursorScreenX = 4 + Platform.Platform.MeasureText(beforeCursor, font, zoom).width;
+                    _cursorScreenY = y;
+                    _cursorScreenValid = true;
+                }
+
+                y += runHeight;
+            }
+
+            if (y == blockTop)
+                y += (int)GetBlockFontSize(block.Type) + 4;
+        }
+
+        DrawCursor(g);
+        base.Render(g);
+    }
+
+    private static float GetBlockFontSize(RichTextBlockType type) => type switch
+    {
+        RichTextBlockType.Heading1 => 22,
+        RichTextBlockType.Heading2 => 18,
+        _ => 12
+    };
+
+    private static int GetRunStartOffset(RichTextBlock block, RichTextRun target)
+    {
+        int offset = 0;
+        foreach (var r in block.Runs)
+        {
+            if (r == target) return offset;
+            offset += r.Length;
+        }
+        return offset;
+    }
+
+    private void DrawCursor(Graphics g)
+    {
+        if (!Focused || _readOnly) return;
+
+        bool visible = (Environment.TickCount % (CursorBlinkInterval * 2)) < CursorBlinkInterval;
+        if (!visible) return;
+
+        if (!_cursorScreenValid) return;
+
+        int cy = _cursorScreenY;
+        if (cy < 0 || cy >= Height) return;
+        if (cy + 16 > Height) cy = Height - 16;
+
+        g.DrawLine(ForeColor, _cursorScreenX, cy, _cursorScreenX, cy + 14, 1);
+    }
+
+    protected internal override void OnMouseDown(EventArgs e)
+    {
+        if (e is MouseEventArgs mouseArgs)
+        {
+            int mx = mouseArgs.X;
+
+            float zoom = 1.0f;
+            int y = 4;
+            var doc = _engine.Document;
+
+            for (int bi = 0; bi < doc.Blocks.Count; bi++)
+            {
+                var block = doc.Blocks[bi];
+                float fontSize = GetBlockFontSize(block.Type);
+
+                foreach (var run in block.Runs)
+                {
+                    if (string.IsNullOrEmpty(run.Text)) continue;
+
+                    var font = new Font("Arial", fontSize, run.Style);
+                    var measured = Platform.Platform.MeasureText(run.Text, font, zoom);
+                    int runWidth = measured.width;
+                    int runHeight = measured.height;
+
+                    if (mouseArgs.Y >= y && mouseArgs.Y < y + runHeight)
+                    {
+                        int charOffset = FindCharAtX(run.Text, font, zoom, mx - 4);
+                        _engine.CursorBlock = bi;
+                        _engine.CursorRun = doc.Blocks[bi].Runs.IndexOf(run);
+                        _engine.CursorOffset = charOffset;
+                        _engine.SelectionBlock = _engine.CursorBlock;
+                        _engine.SelectionRun = _engine.CursorRun;
+                        _engine.SelectionOffset = _engine.CursorOffset;
+                        Invalidate();
+                        base.OnMouseDown(e);
+                        Focused = true;
+                        return;
+                    }
+
+                    y += runHeight;
+                }
+
+                if (block.Runs.Count == 0)
+                    y += (int)fontSize + 4;
+            }
+        }
+
+        base.OnMouseDown(e);
+        Focused = true;
+    }
+
+    private static int FindCharAtX(string text, Font font, float zoom, int targetX)
+    {
+        if (string.IsNullOrEmpty(text) || targetX <= 0) return 0;
+        int bestPos = 0;
+        int bestDist = int.MaxValue;
+
+        for (int i = 0; i <= text.Length; i++)
+        {
+            string sub = text[..i];
+            int w = Platform.Platform.MeasureText(sub, font, zoom).width;
+            int dist = Math.Abs(targetX - w);
+            if (dist < bestDist)
+            {
+                bestDist = dist;
+                bestPos = i;
+            }
+        }
+        return bestPos;
+    }
+
+    protected internal override void OnMouseMove(EventArgs e)
+    {
+        base.OnMouseMove(e);
+    }
+
+    protected internal override void OnKeyDown(KeyEventArgs e)
+    {
+        if (_readOnly) { base.OnKeyDown(e); return; }
+
+        bool shift = e.Modifiers.HasFlag(ModifierKeys.Shift);
+
+        switch (e.KeyCode)
+        {
+            case Keys.Back: _engine.HandleBackspace(); break;
+            case Keys.Delete: _engine.HandleDelete(); break;
+            case Keys.Enter: _engine.HandleEnter(); break;
+            case Keys.Left:
+                _engine.MoveLeft();
+                if (!shift) _engine.SelectionBlock = _engine.CursorBlock;
+                if (!shift) _engine.SelectionRun = _engine.CursorRun;
+                if (!shift) _engine.SelectionOffset = _engine.CursorOffset;
+                break;
+            case Keys.Right:
+                _engine.MoveRight();
+                if (!shift) _engine.SelectionBlock = _engine.CursorBlock;
+                if (!shift) _engine.SelectionRun = _engine.CursorRun;
+                if (!shift) _engine.SelectionOffset = _engine.CursorOffset;
+                break;
+            case Keys.Up: case Keys.Down: break;
+            default: base.OnKeyDown(e); return;
+        }
+        e.Handled = true;
+        Invalidate();
+        ContentChanged?.Invoke(this, EventArgs.Empty);
+        base.OnKeyDown(e);
+    }
+
+    protected internal override void OnTextInput(string text)
+    {
+        if (_readOnly || string.IsNullOrEmpty(text)) return;
+        foreach (char c in text) if (c < 32) return;
+        _engine.InsertText(text);
+        Invalidate();
         ContentChanged?.Invoke(this, EventArgs.Empty);
     }
 }
@@ -468,24 +330,4 @@ public class HtmlErrorEventArgs : EventArgs
 {
     public List<string> Errors { get; }
     public HtmlErrorEventArgs(List<string> errors) { Errors = errors; }
-}
-
-public class HtmlSelection
-{
-    public HtmlDomNode? StartNode { get; set; }
-    public int StartOffset { get; set; }
-    public HtmlDomNode? EndNode { get; set; }
-    public int EndOffset { get; set; }
-    public bool IsCollapsed => StartNode == EndNode && StartOffset == EndOffset;
-
-    public string GetSelectedText()
-    {
-        if (StartNode is HtmlDomText startText && EndNode is HtmlDomText endText)
-        {
-            if (StartNode == EndNode)
-                return startText.TextContent.Substring(StartOffset, EndOffset - StartOffset);
-            return startText.TextContent.Substring(StartOffset) + endText.TextContent.Substring(0, EndOffset);
-        }
-        return string.Empty;
-    }
 }

@@ -393,11 +393,19 @@ class Program
 
         var disabledButton = new Button { Text = "Disabled", Location = new Point(140, 95), Size = new Size(120, 30), Enabled = false };
 
+        var spinnerLabel = new Label { Text = "Spinner:", Location = new Point(10, 140), Size = new Size(50, 20) };
+        var spinner = new Spinner { Location = new Point(60, 132), Size = new Size(36, 36), Active = true, AutoStart = false };
+        var spinnerButton = new Button { Text = "Toggle", Location = new Point(110, 135), Size = new Size(140, 28) };
+        spinnerButton.Click += (s, e) => spinner.Active = !spinner.Active;
+
         groupBox4.Controls.Add(progressBar);
         groupBox4.Controls.Add(progressButton);
         groupBox4.Controls.Add(resetProgressButton);
         groupBox4.Controls.Add(testButton);
         groupBox4.Controls.Add(disabledButton);
+        groupBox4.Controls.Add(spinnerLabel);
+        groupBox4.Controls.Add(spinner);
+        groupBox4.Controls.Add(spinnerButton);
 
         page.Controls.Add(groupBox1);
         page.Controls.Add(groupBox2);
