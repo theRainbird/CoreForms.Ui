@@ -16,6 +16,11 @@ public class DataGridViewColumn
     public string HeaderText { get; set; } = "";
 
     /// <summary>
+    /// Gets or sets the property name in the data source to bind to.
+    /// </summary>
+    public string DataPropertyName { get; set; } = "";
+
+    /// <summary>
     /// Gets or sets the width of the column.
     /// </summary>
     public int Width { get; set; } = 100;

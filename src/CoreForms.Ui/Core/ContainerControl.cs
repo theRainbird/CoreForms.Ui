@@ -1,4 +1,5 @@
 using CoreForms.Ui.Core;
+using CoreForms.Ui.Data;
 
 namespace CoreForms.Ui.Core;
 
@@ -8,6 +9,12 @@ namespace CoreForms.Ui.Core;
 public class ContainerControl : Control
 {
     private Control? _activeControl;
+    private BindingContext? _bindingContext;
+
+    /// <summary>
+    /// Gets the binding context for this container control.
+    /// </summary>
+    public BindingContext BindingContext => _bindingContext ??= new BindingContext();
 
     /// <summary>
     /// Gets or sets the currently active control within the container.

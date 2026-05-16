@@ -643,6 +643,7 @@ public static class Platform
         renderer.Clear(form.BackColor);
 
         using var g = new Graphics();
+        g.MeasureText = (text, font, zoom) => fontRenderer.MeasureText(text, font, zoom);
         form.Render(g);
 
         foreach (var cmd in g.GetCommands())
@@ -651,6 +652,7 @@ public static class Platform
         }
 
         using var gOverlay = new Graphics();
+        gOverlay.MeasureText = (text, font, zoom) => fontRenderer.MeasureText(text, font, zoom);
         form.RenderOverlay(gOverlay);
 
         foreach (var cmd in gOverlay.GetCommands())

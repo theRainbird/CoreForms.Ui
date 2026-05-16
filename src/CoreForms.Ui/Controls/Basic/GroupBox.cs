@@ -69,9 +69,6 @@ public class GroupBox : ContainerControl
         float zoom = EffectiveZoom;
         int offsetY = ContentOffsetY;
 
-        int titleHeight = (int)(font.Size * zoom);
-        int titleWidth = Text.Length > 0 ? (int)(Text.Length * font.Size * zoom * 0.6f) + 10 : 0;
-
         g.FillRectangle(BackColor, 0, 0, Width, Height);
 
         g.Save();
@@ -79,19 +76,30 @@ public class GroupBox : ContainerControl
         base.Render(g);
         g.Restore();
 
-        if (!string.IsNullOrEmpty(Text))
-        {
-            var textColor = Enabled ? ForeColor : theme.GrayText;
-            g.FillRectangle(BackColor, 4, 0, titleWidth, titleHeight);
-            g.DrawString(Text, font, textColor, 6, 0);
-        }
-
-        g.DrawLine(borderColor, 2, offsetY, 4, offsetY, 1);
-        g.DrawLine(borderColor, titleWidth + 4, offsetY, Width - 1, offsetY, 1);
+        int textX = 10;
 
         g.DrawLine(borderColor, 0, offsetY, 0, Height - 1, 1);
         g.DrawLine(borderColor, 0, Height - 1, Width - 1, Height - 1, 1);
         g.DrawLine(borderColor, Width - 1, offsetY, Width - 1, Height - 1, 1);
+
+        if (!string.IsNullOrEmpty(Text))
+        {
+            (int textWidth, _) = g.MeasureString(Text, font, zoom);
+            var textColor = Enabled ? ForeColor : theme.GrayText;
+            g.DrawString(Text, font, textColor, textX, 0);
+
+            int leftEnd = textX - 10;
+            if (leftEnd > 0)
+                g.DrawLine(borderColor, 0, offsetY, leftEnd, offsetY, 1);
+
+            int rightStart = textX + textWidth + 10;
+            if (rightStart < Width - 1)
+                g.DrawLine(borderColor, rightStart, offsetY, Width - 1, offsetY, 1);
+        }
+        else
+        {
+            g.DrawLine(borderColor, 0, offsetY, Width - 1, offsetY, 1);
+        }
     }
 
     /// <summary>

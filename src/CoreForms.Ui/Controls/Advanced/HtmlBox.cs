@@ -207,10 +207,10 @@ public class HtmlBox : Control
         if (e is MouseEventArgs mouseArgs)
         {
             int mx = mouseArgs.X;
-
-            float zoom = 1.0f;
+            float zoom = EffectiveZoom;
             int y = 4;
             var doc = _engine.Document;
+            int lastBlock = -1, lastRun = -1, lastOffset = 0;
 
             for (int bi = 0; bi < doc.Blocks.Count; bi++)
             {
@@ -223,12 +223,15 @@ public class HtmlBox : Control
 
                     var font = new Font("Arial", fontSize, run.Style);
                     var measured = Platform.Platform.MeasureText(run.Text, font, zoom);
-                    int runWidth = measured.width;
                     int runHeight = measured.height;
+
+                    lastBlock = bi;
+                    lastRun = doc.Blocks[bi].Runs.IndexOf(run);
+                    lastOffset = run.Length;
 
                     if (mouseArgs.Y >= y && mouseArgs.Y < y + runHeight)
                     {
-                        int charOffset = FindCharAtX(run.Text, font, zoom, mx - 4);
+                        int charOffset = FindCharAtX(run.Text, font, zoom, mx - (int)(4 * zoom));
                         _engine.CursorBlock = bi;
                         _engine.CursorRun = doc.Blocks[bi].Runs.IndexOf(run);
                         _engine.CursorOffset = charOffset;
@@ -247,6 +250,18 @@ public class HtmlBox : Control
 
                 if (block.Runs.Count == 0)
                     y += (int)fontSize + 4;
+            }
+
+            if (lastBlock >= 0 && lastRun >= 0)
+            {
+                _engine.CursorBlock = lastBlock;
+                _engine.CursorRun = lastRun;
+                _engine.CursorOffset = lastOffset;
+                _engine.SelectionBlock = _engine.CursorBlock;
+                _engine.SelectionRun = _engine.CursorRun;
+                _engine.SelectionOffset = _engine.CursorOffset;
+                Invalidate();
+                ContentChanged?.Invoke(this, EventArgs.Empty);
             }
         }
 

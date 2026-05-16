@@ -35,6 +35,37 @@ namespace CoreForms.Ui.Rendering;
     }
 
     /// <summary>
+    /// Delegate for measuring text dimensions.
+    /// </summary>
+    /// <param name="text">The text to measure.</param>
+    /// <param name="font">The font to use.</param>
+    /// <param name="zoom">The zoom factor.</param>
+    /// <returns>A tuple with width and height.</returns>
+    public delegate (int width, int height) MeasureTextCallback(string text, Font font, float zoom);
+
+    /// <summary>
+    /// Gets or sets the callback for measuring text dimensions.
+    /// Set by the platform layer to enable accurate text measurement.
+    /// </summary>
+    public MeasureTextCallback? MeasureText { get; set; }
+
+    /// <summary>
+    /// Measures the specified text using the current font and zoom.
+    /// </summary>
+    /// <param name="text">The text to measure.</param>
+    /// <param name="font">The font to use.</param>
+    /// <param name="zoom">The zoom factor. Defaults to the current graphics zoom if not specified.</param>
+    /// <returns>A tuple containing (width, height) in pixels.</returns>
+    public (int width, int height) MeasureString(string text, Font font, float zoom = 1.0f)
+    {
+        if (MeasureText != null)
+            return MeasureText(text, font, zoom);
+
+        float scaledSize = font.Size * zoom;
+        return ((int)(text.Length * scaledSize * 0.6f), (int)scaledSize);
+    }
+
+    /// <summary>
     /// Gets the current clip bounds, if any.
     /// </summary>
     public Rectangle? ClipBounds => _clipStack.Count > 0 ? _clipStack.Peek() : null;

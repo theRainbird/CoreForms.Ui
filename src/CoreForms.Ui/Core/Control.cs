@@ -1,5 +1,7 @@
 using System;
 using System.Collections.Generic;
+using System.ComponentModel;
+using CoreForms.Ui.Data;
 using CoreForms.Ui.Rendering;
 using CoreForms.Ui.Theming;
 
@@ -8,7 +10,7 @@ namespace CoreForms.Ui.Core;
 /// <summary>
 /// Base class for all UI controls, providing properties, methods, and events for visual elements.
 /// </summary>
-public class Control : Component, IThemeChangeSubscriber
+public class Control : Component, IThemeChangeSubscriber, INotifyPropertyChanged
 {
     private string _name = string.Empty;
     private Control? _parent;
@@ -100,6 +102,27 @@ public class Control : Component, IThemeChangeSubscriber
     }
 
     /// <summary>
+    /// Occurs when a property value changes.
+    /// </summary>
+    public event PropertyChangedEventHandler? PropertyChanged;
+
+    /// <summary>
+    /// Raises the PropertyChanged event for the specified property.
+    /// </summary>
+    /// <param name="propertyName">The name of the property that changed.</param>
+    protected virtual void OnPropertyChanged(string propertyName)
+    {
+        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+    }
+
+    private ControlBindingsCollection? _dataBindings;
+
+    /// <summary>
+    /// Gets the collection of data bindings for this control.
+    /// </summary>
+    public ControlBindingsCollection DataBindings => _dataBindings ??= new ControlBindingsCollection(this);
+
+    /// <summary>
     /// Gets or sets the name of the control.
     /// </summary>
     public string Name
@@ -137,6 +160,7 @@ public class Control : Component, IThemeChangeSubscriber
             {
                 _bounds = value;
                 OnBoundsChanged();
+                OnPropertyChanged(nameof(Bounds));
             }
         }
     }
@@ -216,6 +240,7 @@ public class Control : Component, IThemeChangeSubscriber
             {
                 _visible = value;
                 OnVisibleChanged();
+                OnPropertyChanged(nameof(Visible));
             }
         }
     }
@@ -232,6 +257,7 @@ public class Control : Component, IThemeChangeSubscriber
             {
                 _enabled = value;
                 OnEnabledChanged();
+                OnPropertyChanged(nameof(Enabled));
             }
         }
     }
@@ -245,8 +271,13 @@ public class Control : Component, IThemeChangeSubscriber
         get => _backColor;
         set
         {
-            _backColor = value;
-            _backColorSet = true;
+            if (_backColor != value)
+            {
+                _backColor = value;
+                _backColorSet = true;
+                OnPropertyChanged(nameof(BackColor));
+                Invalidate();
+            }
         }
     }
 
@@ -259,8 +290,13 @@ public class Control : Component, IThemeChangeSubscriber
         get => _foreColor;
         set
         {
-            _foreColor = value;
-            _foreColorSet = true;
+            if (_foreColor != value)
+            {
+                _foreColor = value;
+                _foreColorSet = true;
+                OnPropertyChanged(nameof(ForeColor));
+                Invalidate();
+            }
         }
     }
 
@@ -271,7 +307,15 @@ public class Control : Component, IThemeChangeSubscriber
     public Font? Font
     {
         get => _font;
-        set => _font = value;
+        set
+        {
+            if (_font != value)
+            {
+                _font = value;
+                OnPropertyChanged(nameof(Font));
+                Invalidate();
+            }
+        }
     }
 
     /// <summary>
@@ -302,6 +346,7 @@ public class Control : Component, IThemeChangeSubscriber
             {
                 _text = value;
                 OnTextChanged();
+                OnPropertyChanged(nameof(Text));
             }
         }
     }

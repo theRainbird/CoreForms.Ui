@@ -1,4 +1,6 @@
+using System.ComponentModel;
 using CoreForms.Ui.Core;
+using CoreForms.Ui.Data;
 using CoreForms.Ui.Theming;
 using Graphics = CoreForms.Ui.Rendering.Graphics;
 
@@ -15,6 +17,9 @@ public class DataGridView : ContainerControl
     private int _selectedColumnIndex = -1;
     private int _rowHeight = 30;
     private int _columnWidth = 100;
+    private object? _dataSource;
+    private string _dataMember = string.Empty;
+    private bool _dataSourceUpdating;
     private bool _allowUserToAddRows = true;
     private bool _allowUserToDeleteRows = true;
     private bool _readOnly;
@@ -177,6 +182,39 @@ public class DataGridView : ContainerControl
     }
 
     /// <summary>
+    /// Gets or sets the data source for this DataGridView.
+    /// </summary>
+    public object? DataSource
+    {
+        get => _dataSource;
+        set
+        {
+            if (_dataSource != value)
+            {
+                _dataSource = value;
+                OnDataSourceChanged();
+                OnPropertyChanged(nameof(DataSource));
+            }
+        }
+    }
+
+    /// <summary>
+    /// Gets or sets the data member (property path) for nested list data sources.
+    /// </summary>
+    public string DataMember
+    {
+        get => _dataMember;
+        set
+        {
+            if (_dataMember != value)
+            {
+                _dataMember = value;
+                OnPropertyChanged(nameof(DataMember));
+            }
+        }
+    }
+
+    /// <summary>
     /// Gets the selected row.
     /// </summary>
     public DataGridViewRow? SelectedRow => _selectedRowIndex >= 0 && _selectedRowIndex < _rows.Count
@@ -225,10 +263,29 @@ public class DataGridView : ContainerControl
     public event EventHandler<DataGridViewCellEventArgs>? CellValueChanged;
 
     /// <summary>
-    /// Raises the SelectionChanged event.
+    /// Raises the SelectionChanged event and syncs the CurrencyManager position.
     /// </summary>
     protected virtual void OnSelectionChanged()
     {
+        if (!_dataSourceUpdating && _dataSource != null && _selectedRowIndex >= 0)
+        {
+            var form = FindForm();
+            if (form?.BindingContext != null)
+            {
+                try
+                {
+                    var mgr = form.BindingContext[_dataSource] as CurrencyManager;
+                    if (mgr != null)
+                    {
+                        mgr.Position = _selectedRowIndex;
+                    }
+                }
+                catch
+                {
+                    // Ignore binding context errors
+                }
+            }
+        }
         SelectionChanged?.Invoke(this, EventArgs.Empty);
     }
 
@@ -598,6 +655,179 @@ public class DataGridView : ContainerControl
             Invalidate();
         }
         base.OnMouseWheel(e);
+    }
+
+    /// <summary>
+    /// Called when the DataSource property changes. Populates rows from the data source.
+    /// </summary>
+    protected virtual void OnDataSourceChanged()
+    {
+        if (_dataSourceUpdating) return;
+        _dataSourceUpdating = true;
+        try
+        {
+            _rows.Clear();
+            _selectedRowIndex = -1;
+            _selectedColumnIndex = -1;
+
+            if (_dataSource is System.Collections.IEnumerable enumerable && _dataSource is not string)
+            {
+                foreach (var item in enumerable)
+                {
+                    var row = CreateRowFromDataItem(item);
+                    _rows.Add(row);
+                }
+            }
+
+            if (_dataSource is IBindingList bindingList)
+            {
+                bindingList.ListChanged += OnDataSourceListChanged;
+            }
+
+            Invalidate();
+        }
+        finally
+        {
+            _dataSourceUpdating = false;
+        }
+    }
+
+    /// <summary>
+    /// Creates a DataGridViewRow from a data source item, populating cells via DataPropertyName.
+    /// </summary>
+    /// <param name="item">The data source item.</param>
+    /// <returns>The populated row.</returns>
+    protected DataGridViewRow CreateRowFromDataItem(object? item)
+    {
+        var row = new DataGridViewRow { DataBoundItem = item };
+        for (int col = 0; col < _columns.Count; col++)
+        {
+            var colDef = _columns[col];
+            object? value = null;
+
+            if (item != null && !string.IsNullOrEmpty(colDef.DataPropertyName))
+            {
+                var prop = item.GetType().GetProperty(colDef.DataPropertyName);
+                if (prop != null)
+                {
+                    value = prop.GetValue(item);
+                }
+            }
+
+            row.Cells.Add(new DataGridViewCell { Value = value });
+        }
+        return row;
+    }
+
+    /// <summary>
+    /// Handles ListChanged events from the data source to keep rows in sync.
+    /// </summary>
+    protected virtual void OnDataSourceListChanged(object? sender, ListChangedEventArgs e)
+    {
+        if (_dataSource is not IBindingList bindingList)
+            return;
+
+        switch (e.ListChangedType)
+        {
+            case ListChangedType.ItemAdded:
+                if (e.NewIndex >= 0 && e.NewIndex <= _rows.Count)
+                {
+                    var item = bindingList[e.NewIndex];
+                    var newRow = CreateRowFromDataItem(item);
+                    if (e.NewIndex < _rows.Count)
+                    {
+                        var tempRows = new List<DataGridViewRow>();
+                        while (_rows.Count > e.NewIndex)
+                        {
+                            tempRows.Add(_rows[_rows.Count - 1]);
+                            _rows.Remove(_rows[_rows.Count - 1]);
+                        }
+                        _rows.Add(newRow);
+                        while (tempRows.Count > 0)
+                        {
+                            var idx = _rows.Count;
+                            var r = tempRows[tempRows.Count - 1];
+                            tempRows.RemoveAt(tempRows.Count - 1);
+                            // re-wrap existing item
+                            _rows.Add(r);
+                        }
+                    }
+                    else
+                    {
+                        _rows.Add(newRow);
+                    }
+                    Invalidate();
+                }
+                break;
+
+            case ListChangedType.ItemDeleted:
+                if (e.NewIndex >= 0 && e.NewIndex < _rows.Count)
+                {
+                    // remove actual row data
+                    var tempRows = new List<DataGridViewRow>();
+                    for (int i = 0; i < _rows.Count; i++)
+                    {
+                        if (i != e.NewIndex)
+                            tempRows.Add(_rows[i]);
+                    }
+                    _rows.Clear();
+                    foreach (var r in tempRows)
+                        _rows.Add(r);
+                    if (_selectedRowIndex >= _rows.Count)
+                        _selectedRowIndex = Math.Max(0, _rows.Count - 1);
+                    Invalidate();
+                }
+                break;
+
+            case ListChangedType.ItemChanged:
+                if (e.NewIndex >= 0 && e.NewIndex < _rows.Count && e.NewIndex < bindingList.Count)
+                {
+                    var item = bindingList[e.NewIndex];
+                    _rows[e.NewIndex].DataBoundItem = item;
+                    if (!string.IsNullOrEmpty(_columns[0].DataPropertyName))
+                    {
+                        var updatedRow = CreateRowFromDataItem(item);
+                        _rows[e.NewIndex].Cells.Clear();
+                        foreach (var cell in updatedRow.Cells)
+                            _rows[e.NewIndex].Cells.Add(cell);
+                    }
+                    Invalidate();
+                }
+                break;
+
+            case ListChangedType.Reset:
+                _rows.Clear();
+                foreach (var item in bindingList)
+                {
+                    _rows.Add(CreateRowFromDataItem(item));
+                }
+                _selectedRowIndex = _rows.Count > 0 ? 0 : -1;
+                Invalidate();
+                break;
+        }
+    }
+
+    internal void NotifyCellValueChanged(int columnIndex, int rowIndex, object? newValue)
+    {
+        if (_dataSourceUpdating) return;
+
+        if (_dataSource is IBindingList && rowIndex >= 0 && rowIndex < _rows.Count)
+        {
+            var row = _rows[rowIndex];
+            var dataItem = row.DataBoundItem;
+            if (dataItem != null && columnIndex >= 0 && columnIndex < _columns.Count)
+            {
+                var colDef = _columns[columnIndex];
+                if (!string.IsNullOrEmpty(colDef.DataPropertyName))
+                {
+                    var prop = dataItem.GetType().GetProperty(colDef.DataPropertyName);
+                    if (prop != null && prop.CanWrite)
+                    {
+                        prop.SetValue(dataItem, newValue);
+                    }
+                }
+            }
+        }
     }
 
     /// <summary>

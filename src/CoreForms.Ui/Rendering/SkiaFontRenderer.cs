@@ -48,7 +48,8 @@ namespace CoreForms.Ui.Rendering;
             Color = new SKColor(color.R, color.G, color.B, color.A),
             IsAntialias = true,
             Style = SKPaintStyle.Fill,
-            TextSize = scaledSize
+            TextSize = scaledSize,
+            FakeBoldText = font.Style.HasFlag(Core.FontStyle.Bold)
         };
 
         canvas.DrawText(text, x, y + scaledSize, skFont, paint);
@@ -77,6 +78,8 @@ namespace CoreForms.Ui.Rendering;
         ushort[] glyphs = new ushort[text.Length];
         skFont.GetGlyphs(text, glyphs);
         float width = skFont.MeasureText(glyphs);
+        if (font.Style.HasFlag(Core.FontStyle.Bold))
+            width += text.Length * font.Size * zoom * 0.03f;
         return ((int)width, (int)(metrics.Descent - metrics.Ascent));
     }
 

@@ -64,6 +64,7 @@ public class ProgressBar : Control
             {
                 _value = value;
                 OnValueChanged();
+                OnPropertyChanged(nameof(Value));
                 Invalidate();
             }
         }

@@ -1,9 +1,11 @@
+using System.ComponentModel;
 using CoreForms.Ui.Controls.Advanced;
 using CoreForms.Ui.Core;
 using CoreForms.Ui.Controls.Basic;
 using CoreForms.Ui.Controls.Containers;
 using CoreForms.Ui.Controls.Separators;
 using CoreForms.Ui.Controls;
+using CoreForms.Ui.Data;
 using CoreForms.Ui.WebBrowser.Controls;
 using CoreForms.Ui.Theming;
 using CoreForms.Ui.Resources;
@@ -296,6 +298,7 @@ class Program
 
         tabControl.AddTabPage(CreateBasicControlsPage());
         tabControl.AddTabPage(CreateDataGridPage());
+        tabControl.AddTabPage(CreateDataBindingPage());
         tabControl.AddTabPage(CreateMessageBoxPage());
         tabControl.AddTabPage(CreateDockAnchorPage());
         tabControl.AddTabPage(CreateTreeViewPage());
@@ -439,6 +442,8 @@ class Program
         return page;
     }
 
+    private static BindingList<Person>? _personList;
+
     static TabPage CreateDataGridPage()
     {
         var page = new TabPage { Text = "Data Grid" };
@@ -451,27 +456,254 @@ class Program
             RowHeadersVisible = true,
             Name = "dataGrid"
         };
-        dataGrid.Columns.Add(new Controls.Advanced.DataGridViewColumn { HeaderText = "ID", Width = 50, Name = "Id" });
-        dataGrid.Columns.Add(new Controls.Advanced.DataGridViewColumn { HeaderText = "Name", Width = 150, Name = "Name" });
-        dataGrid.Columns.Add(new Controls.Advanced.DataGridViewColumn { HeaderText = "Email", Width = 200, Name = "Email" });
-        dataGrid.Columns.Add(new Controls.Advanced.DataGridViewColumn { HeaderText = "Status", Width = 100, Name = "Status" });
-        dataGrid.AddRow(1, "John Doe", "john@example.com", "Active");
-        dataGrid.AddRow(2, "Jane Smith", "jane@example.com", "Active");
-        dataGrid.AddRow(3, "Bob Johnson", "bob@example.com", "Inactive");
-        dataGrid.AddRow(4, "Alice Brown", "alice@example.com", "Active");
-        dataGrid.AddRow(5, "Charlie Wilson", "charlie@example.com", "Pending");
+
+        dataGrid.Columns.Add(new Controls.Advanced.DataGridViewColumn
+            { HeaderText = "ID", Width = 50, Name = "Id", DataPropertyName = "Id" });
+        dataGrid.Columns.Add(new Controls.Advanced.DataGridViewColumn
+            { HeaderText = "Name", Width = 150, Name = "Name", DataPropertyName = "Name" });
+        dataGrid.Columns.Add(new Controls.Advanced.DataGridViewColumn
+            { HeaderText = "Email", Width = 200, Name = "Email", DataPropertyName = "Email" });
+        dataGrid.Columns.Add(new Controls.Advanced.DataGridViewColumn
+            { HeaderText = "Status", Width = 100, Name = "Status", DataPropertyName = "Status" });
+
+        _personList = new BindingList<Person>
+        {
+            new Person(1, "John Doe", "john@example.com", "Active"),
+            new Person(2, "Jane Smith", "jane@example.com", "Active"),
+            new Person(3, "Bob Johnson", "bob@example.com", "Inactive"),
+            new Person(4, "Alice Brown", "alice@example.com", "Active"),
+            new Person(5, "Charlie Wilson", "charlie@example.com", "Pending")
+        };
+        dataGrid.DataSource = _personList;
 
         var addButton = new Button { Text = "Add Row", Location = new Point(10, 270), Size = new Size(130, 30), Name = "addButton" };
-        var removeButton = new Button { Text = "Remove Row", Location = new Point(150, 270), Size = new Size(130, 30) };
+        addButton.Click += (s, e) =>
+        {
+            var nextId = (_personList.Count > 0 ? _personList[^1].Id : 0) + 1;
+            _personList.Add(new Person(nextId, "New Person", "new@example.com", "Active"));
+        };
+
+        var removeButton = new Button { Text = "Remove Last", Location = new Point(150, 270), Size = new Size(130, 30) };
         removeButton.Click += (s, e) =>
         {
-            if (dataGrid.Rows.Count > 0)
-                dataGrid.Rows.Remove(dataGrid.Rows[dataGrid.Rows.Count - 1]);
+            if (_personList.Count > 0)
+                _personList.RemoveAt(_personList.Count - 1);
         };
 
         page.Controls.Add(dataGrid);
         page.Controls.Add(addButton);
         page.Controls.Add(removeButton);
+
+        return page;
+    }
+
+    static TabPage CreateDataBindingPage()
+    {
+        var page = new TabPage { Text = "Data Binding" };
+
+        // ===== Data source =====
+        var contacts = new BindingList<Person>
+        {
+            new Person(1, "Alice Wonder", "alice@example.com", "Active"),
+            new Person(2, "Bob Builder", "bob@example.com", "Active"),
+            new Person(3, "Charlie Brown", "charlie@example.com", "Inactive")
+        };
+        var bindingSource = new BindingSource(contacts);
+
+        // ===== Left: List + Navigation =====
+        var listGroup = new GroupBox
+        {
+            Text = "Contact List (BindingSource)",
+            Location = new Point(10, 10),
+            Size = new Size(220, 350)
+        };
+
+        var contactListBox = new ListBox
+        {
+            Location = new Point(10, 25),
+            Size = new Size(195, 200),
+            TabStop = true
+        };
+        contactListBox.DataSource = contacts;
+        contactListBox.DisplayMember = "Name";
+
+        var navPanel = new Panel { Location = new Point(10, 235), Size = new Size(195, 100) };
+
+        var firstButton = new Button { Text = "|<", Location = new Point(0, 0), Size = new Size(45, 28) };
+        var prevButton = new Button { Text = "<", Location = new Point(50, 0), Size = new Size(45, 28) };
+        var nextButton = new Button { Text = ">", Location = new Point(100, 0), Size = new Size(45, 28) };
+        var lastButton = new Button { Text = ">|", Location = new Point(150, 0), Size = new Size(45, 28) };
+
+        firstButton.Click += (s, e) => bindingSource.MoveFirst();
+        prevButton.Click += (s, e) => bindingSource.MovePrevious();
+        nextButton.Click += (s, e) => bindingSource.MoveNext();
+        lastButton.Click += (s, e) => bindingSource.MoveLast();
+
+        var addPersonButton = new Button
+        {
+            Text = "Add Contact",
+            Location = new Point(0, 35),
+            Size = new Size(95, 28)
+        };
+        addPersonButton.Click += (s, e) =>
+        {
+            var nextId = contacts.Count > 0 ? contacts[^1].Id + 1 : 1;
+            contacts.Add(new Person(nextId, "New Contact", "new@example.com", "Active"));
+            bindingSource.MoveLast();
+        };
+
+        var removePersonButton = new Button
+        {
+            Text = "Remove",
+            Location = new Point(100, 35),
+            Size = new Size(95, 28)
+        };
+        removePersonButton.Click += (s, e) =>
+        {
+            if (bindingSource.Position >= 0 && bindingSource.Count > 0)
+            {
+                contacts.RemoveAt(bindingSource.Position);
+            }
+        };
+
+        var positionLabel = new Label
+        {
+            Text = "Position: 0 / 0",
+            Location = new Point(0, 70),
+            Size = new Size(195, 20)
+        };
+
+        bindingSource.PositionChanged += (s, e) =>
+        {
+            positionLabel.Text = $"Position: {bindingSource.Position + 1} / {bindingSource.Count}";
+        };
+        positionLabel.Text = $"Position: 1 / {contacts.Count}";
+
+        navPanel.Controls.Add(firstButton);
+        navPanel.Controls.Add(prevButton);
+        navPanel.Controls.Add(nextButton);
+        navPanel.Controls.Add(lastButton);
+        navPanel.Controls.Add(addPersonButton);
+        navPanel.Controls.Add(removePersonButton);
+        navPanel.Controls.Add(positionLabel);
+
+        listGroup.Controls.Add(contactListBox);
+        listGroup.Controls.Add(navPanel);
+
+        // ===== Right: Detail editing with Bindings =====
+        var detailGroup = new GroupBox
+        {
+            Text = "Contact Details (DataBindings)",
+            Location = new Point(240, 10),
+            Size = new Size(350, 350)
+        };
+
+        var idLabel = new Label { Text = "ID:", Location = new Point(10, 25), Size = new Size(60, 20) };
+        var idValue = new Label { Text = "", Location = new Point(80, 25), Size = new Size(60, 20) };
+
+        var nameLabel = new Label { Text = "Name:", Location = new Point(10, 55), Size = new Size(60, 20) };
+        var nameTextBox = new TextBox { Location = new Point(80, 55), Size = new Size(250, 25) };
+
+        var emailLabel = new Label { Text = "Email:", Location = new Point(10, 90), Size = new Size(60, 20) };
+        var emailTextBox = new TextBox { Location = new Point(80, 90), Size = new Size(250, 25) };
+
+        var statusLabel_ = new Label { Text = "Status:", Location = new Point(10, 125), Size = new Size(60, 20) };
+        var statusComboBox = new ComboBox { Location = new Point(80, 125), Size = new Size(150, 25) };
+        statusComboBox.Items.Add("Active");
+        statusComboBox.Items.Add("Inactive");
+        statusComboBox.Items.Add("Pending");
+
+        var isActiveCheckBox = new CheckBox
+        {
+            Text = "Is Active",
+            Location = new Point(10, 165),
+            Size = new Size(120, 25)
+        };
+
+        var feedbackLabel = new Label
+        {
+            Text = "Bindings push changes automatically.",
+            Location = new Point(10, 210),
+            Size = new Size(320, 40)
+        };
+
+        detailGroup.Controls.Add(idLabel);
+        detailGroup.Controls.Add(idValue);
+        detailGroup.Controls.Add(nameLabel);
+        detailGroup.Controls.Add(nameTextBox);
+        detailGroup.Controls.Add(emailLabel);
+        detailGroup.Controls.Add(emailTextBox);
+        detailGroup.Controls.Add(statusLabel_);
+        detailGroup.Controls.Add(statusComboBox);
+        detailGroup.Controls.Add(isActiveCheckBox);
+        detailGroup.Controls.Add(feedbackLabel);
+
+        // ===== Bottom: ComboBox + Live Preview =====
+        var comboGroup = new GroupBox
+        {
+            Text = "ComboBox DataSource",
+            Location = new Point(10, 370),
+            Size = new Size(250, 100)
+        };
+        var contactCombo = new ComboBox
+        {
+            Location = new Point(10, 25),
+            Size = new Size(225, 25)
+        };
+        contactCombo.DataSource = contacts;
+        contactCombo.DisplayMember = "Name";
+        contactCombo.ValueMember = "Id";
+
+        var selectedValueLabel = new Label
+        {
+            Text = "SelectedValue: -",
+            Location = new Point(10, 60),
+            Size = new Size(225, 20)
+        };
+        contactCombo.SelectedIndexChanged += (s, e) =>
+        {
+            selectedValueLabel.Text = $"SelectedValue: {contactCombo.SelectedValue}";
+        };
+
+        comboGroup.Controls.Add(contactCombo);
+        comboGroup.Controls.Add(selectedValueLabel);
+
+        // ===== Bindings (after controls created) =====
+        // Bind detail controls to bindingSource's current item
+        // We bind to the BindingSource itself — it forwards change events
+        nameTextBox.DataBindings.Add("Text", bindingSource, "Name");
+        emailTextBox.DataBindings.Add("Text", bindingSource, "Email");
+        isActiveCheckBox.DataBindings.Add("Checked", bindingSource, "IsActive");
+
+        // Update ID label and status when current changes
+        bindingSource.CurrentChanged += (s, e) =>
+        {
+            var current = bindingSource.Current as Person;
+            if (current != null)
+            {
+                idValue.Text = current.Id.ToString();
+                statusComboBox.Text = current.Status;
+            }
+        };
+        // Initial display
+        if (bindingSource.Current is Person firstPerson)
+        {
+            idValue.Text = firstPerson.Id.ToString();
+            statusComboBox.Text = firstPerson.Status;
+        }
+
+        // Sync status back to person when ComboBox changes
+        statusComboBox.SelectedIndexChanged += (s, e) =>
+        {
+            if (bindingSource.Current is Person p)
+            {
+                p.Status = statusComboBox.Text;
+            }
+        };
+
+        page.Controls.Add(listGroup);
+        page.Controls.Add(detailGroup);
+        page.Controls.Add(comboGroup);
 
         return page;
     }
@@ -1056,6 +1288,76 @@ class Program
         page.Controls.Add(htmlBox);
 
         return page;
+    }
+}
+
+public class Person : INotifyPropertyChanged
+{
+    private int _id;
+    private string _name;
+    private string _email;
+    private string _status;
+    private bool _isActive;
+
+    public Person(int id, string name, string email, string status)
+    {
+        _id = id;
+        _name = name;
+        _email = email;
+        _status = status;
+        _isActive = status == "Active";
+    }
+
+    public int Id
+    {
+        get => _id;
+        set
+        {
+            if (_id != value) { _id = value; OnPropertyChanged(nameof(Id)); }
+        }
+    }
+
+    public string Name
+    {
+        get => _name;
+        set
+        {
+            if (_name != value) { _name = value; OnPropertyChanged(nameof(Name)); }
+        }
+    }
+
+    public string Email
+    {
+        get => _email;
+        set
+        {
+            if (_email != value) { _email = value; OnPropertyChanged(nameof(Email)); }
+        }
+    }
+
+    public string Status
+    {
+        get => _status;
+        set
+        {
+            if (_status != value) { _status = value; OnPropertyChanged(nameof(Status)); }
+        }
+    }
+
+    public bool IsActive
+    {
+        get => _isActive;
+        set
+        {
+            if (_isActive != value) { _isActive = value; OnPropertyChanged(nameof(IsActive)); }
+        }
+    }
+
+    public event PropertyChangedEventHandler? PropertyChanged;
+
+    private void OnPropertyChanged(string propertyName)
+    {
+        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
     }
 }
 

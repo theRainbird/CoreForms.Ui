@@ -37,6 +37,7 @@ public class RadioButton : Control
             {
                 _checked = value;
                 OnCheckedChanged();
+                OnPropertyChanged(nameof(Checked));
                 Invalidate();
             }
         }

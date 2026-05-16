@@ -51,6 +51,7 @@ public class TextBox : Control
             _engine.Text = value;
             _engine.EnsureCursorVisible(Context);
             OnTextChanged();
+            OnPropertyChanged(nameof(Text));
             Invalidate();
         }
     }
