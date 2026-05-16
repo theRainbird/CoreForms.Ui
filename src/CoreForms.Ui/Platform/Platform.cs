@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Reflection;
 using CoreForms.Ui.Core;
 using CoreForms.Ui.Rendering;
@@ -22,6 +23,9 @@ public static class Platform
     private static Point _lastMousePosition;
     private static uint _nextWindowId = 1;
     private static readonly Dictionary<(MessageBoxIcon icon, uint windowId, int size), IGraphicsImage> _iconImageCache = new();
+    private static readonly Stopwatch _frameTimer = Stopwatch.StartNew();
+    private static readonly TimeSpan FrameInterval = TimeSpan.FromTicks(TimeSpan.TicksPerSecond / 30);
+    private static long _lastRenderTicks;
     private static IKeyboard? _keyboard;
 
     /// <summary>
@@ -640,9 +644,31 @@ public static class Platform
             CleanupWindowOnClose(ctx.WindowId, ctx, ctx.Form, glCleanup: false);
         }
 
+        // 30 fps frame pacing: sleep until the next frame is due
+        long elapsed = _frameTimer.Elapsed.Ticks - _lastRenderTicks;
+        long remaining = FrameInterval.Ticks - elapsed;
+        if (remaining > 0)
+        {
+            // Sleep for the remaining time (max 33ms at 30fps), clamped to a minimum of 1ms
+            int sleepMs = (int)(remaining / TimeSpan.TicksPerMillisecond);
+            if (sleepMs > 0)
+                Thread.Sleep(sleepMs);
+            return;
+        }
+
         foreach (var ctx in _contexts.Values.ToList())
         {
             if (ctx.IsClosing || !ctx.IsInitialized || ctx.Renderer == null || ctx.FontRenderer == null)
+                continue;
+
+            var form = ctx.Form;
+
+            // Skip if no invalidation has occurred since last render
+            if (!form.RequiresRender)
+                continue;
+
+            // Skip minimized windows
+            if (form.WindowState == FormWindowState.Minimized)
                 continue;
 
             try
@@ -654,7 +680,7 @@ public static class Platform
             catch { }
         }
 
-        Thread.Sleep(1);
+        _lastRenderTicks = _frameTimer.Elapsed.Ticks;
     }
 
     private static void RenderForm(WindowContext ctx)
@@ -663,6 +689,7 @@ public static class Platform
         var renderer = ctx.Renderer!;
         var fontRenderer = ctx.FontRenderer!;
 
+        form.ClearRenderFlag();
         renderer.Clear(form.BackColor);
 
         using var g = new Graphics();

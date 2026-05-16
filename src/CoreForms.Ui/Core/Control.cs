@@ -590,10 +590,20 @@ if (_focused != value)
 
     /// <summary>
     /// Invalidates the entire control, forcing a repaint.
+    /// Propagates the invalidation up to the parent Form so the form-level
+    /// dirty check triggers a render on the next frame.
     /// </summary>
     public virtual void Invalidate()
     {
         _dirty = true;
+        if (this is not Form)
+        {
+            var form = FindForm();
+            if (form != null && form != this)
+            {
+                form.Invalidate();
+            }
+        }
     }
 
     /// <summary>
@@ -1220,6 +1230,7 @@ public class ControlCollection : IEnumerable<Control>
             _controls.Add(control);
             control.Parent = _owner;
             control.UpdateAnchorDistances();
+            _owner.Invalidate();
             _owner.PerformLayout();
         }
     }
@@ -1232,6 +1243,7 @@ public class ControlCollection : IEnumerable<Control>
     {
         if (_controls.Remove(control))
         {
+            _owner.Invalidate();
             _owner.PerformLayout();
         }
     }
@@ -1242,6 +1254,7 @@ public class ControlCollection : IEnumerable<Control>
     public void Clear()
     {
         _controls.Clear();
+        _owner.Invalidate();
         _owner.PerformLayout();
     }
 

@@ -19,6 +19,7 @@ public class Form : ContainerControl, IWin32Window
     private float _zoom = Dpi.GetDefaultZoom();
     private bool _processingKeyDown;
     private bool _processingKeyUp;
+    private bool _requiresRender = true;
     private ModifierKeys _currentModifiers;
     private Keys _lastKeyDown;
     private readonly Dictionary<Keys, KeyRepeatState> _heldKeys = new();
@@ -175,6 +176,29 @@ public class Form : ContainerControl, IWin32Window
         Create();
         Application.Instance.RegisterForm(this);
         OnShown(EventArgs.Empty);
+    }
+
+    /// <summary>
+    /// Gets whether the form needs to be re-rendered.
+    /// Returns true if any control on the form has been invalidated since the last render.
+    /// </summary>
+    internal bool RequiresRender => _requiresRender;
+
+    /// <summary>
+    /// Invalidates the entire form, forcing a full re-render on the next frame.
+    /// </summary>
+    public override void Invalidate()
+    {
+        _requiresRender = true;
+        base.Invalidate();
+    }
+
+    /// <summary>
+    /// Clears the render-required flag after rendering is complete.
+    /// </summary>
+    internal void ClearRenderFlag()
+    {
+        _requiresRender = false;
     }
 
     /// <summary>
