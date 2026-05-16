@@ -18,6 +18,11 @@ public class ListBox : Control
     private string _valueMember = string.Empty;
     private bool _dataSourceUpdating;
     private BindingSource? _boundBindingSource;
+    private int _scrollOffset;
+    private readonly ScrollBarEngine _vScrollBar = new();
+    private ListBoxScrollBarContext? _scrollBarContext;
+
+    private ListBoxScrollBarContext VScrollBarContext => _scrollBarContext ??= new ListBoxScrollBarContext(this);
 
     /// <summary>
     /// Initializes a new instance of ListBox.
@@ -29,6 +34,11 @@ public class ListBox : Control
         _foreColor = theme.TextBoxText;
         Size = new Size(150, 120);
         TabStop = true;
+        _vScrollBar.Scroll += (s, e) =>
+        {
+            _scrollOffset = _vScrollBar.Value;
+            Invalidate();
+        };
     }
 
     /// <summary>
@@ -118,6 +128,7 @@ public class ListBox : Control
                 _selectedIndex = value;
                 OnSelectedIndexChanged();
                 OnPropertyChanged(nameof(SelectedIndex));
+                EnsureSelectedVisible();
                 Invalidate();
             }
         }
@@ -165,7 +176,7 @@ public class ListBox : Control
     }
 
     /// <summary>
-    /// Renders the list box with its items.
+    /// Renders the list box with its items and scrollbar.
     /// </summary>
     /// <param name="g">The Graphics object to use for rendering.</param>
     public override void Render(Rendering.Graphics g)
@@ -173,37 +184,59 @@ public class ListBox : Control
         if (!Visible) return;
 
         var theme = ThemeManager.CurrentTheme;
+        var font = EffectiveFont;
+        var itemHeight = CoordinateTransform.GetItemHeight(font, EffectiveZoom);
+        int totalContentHeight = _items.Count * itemHeight;
+
+        _vScrollBar.ViewSize = Height;
+        _vScrollBar.ContentSize = totalContentHeight;
+        _vScrollBar.SmallChange = itemHeight;
+        _vScrollBar.LargeChange = itemHeight * 3;
+
+        bool needScrollbar = _vScrollBar.NeedsScrollbar;
+        int scrollBarWidth = needScrollbar ? ScrollBarEngine.DefaultScrollBarSize : 0;
+        int listWidth = Width - scrollBarWidth;
 
         g.FillRectangle(BackColor, 0, 0, Width, Height);
 
-        if (Focused)
-            g.DrawRectangle(theme.TextBoxFocusBorder, 0, 0, Width, Height, 2);
-        else
-            g.DrawRectangle(theme.TextBoxBorder, 0, 0, Width, Height, 1);
-
-        var font = EffectiveFont;
-        var itemHeight = CoordinateTransform.GetItemHeight(font, EffectiveZoom);
-        var y = 2;
+        g.SetClip(new Rectangle(0, 0, listWidth, Height));
 
         var textColor = Enabled ? ForeColor : theme.GrayText;
-        for (int i = 0; i < _items.Count && y < Height; i++)
+        int yStart = -_scrollOffset;
+        for (int i = 0; i < _items.Count; i++)
         {
-            var isSelected = i == _selectedIndex;
+            int y = yStart + i * itemHeight;
+            if (y + itemHeight <= 0) continue;
+            if (y >= Height) break;
 
+            var isSelected = i == _selectedIndex;
             var displayText = GetItemDisplayText(_items[i]);
+
             if (isSelected)
             {
                 if (Enabled)
-                    g.FillRectangle(SystemColors.Highlight, 1, y, Width - 2, itemHeight);
+                    g.FillRectangle(SystemColors.Highlight, 1, y, listWidth - 2, itemHeight);
                 g.DrawString(displayText, font, Enabled ? SystemColors.HighlightText : textColor, 4, y + 2);
             }
             else
             {
                 g.DrawString(displayText, font, textColor, 4, y + 2);
             }
-
-            y += itemHeight;
         }
+
+        g.ResetClip();
+
+        if (needScrollbar)
+        {
+            var scrollBarBounds = new Rectangle(listWidth, 0, scrollBarWidth, Height);
+            _vScrollBar.Render(g, scrollBarBounds, theme);
+        }
+
+        // Draw border after scrollbar to ensure it stays on top
+        if (Focused)
+            g.DrawRectangle(theme.TextBoxFocusBorder, 0, 0, Width, Height, 2);
+        else
+            g.DrawRectangle(theme.TextBoxBorder, 0, 0, Width, Height, 1);
 
         base.Render(g);
     }
@@ -218,9 +251,18 @@ public class ListBox : Control
         var mouseArgs = e as MouseEventArgs;
         if (mouseArgs != null)
         {
+            int scrollBarWidth = _vScrollBar.NeedsScrollbar ? ScrollBarEngine.DefaultScrollBarSize : 0;
+
+            if (_vScrollBar.NeedsScrollbar && mouseArgs.X >= Width - scrollBarWidth)
+            {
+                var scrollBarBounds = new Rectangle(Width - scrollBarWidth, 0, scrollBarWidth, Height);
+                _vScrollBar.HandleMouseDown(new Point(mouseArgs.X, mouseArgs.Y), scrollBarBounds, VScrollBarContext);
+                return;
+            }
+
             var font = EffectiveFont;
             var itemHeight = CoordinateTransform.GetItemHeight(font, EffectiveZoom);
-            var index = (mouseArgs.Y - 2) / itemHeight;
+            var index = (mouseArgs.Y + _scrollOffset - 2) / itemHeight;
 
             if (index >= 0 && index < _items.Count)
             {
@@ -229,6 +271,60 @@ public class ListBox : Control
         }
 
         base.OnMouseDown(e);
+    }
+
+    /// <summary>
+    /// Raises the MouseUp event to handle scrollbar interaction.
+    /// </summary>
+    /// <param name="e">The event arguments.</param>
+    protected internal override void OnMouseUp(EventArgs e)
+    {
+        if (_vScrollBar.IsDragging || _vScrollBar.IsUpButtonPressed || _vScrollBar.IsDownButtonPressed)
+        {
+            _vScrollBar.HandleMouseUp(VScrollBarContext);
+        }
+        base.OnMouseUp(e);
+    }
+
+    /// <summary>
+    /// Raises the MouseMove event to handle scrollbar hover and drag.
+    /// </summary>
+    /// <param name="e">The event arguments.</param>
+    protected internal override void OnMouseMove(EventArgs e)
+    {
+        if (_vScrollBar.NeedsScrollbar)
+        {
+            var mouseArgs = e as MouseEventArgs;
+            if (mouseArgs != null)
+            {
+                var scrollBarBounds = new Rectangle(Width - ScrollBarEngine.DefaultScrollBarSize, 0, ScrollBarEngine.DefaultScrollBarSize, Height);
+                _vScrollBar.HandleMouseMove(new Point(mouseArgs.X, mouseArgs.Y), scrollBarBounds, VScrollBarContext);
+            }
+        }
+        base.OnMouseMove(e);
+    }
+
+    /// <summary>
+    /// Raises the MouseWheel event to handle vertical scrolling.
+    /// </summary>
+    /// <param name="e">The event arguments.</param>
+    protected internal override void OnMouseWheel(EventArgs e)
+    {
+        if (!Enabled) return;
+        var me = e as MouseEventArgs;
+        if (me != null)
+        {
+            var itemHeight = CoordinateTransform.GetItemHeight(EffectiveFont, EffectiveZoom);
+            int totalContentHeight = _items.Count * itemHeight;
+            _vScrollBar.SmallChange = itemHeight;
+            _vScrollBar.ViewSize = Height;
+            _vScrollBar.ContentSize = totalContentHeight;
+            if (_vScrollBar.NeedsScrollbar && !_vScrollBar.IsDragging)
+            {
+                _vScrollBar.HandleMouseWheel(me.Delta, VScrollBarContext);
+            }
+        }
+        base.OnMouseWheel(e);
     }
 
     /// <summary>
@@ -272,8 +368,19 @@ public class ListBox : Control
         base.OnKeyDown(e);
     }
 
+    private void EnsureSelectedVisible()
+    {
+        if (_selectedIndex < 0) return;
+
+        var font = EffectiveFont;
+        var itemHeight = CoordinateTransform.GetItemHeight(font, EffectiveZoom);
+        _vScrollBar.ViewSize = Height;
+        _vScrollBar.ContentSize = _items.Count * itemHeight;
+        _vScrollBar.EnsureVisible(_selectedIndex * itemHeight, itemHeight);
+    }
+
     /// <summary>
-    /// Raises the SelectedIndexChanged event and syncs the BindingSource/CurrencyManager position.
+    /// Raises the SelectedIndexChanged event.
     /// </summary>
     protected virtual void OnSelectedIndexChanged()
     {
@@ -296,7 +403,6 @@ public class ListBox : Control
                     }
                     catch
                     {
-                        // Ignore binding context errors
                     }
                 }
             }
@@ -420,4 +526,13 @@ public class ListBox : Control
     /// Occurs when the selected index changes.
     /// </summary>
     public event EventHandler? SelectedIndexChanged;
+
+    private sealed class ListBoxScrollBarContext : IScrollBarContext
+    {
+        private readonly ListBox _owner;
+        public ListBoxScrollBarContext(ListBox owner) => _owner = owner;
+        public float Zoom => _owner.EffectiveZoom;
+        public void Invalidate() => _owner.Invalidate();
+        public void CaptureMouse(bool capture) => _owner.CapturingMouse = capture;
+    }
 }

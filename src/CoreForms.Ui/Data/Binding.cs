@@ -22,6 +22,7 @@ public class Binding
     private ReflectionPropertyDescriptor? _sourceProperty;
     private object? _dataSourceInstance;
     private object? _subscribedSourceInstance;
+    private bool _savedEnabledState = true;
 
     /// <summary>
     /// Occurs when the binding operation completes.
@@ -138,10 +139,11 @@ public class Binding
 
     /// <summary>
     /// Reads the value from the data source and writes it to the control.
+    /// When no current item exists, clears the control to its default value.
     /// </summary>
     internal void ReadValue()
     {
-        if (_pushing || _sourceProperty == null || _controlProperty == null)
+        if (_pushing || _controlProperty == null)
             return;
 
         _pushing = true;
@@ -149,9 +151,26 @@ public class Binding
         {
             var sourceInstance = ResolveSourceInstance();
             if (sourceInstance == null)
+            {
+                // No current item — clear control and disable
+                if (_control != null)
+                {
+                    var targetType = _controlProperty.PropertyType;
+                    object? clearValue = targetType.IsValueType ? Activator.CreateInstance(targetType) : null;
+                    _controlProperty.SetValue(_control, clearValue);
+                    _savedEnabledState = _control.Enabled;
+                    _control.Enabled = false;
+                }
                 return;
+            }
 
-            var value = _sourceProperty.GetValue(sourceInstance);
+            // Restore control enabled state after empty-list disable
+            if (_control != null && !_control.Enabled && _savedEnabledState)
+            {
+                _control.Enabled = true;
+            }
+
+            var value = _sourceProperty!.GetValue(sourceInstance);
             value = OnFormat(value);
             _controlProperty.SetValue(_control, value);
             OnBindingComplete(BindingCompleteState.Success);

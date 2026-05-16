@@ -431,6 +431,46 @@ public class DataBindingTests
         Assert.Equal(1, lb.SelectedIndex);
     }
 
+    [Fact]
+    public void ListBox_Selection_UpdatesBindingSourcePosition()
+    {
+        var list = new BindingList<TestItem> {
+            new TestItem { Name = "A", Value = 1 },
+            new TestItem { Name = "B", Value = 2 }
+        };
+        var bs = new BindingSource(list);
+        var lb = new ListBox();
+        lb.DataSource = bs;
+
+        lb.SelectedIndex = 1;
+
+        Assert.Equal(1, bs.Position);
+        Assert.Equal("B", (bs.Current as TestItem)?.Name);
+    }
+
+    [Fact]
+    public void ListBox_Selection_UpdatesBoundControlsViaBindingSource()
+    {
+        var list = new BindingList<TestItem> {
+            new TestItem { Name = "Alpha", Value = 10 },
+            new TestItem { Name = "Beta", Value = 20 }
+        };
+        var bs = new BindingSource(list);
+        var lb = new ListBox();
+        lb.DataSource = bs;
+        lb.DisplayMember = "Name";
+
+        var textBox = new TextBox();
+        textBox.DataBindings.Add("Text", bs, "Name");
+
+        Assert.Equal("Alpha", textBox.Text);
+
+        lb.SelectedIndex = 1;
+
+        Assert.Equal("Beta", textBox.Text);
+        Assert.Equal(1, bs.Position);
+    }
+
     // ===== ComboBox DataSource =====
 
     [Fact]

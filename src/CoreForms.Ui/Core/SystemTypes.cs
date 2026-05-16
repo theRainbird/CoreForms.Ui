@@ -578,8 +578,9 @@ public class MouseEventArgs : EventArgs
 
     /// <summary>
     /// Gets the wheel delta (positive for scrolling up, negative for scrolling down).
+    /// On SDL/Linux, each notch is typically ±1; this accumulates fractional values from smooth-scroll devices.
     /// </summary>
-    public int Delta { get; }
+    public float Delta { get; }
 
     /// <summary>
     /// Initializes a new instance of MouseEventArgs.
@@ -588,8 +589,8 @@ public class MouseEventArgs : EventArgs
     /// <param name="clicks">The number of times the button was clicked.</param>
     /// <param name="x">The x-coordinate relative to the control.</param>
     /// <param name="y">The y-coordinate relative to the control.</param>
-    /// <param name="delta">The wheel delta.</param>
-    public MouseEventArgs(MouseButtons button, int clicks, int x, int y, int delta)
+    /// <param name="delta">The wheel delta (float, e.g. ±1 per notch on SDL/Linux).</param>
+    public MouseEventArgs(MouseButtons button, int clicks, int x, int y, float delta)
     {
         Button = button;
         Clicks = clicks;

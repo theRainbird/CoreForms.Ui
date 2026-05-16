@@ -684,6 +684,11 @@ class Program
                 idValue.Text = current.Id.ToString();
                 statusComboBox.Text = current.Status;
             }
+            else
+            {
+                idValue.Text = "";
+                statusComboBox.Text = "";
+            }
         };
         // Initial display
         if (bindingSource.Current is Person firstPerson)

@@ -76,8 +76,6 @@ public class GroupBox : ContainerControl
         base.Render(g);
         g.Restore();
 
-        int textX = 10;
-
         g.DrawLine(borderColor, 0, offsetY, 0, Height - 1, 1);
         g.DrawLine(borderColor, 0, Height - 1, Width - 1, Height - 1, 1);
         g.DrawLine(borderColor, Width - 1, offsetY, Width - 1, Height - 1, 1);
@@ -86,15 +84,17 @@ public class GroupBox : ContainerControl
         {
             (int textWidth, _) = g.MeasureString(Text, font, zoom);
             var textColor = Enabled ? ForeColor : theme.GrayText;
+            int textX = 12;
+            int gap = 4;
             g.DrawString(Text, font, textColor, textX, 0);
 
-            int leftEnd = textX - 10;
-            if (leftEnd > 0)
-                g.DrawLine(borderColor, 0, offsetY, leftEnd, offsetY, 1);
+            int leftTopEnd = textX - gap;
+            if (leftTopEnd > 0)
+                g.DrawLine(borderColor, 0, offsetY, leftTopEnd, offsetY, 1);
 
-            int rightStart = textX + textWidth + 10;
-            if (rightStart < Width - 1)
-                g.DrawLine(borderColor, rightStart, offsetY, Width - 1, offsetY, 1);
+            int rightTopStart = textX + textWidth + gap;
+            if (rightTopStart < Width - 1)
+                g.DrawLine(borderColor, rightTopStart, offsetY, Width - 1, offsetY, 1);
         }
         else
         {

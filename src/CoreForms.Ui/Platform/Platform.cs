@@ -171,8 +171,7 @@ public static class Platform
                 mouse.Scroll += (m, wheel) =>
                 {
                     var point = _lastMousePosition;
-                    var delta = (int)wheel.Y;
-                    var args = new MouseEventArgs(MouseButtons.None, 0, point.X, point.Y, delta);
+                    var args = new MouseEventArgs(MouseButtons.None, 0, point.X, point.Y, wheel.Y);
                     form.OnMouseWheel(args);
                 };
             }

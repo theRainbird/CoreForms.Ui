@@ -331,7 +331,7 @@ public class CefPlatformHandler : IWebViewPlatformHandler
     {
         if (_browserHost == null) return;
         var cefEvent = new CefMouseEvent { X = ScaleX(e.X), Y = ScaleY(e.Y) };
-        _browserHost.SendMouseWheelEvent(cefEvent, 0, e.Delta * 40);
+        _browserHost.SendMouseWheelEvent(cefEvent, 0, (int)(e.Delta * 40));
     }
 
     public void ZoomIn()

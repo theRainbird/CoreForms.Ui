@@ -22,6 +22,10 @@ public class ComboBox : Control
     private int _dropDownHeight = 120;
     private int _scrollOffset;
     private int _hoveredIndex = -1;
+    private readonly ScrollBarEngine _dropScrollBar = new();
+    private ComboBoxScrollBarContext? _scrollBarContext;
+
+    private ComboBoxScrollBarContext ScrollBarCtx => _scrollBarContext ??= new ComboBoxScrollBarContext(this);
 
     /// <summary>
     /// Initializes a new instance of ComboBox.
@@ -32,6 +36,7 @@ public class ComboBox : Control
         _backColor = theme.TextBoxBackground;
         Size = new Size(200, 32);
         TabStop = true;
+        _dropScrollBar.Scroll += (s, e) => _scrollOffset = _dropScrollBar.Value;
     }
 
     /// <summary>
@@ -242,20 +247,13 @@ public class ComboBox : Control
         g.FillRectangle(theme.MenuDropdownBackground, 0, dropY, Width, _dropDownHeight);
         g.DrawRectangle(theme.MenuDropdownBorder, 0, dropY, Width, _dropDownHeight, 1);
 
+        _dropScrollBar.SmallChange = itemHeight;
+        _dropScrollBar.ViewSize = _dropDownHeight;
+        _dropScrollBar.ContentSize = totalHeight;
         if (needsScrollbar)
         {
-            int scrollBarX = Width - scrollBarWidth;
-
-            g.FillRectangle(theme.ScrollbarTrack, scrollBarX, dropY, scrollBarWidth, _dropDownHeight);
-            g.DrawRectangle(theme.ScrollbarBorder, scrollBarX, dropY, scrollBarWidth, _dropDownHeight, 1);
-
-            int maxScroll = totalHeight - _dropDownHeight + 4;
-            float thumbHeightRatio = (float)_dropDownHeight / totalHeight;
-            int thumbHeight = Math.Max(20, (int)(_dropDownHeight * thumbHeightRatio));
-            int thumbY = dropY + (maxScroll > 0 ? (int)((float)_scrollOffset / maxScroll * (_dropDownHeight - thumbHeight)) : 0);
-
-            g.FillRectangle(theme.ScrollbarThumb, scrollBarX + 2, thumbY, scrollBarWidth - 4, thumbHeight);
-            g.DrawRectangle(theme.ScrollbarThumbBorder, scrollBarX + 2, thumbY, scrollBarWidth - 4, thumbHeight, 1);
+            var scrollBarBounds = new Rectangle(Width - scrollBarWidth, dropY, scrollBarWidth, _dropDownHeight);
+            _dropScrollBar.Render(g, scrollBarBounds, theme);
         }
 
         g.SetClip(new Rectangle(0, dropY, listWidth, _dropDownHeight));
@@ -319,6 +317,7 @@ public class ComboBox : Control
         {
             _droppedDown = false;
             _scrollOffset = 0;
+            _dropScrollBar.ScrollTo(0);
             _hoveredIndex = -1;
             CapturingMouse = false;
             Invalidate();
@@ -347,9 +346,20 @@ public class ComboBox : Control
                 var itemHeight = GetItemHeight();
                 int dropY = Height;
                 int dropDownHeight = _dropDownHeight;
+                int totalHeight = _items.Count * itemHeight;
+                bool needsScrollbar = _dropScrollBar.NeedsScrollbar;
+                int scrollBarWidth = needsScrollbar ? ScrollBarEngine.DefaultScrollBarSize : 0;
 
                 if (args.X >= 0 && args.X < Width && args.Y >= dropY && args.Y < dropY + dropDownHeight)
                 {
+                    // Check scrollbar click
+                    if (needsScrollbar && args.X >= Width - scrollBarWidth)
+                    {
+                        var scrollBarBounds = new Rectangle(Width - scrollBarWidth, dropY, scrollBarWidth, dropDownHeight);
+                        _dropScrollBar.HandleMouseDown(new Point(args.X, args.Y), scrollBarBounds, ScrollBarCtx);
+                        return;
+                    }
+
                     int localY = args.Y - dropY - 2 + _scrollOffset;
                     if (localY >= 0)
                     {
@@ -363,6 +373,8 @@ public class ComboBox : Control
                     _droppedDown = false;
                     _scrollOffset = 0;
                     _hoveredIndex = -1;
+                    _dropScrollBar.ScrollTo(0);
+                    CapturingMouse = false;
                     Invalidate();
                     return;
                 }
@@ -371,6 +383,8 @@ public class ComboBox : Control
             _droppedDown = false;
             _scrollOffset = 0;
             _hoveredIndex = -1;
+            _dropScrollBar.ScrollTo(0);
+            CapturingMouse = false;
             Invalidate();
             return;
         }
@@ -391,6 +405,12 @@ public class ComboBox : Control
     /// <param name="e">The event arguments.</param>
     protected internal override void OnMouseUp(EventArgs e)
     {
+        if (_dropScrollBar.IsDragging || _dropScrollBar.IsUpButtonPressed || _dropScrollBar.IsDownButtonPressed)
+        {
+            _dropScrollBar.HandleMouseUp(ScrollBarCtx);
+            return;
+        }
+
         if (!_droppedDown && CapturingMouse)
         {
             CapturingMouse = false;
@@ -406,14 +426,19 @@ public class ComboBox : Control
     protected internal override void OnMouseWheel(EventArgs e)
     {
         if (!Enabled) return;
-        if (_droppedDown)
+        if (_droppedDown && !_dropScrollBar.IsDragging)
         {
             var args = e as MouseEventArgs;
             if (args != null)
             {
                 var itemHeight = GetItemHeight();
-                int delta = args.Delta * itemHeight;
-                ScrollBy(delta);
+                _dropScrollBar.SmallChange = itemHeight;
+                _dropScrollBar.ViewSize = _dropDownHeight;
+                _dropScrollBar.ContentSize = _items.Count * itemHeight;
+                if (_dropScrollBar.NeedsScrollbar)
+                {
+                    _dropScrollBar.HandleMouseWheel(args.Delta, ScrollBarCtx);
+                }
             }
             return;
         }
@@ -435,6 +460,19 @@ public class ComboBox : Control
             {
                 var itemHeight = GetItemHeight();
                 int dropY = Height;
+                int totalHeight = _items.Count * itemHeight;
+                _dropScrollBar.SmallChange = itemHeight;
+                _dropScrollBar.ViewSize = _dropDownHeight;
+                _dropScrollBar.ContentSize = totalHeight;
+                bool needsScrollbar = _dropScrollBar.NeedsScrollbar;
+                int scrollBarWidth = needsScrollbar ? ScrollBarEngine.DefaultScrollBarSize : 0;
+
+                // Handle scrollbar hover/drag
+                if (needsScrollbar)
+                {
+                    var scrollBarBounds = new Rectangle(Width - scrollBarWidth, dropY, scrollBarWidth, _dropDownHeight);
+                    _dropScrollBar.HandleMouseMove(new Point(args.X, args.Y), scrollBarBounds, ScrollBarCtx);
+                }
 
                 if (args.Y >= dropY && args.Y < dropY + _dropDownHeight)
                 {
@@ -502,6 +540,7 @@ public class ComboBox : Control
                 else
                 {
                     _scrollOffset = 0;
+                    _dropScrollBar.ScrollTo(0);
                     CapturingMouse = false;
                 }
                 Invalidate();
@@ -542,6 +581,7 @@ public class ComboBox : Control
                 {
                     _droppedDown = false;
                     _scrollOffset = 0;
+                    _dropScrollBar.ScrollTo(0);
                     CapturingMouse = false;
                     Invalidate();
                 }
@@ -552,6 +592,7 @@ public class ComboBox : Control
                 {
                     _droppedDown = false;
                     _scrollOffset = 0;
+                    _dropScrollBar.ScrollTo(0);
                     CapturingMouse = false;
                     Invalidate();
                 }
@@ -561,33 +602,23 @@ public class ComboBox : Control
         base.OnKeyDown(e);
     }
 
-    private void ScrollBy(int delta)
-    {
-        var itemHeight = GetItemHeight();
-        int totalHeight = _items.Count * itemHeight;
-        int maxScroll = Math.Max(0, totalHeight - _dropDownHeight + 4);
-
-        _scrollOffset = Math.Max(0, Math.Min(maxScroll, _scrollOffset + delta));
-        Invalidate();
-    }
-
     private void EnsureSelectedVisible()
     {
         if (_selectedIndex < 0) return;
 
         var itemHeight = GetItemHeight();
-        int totalHeight = _items.Count * itemHeight;
-        int maxScroll = Math.Max(0, totalHeight - _dropDownHeight + 4);
-
         int selTop = _selectedIndex * itemHeight;
         int selBottom = selTop + itemHeight;
 
-        if (_scrollOffset > selTop)
-            _scrollOffset = selTop;
-        else if (_scrollOffset + _dropDownHeight - 4 < selBottom)
-            _scrollOffset = Math.Min(maxScroll, selBottom - _dropDownHeight + 4);
-
-        Invalidate();
+        int oldOffset = _scrollOffset;
+        _dropScrollBar.ViewSize = _dropDownHeight;
+        _dropScrollBar.ContentSize = _items.Count * itemHeight;
+        _dropScrollBar.EnsureVisible(selTop, itemHeight);
+        if (_dropScrollBar.Value != oldOffset)
+        {
+            _scrollOffset = _dropScrollBar.Value;
+            Invalidate();
+        }
     }
 
     /// <summary>
@@ -736,4 +767,13 @@ public class ComboBox : Control
     /// Occurs when the selected index changes.
     /// </summary>
     public event EventHandler? SelectedIndexChanged;
+
+    private sealed class ComboBoxScrollBarContext : IScrollBarContext
+    {
+        private readonly ComboBox _owner;
+        public ComboBoxScrollBarContext(ComboBox owner) => _owner = owner;
+        public float Zoom => _owner.EffectiveZoom;
+        public void Invalidate() => _owner.Invalidate();
+        public void CaptureMouse(bool capture) => _owner.CapturingMouse = capture;
+    }
 }

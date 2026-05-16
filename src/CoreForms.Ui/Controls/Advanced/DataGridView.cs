@@ -28,8 +28,11 @@ public class DataGridView : ContainerControl
     private bool _rowHeadersVisible = true;
     private bool _showGridLines = true;
     private DataGridViewSelectionMode _selectionMode = DataGridViewSelectionMode.RowHeaderSelect;
-    private int _verticalScrollOffset;
     private int _horizontalScrollOffset;
+    private readonly ScrollBarEngine _vScrollBar = new();
+    private ScrollBarContext? _scrollBarContext;
+
+    private ScrollBarContext VScrollBarContext => _scrollBarContext ??= new ScrollBarContext(this);
 
     /// <summary>
     /// Initializes a new instance of DataGridView.
@@ -40,6 +43,9 @@ public class DataGridView : ContainerControl
         _backColor = theme.TextBoxBackground;
         Size = new Size(400, 200);
         TabStop = true;
+        _vScrollBar.SmallChange = _rowHeight;
+        _vScrollBar.LargeChange = _rowHeight * 3;
+        _vScrollBar.Scroll += (s, e) => Invalidate();
     }
 
     /// <summary>
@@ -330,11 +336,10 @@ public class DataGridView : ContainerControl
         int scrollBarWidth = needVScroll ? 16 : 0;
         int dataWidth = Width - rowHeaderWidth - scrollBarWidth;
 
-        int maxScroll = Math.Max(0, totalContentHeight - dataHeight);
-        if (_verticalScrollOffset > maxScroll) _verticalScrollOffset = maxScroll;
-        if (_verticalScrollOffset < 0) _verticalScrollOffset = 0;
+        _vScrollBar.ViewSize = dataHeight;
+        _vScrollBar.ContentSize = totalContentHeight;
 
-        int rowStart = Math.Max(0, _verticalScrollOffset / _rowHeight);
+        int rowStart = Math.Max(0, _vScrollBar.Value / _rowHeight);
         int rowEnd = Math.Min(_rows.Count, rowStart + (dataHeight / _rowHeight) + 2);
 
         g.FillRectangle(BackColor, 0, 0, Width, Height);
@@ -373,7 +378,7 @@ public class DataGridView : ContainerControl
 
             for (int rowIdx = rowStart; rowIdx < rowEnd; rowIdx++)
             {
-                int y = headerHeight + (rowIdx * _rowHeight) - _verticalScrollOffset;
+                int y = headerHeight + (rowIdx * _rowHeight) - _vScrollBar.Value;
                 bool isSelected = rowIdx == _selectedRowIndex;
                 var headerBg = isSelected ? SystemColors.Highlight : theme.ControlBackground;
 
@@ -385,7 +390,7 @@ public class DataGridView : ContainerControl
 
             if (_allowUserToAddRows)
             {
-                int y = headerHeight + (_rows.Count * _rowHeight) - _verticalScrollOffset;
+                int y = headerHeight + (_rows.Count * _rowHeight) - _vScrollBar.Value;
                 g.FillRectangle(theme.ControlBackground, 0, y, rowHeaderWidth, _rowHeight);
                 g.DrawRectangle(theme.DataGridViewBorder, 0, y, rowHeaderWidth, _rowHeight, 1);
             }
@@ -397,7 +402,7 @@ public class DataGridView : ContainerControl
 
         for (int rowIdx = rowStart; rowIdx < rowEnd; rowIdx++)
         {
-            int y = headerHeight + (rowIdx * _rowHeight) - _verticalScrollOffset;
+            int y = headerHeight + (rowIdx * _rowHeight) - _vScrollBar.Value;
 
             bool isSelected = rowIdx == _selectedRowIndex;
             bool isAlternate = rowIdx % 2 == 1;
@@ -412,7 +417,7 @@ public class DataGridView : ContainerControl
         {
             for (int rowIdx = rowStart; rowIdx < rowEnd; rowIdx++)
             {
-                int y = headerHeight + (rowIdx * _rowHeight) - _verticalScrollOffset;
+                int y = headerHeight + (rowIdx * _rowHeight) - _vScrollBar.Value;
 
                 g.DrawLine(theme.GridLine, rowHeaderWidth, y + _rowHeight, rowHeaderWidth + dataWidth, y + _rowHeight);
 
@@ -432,7 +437,7 @@ public class DataGridView : ContainerControl
 
         for (int rowIdx = rowStart; rowIdx < rowEnd; rowIdx++)
         {
-            int y = headerHeight + (rowIdx * _rowHeight) - _verticalScrollOffset;
+            int y = headerHeight + (rowIdx * _rowHeight) - _vScrollBar.Value;
             bool isSelected = rowIdx == _selectedRowIndex;
             var textColor = isSelected ? SystemColors.HighlightText : theme.DataGridViewCellText;
 
@@ -458,7 +463,7 @@ public class DataGridView : ContainerControl
 
         if (_allowUserToAddRows)
         {
-            int y = headerHeight + (_rows.Count * _rowHeight) - _verticalScrollOffset;
+            int y = headerHeight + (_rows.Count * _rowHeight) - _vScrollBar.Value;
             g.FillRectangle(theme.DataGridViewAddNewRowBackground, rowHeaderWidth, y, dataWidth, _rowHeight);
             g.DrawLine(theme.DataGridViewAddNewRowSeparator, rowHeaderWidth, y, rowHeaderWidth + dataWidth, y);
             var addRowFont = EffectiveFont;
@@ -470,19 +475,8 @@ public class DataGridView : ContainerControl
 
         if (needVScroll)
         {
-            int scrollBarX = Width - scrollBarWidth;
-            int scrollBarY = headerHeight;
-            g.FillRectangle(theme.ScrollbarTrack, scrollBarX, scrollBarY, scrollBarWidth, dataHeight);
-            g.DrawRectangle(theme.ScrollbarBorder, scrollBarX, scrollBarY, scrollBarWidth, dataHeight, 1);
-
-            float thumbHeightRatio = (float)dataHeight / totalContentHeight;
-            int thumbHeight = Math.Max(20, (int)(dataHeight * thumbHeightRatio));
-            int maxScrollVal = Math.Max(1, totalContentHeight - dataHeight);
-            float thumbPosRatio = maxScrollVal > 0 ? (float)_verticalScrollOffset / maxScrollVal : 0;
-            int thumbY = scrollBarY + (int)(thumbPosRatio * (dataHeight - thumbHeight));
-
-            g.FillRectangle(theme.ScrollbarThumb, scrollBarX + 2, thumbY, scrollBarWidth - 4, thumbHeight);
-            g.DrawRectangle(theme.ScrollbarThumbBorder, scrollBarX + 2, thumbY, scrollBarWidth - 4, thumbHeight, 1);
+            var scrollBarBounds = new Rectangle(Width - scrollBarWidth, headerHeight, scrollBarWidth, dataHeight);
+            _vScrollBar.Render(g, scrollBarBounds, theme);
         }
 
         if (Focused)
@@ -502,9 +496,21 @@ public class DataGridView : ContainerControl
         {
             int headerHeight = _columnHeadersVisible ? _rowHeight : 0;
             int rowHeaderWidth = _rowHeadersVisible ? 40 : 0;
+            int totalContentHeight = _rows.Count * _rowHeight + (_allowUserToAddRows ? _rowHeight : 0);
+            int dataHeight = Height - headerHeight;
+            bool needVScroll = totalContentHeight > dataHeight;
+            int scrollBarWidth = needVScroll ? ScrollBarEngine.DefaultScrollBarSize : 0;
+
+            // Check if click is in scrollbar area
+            if (needVScroll && mouseArgs.X >= Width - scrollBarWidth)
+            {
+                var scrollBarBounds = new Rectangle(Width - scrollBarWidth, headerHeight, scrollBarWidth, dataHeight);
+                _vScrollBar.HandleMouseDown(new Point(mouseArgs.X, mouseArgs.Y), scrollBarBounds, VScrollBarContext);
+                return;
+            }
 
             int col = (mouseArgs.X - rowHeaderWidth + _horizontalScrollOffset) / _columnWidth;
-            int row = (mouseArgs.Y - headerHeight + _verticalScrollOffset) / _rowHeight;
+            int row = (mouseArgs.Y - headerHeight + _vScrollBar.Value) / _rowHeight;
 
             if (row >= 0 && row < _rows.Count && col >= 0 && col < _columns.Count)
             {
@@ -574,7 +580,7 @@ public class DataGridView : ContainerControl
                 {
                     _selectedRowIndex = 0;
                     _selectedColumnIndex = 0;
-                    _verticalScrollOffset = 0;
+                    _vScrollBar.Value = 0;
                     _horizontalScrollOffset = 0;
                     OnSelectionChanged();
                     Invalidate();
@@ -635,10 +641,10 @@ public class DataGridView : ContainerControl
         int rowTop = rowIndex * _rowHeight;
         int rowBottom = rowTop + _rowHeight;
 
-        if (rowTop < _verticalScrollOffset)
-            _verticalScrollOffset = rowTop;
-        else if (rowBottom > _verticalScrollOffset + dataHeight)
-            _verticalScrollOffset = rowBottom - dataHeight;
+        if (rowTop < _vScrollBar.Value)
+            _vScrollBar.Value = rowTop;
+        else if (rowBottom > _vScrollBar.Value + dataHeight)
+            _vScrollBar.Value = rowBottom - dataHeight;
     }
 
     /// <summary>
@@ -647,19 +653,59 @@ public class DataGridView : ContainerControl
     /// <param name="e">The event arguments.</param>
     protected internal override void OnMouseWheel(EventArgs e)
     {
+        if (_vScrollBar.IsDragging) return;
+
         var mouseArgs = e as MouseEventArgs;
         if (mouseArgs != null)
         {
-            _verticalScrollOffset -= mouseArgs.Delta * _rowHeight;
             int headerHeight = _columnHeadersVisible ? _rowHeight : 0;
             int totalContentHeight = _rows.Count * _rowHeight + (_allowUserToAddRows ? _rowHeight : 0);
             int dataHeight = Height - headerHeight;
-            int maxScroll = Math.Max(0, totalContentHeight - dataHeight);
-            _verticalScrollOffset = Math.Max(0, Math.Min(_verticalScrollOffset, maxScroll));
+            _vScrollBar.ViewSize = dataHeight;
+            _vScrollBar.ContentSize = totalContentHeight;
 
-            Invalidate();
+            if (_vScrollBar.NeedsScrollbar)
+            {
+                _vScrollBar.HandleMouseWheel(mouseArgs.Delta, VScrollBarContext);
+            }
         }
         base.OnMouseWheel(e);
+    }
+
+    /// <summary>
+    /// Raises the MouseUp event to handle scrollbar interaction.
+    /// </summary>
+    /// <param name="e">The event arguments.</param>
+    protected internal override void OnMouseUp(EventArgs e)
+    {
+        if (_vScrollBar.IsDragging || _vScrollBar.IsUpButtonPressed || _vScrollBar.IsDownButtonPressed)
+        {
+            _vScrollBar.HandleMouseUp(VScrollBarContext);
+        }
+        base.OnMouseUp(e);
+    }
+
+    /// <summary>
+    /// Raises the MouseMove event to handle scrollbar hover and drag.
+    /// </summary>
+    /// <param name="e">The event arguments.</param>
+    protected internal override void OnMouseMove(EventArgs e)
+    {
+        if (_vScrollBar.IsDragging)
+        {
+            var mouseArgs = e as MouseEventArgs;
+            if (mouseArgs != null)
+            {
+                int headerHeight = _columnHeadersVisible ? _rowHeight : 0;
+                int totalContentHeight = _rows.Count * _rowHeight + (_allowUserToAddRows ? _rowHeight : 0);
+                int dataHeight = Height - headerHeight;
+                bool needVScroll = totalContentHeight > dataHeight;
+                int scrollBarWidth = needVScroll ? ScrollBarEngine.DefaultScrollBarSize : 0;
+                var scrollBarBounds = new Rectangle(Width - scrollBarWidth, headerHeight, scrollBarWidth, dataHeight);
+                _vScrollBar.HandleMouseMove(new Point(mouseArgs.X, mouseArgs.Y), scrollBarBounds, VScrollBarContext);
+            }
+        }
+        base.OnMouseMove(e);
     }
 
     /// <summary>
@@ -861,6 +907,29 @@ public class DataGridView : ContainerControl
         _selectedColumnIndex = -1;
         Invalidate();
     }
+}
+
+/// <summary>
+/// Provides scrollbar context for the DataGridView.
+/// </summary>
+internal sealed class ScrollBarContext : IScrollBarContext
+{
+    private readonly DataGridView _owner;
+
+    /// <summary>
+    /// Initializes a new instance of ScrollBarContext.
+    /// </summary>
+    /// <param name="owner">The owning DataGridView.</param>
+    public ScrollBarContext(DataGridView owner) => _owner = owner;
+
+    /// <inheritdoc/>
+    public float Zoom => _owner.EffectiveZoom;
+
+    /// <inheritdoc/>
+    public void Invalidate() => _owner.Invalidate();
+
+    /// <inheritdoc/>
+    public void CaptureMouse(bool capture) => _owner.CapturingMouse = capture;
 }
 
 /// <summary>

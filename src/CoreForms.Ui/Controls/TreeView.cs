@@ -18,6 +18,10 @@ public class TreeView : Control
     private const int LeftMargin = 4;
     private int _scrollOffsetY;
     private readonly List<TreeNode> _rootNodes = new();
+    private readonly ScrollBarEngine _vScrollBar = new();
+    private TreeViewScrollBarContext? _scrollBarContext;
+
+    private TreeViewScrollBarContext VScrollBarContext => _scrollBarContext ??= new TreeViewScrollBarContext(this);
 
     /// <summary>
     /// Gets the collection of root nodes.
@@ -54,6 +58,13 @@ public class TreeView : Control
         _foreColor = theme.ControlText;
         Size = new Size(200, 150);
         TabStop = true;
+        _vScrollBar.SmallChange = ItemHeight;
+        _vScrollBar.LargeChange = ItemHeight * 3;
+        _vScrollBar.Scroll += (s, e) =>
+        {
+            _scrollOffsetY = _vScrollBar.Value;
+            Invalidate();
+        };
     }
 
     /// <summary>
@@ -85,12 +96,9 @@ public class TreeView : Control
         var visible = GetVisibleNodes();
         var index = visible.IndexOf(node);
         if (index < 0) return;
-        var top = index * ItemHeight;
-        var bottom = top + ItemHeight;
-        if (top < _scrollOffsetY)
-            _scrollOffsetY = top;
-        else if (bottom > _scrollOffsetY + Height)
-            _scrollOffsetY = bottom - Height;
+        _vScrollBar.ViewSize = Height;
+        _vScrollBar.ContentSize = visible.Count * ItemHeight;
+        _vScrollBar.EnsureVisible(index * ItemHeight, ItemHeight);
         Invalidate();
     }
 
@@ -104,9 +112,6 @@ public class TreeView : Control
         var theme = ThemeManager.CurrentTheme;
 
         g.FillRectangle(BackColor, 0, 0, Width, Height);
-        g.DrawRectangle(SystemColors.ControlDark, 0, 0, Width, Height, 1);
-        if (Focused)
-            g.DrawRectangle(theme.FocusIndicator, 1, 1, Width - 2, Height - 2);
 
         g.SetClip(new Rectangle(0, 0, Width, Height));
         g.TranslateTransform(0, -_scrollOffsetY);
@@ -244,6 +249,23 @@ public class TreeView : Control
         }
 
         g.TranslateTransform(0, _scrollOffsetY);
+
+        int visibleCount = GetVisibleNodes().Count;
+        int totalContentHeight = visibleCount * ItemHeight;
+        _vScrollBar.ViewSize = Height;
+        _vScrollBar.ContentSize = totalContentHeight;
+
+        if (_vScrollBar.NeedsScrollbar)
+        {
+            var scrollBarBounds = new Rectangle(Width - ScrollBarEngine.DefaultScrollBarSize, 0, ScrollBarEngine.DefaultScrollBarSize, Height);
+            _vScrollBar.Render(g, scrollBarBounds, theme);
+        }
+
+        // Draw border after scrollbar to ensure it stays on top
+        g.DrawRectangle(SystemColors.ControlDark, 0, 0, Width, Height, 1);
+        if (Focused)
+            g.DrawRectangle(theme.FocusIndicator, 1, 1, Width - 2, Height - 2);
+
         base.Render(g);
     }
 
@@ -297,24 +319,35 @@ public class TreeView : Control
         var me = e as MouseEventArgs;
         if (me != null)
         {
-            int lines = me.Delta / 120;
-            _scrollOffsetY = System.Math.Max(0, _scrollOffsetY - lines * ItemHeight);
-            int maxOffset = System.Math.Max(0, GetVisibleNodes().Count * ItemHeight - Height);
-            _scrollOffsetY = System.Math.Min(_scrollOffsetY, maxOffset);
-            Invalidate();
+            int visibleCount = GetVisibleNodes().Count;
+            _vScrollBar.SmallChange = ItemHeight;
+            _vScrollBar.ViewSize = Height;
+            _vScrollBar.ContentSize = visibleCount * ItemHeight;
+            if (_vScrollBar.NeedsScrollbar && !_vScrollBar.IsDragging)
+            {
+                _vScrollBar.HandleMouseWheel(me.Delta, VScrollBarContext);
+            }
         }
 
         base.OnMouseWheel(e);
     }
 
     /// <summary>
-    /// Handles mouse down for selection and expand/collapse.
+    /// Handles mouse down for selection, expand/collapse, and scrollbar.
     /// </summary>
     protected internal override void OnMouseDown(EventArgs e)
     {
         var me = e as MouseEventArgs;
         if (me != null)
         {
+            // Check scrollbar click
+            if (_vScrollBar.NeedsScrollbar && me.X >= Width - ScrollBarEngine.DefaultScrollBarSize)
+            {
+                var scrollBarBounds = new Rectangle(Width - ScrollBarEngine.DefaultScrollBarSize, 0, ScrollBarEngine.DefaultScrollBarSize, Height);
+                _vScrollBar.HandleMouseDown(new Point(me.X, me.Y), scrollBarBounds, VScrollBarContext);
+                return;
+            }
+
             int virtualY = me.Y + _scrollOffsetY;
             var visible = GetVisibleNodes();
 
@@ -342,6 +375,35 @@ public class TreeView : Control
         }
 
         base.OnMouseDown(e);
+    }
+
+    /// <summary>
+    /// Handles mouse up for scrollbar.
+    /// </summary>
+    protected internal override void OnMouseUp(EventArgs e)
+    {
+        if (_vScrollBar.IsDragging || _vScrollBar.IsUpButtonPressed || _vScrollBar.IsDownButtonPressed)
+        {
+            _vScrollBar.HandleMouseUp(VScrollBarContext);
+        }
+        base.OnMouseUp(e);
+    }
+
+    /// <summary>
+    /// Handles mouse move for scrollbar hover and drag.
+    /// </summary>
+    protected internal override void OnMouseMove(EventArgs e)
+    {
+        if (_vScrollBar.NeedsScrollbar)
+        {
+            var me = e as MouseEventArgs;
+            if (me != null)
+            {
+                var scrollBarBounds = new Rectangle(Width - ScrollBarEngine.DefaultScrollBarSize, 0, ScrollBarEngine.DefaultScrollBarSize, Height);
+                _vScrollBar.HandleMouseMove(new Point(me.X, me.Y), scrollBarBounds, VScrollBarContext);
+            }
+        }
+        base.OnMouseMove(e);
     }
 
     /// <summary>
@@ -450,5 +512,14 @@ public class TreeView : Control
         }
 
         return d;
+    }
+
+    private sealed class TreeViewScrollBarContext : IScrollBarContext
+    {
+        private readonly TreeView _owner;
+        public TreeViewScrollBarContext(TreeView owner) => _owner = owner;
+        public float Zoom => _owner.EffectiveZoom;
+        public void Invalidate() => _owner.Invalidate();
+        public void CaptureMouse(bool capture) => _owner.CapturingMouse = capture;
     }
 }
