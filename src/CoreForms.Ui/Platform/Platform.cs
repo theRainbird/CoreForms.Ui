@@ -109,18 +109,18 @@ public static class Platform
         var handle = new IntPtr(windowId);
         form.SetHandle(handle);
 
-        Console.WriteLine($"[Platform] CreateWindow: id={windowId} form='{form.Text}' focusedWindow='{_focusedWindow?.Text}'");
+        Log($"[Platform] CreateWindow: id={windowId} form='{form.Text}' focusedWindow='{_focusedWindow?.Text}'");
 
         window.Load += () =>
         {
             try
             {
                 ctx.InitializeRenderer();
-                Console.WriteLine($"[Platform] Renderer initialized for window id={windowId}");
+                Log($"[Platform] Renderer initialized for window id={windowId}");
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[Platform] Failed to initialize renderer: {ex.Message}");
+                Log($"[Platform] Failed to initialize renderer: {ex.Message}");
                 return;
             }
 
@@ -133,7 +133,7 @@ public static class Platform
             {
                 keyboard.KeyDown += (kb, key, keyCode) =>
                 {
-                    Console.WriteLine($"[Platform] KeyDown: key={key} focusedWindow='{_focusedWindow?.Text}' windowId={windowId}");
+                    Log($"[Platform] KeyDown: key={key} focusedWindow='{_focusedWindow?.Text}' windowId={windowId}");
                     if (_focusedWindow == null) return;
                     var args = new KeyEventArgs
                     {
@@ -162,7 +162,7 @@ public static class Platform
             }
             else
             {
-                Console.WriteLine($"[Platform] WARNING: No keyboard for window id={windowId}");
+                Log($"[Platform] WARNING: No keyboard for window id={windowId}");
             }
 
             if (mouse != null)
@@ -218,13 +218,13 @@ public static class Platform
 
             window.Closing += () =>
             {
-                Console.WriteLine($"[Platform] Closing event for window id={windowId} form='{form.Text}'");
+                Log($"[Platform] Closing event for window id={windowId} form='{form.Text}'");
                 ctx.IsClosing = true;
             };
 
             window.FocusChanged += focused =>
             {
-                Console.WriteLine($"[Platform] FocusChanged: focused={focused} windowId={windowId} form='{form.Text}'");
+                Log($"[Platform] FocusChanged: focused={focused} windowId={windowId} form='{form.Text}'");
                 if (focused)
                 {
                     _focusedWindow = form;
@@ -271,7 +271,7 @@ public static class Platform
         if (!_contexts.TryGetValue(windowId, out var ctx))
             return;
 
-        Console.WriteLine($"[Platform] DestroyWindow: id={windowId} form='{ctx.Form.Text}'");
+        Log($"[Platform] DestroyWindow: id={windowId} form='{ctx.Form.Text}'");
 
         CleanupWindowOnClose(windowId, ctx, ctx.Form, glCleanup: true);
 
@@ -296,7 +296,7 @@ public static class Platform
                 : null;
         }
 
-        Console.WriteLine($"[Platform] CleanupWindowOnClose: id={windowId} glCleanup={glCleanup} focusedWindow now='{_focusedWindow?.Text}'");
+        Log($"[Platform] CleanupWindowOnClose: id={windowId} glCleanup={glCleanup} focusedWindow now='{_focusedWindow?.Text}'");
 
         CleanupIconImages(windowId);
 
@@ -472,6 +472,12 @@ public static class Platform
     public static Form? FocusedWindow => _focusedWindow;
 
     /// <summary>
+    /// Logs a debug message. Calls are completely eliminated in Release builds.
+    /// </summary>
+    [Conditional("DEBUG")]
+    private static void Log(string message) => Console.WriteLine(message);
+
+    /// <summary>
     /// Measures the dimensions of text using the font renderer of the specified window.
     /// </summary>
     /// <param name="text">The text to measure.</param>
@@ -562,7 +568,7 @@ public static class Platform
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"[SVG] EXCEPTION: {ex.GetType().Name}: {ex.Message}");
+            Log($"[SVG] EXCEPTION: {ex.GetType().Name}: {ex.Message}");
             return null;
         }
     }
@@ -640,7 +646,7 @@ public static class Platform
 
         foreach (var ctx in pendingCleanup)
         {
-            Console.WriteLine($"[Platform] Deferred cleanup: id={ctx.WindowId} form='{ctx.Form.Text}'");
+            Log($"[Platform] Deferred cleanup: id={ctx.WindowId} form='{ctx.Form.Text}'");
             CleanupWindowOnClose(ctx.WindowId, ctx, ctx.Form, glCleanup: false);
         }
 

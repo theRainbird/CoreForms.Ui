@@ -25,6 +25,7 @@ public class SkiaRenderer : IDisposable
     private int _height;
     private bool _disposed;
     private bool _useGpuRendering;
+    private Core.Rectangle? _lastClipRect;
 
     /// <summary>
     /// Gets the SkiaSharp canvas for direct drawing operations.
@@ -297,10 +298,24 @@ public class SkiaRenderer : IDisposable
     }
 
     /// <summary>
-    /// Sets the clipping rectangle.
+    /// Sets the clipping rectangle. Skips Save/Restore when the clip has not changed
+    /// since the last call to avoid unnecessary canvas state changes.
     /// </summary>
     public void SetClipRect(Core.Rectangle? rect)
     {
+        if (!rect.HasValue && !_lastClipRect.HasValue)
+            return;
+
+        if (rect.HasValue && _lastClipRect.HasValue &&
+            rect.Value.X == _lastClipRect.Value.X &&
+            rect.Value.Y == _lastClipRect.Value.Y &&
+            rect.Value.Width == _lastClipRect.Value.Width &&
+            rect.Value.Height == _lastClipRect.Value.Height)
+        {
+            return;
+        }
+
+        _lastClipRect = rect;
         _surface.Canvas.Restore();
         _surface.Canvas.Save();
 

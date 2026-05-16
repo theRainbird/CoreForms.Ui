@@ -335,7 +335,7 @@ namespace CoreForms.Ui.Rendering;
     /// Gets the list of draw commands accumulated by this Graphics object.
     /// </summary>
     /// <returns>A list of draw commands.</returns>
-    public List<DrawCommand> GetCommands() => new(_commands);
+    public List<DrawCommand> GetCommands() => _commands;
 }
 
 /// <summary>

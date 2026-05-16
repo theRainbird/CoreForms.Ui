@@ -301,6 +301,7 @@ class Program
         tabControl.AddTabPage(CreateDataBindingPage());
         tabControl.AddTabPage(CreateMessageBoxPage());
         tabControl.AddTabPage(CreateFileDialogPage());
+        tabControl.AddTabPage(CreatePrintDialogPage());
         tabControl.AddTabPage(CreateDockAnchorPage());
         tabControl.AddTabPage(CreateTreeViewPage());
         tabControl.AddTabPage(CreateUserControlPage());
@@ -925,6 +926,109 @@ class Program
         page.Controls.Add(dbusTestButton);
         page.Controls.Add(groupBox);
         page.Controls.Add(saveGroupBox);
+
+        return page;
+    }
+
+    static TabPage CreatePrintDialogPage()
+    {
+        var page = new TabPage { Text = "Print Dialog" };
+
+        var printerListBox = new ListBox
+        {
+            Location = new Point(170, 10),
+            Size = new Size(250, 200)
+        };
+
+        var setupButton = new Button { Text = "Print Setup...", Location = new Point(10, 10), Size = new Size(150, 35) };
+        setupButton.Click += (s, e) =>
+        {
+            var dlg = new PrintDialog
+            {
+                AllowSomePages = true,
+                AllowSelection = true,
+                AllowCurrentPage = true
+            };
+            var result = dlg.ShowDialog();
+            if (result == DialogResult.OK)
+            {
+                var ps = dlg.PrinterSettings!;
+                _statusLabel!.Text = $"Printer: {ps.PrinterName}, Copies: {ps.Copies}, Range: {ps.PrintRange}";
+            }
+            else
+            {
+                _statusLabel!.Text = "Print cancelled";
+            }
+        };
+
+        var listButton = new Button { Text = "Printer List", Location = new Point(10, 55), Size = new Size(150, 35) };
+        listButton.Click += (s, e) =>
+        {
+            printerListBox.Items.Clear();
+            var printers = PrinterSettings.InstalledPrinters;
+            foreach (var p in printers)
+                printerListBox.Items.Add(p);
+            _statusLabel!.Text = $"{printers.Length} printers found";
+        };
+
+        var testPrintButton = new Button { Text = "Quick Print Test", Location = new Point(10, 100), Size = new Size(150, 35) };
+        testPrintButton.Click += (s, e) =>
+        {
+            var doc = new PrintDocument
+            {
+                DocumentName = "Test Page",
+                PrinterSettings = new PrinterSettings()
+            };
+            doc.DefaultPageSettings = new PageSettings
+            {
+                PaperSize = Core.PaperSize.A4,
+                Landscape = false
+            };
+            doc.PrintPage += (sender, args) =>
+            {
+                var g = args.Graphics;
+                if (g == null) return;
+
+                int margin = 100;
+                var bounds = args.MarginBounds;
+
+                using (var paint = new SkiaSharp.SKPaint
+                {
+                    Color = SkiaSharp.SKColors.Black,
+                    Style = SkiaSharp.SKPaintStyle.Stroke,
+                    StrokeWidth = 2
+                })
+                {
+                    g.DrawRectangle(Core.Color.Black, bounds.X, bounds.Y, bounds.Width, bounds.Height);
+                }
+
+                g.DrawString("CoreForms.Ui Test Page", new Core.Font("Arial", 24), Core.Color.Black,
+                    bounds.X + 10, bounds.Y + 10);
+
+                g.DrawString($"Date: {DateTime.Now:yyyy-MM-dd HH:mm:ss}", new Core.Font("Arial", 12), Core.Color.Black,
+                    bounds.X + 10, bounds.Y + 60);
+
+                g.DrawString("This is a test print page.", new Core.Font("Arial", 12), Core.Color.Black,
+                    bounds.X + 10, bounds.Y + 100);
+
+                args.HasMorePages = false;
+            };
+            try
+            {
+                doc.Print();
+                _statusLabel!.Text = "Test page sent to printer";
+            }
+            catch (Exception ex)
+            {
+                _statusLabel!.Text = $"Print error: {ex.Message}";
+                Console.WriteLine($"[Print] Error: {ex}");
+            }
+        };
+
+        page.Controls.Add(setupButton);
+        page.Controls.Add(listButton);
+        page.Controls.Add(testPrintButton);
+        page.Controls.Add(printerListBox);
 
         return page;
     }

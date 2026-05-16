@@ -38,6 +38,7 @@ public class Control : Component, IThemeChangeSubscriber, INotifyPropertyChanged
     private int _layoutSuspendCount;
     internal bool _layoutDrivenBoundsChange;
     private ControlState _state = ControlState.None;
+    private Form? _cachedForm;
 
     /// <summary>
     /// Initializes a new instance of Control.
@@ -144,7 +145,17 @@ public class Control : Component, IThemeChangeSubscriber, INotifyPropertyChanged
                 _parent?.Controls.Remove(this);
                 _parent = value;
                 _parent?.Controls.Add(this);
+                InvalidateCachedForm();
             }
+        }
+    }
+
+    private void InvalidateCachedForm()
+    {
+        _cachedForm = null;
+        for (int i = 0; _controls != null && i < _controls.Count; i++)
+        {
+            _controls[i].InvalidateCachedForm();
         }
     }
 
@@ -626,11 +637,17 @@ if (_focused != value)
     /// <returns>The parent Form, or null if no parent Form exists.</returns>
     public Form? FindForm()
     {
+        if (_cachedForm != null)
+            return _cachedForm;
+
         Control? current = this;
         while (current != null)
         {
             if (current is Form form)
+            {
+                _cachedForm = form;
                 return form;
+            }
             current = current.Parent;
         }
         return null;
