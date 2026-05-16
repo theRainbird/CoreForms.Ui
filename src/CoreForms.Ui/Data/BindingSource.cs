@@ -8,7 +8,7 @@ namespace CoreForms.Ui.Data;
 /// Wraps a data source and provides binding management, currency, and change notification.
 /// Analogous to System.Windows.Forms.BindingSource.
 /// </summary>
-public class BindingSource : Component
+public class BindingSource : Component, IBindingList, ICancelAddNew, IRaiseItemChangedEvents
 {
     private object? _dataSource;
     private string _dataMember = string.Empty;
@@ -155,6 +155,110 @@ public class BindingSource : Component
     /// </summary>
     public ListSortDirection SortDirection { get; private set; }
 
+    // ===== IBindingList implementation =====
+
+    bool IBindingList.AllowNew => _list?.AllowNew ?? false;
+    bool IBindingList.AllowEdit => _list?.AllowEdit ?? false;
+    bool IBindingList.AllowRemove => _list?.AllowRemove ?? false;
+    bool IBindingList.SupportsChangeNotification => _list?.SupportsChangeNotification ?? false;
+    bool IBindingList.SupportsSearching => false;
+    bool IBindingList.SupportsSorting => false;
+    bool IBindingList.IsSorted => false;
+    PropertyDescriptor? IBindingList.SortProperty => null;
+    ListSortDirection IBindingList.SortDirection => ListSortDirection.Ascending;
+    bool IRaiseItemChangedEvents.RaisesItemChangedEvents => true;
+
+    bool IList.IsFixedSize => _list is IList list && list.IsFixedSize;
+    bool IList.IsReadOnly => _list is IList list && list.IsReadOnly;
+    bool ICollection.IsSynchronized => (_list as ICollection)?.IsSynchronized ?? false;
+    object ICollection.SyncRoot => (_list as ICollection)?.SyncRoot ?? this;
+
+    object? IList.this[int index]
+    {
+        get => _list is IList list ? list[index] : _list?[index];
+        set { if (_list is IList list) list[index] = value; }
+    }
+
+    int IList.Add(object? value)
+    {
+        if (_list != null)
+        {
+            var idx = _list.Add(value ?? throw new ArgumentNullException(nameof(value)));
+            return idx;
+        }
+        return -1;
+    }
+
+    bool IList.Contains(object? value) => (_list as IList)?.Contains(value) ?? false;
+    int IList.IndexOf(object? value) => (_list as IList)?.IndexOf(value) ?? -1;
+
+    void IList.Insert(int index, object? value)
+    {
+        if (_list is IList list)
+            list.Insert(index, value);
+    }
+
+    void IList.Remove(object? value)
+    {
+        if (_list != null)
+            _list.Remove(value);
+    }
+
+    void IList.RemoveAt(int index)
+    {
+        _list?.RemoveAt(index);
+    }
+
+    void IList.Clear()
+    {
+        _list?.Clear();
+    }
+
+    void ICollection.CopyTo(Array array, int index)
+    {
+        if (_list is ICollection col)
+            col.CopyTo(array, index);
+    }
+
+    IEnumerator IEnumerable.GetEnumerator()
+    {
+        if (_list is IList list)
+            return list.GetEnumerator();
+        if (_list is IEnumerable enumerable)
+            return enumerable.GetEnumerator();
+        return Enumerable.Empty<object>().GetEnumerator();
+    }
+
+    void IBindingList.AddIndex(PropertyDescriptor property) { }
+    void IBindingList.RemoveIndex(PropertyDescriptor property) { }
+
+    void IBindingList.ApplySort(PropertyDescriptor property, ListSortDirection direction)
+    {
+    }
+
+    void IBindingList.RemoveSort()
+    {
+    }
+
+    int IBindingList.Find(PropertyDescriptor property, object key) => -1;
+
+    object? IBindingList.AddNew()
+    {
+        return AddNew();
+    }
+
+    void ICancelAddNew.CancelNew(int itemIndex)
+    {
+        if (_list is ICancelAddNew cancel)
+            cancel.CancelNew(itemIndex);
+    }
+
+    void ICancelAddNew.EndNew(int itemIndex)
+    {
+        if (_list is ICancelAddNew end)
+            end.EndNew(itemIndex);
+    }
+
     /// <summary>
     /// Initializes a new instance of BindingSource.
     /// </summary>
@@ -279,15 +383,14 @@ public class BindingSource : Component
         if (_list == null)
             return -1;
 
-        var prop = ReflectionPropertyDescriptor.GetProperty(typeof(BindingSource), propertyName);
-        if (prop == null)
-            return -1;
-
         for (int i = 0; i < _list.Count; i++)
         {
             var item = _list[i];
             if (item != null)
             {
+                var prop = item.GetType().GetProperty(propertyName);
+                if (prop == null)
+                    continue;
                 var value = prop.GetValue(item);
                 if (Equals(value, key))
                     return i;
@@ -351,8 +454,6 @@ public class BindingSource : Component
             var wrapper = new BindingList<object>();
             foreach (var item in list)
                 wrapper.Add(item);
-            if (list is IBindingList ibl)
-                return ibl;
             return wrapper;
         }
 
@@ -384,13 +485,6 @@ public class BindingSource : Component
         var value = prop.GetValue(first);
         if (value is IBindingList nestedList)
             return nestedList;
-        if (value is IList nestedIList)
-        {
-            var wrapper = new BindingList<object>();
-            foreach (var item in nestedIList)
-                wrapper.Add(item);
-            return wrapper;
-        }
 
         return parent;
     }
@@ -413,12 +507,50 @@ public class BindingSource : Component
 
     private void OnListChangedInternal(object? sender, ListChangedEventArgs e)
     {
-        if (e.ListChangedType == ListChangedType.ItemDeleted && _position >= _list!.Count)
+        bool currentChanged = false;
+        bool positionChanged = false;
+
+        switch (e.ListChangedType)
         {
-            _position = Math.Max(0, _list.Count - 1);
+            case ListChangedType.ItemDeleted:
+                if (e.NewIndex <= _position)
+                {
+                    if (_list!.Count == 0)
+                        _position = -1;
+                    else
+                        _position = Math.Max(0, Math.Min(_position - 1, _list.Count - 1));
+                    currentChanged = true;
+                    positionChanged = true;
+                }
+                break;
+
+            case ListChangedType.ItemAdded:
+                if (e.NewIndex <= _position)
+                {
+                    _position++;
+                    currentChanged = true;
+                    positionChanged = true;
+                }
+                break;
+
+            case ListChangedType.Reset:
+                _position = _list != null && _list.Count > 0 ? 0 : -1;
+                currentChanged = true;
+                positionChanged = true;
+                break;
+
+            case ListChangedType.ItemChanged:
+                if (e.NewIndex == _position)
+                    currentChanged = true;
+                break;
         }
 
         OnListChanged(e);
+
+        if (positionChanged)
+            OnPositionChanged(EventArgs.Empty);
+        if (currentChanged)
+            OnCurrentChanged(EventArgs.Empty);
     }
 
     /// <summary>

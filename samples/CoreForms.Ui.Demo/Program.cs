@@ -524,7 +524,7 @@ class Program
             Size = new Size(195, 200),
             TabStop = true
         };
-        contactListBox.DataSource = contacts;
+        contactListBox.DataSource = bindingSource;
         contactListBox.DisplayMember = "Name";
 
         var navPanel = new Panel { Location = new Point(10, 235), Size = new Size(195, 100) };
@@ -650,7 +650,7 @@ class Program
             Location = new Point(10, 25),
             Size = new Size(225, 25)
         };
-        contactCombo.DataSource = contacts;
+        contactCombo.DataSource = bindingSource;
         contactCombo.DisplayMember = "Name";
         contactCombo.ValueMember = "Id";
 

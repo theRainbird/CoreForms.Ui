@@ -263,26 +263,31 @@ public class DataGridView : ContainerControl
     public event EventHandler<DataGridViewCellEventArgs>? CellValueChanged;
 
     /// <summary>
-    /// Raises the SelectionChanged event and syncs the CurrencyManager position.
+    /// Raises the SelectionChanged event and syncs the BindingSource/CurrencyManager position.
     /// </summary>
     protected virtual void OnSelectionChanged()
     {
         if (!_dataSourceUpdating && _dataSource != null && _selectedRowIndex >= 0)
         {
-            var form = FindForm();
-            if (form?.BindingContext != null)
+            if (_dataSource is BindingSource bs)
             {
-                try
+                bs.Position = _selectedRowIndex;
+            }
+            else
+            {
+                var form = FindForm();
+                if (form?.BindingContext != null)
                 {
-                    var mgr = form.BindingContext[_dataSource] as CurrencyManager;
-                    if (mgr != null)
+                    try
                     {
-                        mgr.Position = _selectedRowIndex;
+                        var mgr = form.BindingContext[_dataSource] as CurrencyManager;
+                        if (mgr != null)
+                            mgr.Position = _selectedRowIndex;
                     }
-                }
-                catch
-                {
-                    // Ignore binding context errors
+                    catch
+                    {
+                        // Ignore binding context errors
+                    }
                 }
             }
         }

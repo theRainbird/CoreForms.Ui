@@ -39,8 +39,8 @@ namespace CoreForms.Ui.Rendering;
     {
         if (string.IsNullOrEmpty(text)) return;
 
-        var skFont = GetOrCreateFont(font, zoom);
-        if (skFont == null) return;
+        var typeface = GetOrLoadTypeface(font.Name, font.Style);
+        if (typeface == null) return;
 
         float scaledSize = font.Size * zoom;
         using var paint = new SKPaint
@@ -49,10 +49,53 @@ namespace CoreForms.Ui.Rendering;
             IsAntialias = true,
             Style = SKPaintStyle.Fill,
             TextSize = scaledSize,
+            Typeface = typeface,
             FakeBoldText = font.Style.HasFlag(Core.FontStyle.Bold)
         };
 
-        canvas.DrawText(text, x, y + scaledSize, skFont, paint);
+        bool fakeItalic = font.Style.HasFlag(Core.FontStyle.Italic) && !typeface.IsItalic;
+
+        if (fakeItalic)
+        {
+            canvas.Save();
+            canvas.Translate(x, y + scaledSize);
+            canvas.Skew(-0.2f, 0);
+            canvas.DrawText(text, 0, 0, paint);
+
+            if (font.Style.HasFlag(Core.FontStyle.Underline))
+            {
+                float textWidth = paint.MeasureText(text);
+                float underlineY = 1.5f;
+                using var linePaint = new SKPaint
+                {
+                    Color = new SKColor(color.R, color.G, color.B, color.A),
+                    StrokeWidth = Math.Max(1, scaledSize / 14f),
+                    Style = SKPaintStyle.Stroke,
+                    IsAntialias = true
+                };
+                canvas.DrawLine(0, underlineY, textWidth, underlineY, linePaint);
+            }
+
+            canvas.Restore();
+        }
+        else
+        {
+            canvas.DrawText(text, x, y + scaledSize, paint);
+
+            if (font.Style.HasFlag(Core.FontStyle.Underline))
+            {
+                float textWidth = paint.MeasureText(text);
+                float underlineY = y + scaledSize + 1.5f;
+                using var linePaint = new SKPaint
+                {
+                    Color = new SKColor(color.R, color.G, color.B, color.A),
+                    StrokeWidth = Math.Max(1, scaledSize / 14f),
+                    Style = SKPaintStyle.Stroke,
+                    IsAntialias = true
+                };
+                canvas.DrawLine(x, underlineY, x + textWidth, underlineY, linePaint);
+            }
+        }
     }
 
     /// <summary>
@@ -67,20 +110,23 @@ namespace CoreForms.Ui.Rendering;
         if (string.IsNullOrEmpty(text))
             return (0, 0);
 
-        var skFont = GetOrCreateFont(font, zoom);
-        if (skFont == null)
+        var typeface = GetOrLoadTypeface(font.Name, font.Style);
+        float scaledSize = font.Size * zoom;
+        if (typeface == null)
         {
-            float scaledSize = font.Size * zoom;
             return ((int)(text.Length * scaledSize * 0.6f), (int)scaledSize);
         }
 
-        var metrics = skFont.Metrics;
-        ushort[] glyphs = new ushort[text.Length];
-        skFont.GetGlyphs(text, glyphs);
-        float width = skFont.MeasureText(glyphs);
-        if (font.Style.HasFlag(Core.FontStyle.Bold))
-            width += text.Length * font.Size * zoom * 0.03f;
-        return ((int)width, (int)(metrics.Descent - metrics.Ascent));
+        using var paint = new SKPaint
+        {
+            TextSize = scaledSize,
+            Typeface = typeface,
+            FakeBoldText = font.Style.HasFlag(Core.FontStyle.Bold)
+        };
+
+        var metrics = paint.GetFontMetrics(out var fontMetrics);
+        float width = paint.MeasureText(text);
+        return ((int)width, (int)(fontMetrics.Descent - fontMetrics.Ascent));
     }
 
     private SKFont? GetOrCreateFont(Core.Font font, float zoom = 1.0f)

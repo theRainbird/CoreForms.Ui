@@ -17,6 +17,7 @@ public class ListBox : Control
     private string _displayMember = string.Empty;
     private string _valueMember = string.Empty;
     private bool _dataSourceUpdating;
+    private BindingSource? _boundBindingSource;
 
     /// <summary>
     /// Initializes a new instance of ListBox.
@@ -272,26 +273,31 @@ public class ListBox : Control
     }
 
     /// <summary>
-    /// Raises the SelectedIndexChanged event and syncs the CurrencyManager position.
+    /// Raises the SelectedIndexChanged event and syncs the BindingSource/CurrencyManager position.
     /// </summary>
     protected virtual void OnSelectedIndexChanged()
     {
         if (!_dataSourceUpdating && _dataSource != null && _selectedIndex >= 0)
         {
-            var form = FindForm();
-            if (form?.BindingContext != null)
+            if (_dataSource is BindingSource bs)
             {
-                try
+                bs.Position = _selectedIndex;
+            }
+            else
+            {
+                var form = FindForm();
+                if (form?.BindingContext != null)
                 {
-                    var mgr = form.BindingContext[_dataSource] as CurrencyManager;
-                    if (mgr != null)
+                    try
                     {
-                        mgr.Position = _selectedIndex;
+                        var mgr = form.BindingContext[_dataSource] as CurrencyManager;
+                        if (mgr != null)
+                            mgr.Position = _selectedIndex;
                     }
-                }
-                catch
-                {
-                    // Ignore binding context errors
+                    catch
+                    {
+                        // Ignore binding context errors
+                    }
                 }
             }
         }
@@ -307,9 +313,27 @@ public class ListBox : Control
         _dataSourceUpdating = true;
         try
         {
+            if (_boundBindingSource != null)
+            {
+                _boundBindingSource.CurrentChanged -= OnBoundBindingSourceCurrentChanged;
+                _boundBindingSource = null;
+            }
+
             _items.Clear();
 
-            if (_dataSource is IBindingList bindingList)
+            if (_dataSource is BindingSource bs)
+            {
+                _boundBindingSource = bs;
+                var list = bs.List;
+                if (list != null)
+                {
+                    foreach (var item in list)
+                        _items.Add(item!);
+                    list.ListChanged += OnDataSourceListChanged;
+                }
+                bs.CurrentChanged += OnBoundBindingSourceCurrentChanged;
+            }
+            else if (_dataSource is IBindingList bindingList)
             {
                 foreach (var item in bindingList)
                     _items.Add(item!);
@@ -328,6 +352,12 @@ public class ListBox : Control
         {
             _dataSourceUpdating = false;
         }
+    }
+
+    private void OnBoundBindingSourceCurrentChanged(object? sender, EventArgs e)
+    {
+        if (!_dataSourceUpdating && _boundBindingSource != null)
+            SelectedIndex = _boundBindingSource.Position;
     }
 
     private void OnDataSourceListChanged(object? sender, ListChangedEventArgs e)

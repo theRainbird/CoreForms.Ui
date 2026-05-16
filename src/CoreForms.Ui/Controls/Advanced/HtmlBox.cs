@@ -103,6 +103,7 @@ public class HtmlBox : Control
         int y = 4;
         float zoom = g.Zoom;
         var doc = _engine.Document;
+        int numberCounter = 0;
 
         for (int bi = 0; bi < doc.Blocks.Count; bi++)
         {
@@ -111,18 +112,41 @@ public class HtmlBox : Control
             int blockEndFlat = blockStartFlat + block.TotalLength;
 
             int blockTop = y;
+            int textStartX = GetTextStartX(block.Type);
+            int markerX = 4;
+            float fontSize = GetBlockFontSize(block.Type);
+
+            if (block.Type == RichTextBlockType.NumberItem)
+            {
+                numberCounter++;
+            }
+            else if (block.Type != RichTextBlockType.BulletItem)
+            {
+                numberCounter = 0;
+            }
 
             foreach (var run in block.Runs)
             {
                 if (string.IsNullOrEmpty(run.Text)) continue;
 
-                float fontSize = GetBlockFontSize(block.Type);
                 var font = new Font("Arial", fontSize, run.Style);
                 var measured = Platform.Platform.MeasureText(run.Text, font, zoom);
                 int runWidth = measured.width;
                 int runHeight = measured.height;
 
-                g.DrawString(run.Text, font, ForeColor, 4, y);
+                if (run == block.Runs[0])
+                {
+                    if (block.Type == RichTextBlockType.BulletItem)
+                    {
+                        g.DrawString("•", new Font("Arial", fontSize, FontStyle.Regular), ForeColor, markerX, y);
+                    }
+                    else if (block.Type == RichTextBlockType.NumberItem)
+                    {
+                        g.DrawString($"{numberCounter}.", new Font("Arial", fontSize, FontStyle.Regular), ForeColor, markerX, y);
+                    }
+                }
+
+                g.DrawString(run.Text, font, ForeColor, textStartX, y);
 
                 int runStartFlat = blockStartFlat + GetRunStartOffset(block, run);
                 int runEndFlat = runStartFlat + run.Length;
@@ -139,7 +163,7 @@ public class HtmlBox : Control
                     string selText = run.Text[localSelStart..localSelEnd];
                     float selBeforeWidth = Platform.Platform.MeasureText(beforeSel, font, zoom).width / zoom;
                     float selTextWidth = Platform.Platform.MeasureText(selText, font, zoom).width / zoom;
-                    int selX = 4 + (int)selBeforeWidth;
+                    int selX = textStartX + (int)selBeforeWidth;
                     int selW = (int)selTextWidth;
                     if (selW < 2) selW = 2;
                     g.FillRectangle(SystemColors.Highlight, selX, y, selW, runHeight);
@@ -152,7 +176,7 @@ public class HtmlBox : Control
                     int localOff = cursorFlat - runStartFlat;
                     string beforeCursor = run.Text[..localOff];
                     float measuredWidth = Platform.Platform.MeasureText(beforeCursor, font, zoom).width;
-                    _cursorScreenX = (int)(4 + measuredWidth / zoom);
+                    _cursorScreenX = (int)(textStartX + measuredWidth / zoom);
                     _cursorScreenY = y;
                     _cursorScreenValid = true;
                 }
@@ -161,11 +185,18 @@ public class HtmlBox : Control
             }
 
             if (y == blockTop)
-                y += (int)GetBlockFontSize(block.Type) + 4;
+                y += (int)fontSize + 4;
         }
 
         DrawCursor(g);
         base.Render(g);
+    }
+
+    private static int GetTextStartX(RichTextBlockType type)
+    {
+        if (type is RichTextBlockType.BulletItem or RichTextBlockType.NumberItem)
+            return 24;
+        return 4;
     }
 
     private static float GetBlockFontSize(RichTextBlockType type) => type switch
@@ -216,6 +247,7 @@ public class HtmlBox : Control
             {
                 var block = doc.Blocks[bi];
                 float fontSize = GetBlockFontSize(block.Type);
+                int textStartX = GetTextStartX(block.Type);
 
                 foreach (var run in block.Runs)
                 {
@@ -231,7 +263,7 @@ public class HtmlBox : Control
 
                     if (mouseArgs.Y >= y && mouseArgs.Y < y + runHeight)
                     {
-                        int charOffset = FindCharAtX(run.Text, font, zoom, mx - (int)(4 * zoom));
+                        int charOffset = FindCharAtX(run.Text, font, zoom, mx - (int)(textStartX * zoom));
                         _engine.CursorBlock = bi;
                         _engine.CursorRun = doc.Blocks[bi].Runs.IndexOf(run);
                         _engine.CursorOffset = charOffset;
