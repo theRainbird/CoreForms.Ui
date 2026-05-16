@@ -215,8 +215,8 @@ public class ListBox : Control
             if (isSelected)
             {
                 if (Enabled)
-                    g.FillRectangle(SystemColors.Highlight, 1, y, listWidth - 2, itemHeight);
-                g.DrawString(displayText, font, Enabled ? SystemColors.HighlightText : textColor, 4, y + 2);
+                    g.FillRectangle(theme.Highlight, 1, y, listWidth - 2, itemHeight);
+                g.DrawString(displayText, font, Enabled ? theme.HighlightText : textColor, 4, y + 2);
             }
             else
             {

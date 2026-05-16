@@ -19,11 +19,13 @@ public class Label : Control
     }
 
     /// <summary>
-    /// Called when the theme changes. Keeps the transparent background.
+    /// Called when the theme changes. Updates ForeColor while keeping the transparent background.
     /// </summary>
     /// <param name="newTheme">The new theme that was activated.</param>
     public override void OnThemeChanged(Theme newTheme)
     {
+        if (!_foreColorSet)
+            _foreColor = newTheme.ControlText;
         Invalidate();
     }
 

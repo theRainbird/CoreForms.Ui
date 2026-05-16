@@ -40,6 +40,10 @@ public class GroupBox : ContainerControl
     /// <param name="newTheme">The new theme that was activated.</param>
     public override void OnThemeChanged(Theme newTheme)
     {
+        if (!_backColorSet)
+            _backColor = newTheme.ControlBackground;
+        if (!_foreColorSet)
+            _foreColor = newTheme.ControlText;
         Invalidate();
     }
 

@@ -166,8 +166,8 @@ public class HtmlBox : Control
                     int selX = textStartX + (int)selBeforeWidth;
                     int selW = (int)selTextWidth;
                     if (selW < 2) selW = 2;
-                    g.FillRectangle(SystemColors.Highlight, selX, y, selW, runHeight);
-                    g.DrawString(selText, font, SystemColors.HighlightText, selX, y);
+                    g.FillRectangle(ThemeManager.CurrentTheme.Highlight, selX, y, selW, runHeight);
+                    g.DrawString(selText, font, ThemeManager.CurrentTheme.HighlightText, selX, y);
                 }
 
                 int cursorFlat = _engine.CursorFlatIndex;

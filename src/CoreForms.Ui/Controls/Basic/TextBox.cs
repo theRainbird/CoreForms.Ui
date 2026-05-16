@@ -132,8 +132,8 @@ public class TextBox : Control
             float selWidth = Math.Max(_engine.MeasureTextWidth(selStr, context), 2);
 
             g.DrawString(displayText, font, textColor, textX, textY);
-            g.FillRectangle(SystemColors.Highlight, selX, textY, selWidth, scaledFontSize + 2);
-            g.DrawString(selStr, font, SystemColors.HighlightText, selX, textY);
+            g.FillRectangle(theme.Highlight, selX, textY, selWidth, scaledFontSize + 2);
+            g.DrawString(selStr, font, theme.HighlightText, selX, textY);
         }
         else
         {

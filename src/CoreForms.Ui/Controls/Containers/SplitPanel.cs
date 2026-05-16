@@ -195,6 +195,8 @@ public class SplitPanel : ContainerControl
     {
         if (!_backColorSet)
             _backColor = newTheme.ControlBackground;
+        if (!_foreColorSet)
+            _foreColor = newTheme.ControlText;
         Invalidate();
     }
 

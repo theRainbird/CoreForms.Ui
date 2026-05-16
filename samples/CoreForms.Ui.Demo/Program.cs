@@ -300,6 +300,7 @@ class Program
         tabControl.AddTabPage(CreateDataGridPage());
         tabControl.AddTabPage(CreateDataBindingPage());
         tabControl.AddTabPage(CreateMessageBoxPage());
+        tabControl.AddTabPage(CreateFileDialogPage());
         tabControl.AddTabPage(CreateDockAnchorPage());
         tabControl.AddTabPage(CreateTreeViewPage());
         tabControl.AddTabPage(CreateUserControlPage());
@@ -781,6 +782,149 @@ class Program
         page.Controls.Add(yesNoCancelButton);
         page.Controls.Add(retryButton);
         page.Controls.Add(abortButton);
+
+        return page;
+    }
+
+    static TabPage CreateFileDialogPage()
+    {
+        var page = new TabPage { Text = "File Dialogs" };
+
+        // D-Bus diagnostic button (Linux only)
+        var dbusTestButton = new Button
+        {
+            Text = "Test D-Bus Connection",
+            Location = new Point(10, 10),
+            Size = new Size(180, 30)
+        };
+        dbusTestButton.Click += (s, e) =>
+        {
+            _statusLabel!.Text = "Click Open File to test D-Bus portal dialog";
+        };
+
+        var groupBox = new GroupBox
+        {
+            Text = "OpenFileDialog",
+            Location = new Point(10, 50),
+            Size = new Size(350, 250)
+        };
+
+        var openSingleButton = new Button { Text = "Open File...", Location = new Point(10, 25), Size = new Size(150, 35) };
+        openSingleButton.Click += (s, e) =>
+        {
+            var dlg = new OpenFileDialog
+            {
+                Title = "Select a text file",
+                Filter = "Text files|*.txt|All files|*.*",
+                FilterIndex = 1,
+                CheckFileExists = true
+            };
+            var result = dlg.ShowDialog();
+            _statusLabel!.Text = result == DialogResult.OK
+                ? $"Open: {dlg.FileName}"
+                : "Open cancelled";
+        };
+
+        var openMultiButton = new Button { Text = "Open Files (Multi)...", Location = new Point(10, 70), Size = new Size(150, 35) };
+        openMultiButton.Click += (s, e) =>
+        {
+            var dlg = new OpenFileDialog
+            {
+                Title = "Select one or more files",
+                Filter = "All files|*.*|C# files|*.cs|Text files|*.txt",
+                Multiselect = true,
+                CheckFileExists = true
+            };
+            var result = dlg.ShowDialog();
+            if (result == DialogResult.OK)
+            {
+                _statusLabel!.Text = $"Open: {string.Join("; ", dlg.FileNames)}";
+            }
+            else
+            {
+                _statusLabel!.Text = "Open cancelled";
+            }
+        };
+
+        var openWithInitialDirButton = new Button { Text = "Open from /tmp...", Location = new Point(10, 115), Size = new Size(150, 35) };
+        openWithInitialDirButton.Click += (s, e) =>
+        {
+            var dlg = new OpenFileDialog
+            {
+                Title = "Open from temp directory",
+                InitialDirectory = "/tmp",
+                Filter = "All files|*.*",
+                DefaultExt = "txt",
+                AddExtension = true
+            };
+            var result = dlg.ShowDialog();
+            _statusLabel!.Text = result == DialogResult.OK
+                ? $"Open: {dlg.FileName}"
+                : "Open cancelled";
+        };
+
+        var resultLabel = new Label
+        {
+            Text = "Result will appear in the status bar.",
+            Location = new Point(10, 170),
+            Size = new Size(320, 50)
+        };
+
+        groupBox.Controls.Add(openSingleButton);
+        groupBox.Controls.Add(openMultiButton);
+        groupBox.Controls.Add(openWithInitialDirButton);
+        groupBox.Controls.Add(resultLabel);
+
+        var saveGroupBox = new GroupBox
+        {
+            Text = "SaveFileDialog",
+            Location = new Point(370, 50),
+            Size = new Size(350, 250)
+        };
+
+        var saveButton = new Button { Text = "Save File...", Location = new Point(10, 25), Size = new Size(150, 35) };
+        saveButton.Click += (s, e) =>
+        {
+            var dlg = new SaveFileDialog
+            {
+                Title = "Save file as",
+                Filter = "Text files|*.txt|All files|*.*",
+                DefaultExt = "txt",
+                AddExtension = true,
+                OverwritePrompt = true,
+                FileName = "document.txt"
+            };
+            var result = dlg.ShowDialog();
+            _statusLabel!.Text = result == DialogResult.OK
+                ? $"Save: {dlg.FileName}"
+                : "Save cancelled";
+        };
+
+        var saveWithDirButton = new Button { Text = "Save to /tmp...", Location = new Point(10, 70), Size = new Size(150, 35) };
+        saveWithDirButton.Click += (s, e) =>
+        {
+            var dlg = new SaveFileDialog
+            {
+                Title = "Save to temp directory",
+                InitialDirectory = "/tmp",
+                Filter = "C# files|*.cs|All files|*.*",
+                DefaultExt = "cs",
+                AddExtension = true,
+                OverwritePrompt = true,
+                FileName = "output.cs"
+            };
+            var result = dlg.ShowDialog();
+            _statusLabel!.Text = result == DialogResult.OK
+                ? $"Save: {dlg.FileName}"
+                : "Save cancelled";
+        };
+
+        saveGroupBox.Controls.Add(saveButton);
+        saveGroupBox.Controls.Add(saveWithDirButton);
+
+        page.Controls.Add(dbusTestButton);
+        page.Controls.Add(groupBox);
+        page.Controls.Add(saveGroupBox);
 
         return page;
     }

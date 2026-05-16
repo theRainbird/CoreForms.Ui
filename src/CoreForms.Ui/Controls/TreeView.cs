@@ -1,7 +1,6 @@
 using System.Collections.Generic;
 using System.Linq;
 using CoreForms.Ui.Core;
-using CoreForms.Ui.Rendering;
 using CoreForms.Ui.Theming;
 using Graphics = CoreForms.Ui.Rendering.Graphics;
 
@@ -138,7 +137,7 @@ public class TreeView : Control
             int lineX = LeftMargin + (depth - 1) * Indent + GlyphSize / 2;
             int endX = LeftMargin + depth * Indent;
             int rowCenterY = i * ItemHeight + ItemHeight / 2;
-            DrawDottedLine(g, SystemColors.ControlDark, lineX, rowCenterY, endX, rowCenterY, 2, 2);
+            DrawDottedLine(g, theme.ControlDark, lineX, rowCenterY, endX, rowCenterY, 2, 2);
         }
 
         // Pass 2b: draw vertical sibling lines per parent group
@@ -171,7 +170,7 @@ public class TreeView : Control
                 int startY = parentIdx * ItemHeight + ItemHeight / 2;
                 int endY = lastChildIdx * ItemHeight + ItemHeight / 2;
                 int lineX = LeftMargin + (depth - 1) * Indent + GlyphSize / 2;
-                DrawDottedLine(g, SystemColors.ControlDark, lineX, startY, lineX, endY, 2, 2);
+                DrawDottedLine(g, theme.ControlDark, lineX, startY, lineX, endY, 2, 2);
             }
         }
 
@@ -193,7 +192,7 @@ public class TreeView : Control
                 int startY = firstIdx * ItemHeight + ItemHeight / 2;
                 int endY = lastIdx * ItemHeight + ItemHeight / 2;
                 int lineX = LeftMargin + GlyphSize / 2;
-                DrawDottedLine(g, SystemColors.ControlDark, lineX, startY, lineX, endY, 2, 2);
+                DrawDottedLine(g, theme.ControlDark, lineX, startY, lineX, endY, 2, 2);
             }
         }
 
@@ -209,7 +208,7 @@ public class TreeView : Control
             // Selection background (drawn before anything else for this row)
             if (node == SelectedNode)
             {
-                g.FillRectangle(SystemColors.Highlight, 0, y, Width, ItemHeight);
+                g.FillRectangle(theme.Highlight, 0, y, Width, ItemHeight);
             }
 
             // Glyph box background and outline
@@ -219,15 +218,15 @@ public class TreeView : Control
                 // Fill glyph background to occlude any vertical lines passing through
                 g.FillRectangle(BackColor, x, glyphY, GlyphSize, GlyphSize);
                 // Draw glyph outline
-                g.DrawRectangle(SystemColors.ControlDark, x, glyphY, GlyphSize, GlyphSize, 1);
+                g.DrawRectangle(theme.ControlDark, x, glyphY, GlyphSize, GlyphSize, 1);
                 // Horizontal minus line
                 var centerX = x + GlyphSize / 2;
                 var centerY = glyphY + GlyphSize / 2;
-                g.DrawLine(SystemColors.ControlDark, x + 2, centerY, x + GlyphSize - 2, centerY);
+                g.DrawLine(theme.ControlDark, x + 2, centerY, x + GlyphSize - 2, centerY);
                 // Vertical plus line (when collapsed)
                 if (!node.IsExpanded)
                 {
-                    g.DrawLine(SystemColors.ControlDark, centerX, glyphY + 2, centerX, glyphY + GlyphSize - 2);
+                    g.DrawLine(theme.ControlDark, centerX, glyphY + 2, centerX, glyphY + GlyphSize - 2);
                 }
             }
 
@@ -244,7 +243,7 @@ public class TreeView : Control
             }
 
             // Text
-            var textColor = node == SelectedNode ? SystemColors.HighlightText : ForeColor;
+            var textColor = node == SelectedNode ? theme.HighlightText : ForeColor;
             g.DrawString(node.Text, EffectiveFont, textColor, textX, y);
         }
 
@@ -262,7 +261,7 @@ public class TreeView : Control
         }
 
         // Draw border after scrollbar to ensure it stays on top
-        g.DrawRectangle(SystemColors.ControlDark, 0, 0, Width, Height, 1);
+        g.DrawRectangle(theme.ControlDark, 0, 0, Width, Height, 1);
         if (Focused)
             g.DrawRectangle(theme.FocusIndicator, 1, 1, Width - 2, Height - 2);
 

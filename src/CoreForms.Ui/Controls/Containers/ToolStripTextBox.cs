@@ -1,4 +1,5 @@
 using CoreForms.Ui.Core;
+using CoreForms.Ui.Theming;
 using Graphics = CoreForms.Ui.Rendering.Graphics;
 
 namespace CoreForms.Ui.Controls.Containers;
@@ -143,17 +144,19 @@ public class ToolStripTextBox : ToolStripItem
     {
         if (!Visible) return;
 
+        var theme = ThemeManager.CurrentTheme;
+
         int tbWidth = _width;
         int tbX = x + 2;
         int tbY = y + 2;
         int tbHeight = height - 4;
 
-        g.FillRectangle(Color.White, tbX, tbY, tbWidth, tbHeight);
+        g.FillRectangle(theme.TextBoxBackground, tbX, tbY, tbWidth, tbHeight);
 
         if (_focused)
-            g.DrawRectangle(Color.FromArgb(0, 120, 215), tbX, tbY, tbWidth, tbHeight, 2);
+            g.DrawRectangle(theme.TextBoxFocusBorder, tbX, tbY, tbWidth, tbHeight, 2);
         else
-            g.DrawRectangle(Color.FromArgb(128, 128, 128), tbX, tbY, tbWidth, tbHeight, 1);
+            g.DrawRectangle(theme.TextBoxBorder, tbX, tbY, tbWidth, tbHeight, 1);
 
         float textY = tbY + (tbHeight - font.Size * zoom) / 2f;
         float textX = tbX + 4 - _engine.ScrollOffset;
@@ -173,20 +176,20 @@ public class ToolStripTextBox : ToolStripItem
             float selX = textX + MeasureLocalTextWidth(beforeSel, font, zoom);
             float selWidth = Math.Max(MeasureLocalTextWidth(selStr, font, zoom), 2);
 
-            g.DrawString(displayText, font, Color.Black, textX, textY);
-            g.FillRectangle(SystemColors.Highlight, selX, textY, selWidth, font.Size * zoom + 2);
-            g.DrawString(selStr, font, SystemColors.HighlightText, selX, textY);
+            g.DrawString(displayText, font, theme.TextBoxText, textX, textY);
+            g.FillRectangle(theme.Highlight, selX, textY, selWidth, font.Size * zoom + 2);
+            g.DrawString(selStr, font, theme.HighlightText, selX, textY);
         }
         else
         {
-            g.DrawString(displayText, font, Color.Black, textX, textY);
+            g.DrawString(displayText, font, theme.TextBoxText, textX, textY);
         }
 
         if (_focused && TextEditorEngine.IsCursorBlinkVisible)
         {
             string textBeforeCursor = displayText.Substring(0, _engine.CursorPosition);
             float cursorX = textX + MeasureLocalTextWidth(textBeforeCursor, font, zoom);
-            g.DrawLine(Color.Black, cursorX, textY, cursorX, textY + font.Size * zoom, 1);
+            g.DrawLine(theme.TextBoxText, cursorX, textY, cursorX, textY + font.Size * zoom, 1);
         }
 
         g.ResetClip();

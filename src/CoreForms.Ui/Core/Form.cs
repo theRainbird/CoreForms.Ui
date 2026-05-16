@@ -8,7 +8,7 @@ namespace CoreForms.Ui.Core;
 /// <summary>
 /// Represents a window or dialog in the application.
 /// </summary>
-public class Form : ContainerControl
+public class Form : ContainerControl, IWin32Window
 {
     private string _title = string.Empty;
 
@@ -42,9 +42,14 @@ public class Form : ContainerControl
     }
 
     /// <summary>
-    /// Gets the native window handle.
+    /// Gets the internal window identifier handle.
     /// </summary>
     public IntPtr Handle => _handle;
+
+    /// <summary>
+    /// Gets the native platform window handle (HWND on Windows, X11 Window / wl_surface on Linux).
+    /// </summary>
+    nint IWin32Window.Handle => Platform.Platform.GetNativeWindowHandle(this);
 
     /// <summary>
     /// Sets the native window handle. Called by the platform layer after window creation.

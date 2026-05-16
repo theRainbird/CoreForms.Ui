@@ -40,6 +40,30 @@ public static class Platform
     }
 
     /// <summary>
+    /// Gets the WindowContext for the specified form, or null if not found.
+    /// </summary>
+    /// <param name="form">The form.</param>
+    /// <returns>The WindowContext, or null if not found.</returns>
+    internal static WindowContext? GetWindowContext(Form form)
+    {
+        return _contexts.TryGetValue(form.WindowId, out var ctx) ? ctx : null;
+    }
+
+    /// <summary>
+    /// Gets the native platform window handle for the specified form.
+    /// On Windows this is an HWND, on X11 an X11 Window ID, on Wayland a wl_surface pointer.
+    /// </summary>
+    /// <param name="form">The form whose native handle to retrieve.</param>
+    /// <returns>The native window handle, or <see cref="IntPtr.Zero"/> if not available.</returns>
+    public static nint GetNativeWindowHandle(Form form)
+    {
+        var ctx = GetWindowContext(form);
+        if (ctx == null)
+            return nint.Zero;
+        return ctx.Window.Handle;
+    }
+
+    /// <summary>
     /// Creates a new window for the specified form.
     /// The renderer is initialized asynchronously when the window loads.
     /// </summary>

@@ -56,6 +56,8 @@ public class DataGridView : ContainerControl
     {
         if (!_backColorSet)
             _backColor = newTheme.TextBoxBackground;
+        if (!_foreColorSet)
+            _foreColor = newTheme.ControlText;
         Invalidate();
     }
 
@@ -380,12 +382,12 @@ public class DataGridView : ContainerControl
             {
                 int y = headerHeight + (rowIdx * _rowHeight) - _vScrollBar.Value;
                 bool isSelected = rowIdx == _selectedRowIndex;
-                var headerBg = isSelected ? SystemColors.Highlight : theme.ControlBackground;
+                var headerBg = isSelected ? theme.Highlight : theme.ControlBackground;
 
                 g.FillRectangle(headerBg, 0, y, rowHeaderWidth, _rowHeight);
                 g.DrawRectangle(theme.DataGridViewBorder, 0, y, rowHeaderWidth, _rowHeight, 1);
                 var font = EffectiveFont;
-                g.DrawString((rowIdx + 1).ToString(), font, isSelected ? SystemColors.HighlightText : theme.DataGridViewRowHeaderText, 4, y + (int)CoordinateTransform.CenterVertically(0, _rowHeight, font, zoom));
+                g.DrawString((rowIdx + 1).ToString(), font, isSelected ? theme.HighlightText : theme.DataGridViewRowHeaderText, 4, y + (int)CoordinateTransform.CenterVertically(0, _rowHeight, font, zoom));
             }
 
             if (_allowUserToAddRows)
@@ -408,7 +410,7 @@ public class DataGridView : ContainerControl
             bool isAlternate = rowIdx % 2 == 1;
 
             if (isSelected)
-                g.FillRectangle(SystemColors.Highlight, rowHeaderWidth, y, dataWidth, _rowHeight);
+                g.FillRectangle(theme.Highlight, rowHeaderWidth, y, dataWidth, _rowHeight);
             else if (isAlternate)
                 g.FillRectangle(theme.AlternateRow, rowHeaderWidth, y, dataWidth, _rowHeight);
         }
@@ -439,7 +441,7 @@ public class DataGridView : ContainerControl
         {
             int y = headerHeight + (rowIdx * _rowHeight) - _vScrollBar.Value;
             bool isSelected = rowIdx == _selectedRowIndex;
-            var textColor = isSelected ? SystemColors.HighlightText : theme.DataGridViewCellText;
+            var textColor = isSelected ? theme.HighlightText : theme.DataGridViewCellText;
 
             int x = rowHeaderWidth - _horizontalScrollOffset;
             for (int col = 0; col < _columns.Count; col++)

@@ -94,6 +94,12 @@ public class Application
     }
 
     /// <summary>
+    /// Gets all registered forms.
+    /// </summary>
+    /// <returns>An enumerable of registered forms.</returns>
+    public IEnumerable<Form> GetForms() => _forms.Values;
+
+    /// <summary>
     /// Processes any pending Windows messages.
     /// </summary>
     public static void DoEvents()

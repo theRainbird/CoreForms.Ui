@@ -47,6 +47,8 @@ public class ComboBox : Control
     {
         if (!_backColorSet)
             _backColor = newTheme.TextBoxBackground;
+        if (!_foreColorSet)
+            _foreColor = newTheme.ControlText;
         Invalidate();
     }
 
@@ -267,9 +269,9 @@ public class ComboBox : Control
 
             if (i == _selectedIndex)
             {
-                g.FillRectangle(SystemColors.Highlight, 1, y, listWidth - 2, itemHeight);
+                g.FillRectangle(theme.Highlight, 1, y, listWidth - 2, itemHeight);
                 var displayText = GetItemDisplayText(_items[i]);
-                g.DrawString(displayText, font, SystemColors.HighlightText, 4, y + 2);
+                g.DrawString(displayText, font, theme.HighlightText, 4, y + 2);
             }
             else if (i == _hoveredIndex)
             {

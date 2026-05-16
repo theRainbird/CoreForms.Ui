@@ -1,4 +1,5 @@
 using CoreForms.Ui.Core;
+using CoreForms.Ui.Theming;
 using Graphics = CoreForms.Ui.Rendering.Graphics;
 
 namespace CoreForms.Ui.Controls.Containers;
@@ -175,8 +176,9 @@ public class ToolStripButton : ToolStripItem
 
         if (showText && !string.IsNullOrEmpty(DisplayText))
         {
+            var theme = ThemeManager.CurrentTheme;
             int textX = showImage ? contentX + imageWidth + 4 : contentX;
-            var textColor = Enabled ? Color.Black : SystemColors.GrayText;
+            var textColor = Enabled ? theme.ToolStripItemText : theme.GrayText;
             g.DrawString(DisplayText, font, textColor, textX, y + (height - (int)(font.Size * zoom)) / 2);
         }
 

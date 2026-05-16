@@ -39,6 +39,8 @@ public class TabControl : ContainerControl
     {
         if (!_backColorSet)
             _backColor = newTheme.ControlBackground;
+        if (!_foreColorSet)
+            _foreColor = newTheme.ControlText;
         Invalidate();
     }
 
@@ -469,6 +471,8 @@ public class TabPage : ContainerControl
     {
         if (!_backColorSet)
             _backColor = newTheme.TabContentBackground;
+        if (!_foreColorSet)
+            _foreColor = newTheme.ControlText;
         Invalidate();
     }
 
@@ -523,45 +527,9 @@ public class StatusStrip : ContainerControl
     {
         if (!_backColorSet)
             _backColor = newTheme.ControlBackground;
+        if (!_foreColorSet)
+            _foreColor = newTheme.ControlText;
         Invalidate();
-    }
-
-    /// <summary>
-    /// Gets the collection of status labels.
-    /// </summary>
-    public List<ToolStripStatusLabel> Items => _items;
-
-    /// <summary>
-    /// Renders the status strip with its items.
-    /// </summary>
-    /// <param name="g">The Graphics object to use for rendering.</param>
-    public override void Render(Graphics g)
-    {
-        if (!Visible) return;
-
-        var theme = ThemeManager.CurrentTheme;
-
-        g.FillRectangle(BackColor, 0, 0, Width, Height);
-        g.DrawLine(theme.StatusStripTopLine, 0, 0, Width, 0);
-
-        if (!string.IsNullOrEmpty(_text))
-        {
-            var font = EffectiveFont;
-            g.DrawString(_text, font, ForeColor, 4, CoordinateTransform.CenterVertically(Height, font, EffectiveZoom));
-        }
-
-        int x = 4;
-        foreach (var item in _items)
-        {
-            if (!string.IsNullOrEmpty(item.Text))
-            {
-                var font = item.Font ?? EffectiveFont;
-                g.DrawString(item.Text, font, item.ForeColor, x, CoordinateTransform.CenterVertically(Height, font, EffectiveZoom));
-                x += item.Text.Length * (int)(font.Size * EffectiveZoom) / 2 + 10;
-            }
-        }
-
-        base.Render(g);
     }
 }
 
@@ -571,7 +539,7 @@ public class StatusStrip : ContainerControl
 public class ToolStripStatusLabel : Component
 {
     private string _text = string.Empty;
-    private Color _foreColor = SystemColors.ControlText;
+    private Color _foreColor = ThemeManager.CurrentTheme.ControlText;
     private Font? _font;
 
     /// <summary>
