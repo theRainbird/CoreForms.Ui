@@ -425,30 +425,33 @@ public class DataGridView : ContainerControl
                         g.SetClip(new Rectangle(drawX, 0, drawWidth, headerHeight));
                         var font = _columns[col].HeaderCell?.Font ?? EffectiveFont;
                         var headerText = _columns[col].HeaderText;
-                        float arrowSize = 0.3f * headerHeight;
-                        int sortGlyphWidth = _columns[col].SortOrder != SortOrder.None ? (int)(arrowSize * 2) + 4 : 0;
+                        bool showArrow = _columns[col].SortOrder != SortOrder.None;
+                        float arrowGx = 0, arrowMidY = 0, arrowHalfH = 0, arrowHalfW = 0;
+                        int sortGlyphWidth = 0;
+                        if (showArrow)
+                        {
+                            arrowHalfH = 3.5f;
+                            arrowHalfW = 4.5f;
+                            sortGlyphWidth = (int)(arrowHalfW * 2) + 6;
+                            arrowGx = drawX + drawWidth - sortGlyphWidth + 3;
+                            arrowMidY = headerHeight / 2f;
+                        }
                         headerText = TruncateText(headerText, font, zoom, _columns[col].TextAlign, drawWidth - 8 - sortGlyphWidth);
                         float headerTextX = GetAlignedX(headerText, font, zoom, _columns[col].TextAlign, drawX, drawWidth - sortGlyphWidth, 4);
                         g.DrawString(headerText, font, theme.DataGridViewHeaderText, headerTextX, CoordinateTransform.CenterVertically(0, headerHeight, font, zoom));
 
-                        if (_columns[col].SortOrder != SortOrder.None)
+                        if (showArrow)
                         {
-                            float arrowX = drawX + drawWidth - sortGlyphWidth + 2;
-                            float midY = headerHeight / 2f;
                             if (_columns[col].SortOrder == SortOrder.Ascending)
-                            {
                                 g.FillTriangle(theme.DataGridViewSortArrow,
-                                    arrowX, midY + arrowSize,
-                                    arrowX + arrowSize, midY + arrowSize,
-                                    arrowX + arrowSize / 2f, midY - arrowSize);
-                            }
+                                    arrowGx, arrowMidY + arrowHalfH,
+                                    arrowGx + arrowHalfW * 2, arrowMidY + arrowHalfH,
+                                    arrowGx + arrowHalfW, arrowMidY - arrowHalfH);
                             else
-                            {
                                 g.FillTriangle(theme.DataGridViewSortArrow,
-                                    arrowX, midY - arrowSize,
-                                    arrowX + arrowSize, midY - arrowSize,
-                                    arrowX + arrowSize / 2f, midY + arrowSize);
-                            }
+                                    arrowGx, arrowMidY - arrowHalfH,
+                                    arrowGx + arrowHalfW * 2, arrowMidY - arrowHalfH,
+                                    arrowGx + arrowHalfW, arrowMidY + arrowHalfH);
                         }
                         g.ResetClip();
                     }
