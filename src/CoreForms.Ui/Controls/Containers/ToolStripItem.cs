@@ -345,7 +345,7 @@ public abstract class ToolStripItem : Component
 
         if (showText && !string.IsNullOrEmpty(DisplayText))
         {
-            int textX = CalculateTextX(contentX, contentWidth, imageWidth, showImage);
+            int textX = CalculateTextX(contentX, contentWidth, imageWidth, showImage, zoom);
             int textY = contentY + (contentHeight - (int)font.Size) / 2;
 
             RenderTextWithMnemonic(g, DisplayText, font, textColor, textX, textY, zoom);
@@ -478,13 +478,13 @@ public abstract class ToolStripItem : Component
         return contentX + 4;
     }
 
-    private int CalculateTextX(int contentX, int contentWidth, int imageWidth, bool showImage)
+    private int CalculateTextX(int contentX, int contentWidth, int imageWidth, bool showImage, float zoom)
     {
         int baseX = showImage ? contentX + imageWidth + 6 : contentX + 4;
         return _textAlign switch
         {
-            ToolStripItemTextAlign.Center => contentX + (contentWidth - MeasureTextWidth(DisplayText, Font.Default, 1.0f)) / 2,
-            ToolStripItemTextAlign.Right => contentX + contentWidth - MeasureTextWidth(DisplayText, Font.Default, 1.0f) - 4,
+            ToolStripItemTextAlign.Center => contentX + (contentWidth - MeasureTextWidth(DisplayText, Font.Default, zoom)) / 2,
+            ToolStripItemTextAlign.Right => contentX + contentWidth - MeasureTextWidth(DisplayText, Font.Default, zoom) - 4,
             _ => baseX
         };
     }

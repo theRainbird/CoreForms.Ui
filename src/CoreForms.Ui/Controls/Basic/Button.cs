@@ -45,9 +45,9 @@ public class Button : Control
         var textColor = Enabled ? ForeColor : theme.GrayText;
         var font = EffectiveFont;
         float zoom = EffectiveZoom;
-        var textSize = Text.Length * font.Size * zoom * 0.6f;
-        var x = (Width - textSize) / 2;
-        var y = CoordinateTransform.CenterVertically(Height, font, zoom);
+        var measured = CoordinateTransform.MeasureText(Text, font, zoom);
+        var x = (Width - measured.width) / 2;
+        var y = (Height - measured.height) / 2;
         g.DrawString(Text, font, textColor, x > 0 ? x : 3, y > 0 ? y : 3);
 
         base.Render(g);

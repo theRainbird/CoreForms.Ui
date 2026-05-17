@@ -83,6 +83,7 @@ public class HtmlBox : Control
             case "italic": _engine.ToggleItalic(); break;
             case "underline": _engine.ToggleUnderline(); break;
         }
+
         Invalidate();
         ContentChanged?.Invoke(this, EventArgs.Empty);
     }
@@ -131,8 +132,7 @@ public class HtmlBox : Control
 
                 var font = new Font("Arial", fontSize, run.Style);
                 var measured = Platform.Platform.MeasureText(run.Text, font, zoom);
-                int runWidth = measured.width;
-                int runHeight = measured.height;
+                int runHeightLogical = (int)(measured.height / zoom);
 
                 if (run == block.Runs[0])
                 {
@@ -142,7 +142,8 @@ public class HtmlBox : Control
                     }
                     else if (block.Type == RichTextBlockType.NumberItem)
                     {
-                        g.DrawString($"{numberCounter}.", new Font("Arial", fontSize, FontStyle.Regular), ForeColor, markerX, y);
+                        g.DrawString($"{numberCounter}.", new Font("Arial", fontSize, FontStyle.Regular), ForeColor,
+                            markerX, y);
                     }
                 }
 
@@ -166,7 +167,7 @@ public class HtmlBox : Control
                     int selX = textStartX + (int)selBeforeWidth;
                     int selW = (int)selTextWidth;
                     if (selW < 2) selW = 2;
-                    g.FillRectangle(ThemeManager.CurrentTheme.Highlight, selX, y, selW, runHeight);
+                    g.FillRectangle(ThemeManager.CurrentTheme.Highlight, selX, y, selW, runHeightLogical);
                     g.DrawString(selText, font, ThemeManager.CurrentTheme.HighlightText, selX, y);
                 }
 
@@ -181,7 +182,7 @@ public class HtmlBox : Control
                     _cursorScreenValid = true;
                 }
 
-                y += runHeight;
+                y += runHeightLogical;
             }
 
             if (y == blockTop)
@@ -214,6 +215,7 @@ public class HtmlBox : Control
             if (r == target) return offset;
             offset += r.Length;
         }
+
         return offset;
     }
 
@@ -255,13 +257,13 @@ public class HtmlBox : Control
 
                     var font = new Font("Arial", fontSize, run.Style);
                     var measured = Platform.Platform.MeasureText(run.Text, font, zoom);
-                    int runHeight = measured.height;
+                    int runHeightLogical = (int)(measured.height / zoom);
 
                     lastBlock = bi;
                     lastRun = doc.Blocks[bi].Runs.IndexOf(run);
                     lastOffset = run.Length;
 
-                    if (mouseArgs.Y >= y && mouseArgs.Y < y + runHeight)
+                    if (mouseArgs.Y >= y && mouseArgs.Y < y + runHeightLogical)
                     {
                         int charOffset = FindCharAtX(run.Text, font, zoom, mx - (int)(textStartX * zoom));
                         _engine.CursorBlock = bi;
@@ -277,7 +279,7 @@ public class HtmlBox : Control
                         return;
                     }
 
-                    y += runHeight;
+                    y += runHeightLogical;
                 }
 
                 if (block.Runs.Count == 0)
@@ -318,6 +320,7 @@ public class HtmlBox : Control
                 bestPos = i;
             }
         }
+
         return bestPos;
     }
 
@@ -328,7 +331,11 @@ public class HtmlBox : Control
 
     protected internal override void OnKeyDown(KeyEventArgs e)
     {
-        if (_readOnly) { base.OnKeyDown(e); return; }
+        if (_readOnly)
+        {
+            base.OnKeyDown(e);
+            return;
+        }
 
         bool shift = e.Modifiers.HasFlag(ModifierKeys.Shift);
 
@@ -344,6 +351,7 @@ public class HtmlBox : Control
                     _engine.SelectionRun = _engine.CursorRun;
                     _engine.SelectionOffset = _engine.CursorOffset;
                 }
+
                 _engine.MoveLeft();
                 if (!shift)
                 {
@@ -351,6 +359,7 @@ public class HtmlBox : Control
                     _engine.SelectionRun = _engine.CursorRun;
                     _engine.SelectionOffset = _engine.CursorOffset;
                 }
+
                 break;
             case Keys.Right:
                 if (shift && !_engine.HasSelection)
@@ -359,6 +368,7 @@ public class HtmlBox : Control
                     _engine.SelectionRun = _engine.CursorRun;
                     _engine.SelectionOffset = _engine.CursorOffset;
                 }
+
                 _engine.MoveRight();
                 if (!shift)
                 {
@@ -366,6 +376,7 @@ public class HtmlBox : Control
                     _engine.SelectionRun = _engine.CursorRun;
                     _engine.SelectionOffset = _engine.CursorOffset;
                 }
+
                 break;
             case Keys.Up:
                 if (shift && !_engine.HasSelection)
@@ -374,13 +385,19 @@ public class HtmlBox : Control
                     _engine.SelectionRun = _engine.CursorRun;
                     _engine.SelectionOffset = _engine.CursorOffset;
                 }
+
                 if (_engine.CursorBlock > 0)
                 {
                     _engine.CursorBlock--;
                     var prevBlock = _engine.Document.Blocks[_engine.CursorBlock];
                     _engine.CursorRun = prevBlock.Runs.Count - 1;
                     _engine.CursorOffset = _engine.CursorRun >= 0 ? prevBlock.Runs[_engine.CursorRun].Length : 0;
-                    if (_engine.CursorRun < 0) { _engine.CursorRun = 0; _engine.CursorOffset = 0; }
+                    if (_engine.CursorRun < 0)
+                    {
+                        _engine.CursorRun = 0;
+                        _engine.CursorOffset = 0;
+                    }
+
                     if (!shift)
                     {
                         _engine.SelectionBlock = _engine.CursorBlock;
@@ -388,6 +405,7 @@ public class HtmlBox : Control
                         _engine.SelectionOffset = _engine.CursorOffset;
                     }
                 }
+
                 break;
             case Keys.Down:
                 if (shift && !_engine.HasSelection)
@@ -396,6 +414,7 @@ public class HtmlBox : Control
                     _engine.SelectionRun = _engine.CursorRun;
                     _engine.SelectionOffset = _engine.CursorOffset;
                 }
+
                 if (_engine.CursorBlock + 1 < _engine.Document.Blocks.Count)
                 {
                     _engine.CursorBlock++;
@@ -408,9 +427,13 @@ public class HtmlBox : Control
                         _engine.SelectionOffset = _engine.CursorOffset;
                     }
                 }
+
                 break;
-            default: base.OnKeyDown(e); return;
+            default:
+                base.OnKeyDown(e);
+                return;
         }
+
         e.Handled = true;
         Invalidate();
         ContentChanged?.Invoke(this, EventArgs.Empty);
@@ -420,7 +443,9 @@ public class HtmlBox : Control
     protected internal override void OnTextInput(string text)
     {
         if (_readOnly || string.IsNullOrEmpty(text)) return;
-        foreach (char c in text) if (c < 32) return;
+        foreach (char c in text)
+            if (c < 32)
+                return;
         _engine.InsertText(text);
         Invalidate();
         ContentChanged?.Invoke(this, EventArgs.Empty);
@@ -438,11 +463,19 @@ public class HtmlLinkEventArgs : EventArgs
 {
     public string Url { get; }
     public bool Handled { get; set; }
-    public HtmlLinkEventArgs(string url) { Url = url; }
+
+    public HtmlLinkEventArgs(string url)
+    {
+        Url = url;
+    }
 }
 
 public class HtmlErrorEventArgs : EventArgs
 {
     public List<string> Errors { get; }
-    public HtmlErrorEventArgs(List<string> errors) { Errors = errors; }
+
+    public HtmlErrorEventArgs(List<string> errors)
+    {
+        Errors = errors;
+    }
 }

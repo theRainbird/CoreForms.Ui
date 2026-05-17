@@ -172,7 +172,7 @@ public class Binding
 
             var value = _sourceProperty!.GetValue(sourceInstance);
             value = OnFormat(value);
-            _controlProperty.SetValue(_control, value);
+            _controlProperty.SetValue(_control!, value);
             OnBindingComplete(BindingCompleteState.Success);
         }
         catch (Exception ex)

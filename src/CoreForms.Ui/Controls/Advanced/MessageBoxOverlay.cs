@@ -205,9 +205,10 @@ internal class MessageBoxOverlay : Control
 
         var font = btn.Font ?? EffectiveFont;
         var textColor = btn.Enabled ? btn.ForeColor : theme.GrayText;
-        var textSize = Platform.Platform.MeasureText(btn.Text, font);
-        var textX = btn.X + (btn.Width - textSize.width) / 2;
-        var textY = btn.Y + (btn.Height - textSize.height) / 2;
+        float zoom = EffectiveZoom;
+        var textSize = Platform.Platform.MeasureText(btn.Text, font, zoom);
+        var textX = btn.X + (btn.Width - textSize.width / zoom) / 2;
+        var textY = btn.Y + (btn.Height - textSize.height / zoom) / 2;
 
         g.DrawString(btn.Text, font, textColor, textX, textY);
     }
