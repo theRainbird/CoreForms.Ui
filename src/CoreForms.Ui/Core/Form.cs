@@ -26,6 +26,7 @@ public class Form : ContainerControl, IWin32Window
     private readonly Dictionary<Keys, string> _keyTextMap = new();
     private const int KeyRepeatDelay = 400;
     private const int KeyRepeatInterval = 50;
+    private SystemCursorType? _cursor;
 
     private struct KeyRepeatState
     {
@@ -70,6 +71,16 @@ public class Form : ContainerControl, IWin32Window
     {
         get => _captureControl;
         set => _captureControl = value;
+    }
+
+    /// <summary>
+    /// Gets or sets the system cursor type for this form.
+    /// Set by controls during mouse event handling to request a cursor change.
+    /// </summary>
+    internal SystemCursorType? Cursor
+    {
+        get => _cursor;
+        set => _cursor = value;
     }
 
     /// <summary>

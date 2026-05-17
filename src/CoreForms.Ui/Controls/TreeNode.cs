@@ -47,6 +47,11 @@ public class TreeNode
     internal Rectangle Bounds { get; set; }
 
     /// <summary>
+    /// Called when the node's visual state changes, to trigger a TreeView repaint.
+    /// </summary>
+    internal Action? OnInvalidate { get; set; }
+
+    /// <summary>
     /// Creates a new TreeNode with the specified text.
     /// </summary>
     /// <param name="text">Node label.</param>
@@ -62,7 +67,9 @@ public class TreeNode
     public void Add(TreeNode child)
     {
         child.Parent = this;
+        child.OnInvalidate = OnInvalidate;
         Children.Add(child);
+        OnInvalidate?.Invoke();
     }
 
     /// <summary>
@@ -71,5 +78,6 @@ public class TreeNode
     public void Toggle()
     {
         IsExpanded = !IsExpanded;
+        OnInvalidate?.Invoke();
     }
 }

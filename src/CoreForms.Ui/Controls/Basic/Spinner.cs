@@ -1,4 +1,5 @@
 using System;
+using System.Threading;
 using CoreForms.Ui.Core;
 using CoreForms.Ui.Theming;
 using Graphics = CoreForms.Ui.Rendering.Graphics;
@@ -19,6 +20,7 @@ public class Spinner : Control
     private Color _dotColor;
     private bool _dotColorSet;
     private long _lastTick;
+    private Timer? _animationTimer;
 
     /// <summary>
     /// Initializes a new instance of the Spinner class.
@@ -43,11 +45,30 @@ public class Spinner : Control
             {
                 _active = value;
                 if (_active)
+                {
                     _lastTick = Environment.TickCount;
+                    StartAnimation();
+                }
+                else
+                {
+                    StopAnimation();
+                }
                 OnActiveChanged();
                 Invalidate();
             }
         }
+    }
+
+    private void StartAnimation()
+    {
+        StopAnimation();
+        _animationTimer = new Timer(_ => Invalidate(), null, 0, _animationInterval);
+    }
+
+    private void StopAnimation()
+    {
+        _animationTimer?.Dispose();
+        _animationTimer = null;
     }
 
     /// <summary>
@@ -129,6 +150,8 @@ public class Spinner : Control
             if (_animationInterval != value)
             {
                 _animationInterval = value;
+                if (_active)
+                    StartAnimation();
                 Invalidate();
             }
         }

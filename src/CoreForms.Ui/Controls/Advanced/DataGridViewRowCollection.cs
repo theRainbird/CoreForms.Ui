@@ -6,6 +6,16 @@ namespace CoreForms.Ui.Controls.Advanced;
 public class DataGridViewRowCollection
 {
     private readonly List<DataGridViewRow> _rows = new();
+    private readonly Action _invalidate;
+
+    /// <summary>
+    /// Initializes a new instance of DataGridViewRowCollection.
+    /// </summary>
+    /// <param name="invalidate">Action to invalidate the owning DataGridView.</param>
+    internal DataGridViewRowCollection(Action invalidate)
+    {
+        _invalidate = invalidate;
+    }
 
     /// <summary>
     /// Gets the number of rows.
@@ -25,6 +35,7 @@ public class DataGridViewRowCollection
     public void Add(DataGridViewRow row)
     {
         _rows.Add(row);
+        _invalidate();
     }
 
     /// <summary>
@@ -34,6 +45,7 @@ public class DataGridViewRowCollection
     public void Remove(DataGridViewRow row)
     {
         _rows.Remove(row);
+        _invalidate();
     }
 
     /// <summary>
@@ -42,5 +54,16 @@ public class DataGridViewRowCollection
     public void Clear()
     {
         _rows.Clear();
+        _invalidate();
+    }
+
+    /// <summary>
+    /// Sorts the rows using the specified comparison.
+    /// </summary>
+    /// <param name="comparison">The comparison to use for sorting.</param>
+    internal void Sort(Comparison<DataGridViewRow> comparison)
+    {
+        _rows.Sort(comparison);
+        _invalidate();
     }
 }

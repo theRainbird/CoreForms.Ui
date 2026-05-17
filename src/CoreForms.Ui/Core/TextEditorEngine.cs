@@ -234,6 +234,7 @@ public class TextEditorEngine
         _selectionAnchor = _cursorPosition;
         _selectionLength = 0;
         EnsureCursorVisible(context);
+        context.Invalidate();
     }
 
     /// <summary>
@@ -392,6 +393,7 @@ public class TextEditorEngine
         }
 
         EnsureCursorVisible(context);
+        context.Invalidate();
         return e.Handled;
     }
 

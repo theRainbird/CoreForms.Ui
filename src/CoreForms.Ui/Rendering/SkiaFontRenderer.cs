@@ -114,19 +114,20 @@ namespace CoreForms.Ui.Rendering;
         float scaledSize = font.Size * zoom;
         if (typeface == null)
         {
-            return ((int)(text.Length * scaledSize * 0.6f), (int)scaledSize);
+            return ((int)MathF.Round(text.Length * scaledSize * 0.6f), (int)MathF.Round(scaledSize));
         }
 
         using var paint = new SKPaint
         {
             TextSize = scaledSize,
             Typeface = typeface,
-            FakeBoldText = font.Style.HasFlag(Core.FontStyle.Bold)
+            FakeBoldText = font.Style.HasFlag(Core.FontStyle.Bold),
+            IsAntialias = true
         };
 
         var metrics = paint.GetFontMetrics(out var fontMetrics);
         float width = paint.MeasureText(text);
-        return ((int)width, (int)(fontMetrics.Descent - fontMetrics.Ascent));
+        return ((int)MathF.Round(width), (int)MathF.Round(fontMetrics.Descent - fontMetrics.Ascent));
     }
 
     private SKFont? GetOrCreateFont(Core.Font font, float zoom = 1.0f)

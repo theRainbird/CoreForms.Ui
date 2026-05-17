@@ -44,7 +44,7 @@ class Program
         var addButton = form.Controls.FindControl<Button>("addButton", recursive: true);
         addButton?.Click += (sender, args) =>
         {
-            _mainDataGrid?.AddRow(_mainDataGrid.Rows.Count + 1, "John Doe", "john@example.com", "Active");
+            _mainDataGrid?.AddRow(_mainDataGrid.Rows.Count + 1, "John Doe", "john@example.com", "Active", 65000m);
         };
 
         Application.Run(form);
@@ -460,21 +460,26 @@ class Program
         };
 
         dataGrid.Columns.Add(new Controls.Advanced.DataGridViewColumn
-            { HeaderText = "ID", Width = 50, Name = "Id", DataPropertyName = "Id" });
+            { HeaderText = "ID", Width = 60, Name = "Id", DataPropertyName = "Id",
+              TextAlign = DataGridViewContentAlignment.Right, FormatString = "D3" });
         dataGrid.Columns.Add(new Controls.Advanced.DataGridViewColumn
             { HeaderText = "Name", Width = 150, Name = "Name", DataPropertyName = "Name" });
         dataGrid.Columns.Add(new Controls.Advanced.DataGridViewColumn
             { HeaderText = "Email", Width = 200, Name = "Email", DataPropertyName = "Email" });
         dataGrid.Columns.Add(new Controls.Advanced.DataGridViewColumn
-            { HeaderText = "Status", Width = 100, Name = "Status", DataPropertyName = "Status" });
+            { HeaderText = "Status", Width = 100, Name = "Status", DataPropertyName = "Status",
+              TextAlign = DataGridViewContentAlignment.Center });
+        dataGrid.Columns.Add(new Controls.Advanced.DataGridViewColumn
+            { HeaderText = "Salary", Width = 110, Name = "Salary", DataPropertyName = "Salary",
+              TextAlign = DataGridViewContentAlignment.Right, FormatString = "C" });
 
         _personList = new BindingList<Person>
         {
-            new Person(1, "John Doe", "john@example.com", "Active"),
-            new Person(2, "Jane Smith", "jane@example.com", "Active"),
-            new Person(3, "Bob Johnson", "bob@example.com", "Inactive"),
-            new Person(4, "Alice Brown", "alice@example.com", "Active"),
-            new Person(5, "Charlie Wilson", "charlie@example.com", "Pending")
+            new Person(1, "John Doe", "john@example.com", "Active") { Salary = 75000m },
+            new Person(2, "Jane Smith", "jane@example.com", "Active") { Salary = 82000m },
+            new Person(3, "Bob Johnson", "bob@example.com", "Inactive") { Salary = 0m },
+            new Person(4, "Alice Brown", "alice@example.com", "Active") { Salary = 91500m },
+            new Person(5, "Charlie Wilson", "charlie@example.com", "Pending") { Salary = 68000m }
         };
         dataGrid.DataSource = _personList;
 
@@ -1596,6 +1601,8 @@ public class Person : INotifyPropertyChanged
             if (_status != value) { _status = value; OnPropertyChanged(nameof(Status)); }
         }
     }
+
+    public decimal Salary { get; set; }
 
     public bool IsActive
     {

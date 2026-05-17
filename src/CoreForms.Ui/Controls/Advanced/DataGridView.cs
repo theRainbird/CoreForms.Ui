@@ -11,12 +11,11 @@ namespace CoreForms.Ui.Controls.Advanced;
 /// </summary>
 public class DataGridView : ContainerControl
 {
-    private readonly DataGridViewColumnCollection _columns = new();
-    private readonly DataGridViewRowCollection _rows = new();
+    private readonly DataGridViewColumnCollection _columns;
+    private readonly DataGridViewRowCollection _rows;
     private int _selectedRowIndex = -1;
     private int _selectedColumnIndex = -1;
     private int _rowHeight = 30;
-    private int _columnWidth = 100;
     private object? _dataSource;
     private string _dataMember = string.Empty;
     private bool _dataSourceUpdating;
@@ -29,8 +28,15 @@ public class DataGridView : ContainerControl
     private bool _showGridLines = true;
     private DataGridViewSelectionMode _selectionMode = DataGridViewSelectionMode.RowHeaderSelect;
     private int _horizontalScrollOffset;
+    private const int DividerThreshold = 5;
+    private const int MinColumnWidth = 20;
+    private int _resizingColumnIndex = -1;
+    private int _resizeStartMouseX;
+    private int _resizeStartWidth;
     private readonly ScrollBarEngine _vScrollBar = new();
     private ScrollBarContext? _scrollBarContext;
+    private int _sortColumnIndex = -1;
+    private bool _sortAscending = true;
 
     private ScrollBarContext VScrollBarContext => _scrollBarContext ??= new ScrollBarContext(this);
 
@@ -39,6 +45,8 @@ public class DataGridView : ContainerControl
     /// </summary>
     public DataGridView()
     {
+        _columns = new DataGridViewColumnCollection(Invalidate);
+        _rows = new DataGridViewRowCollection(Invalidate);
         var theme = ThemeManager.CurrentTheme;
         _backColor = theme.TextBoxBackground;
         Size = new Size(400, 200);
@@ -111,7 +119,14 @@ public class DataGridView : ContainerControl
     public bool AllowUserToAddRows
     {
         get => _allowUserToAddRows;
-        set => _allowUserToAddRows = value;
+        set
+        {
+            if (_allowUserToAddRows != value)
+            {
+                _allowUserToAddRows = value;
+                Invalidate();
+            }
+        }
     }
 
     /// <summary>
@@ -120,7 +135,14 @@ public class DataGridView : ContainerControl
     public bool AllowUserToDeleteRows
     {
         get => _allowUserToDeleteRows;
-        set => _allowUserToDeleteRows = value;
+        set
+        {
+            if (_allowUserToDeleteRows != value)
+            {
+                _allowUserToDeleteRows = value;
+                Invalidate();
+            }
+        }
     }
 
     /// <summary>
@@ -129,7 +151,14 @@ public class DataGridView : ContainerControl
     public bool ReadOnly
     {
         get => _readOnly;
-        set => _readOnly = value;
+        set
+        {
+            if (_readOnly != value)
+            {
+                _readOnly = value;
+                Invalidate();
+            }
+        }
     }
 
     /// <summary>
@@ -138,7 +167,14 @@ public class DataGridView : ContainerControl
     public bool MultiSelect
     {
         get => _multiSelect;
-        set => _multiSelect = value;
+        set
+        {
+            if (_multiSelect != value)
+            {
+                _multiSelect = value;
+                Invalidate();
+            }
+        }
     }
 
     /// <summary>
@@ -186,7 +222,14 @@ public class DataGridView : ContainerControl
     public DataGridViewSelectionMode SelectionMode
     {
         get => _selectionMode;
-        set => _selectionMode = value;
+        set
+        {
+            if (_selectionMode != value)
+            {
+                _selectionMode = value;
+                Invalidate();
+            }
+        }
     }
 
     /// <summary>
@@ -218,6 +261,7 @@ public class DataGridView : ContainerControl
             {
                 _dataMember = value;
                 OnPropertyChanged(nameof(DataMember));
+                Invalidate();
             }
         }
     }
@@ -271,6 +315,11 @@ public class DataGridView : ContainerControl
     public event EventHandler<DataGridViewCellEventArgs>? CellValueChanged;
 
     /// <summary>
+    /// Occurs when a column header is clicked.
+    /// </summary>
+    public event EventHandler<DataGridViewCellEventArgs>? ColumnHeaderMouseClick;
+
+    /// <summary>
     /// Raises the SelectionChanged event and syncs the BindingSource/CurrencyManager position.
     /// </summary>
     protected virtual void OnSelectionChanged()
@@ -321,6 +370,15 @@ public class DataGridView : ContainerControl
     }
 
     /// <summary>
+    /// Raises the ColumnHeaderMouseClick event.
+    /// </summary>
+    /// <param name="e">The event arguments.</param>
+    protected virtual void OnColumnHeaderMouseClick(DataGridViewCellEventArgs e)
+    {
+        ColumnHeaderMouseClick?.Invoke(this, e);
+    }
+
+    /// <summary>
     /// Renders the DataGridView with all its elements.
     /// </summary>
     /// <param name="g">The Graphics object to use for rendering.</param>
@@ -364,8 +422,35 @@ public class DataGridView : ContainerControl
                     if (drawWidth > 0)
                     {
                         g.DrawRectangle(theme.DataGridViewBorder, drawX, 0, drawWidth, headerHeight, 1);
+                        g.SetClip(new Rectangle(drawX, 0, drawWidth, headerHeight));
                         var font = _columns[col].HeaderCell?.Font ?? EffectiveFont;
-                        g.DrawString(_columns[col].HeaderText, font, theme.DataGridViewHeaderText, drawX + 4, CoordinateTransform.CenterVertically(0, headerHeight, font, zoom));
+                        var headerText = _columns[col].HeaderText;
+                        float arrowSize = 0.3f * headerHeight;
+                        int sortGlyphWidth = _columns[col].SortOrder != SortOrder.None ? (int)(arrowSize * 2) + 4 : 0;
+                        headerText = TruncateText(headerText, font, zoom, _columns[col].TextAlign, drawWidth - 8 - sortGlyphWidth);
+                        float headerTextX = GetAlignedX(headerText, font, zoom, _columns[col].TextAlign, drawX, drawWidth - sortGlyphWidth, 4);
+                        g.DrawString(headerText, font, theme.DataGridViewHeaderText, headerTextX, CoordinateTransform.CenterVertically(0, headerHeight, font, zoom));
+
+                        if (_columns[col].SortOrder != SortOrder.None)
+                        {
+                            float arrowX = drawX + drawWidth - sortGlyphWidth + 2;
+                            float midY = headerHeight / 2f;
+                            if (_columns[col].SortOrder == SortOrder.Ascending)
+                            {
+                                g.FillTriangle(theme.DataGridViewSortArrow,
+                                    arrowX, midY + arrowSize,
+                                    arrowX + arrowSize, midY + arrowSize,
+                                    arrowX + arrowSize / 2f, midY - arrowSize);
+                            }
+                            else
+                            {
+                                g.FillTriangle(theme.DataGridViewSortArrow,
+                                    arrowX, midY - arrowSize,
+                                    arrowX + arrowSize, midY - arrowSize,
+                                    arrowX + arrowSize / 2f, midY + arrowSize);
+                            }
+                        }
+                        g.ResetClip();
                     }
                 }
                 x += colWidth;
@@ -454,9 +539,13 @@ public class DataGridView : ContainerControl
                     if (drawWidth > 0)
                     {
                         var cell = _rows[rowIdx].Cells.Count > col ? _rows[rowIdx].Cells[col] : null;
-                        var text = cell?.Value?.ToString() ?? "";
+                        var colDef = _columns[col];
+                        var text = FormatCellValue(cell?.Value, colDef.FormatString);
                         var font = EffectiveFont;
-                        g.DrawString(text, font, textColor, drawX + 4, y + (int)CoordinateTransform.CenterVertically(0, _rowHeight, font, zoom));
+                        int available = drawWidth - 8;
+                        text = TruncateText(text, font, zoom, colDef.TextAlign, available > 0 ? available : 0);
+                        float textX = GetAlignedX(text, font, zoom, colDef.TextAlign, drawX, drawWidth, 4);
+                        g.DrawString(text, font, textColor, textX, y + (int)CoordinateTransform.CenterVertically(0, _rowHeight, font, zoom));
                     }
                 }
                 x += colWidth;
@@ -488,7 +577,7 @@ public class DataGridView : ContainerControl
     }
 
     /// <summary>
-    /// Raises the MouseDown event and selects a cell.
+    /// Raises the MouseDown event and selects a cell or starts column resize.
     /// </summary>
     /// <param name="e">The event arguments.</param>
     protected internal override void OnMouseDown(EventArgs e)
@@ -511,8 +600,44 @@ public class DataGridView : ContainerControl
                 return;
             }
 
-            int col = (mouseArgs.X - rowHeaderWidth + _horizontalScrollOffset) / _columnWidth;
+            // Check if clicking on a column divider to start resize
+            int dividerCol = GetDividerColumnIndex(mouseArgs.X);
+            if (dividerCol >= 0 && _columns[dividerCol].Resizable)
+            {
+                _resizingColumnIndex = dividerCol;
+                _resizeStartMouseX = mouseArgs.X;
+                _resizeStartWidth = _columns[dividerCol].Width;
+                var form = FindForm();
+                if (form != null)
+                    form.CaptureControl = this;
+                return;
+            }
+
+            int col = GetColumnIndexAtX(mouseArgs.X);
             int row = (mouseArgs.Y - headerHeight + _vScrollBar.Value) / _rowHeight;
+
+            // Click on column header -> sort
+            if (mouseArgs.Y < headerHeight && col >= 0 && col < _columns.Count)
+            {
+                OnColumnHeaderMouseClick(new DataGridViewCellEventArgs(col, -1));
+                if (_columns[col].Sortable)
+                {
+                    if (col == _sortColumnIndex)
+                    {
+                        _sortAscending = !_sortAscending;
+                    }
+                    else
+                    {
+                        ClearSortColumns();
+                        _sortColumnIndex = col;
+                        _sortAscending = true;
+                    }
+                    _columns[col].SortOrder = _sortAscending ? SortOrder.Ascending : SortOrder.Descending;
+                    SortRows();
+                    Invalidate();
+                }
+                return;
+            }
 
             if (row >= 0 && row < _rows.Count && col >= 0 && col < _columns.Count)
             {
@@ -675,11 +800,19 @@ public class DataGridView : ContainerControl
     }
 
     /// <summary>
-    /// Raises the MouseUp event to handle scrollbar interaction.
+    /// Raises the MouseUp event to handle scrollbar interaction and column resize end.
     /// </summary>
     /// <param name="e">The event arguments.</param>
     protected internal override void OnMouseUp(EventArgs e)
     {
+        if (_resizingColumnIndex >= 0)
+        {
+            _resizingColumnIndex = -1;
+            var form = FindForm();
+            if (form != null)
+                form.CaptureControl = null;
+            return;
+        }
         if (_vScrollBar.IsDragging || _vScrollBar.IsUpButtonPressed || _vScrollBar.IsDownButtonPressed)
         {
             _vScrollBar.HandleMouseUp(VScrollBarContext);
@@ -688,25 +821,55 @@ public class DataGridView : ContainerControl
     }
 
     /// <summary>
-    /// Raises the MouseMove event to handle scrollbar hover and drag.
+    /// Raises the MouseMove event to handle scrollbar hover/drag and column resize.
     /// </summary>
     /// <param name="e">The event arguments.</param>
     protected internal override void OnMouseMove(EventArgs e)
     {
+        var mouseArgs = e as MouseEventArgs;
+        if (mouseArgs == null)
+        {
+            base.OnMouseMove(e);
+            return;
+        }
+
+        // Handle column resize
+        if (_resizingColumnIndex >= 0)
+        {
+            int delta = mouseArgs.X - _resizeStartMouseX;
+            int newWidth = Math.Max(MinColumnWidth, _resizeStartWidth + delta);
+            _columns[_resizingColumnIndex].Width = newWidth;
+            Invalidate();
+            return;
+        }
+
+        // Handle scrollbar drag
         if (_vScrollBar.IsDragging)
         {
-            var mouseArgs = e as MouseEventArgs;
-            if (mouseArgs != null)
-            {
-                int headerHeight = _columnHeadersVisible ? _rowHeight : 0;
-                int totalContentHeight = _rows.Count * _rowHeight + (_allowUserToAddRows ? _rowHeight : 0);
-                int dataHeight = Height - headerHeight;
-                bool needVScroll = totalContentHeight > dataHeight;
-                int scrollBarWidth = needVScroll ? ScrollBarEngine.DefaultScrollBarSize : 0;
-                var scrollBarBounds = new Rectangle(Width - scrollBarWidth, headerHeight, scrollBarWidth, dataHeight);
-                _vScrollBar.HandleMouseMove(new Point(mouseArgs.X, mouseArgs.Y), scrollBarBounds, VScrollBarContext);
-            }
+            int headerHeight = _columnHeadersVisible ? _rowHeight : 0;
+            int totalContentHeight = _rows.Count * _rowHeight + (_allowUserToAddRows ? _rowHeight : 0);
+            int dataHeight = Height - headerHeight;
+            bool needVScroll = totalContentHeight > dataHeight;
+            int scrollBarWidth = needVScroll ? ScrollBarEngine.DefaultScrollBarSize : 0;
+            var scrollBarBounds = new Rectangle(Width - scrollBarWidth, headerHeight, scrollBarWidth, dataHeight);
+            _vScrollBar.HandleMouseMove(new Point(mouseArgs.X, mouseArgs.Y), scrollBarBounds, VScrollBarContext);
+            return;
         }
+
+        // Update cursor when hovering over a column divider
+        var form = FindForm();
+        int dividerCol = GetDividerColumnIndex(mouseArgs.X);
+        if (dividerCol >= 0 && _columns[dividerCol].Resizable)
+        {
+            if (form != null)
+                form.Cursor = SystemCursorType.SizeWE;
+        }
+        else
+        {
+            if (form != null && form.Cursor == SystemCursorType.SizeWE)
+                form.Cursor = null;
+        }
+
         base.OnMouseMove(e);
     }
 
@@ -720,6 +883,7 @@ public class DataGridView : ContainerControl
         try
         {
             _rows.Clear();
+            ClearSort();
             _selectedRowIndex = -1;
             _selectedColumnIndex = -1;
 
@@ -767,7 +931,7 @@ public class DataGridView : ContainerControl
                 }
             }
 
-            row.Cells.Add(new DataGridViewCell { Value = value });
+            row.Cells.Add(CreateCell(value));
         }
         return row;
     }
@@ -809,6 +973,8 @@ public class DataGridView : ContainerControl
                     {
                         _rows.Add(newRow);
                     }
+                    if (_sortColumnIndex >= 0)
+                        SortRows();
                     Invalidate();
                 }
                 break;
@@ -828,6 +994,8 @@ public class DataGridView : ContainerControl
                         _rows.Add(r);
                     if (_selectedRowIndex >= _rows.Count)
                         _selectedRowIndex = Math.Max(0, _rows.Count - 1);
+                    if (_sortColumnIndex >= 0)
+                        SortRows();
                     Invalidate();
                 }
                 break;
@@ -844,6 +1012,8 @@ public class DataGridView : ContainerControl
                         foreach (var cell in updatedRow.Cells)
                             _rows[e.NewIndex].Cells.Add(cell);
                     }
+                    if (_sortColumnIndex >= 0)
+                        SortRows();
                     Invalidate();
                 }
                 break;
@@ -854,6 +1024,8 @@ public class DataGridView : ContainerControl
                 {
                     _rows.Add(CreateRowFromDataItem(item));
                 }
+                if (_sortColumnIndex >= 0)
+                    SortRows();
                 _selectedRowIndex = _rows.Count > 0 ? 0 : -1;
                 Invalidate();
                 break;
@@ -883,6 +1055,13 @@ public class DataGridView : ContainerControl
         }
     }
 
+    private DataGridViewCell CreateCell(object? value)
+    {
+        var cell = new DataGridViewCell { Value = value };
+        cell.OnValueChanged = Invalidate;
+        return cell;
+    }
+
     /// <summary>
     /// Adds a new row with the specified values.
     /// </summary>
@@ -893,7 +1072,7 @@ public class DataGridView : ContainerControl
         for (int i = 0; i < _columns.Count; i++)
         {
             var value = i < values.Length ? values[i] : "";
-            row.Cells.Add(new DataGridViewCell { Value = value });
+            row.Cells.Add(CreateCell(value));
         }
         _rows.Add(row);
         Invalidate();
@@ -905,15 +1084,178 @@ public class DataGridView : ContainerControl
     public void Clear()
     {
         _rows.Clear();
+        ClearSort();
         _selectedRowIndex = -1;
         _selectedColumnIndex = -1;
         Invalidate();
     }
+
+    /// <summary>
+    /// Clears the current sort, restoring the original row order.
+    /// </summary>
+    public void ClearSort()
+    {
+        _sortColumnIndex = -1;
+        for (int i = 0; i < _columns.Count; i++)
+            _columns[i].SortOrder = SortOrder.None;
+    }
+
+    private void ClearSortColumns()
+    {
+        for (int i = 0; i < _columns.Count; i++)
+            _columns[i].SortOrder = SortOrder.None;
+    }
+
+    /// <summary>
+    /// Sorts the rows by the current sort column using raw cell values.
+    /// </summary>
+    private void SortRows()
+    {
+        if (_sortColumnIndex < 0 || _sortColumnIndex >= _columns.Count)
+            return;
+
+        int colIdx = _sortColumnIndex;
+        bool ascending = _sortAscending;
+
+        _rows.Sort((a, b) =>
+        {
+            var valA = colIdx < a.Cells.Count ? a.Cells[colIdx]?.Value : null;
+            var valB = colIdx < b.Cells.Count ? b.Cells[colIdx]?.Value : null;
+            int result = CompareCellValues(valA, valB);
+            return ascending ? result : -result;
+        });
+    }
+
+    private static int CompareCellValues(object? a, object? b)
+    {
+        if (a == null && b == null) return 0;
+        if (a == null) return -1;
+        if (b == null) return 1;
+
+        if (a is IComparable comparableA && b is IComparable comparableB)
+        {
+            try { return comparableA.CompareTo(comparableB); }
+            catch { }
+        }
+
+        return string.Compare(a.ToString(), b.ToString(), StringComparison.OrdinalIgnoreCase);
+    }
+
+    /// <summary>
+    /// Gets the column index at the given x-coordinate (in form-relative coordinates).
+    /// </summary>
+    private int GetColumnIndexAtX(int x)
+    {
+        int rowHeaderWidth = _rowHeadersVisible ? 40 : 0;
+        int cx = rowHeaderWidth - _horizontalScrollOffset;
+        for (int i = 0; i < _columns.Count; i++)
+        {
+            int colWidth = _columns[i].Width;
+            if (x >= cx && x < cx + colWidth)
+                return i;
+            cx += colWidth;
+        }
+        return -1;
+    }
+
+    /// <summary>
+    /// Gets the index of the column whose right edge divider the x-coordinate is near,
+    /// or -1 if not near any divider.
+    /// </summary>
+    private int GetDividerColumnIndex(int x)
+    {
+        int rowHeaderWidth = _rowHeadersVisible ? 40 : 0;
+        int cx = rowHeaderWidth - _horizontalScrollOffset;
+        for (int i = 0; i < _columns.Count; i++)
+        {
+            cx += _columns[i].Width;
+            if (Math.Abs(x - cx) <= DividerThreshold)
+                return i;
+        }
+        return -1;
+    }
+
+    /// <summary>
+    /// Truncates text to fit within the specified logical width, adding ellipsis ("...") when truncated.
+    /// For right-aligned text the right portion is kept; for left/center the left portion is kept.
+    /// </summary>
+    private static string TruncateText(string text, Font font, float zoom, DataGridViewContentAlignment alignment, float maxWidthLogical)
+    {
+        if (string.IsNullOrEmpty(text) || zoom <= 0f) return text;
+
+        int maxWidthPixels = (int)(maxWidthLogical * zoom);
+        int textWidth = CoordinateTransform.MeasureText(text, font, zoom).width;
+        if (textWidth <= maxWidthPixels) return text;
+
+        const string ellipsis = "...";
+        int ellipsisWidth = CoordinateTransform.MeasureText(ellipsis, font, zoom).width;
+        int availablePixels = maxWidthPixels - ellipsisWidth;
+
+        if (availablePixels <= 0) return ellipsis;
+
+        if (alignment == DataGridViewContentAlignment.Right)
+        {
+            for (int i = text.Length - 1; i >= 0; i--)
+            {
+                var sub = text.Substring(i);
+                if (CoordinateTransform.MeasureText(sub, font, zoom).width <= availablePixels)
+                    return ellipsis + sub;
+            }
+            return ellipsis;
+        }
+        else
+        {
+            for (int i = 1; i <= text.Length; i++)
+            {
+                var sub = text.Substring(0, i);
+                if (CoordinateTransform.MeasureText(sub, font, zoom).width > availablePixels)
+                    return text.Substring(0, i - 1) + ellipsis;
+            }
+            return text + ellipsis;
+        }
+    }
+
+    /// <summary>
+    /// Formats a cell value using the specified format string.
+    /// </summary>
+    /// <param name="value">The cell value.</param>
+    /// <param name="formatString">The format string (e.g. "N2", "d"), or null to use ToString().</param>
+    /// <returns>The formatted text.</returns>
+    private static string FormatCellValue(object? value, string? formatString)
+    {
+        if (value == null) return "";
+        if (formatString != null)
+        {
+            try { return string.Format($"{{0:{formatString}}}", value); }
+            catch { }
+        }
+        return value.ToString() ?? "";
+    }
+
+    /// <summary>
+    /// Calculates the X position for text based on alignment within a cell.
+    /// All parameters are in logical coordinates; textWidth from MeasureText is in pixels
+    /// and is divided by zoom to convert to logical.
+    /// </summary>
+    private static float GetAlignedX(string text, Font font, float zoom, DataGridViewContentAlignment alignment, float cellX, float cellWidth, int padding)
+    {
+        if (alignment == DataGridViewContentAlignment.Left || string.IsNullOrEmpty(text))
+            return cellX + padding;
+
+        float textWidthLogical = CoordinateTransform.MeasureText(text, font, zoom).width / Math.Max(zoom, 0.001f);
+
+        return alignment switch
+        {
+            DataGridViewContentAlignment.Center => cellX + (cellWidth - textWidthLogical) / 2f,
+            DataGridViewContentAlignment.Right => cellX + cellWidth - textWidthLogical - padding,
+            _ => cellX + padding
+        };
+    }
 }
 
-/// <summary>
-/// Provides scrollbar context for the DataGridView.
-/// </summary>
+    /// <summary>
+    /// Provides scrollbar context for the DataGridView.
+    /// </summary>
 internal sealed class ScrollBarContext : IScrollBarContext
 {
     private readonly DataGridView _owner;

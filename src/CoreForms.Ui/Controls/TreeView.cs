@@ -25,7 +25,50 @@ public class TreeView : Control
     /// <summary>
     /// Gets the collection of root nodes.
     /// </summary>
-    public List<TreeNode> Nodes => _rootNodes;
+    public IList<TreeNode> Nodes => _nodesCollection ??= new NodeCollection(_rootNodes, this);
+
+    private NodeCollection? _nodesCollection;
+
+    private sealed class NodeCollection : IList<TreeNode>
+    {
+        private readonly List<TreeNode> _nodes;
+        private readonly TreeView _owner;
+
+        public NodeCollection(List<TreeNode> nodes, TreeView owner)
+        {
+            _nodes = nodes;
+            _owner = owner;
+        }
+
+        private void WireNode(TreeNode node)
+        {
+            node.OnInvalidate = _owner.Invalidate;
+            WireChildren(node);
+        }
+
+        private static void WireChildren(TreeNode node)
+        {
+            foreach (var child in node.Children)
+            {
+                child.OnInvalidate = node.OnInvalidate;
+                WireChildren(child);
+            }
+        }
+
+        public void Add(TreeNode item) { _nodes.Add(item); WireNode(item); _owner.Invalidate(); }
+        public void Clear() { _nodes.Clear(); _owner.Invalidate(); }
+        public bool Remove(TreeNode item) { var r = _nodes.Remove(item); _owner.Invalidate(); return r; }
+        public void RemoveAt(int index) { _nodes.RemoveAt(index); _owner.Invalidate(); }
+        public void Insert(int index, TreeNode item) { _nodes.Insert(index, item); WireNode(item); _owner.Invalidate(); }
+        public int Count => _nodes.Count;
+        public bool IsReadOnly => false;
+        public bool Contains(TreeNode item) => _nodes.Contains(item);
+        public int IndexOf(TreeNode item) => _nodes.IndexOf(item);
+        public void CopyTo(TreeNode[] array, int arrayIndex) => _nodes.CopyTo(array, arrayIndex);
+        public IEnumerator<TreeNode> GetEnumerator() => _nodes.GetEnumerator();
+        System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator() => _nodes.GetEnumerator();
+        public TreeNode this[int index] { get => _nodes[index]; set { _nodes[index] = value; WireNode(value); _owner.Invalidate(); } }
+    }
 
     /// <summary>
     /// Currently selected node.

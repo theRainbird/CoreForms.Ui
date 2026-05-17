@@ -288,6 +288,11 @@ public abstract class Theme
     public abstract Color DataGridViewAddNewRowAsterisk { get; }
 
     /// <summary>
+    /// Gets the color for the DataGridView sort arrow glyph in column headers.
+    /// </summary>
+    public abstract Color DataGridViewSortArrow { get; }
+
+    /// <summary>
     /// Gets the TableLayoutPanel grid line color.
     /// </summary>
     public abstract Color TableLayoutGridLine { get; }

@@ -104,7 +104,15 @@ public class TabControl : ContainerControl
     public int TabHeight
     {
         get => _tabHeight;
-        set => _tabHeight = value;
+        set
+        {
+            if (_tabHeight != value)
+            {
+                _tabHeight = value;
+                Invalidate();
+                PerformLayout();
+            }
+        }
     }
 
     private (int[] positions, int[] widths) CalculateTabLayout()
@@ -484,7 +492,14 @@ public class TabPage : ContainerControl
     public new string Text
     {
         get => _text;
-        set => _text = value;
+        set
+        {
+            if (_text != value)
+            {
+                _text = value;
+                Invalidate();
+            }
+        }
     }
 
     /// <summary>

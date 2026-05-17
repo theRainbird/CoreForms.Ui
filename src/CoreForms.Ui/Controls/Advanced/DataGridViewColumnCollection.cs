@@ -6,6 +6,16 @@ namespace CoreForms.Ui.Controls.Advanced;
 public class DataGridViewColumnCollection
 {
     private readonly List<DataGridViewColumn> _columns = new();
+    private readonly Action _invalidate;
+
+    /// <summary>
+    /// Initializes a new instance of DataGridViewColumnCollection.
+    /// </summary>
+    /// <param name="invalidate">Action to invalidate the owning DataGridView.</param>
+    internal DataGridViewColumnCollection(Action invalidate)
+    {
+        _invalidate = invalidate;
+    }
 
     /// <summary>
     /// Gets the number of columns.
@@ -25,6 +35,7 @@ public class DataGridViewColumnCollection
     public void Add(DataGridViewColumn column)
     {
         _columns.Add(column);
+        _invalidate();
     }
 
     /// <summary>
@@ -34,6 +45,7 @@ public class DataGridViewColumnCollection
     public void Remove(DataGridViewColumn column)
     {
         _columns.Remove(column);
+        _invalidate();
     }
 
     /// <summary>
@@ -42,5 +54,6 @@ public class DataGridViewColumnCollection
     public void Clear()
     {
         _columns.Clear();
+        _invalidate();
     }
 }

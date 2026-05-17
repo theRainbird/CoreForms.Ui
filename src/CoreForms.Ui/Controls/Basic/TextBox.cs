@@ -62,7 +62,14 @@ public class TextBox : Control
     public int SelectionStart
     {
         get => _engine.SelectionStart;
-        set => _engine.SelectionStart = value;
+        set
+        {
+            if (_engine.SelectionStart != value)
+            {
+                _engine.SelectionStart = value;
+                Invalidate();
+            }
+        }
     }
 
     /// <summary>
@@ -71,7 +78,14 @@ public class TextBox : Control
     public int SelectionLength
     {
         get => _engine.SelectionLength;
-        set => _engine.SelectionLength = value;
+        set
+        {
+            if (_engine.SelectionLength != value)
+            {
+                _engine.SelectionLength = value;
+                Invalidate();
+            }
+        }
     }
 
     /// <summary>
@@ -184,7 +198,11 @@ public class TextBox : Control
     /// <summary>
     /// Selects all text in the text box.
     /// </summary>
-    public void SelectAll() => _engine.SelectAll(Context);
+    public void SelectAll()
+    {
+        _engine.SelectAll(Context);
+        Invalidate();
+    }
 
     /// <summary>
     /// Raises the MouseDown event and sets cursor position.

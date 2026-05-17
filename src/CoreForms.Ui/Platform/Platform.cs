@@ -192,8 +192,10 @@ public static class Platform
                     float zoom = form.Zoom;
                     var point = new Point((int)(pos.X / zoom), (int)(pos.Y / zoom));
                     _lastMousePosition = point;
+                    form.Cursor = null;
                     var args = new MouseEventArgs(MouseButtons.None, 0, point.X, point.Y, 0);
                     form.OnMouseMove(args);
+                    ApplyFormCursor(form, m);
                 };
 
                 mouse.Scroll += (m, wheel) =>
@@ -859,6 +861,45 @@ public static class Platform
             Silk.NET.Input.MouseButton.Right => MouseButtons.Right,
             Silk.NET.Input.MouseButton.Middle => MouseButtons.Middle,
             _ => MouseButtons.None
+        };
+    }
+
+    private static void ApplyFormCursor(Form form, IMouse mouse)
+    {
+        var cursorType = form.Cursor;
+        try
+        {
+            if (cursorType.HasValue)
+            {
+                var mapped = MapToStandardCursor(cursorType.Value);
+                mouse.Cursor.Type = CursorType.Standard;
+                mouse.Cursor.StandardCursor = mapped;
+            }
+            else
+            {
+                mouse.Cursor.Type = CursorType.Standard;
+                mouse.Cursor.StandardCursor = StandardCursor.Default;
+            }
+        }
+        catch
+        {
+            // Ignore cursor errors (some backends may not support certain cursor types)
+        }
+    }
+
+    private static StandardCursor MapToStandardCursor(SystemCursorType cursor)
+    {
+        return cursor switch
+        {
+            SystemCursorType.Arrow => StandardCursor.Arrow,
+            SystemCursorType.IBeam => StandardCursor.IBeam,
+            SystemCursorType.Crosshair => StandardCursor.Crosshair,
+            SystemCursorType.Hand => StandardCursor.Hand,
+            SystemCursorType.SizeWE => StandardCursor.HResize,
+            SystemCursorType.SizeNS => StandardCursor.VResize,
+            SystemCursorType.SizeAll => StandardCursor.ResizeAll,
+            SystemCursorType.NotAllowed => StandardCursor.NotAllowed,
+            _ => StandardCursor.Default
         };
     }
 

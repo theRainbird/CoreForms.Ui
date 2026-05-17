@@ -173,6 +173,9 @@ public class LightTheme : Theme
     public override Color DataGridViewAddNewRowAsterisk => Color.FromArgb(150, 150, 150);
 
     /// <inheritdoc />
+    public override Color DataGridViewSortArrow => Color.FromArgb(100, 100, 100);
+
+    /// <inheritdoc />
     public override Color TableLayoutGridLine => Color.FromArgb(180, 180, 180);
 
     /// <inheritdoc />

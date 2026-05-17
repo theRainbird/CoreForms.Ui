@@ -63,7 +63,35 @@ public class ListBox : Control
     /// Gets the inner item list. Items are displayed according to DisplayMember if set.
     /// When DataSource is set, items are populated from the data source.
     /// </summary>
-    public List<object> Items => _items;
+    public IList<object> Items => _itemsCollection ??= new ObjectCollection(_items, Invalidate);
+
+    private ObjectCollection? _itemsCollection;
+
+    private sealed class ObjectCollection : IList<object>
+    {
+        private readonly List<object> _items;
+        private readonly Action _invalidate;
+
+        public ObjectCollection(List<object> items, Action invalidate)
+        {
+            _items = items;
+            _invalidate = invalidate;
+        }
+
+        public void Add(object item) { _items.Add(item); _invalidate(); }
+        public void Clear() { _items.Clear(); _invalidate(); }
+        public bool Remove(object item) { var r = _items.Remove(item); if (r) _invalidate(); return r; }
+        public void RemoveAt(int index) { _items.RemoveAt(index); _invalidate(); }
+        public void Insert(int index, object item) { _items.Insert(index, item); _invalidate(); }
+        public int Count => _items.Count;
+        public bool IsReadOnly => false;
+        public bool Contains(object item) => _items.Contains(item);
+        public int IndexOf(object item) => _items.IndexOf(item);
+        public void CopyTo(object[] array, int arrayIndex) => _items.CopyTo(array, arrayIndex);
+        public IEnumerator<object> GetEnumerator() => _items.GetEnumerator();
+        System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator() => _items.GetEnumerator();
+        public object this[int index] { get => _items[index]; set { _items[index] = value; _invalidate(); } }
+    }
 
     /// <summary>
     /// Gets or sets the data source for this list box.
@@ -111,6 +139,7 @@ public class ListBox : Control
             {
                 _valueMember = value;
                 OnPropertyChanged(nameof(ValueMember));
+                Invalidate();
             }
         }
     }

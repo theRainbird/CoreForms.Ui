@@ -173,6 +173,9 @@ public class DarkTheme : Theme
     public override Color DataGridViewAddNewRowAsterisk => Color.FromArgb(120, 120, 123);
 
     /// <inheritdoc />
+    public override Color DataGridViewSortArrow => Color.FromArgb(180, 180, 180);
+
+    /// <inheritdoc />
     public override Color TableLayoutGridLine => Color.FromArgb(70, 70, 73);
 
     /// <inheritdoc />

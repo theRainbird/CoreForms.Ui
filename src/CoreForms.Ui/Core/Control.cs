@@ -358,6 +358,7 @@ public class Control : Component, IThemeChangeSubscriber, INotifyPropertyChanged
                 _text = value;
                 OnTextChanged();
                 OnPropertyChanged(nameof(Text));
+                Invalidate();
             }
         }
     }
