@@ -46,8 +46,10 @@ public class Button : Control
         var font = EffectiveFont;
         float zoom = EffectiveZoom;
         var measured = CoordinateTransform.MeasureText(Text, font, zoom);
-        var x = (Width - measured.width) / 2;
-        var y = (Height - measured.height) / 2;
+        var textWidth = measured.width / Math.Max(zoom, 0.001f);
+        var textHeight = measured.height / Math.Max(zoom, 0.001f);
+        var x = (Width - textWidth) / 2;
+        var y = (Height - textHeight) / 2;
         g.DrawString(Text, font, textColor, x > 0 ? x : 3, y > 0 ? y : 3);
 
         base.Render(g);
