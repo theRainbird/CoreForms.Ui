@@ -5,18 +5,37 @@ using Graphics = CoreForms.Ui.Rendering.Graphics;
 
 namespace CoreForms.Ui.Controls.Advanced;
 
+/// <summary>
+/// A WYSIWYG HTML editor control with full formatting support.
+/// Supports bold, italic, underline, strikethrough, font families, font sizes,
+/// text colors, lists, tables, images, hyperlinks, and horizontal rules.
+/// Uses SkiaSharp for rendering and HtmlAgilityPack for HTML import/export.
+/// </summary>
 public class HtmlBox : Control
 {
     private readonly RichTextEngine _engine = new();
     private string _htmlBacking = string.Empty;
-    private bool _readOnly = true;
+    private bool _readOnly;
     private LinkBehavior _linkBehavior = LinkBehavior.RaiseEvent;
     private static readonly int CursorBlinkInterval = 530;
 
+    // Cached layout
+    private List<VisualLine>? _cachedLines;
+    private float _cachedAvailableWidth;
+    private float _cachedZoom;
+    private float _documentWidth;
+    private float _documentHeight;
+    private bool _layoutDirty = true;
+
+    // Cursor screen position
     private int _cursorScreenX;
     private int _cursorScreenY;
     private bool _cursorScreenValid;
+    private int _preferredX = -1;
 
+    /// <summary>
+    /// Initializes a new instance of the <see cref="HtmlBox"/> class.
+    /// </summary>
     public HtmlBox()
     {
         var theme = ThemeManager.CurrentTheme;
@@ -27,6 +46,9 @@ public class HtmlBox : Control
         _engine.InitFromHtml(string.Empty);
     }
 
+    /// <summary>
+    /// Gets or sets the HTML content of the editor.
+    /// </summary>
     public string Html
     {
         get => _engine.ToHtml();
@@ -36,11 +58,15 @@ public class HtmlBox : Control
             {
                 _htmlBacking = value ?? string.Empty;
                 _engine.InitFromHtml(_htmlBacking);
+                InvalidateLayout();
                 Invalidate();
             }
         }
     }
 
+    /// <summary>
+    /// Gets or sets whether the editor is read-only.
+    /// </summary>
     public bool ReadOnly
     {
         get => _readOnly;
@@ -54,27 +80,51 @@ public class HtmlBox : Control
         }
     }
 
+    /// <summary>
+    /// Gets or sets the link behavior when a link is clicked.
+    /// </summary>
     public LinkBehavior LinkBehavior
     {
         get => _linkBehavior;
         set => _linkBehavior = value;
     }
 
-    public override void OnThemeChanged(Theme newTheme)
-    {
-        if (!_backColorSet) _backColor = newTheme.TextBoxBackground;
-        if (!_foreColorSet) _foreColor = newTheme.TextBoxText;
-        Invalidate();
-    }
-
-    public event EventHandler<HtmlErrorEventArgs>? ParseError;
-    public event EventHandler<HtmlLinkEventArgs>? LinkClick;
+    /// <summary>Occurs when the HTML content changes.</summary>
     public event EventHandler? ContentChanged;
 
+    /// <summary>Occurs when a link is clicked.</summary>
+    public event EventHandler<HtmlLinkEventArgs>? LinkClick;
+
+    /// <summary>Occurs when HTML parsing encounters errors.</summary>
+    public event EventHandler<HtmlErrorEventArgs>? ParseError;
+
+    // --- Formatting state queries ---
+
+    /// <summary>Gets whether the text at the cursor is bold.</summary>
     public bool IsBold => _engine.GetFontStyleAtCursor().HasFlag(FontStyle.Bold);
+
+    /// <summary>Gets whether the text at the cursor is italic.</summary>
     public bool IsItalic => _engine.GetFontStyleAtCursor().HasFlag(FontStyle.Italic);
+
+    /// <summary>Gets whether the text at the cursor is underlined.</summary>
     public bool IsUnderline => _engine.GetFontStyleAtCursor().HasFlag(FontStyle.Underline);
 
+    /// <summary>Gets whether the text at the cursor is struck through.</summary>
+    public bool IsStrikeout => _engine.GetFontStyleAtCursor().HasFlag(FontStyle.Strikeout);
+
+    /// <summary>Gets the font family at the cursor.</summary>
+    public string FontName => _engine.GetFontFamilyAtCursor();
+
+    /// <summary>Gets the font size at the cursor.</summary>
+    public float FontSizeValue => _engine.GetFontSizeAtCursor();
+
+    /// <summary>Gets debug info about the cursor position.</summary>
+    public string CursorDebug =>
+        $"B:{_engine.CursorBlock} C:{_engine.CursorContent} O:{_engine.CursorOffset}";
+
+    /// <summary>
+    /// Applies a formatting command.
+    /// </summary>
     public void ApplyFormat(string formatType)
     {
         switch (formatType)
@@ -82,12 +132,64 @@ public class HtmlBox : Control
             case "bold": _engine.ToggleBold(); break;
             case "italic": _engine.ToggleItalic(); break;
             case "underline": _engine.ToggleUnderline(); break;
+            case "strikethrough": _engine.ToggleStrikeout(); break;
+            case "insertParagraph": _engine.InsertParagraph(); break;
+            case "insertLineBreak": _engine.InsertLineBreak(); break;
+            case "insertHorizontalRule": _engine.InsertHorizontalRule(); break;
         }
 
+        InvalidateLayout();
         Invalidate();
         ContentChanged?.Invoke(this, EventArgs.Empty);
     }
 
+    /// <summary>
+    /// Applies a formatting command with a value.
+    /// </summary>
+    public void ApplyFormat(string command, string value)
+    {
+        switch (command)
+        {
+            case "fontName":
+                _engine.ApplyFontFamily(value);
+                break;
+            case "fontSize":
+                if (float.TryParse(value, out var fs))
+                    _engine.ApplyFontSize(fs);
+                break;
+            case "foreColor":
+                var color = ParseColor(value);
+                if (!color.Equals(Color.Empty))
+                    _engine.ApplyForeColor(color);
+                break;
+        }
+
+        InvalidateLayout();
+        Invalidate();
+        ContentChanged?.Invoke(this, EventArgs.Empty);
+    }
+
+    /// <summary>Draws a cursor at the current cursor position.</summary>
+    public void ShowCursor() => Invalidate();
+
+    private static Color ParseColor(string val)
+    {
+        val = val.Trim().TrimStart('#');
+        if (val.Length == 6 && int.TryParse(val, System.Globalization.NumberStyles.HexNumber, null, out var rgb))
+            return Color.FromArgb((rgb >> 16) & 0xFF, (rgb >> 8) & 0xFF, rgb & 0xFF);
+        return Color.Empty;
+    }
+
+    /// <inheritdoc/>
+    public override void OnThemeChanged(Theme newTheme)
+    {
+        if (!_backColorSet) _backColor = newTheme.TextBoxBackground;
+        if (!_foreColorSet) _foreColor = newTheme.TextBoxText;
+        InvalidateLayout();
+        Invalidate();
+    }
+
+    /// <inheritdoc/>
     public override void Render(Graphics g)
     {
         if (!Visible) return;
@@ -99,124 +201,143 @@ public class HtmlBox : Control
         else
             g.DrawRectangle(ThemeManager.CurrentTheme.TextBoxBorder, 0, 0, Width, Height, 1);
 
-        _cursorScreenValid = false;
-
-        int y = 4;
         float zoom = g.Zoom;
-        var doc = _engine.Document;
+        EnsureLayout(Width, zoom);
+
+        if (_cachedLines == null) return;
+
+        _cursorScreenValid = false;
+        int cursorFlat = _engine.CursorFlatIndex;
+        int selStart = Math.Min(_engine.CursorFlatIndex, _engine.SelectionFlatIndex);
+        int selEnd = Math.Max(_engine.CursorFlatIndex, _engine.SelectionFlatIndex);
+        bool hasSel = _engine.HasSelection;
+
+        float padding = 4;
         int numberCounter = 0;
+        int lastBlockIndex = -1;
 
-        for (int bi = 0; bi < doc.Blocks.Count; bi++)
+        for (int li = 0; li < _cachedLines.Count; li++)
         {
-            var block = doc.Blocks[bi];
-            int blockStartFlat = doc.ToFlatIndex(bi, 0, 0);
-            int blockEndFlat = blockStartFlat + block.TotalLength;
+            var line = _cachedLines[li];
+            var block = line.Block;
+            if (block == null) continue;
 
-            int blockTop = y;
-            int textStartX = GetTextStartX(block.Type);
-            int markerX = 4;
-            float fontSize = GetBlockFontSize(block.Type);
-
-            if (block.Type == RichTextBlockType.NumberItem)
+            // Count list numbers only when block changes
+            int bi = line.BlockIndex;
+            if (bi != lastBlockIndex)
             {
-                numberCounter++;
-            }
-            else if (block.Type != RichTextBlockType.BulletItem)
-            {
-                numberCounter = 0;
-            }
-
-            foreach (var run in block.Runs)
-            {
-                if (string.IsNullOrEmpty(run.Text)) continue;
-
-                var font = new Font("Arial", fontSize, run.Style);
-                var measured = Platform.Platform.MeasureText(run.Text, font, zoom);
-                int runHeightLogical = (int)(measured.height / zoom);
-
-                if (run == block.Runs[0])
+                lastBlockIndex = bi;
+                if (bi >= 0 && bi < _engine.Document.Blocks.Count)
                 {
-                    if (block.Type == RichTextBlockType.BulletItem)
+                    var b = _engine.Document.Blocks[bi];
+                    if (b.Type == RichTextBlockType.NumberItem)
+                        numberCounter++;
+                    else if (b.Type != RichTextBlockType.BulletItem)
+                        numberCounter = 0;
+                }
+            }
+
+            float leftMargin = GetLeftMargin(line.Block!.Type);
+            float fontSize = GetBlockFontSize(line.Block.Type);
+            float markerX = padding;
+
+            // Draw list marker on first line of each list item
+            if (block.Type is RichTextBlockType.BulletItem or RichTextBlockType.NumberItem
+                && (li == 0 || _cachedLines[li - 1].BlockIndex != bi))
+            {
+                string marker = block.Type == RichTextBlockType.BulletItem
+                    ? "\u2022" : $"{numberCounter}.";
+                g.DrawString(marker, new Font("Arial", fontSize, FontStyle.Regular), ForeColor, markerX, line.Y);
+            }
+
+            foreach (var run in line.Runs)
+            {
+                float runX = padding + leftMargin + run.X;
+                float runY = line.Y;
+                var source = run.Source;
+
+                if (run.Source is TextRun tr)
+                {
+                    var font = new Font(tr.FontFamily, tr.FontSize, tr.Style);
+                    var measured = Platform.Platform.MeasureText(run.DisplayText, font, zoom);
+                    float runHeight = (float)measured.height / zoom;
+
+                    // Draw text
+                    g.DrawString(run.DisplayText, font, tr.ForeColor.Equals(Color.Empty) ? ForeColor : tr.ForeColor, runX, runY);
+
+                    // Draw selection
+                    if (hasSel)
                     {
-                        g.DrawString("•", new Font("Arial", fontSize, FontStyle.Regular), ForeColor, markerX, y);
+                        int runStartFlat = TextLayoutEngine.ToFlatIndex(_engine.Document, line.BlockIndex,
+                            run.ContentIndex, run.StartOffset);
+                        int runEndFlat = runStartFlat + run.Length;
+
+                        if (selStart < runEndFlat && selEnd > runStartFlat)
+                        {
+                            int localSelStart = Math.Max(0, selStart - runStartFlat);
+                            int localSelEnd = Math.Min(run.Length, selEnd - runStartFlat);
+
+                            string beforeSel = run.DisplayText[..localSelStart];
+                            string selText = run.DisplayText[localSelStart..localSelEnd];
+                            float selBeforeWidth = Platform.Platform.MeasureText(beforeSel, font, zoom).width / zoom;
+                            float selTextWidth = Platform.Platform.MeasureText(selText, font, zoom).width / zoom;
+
+                            int selX = (int)(runX + selBeforeWidth);
+                            int selW = (int)Math.Max(selTextWidth, 2);
+                            g.FillRectangle(ThemeManager.CurrentTheme.Highlight, selX, runY, selW, runHeight);
+                            g.DrawString(selText, font, ThemeManager.CurrentTheme.HighlightText, selX, runY);
+                        }
                     }
-                    else if (block.Type == RichTextBlockType.NumberItem)
+
+                    // Cursor positioning
+                    if (!_cursorScreenValid)
                     {
-                        g.DrawString($"{numberCounter}.", new Font("Arial", fontSize, FontStyle.Regular), ForeColor,
-                            markerX, y);
+                        int runStartFlat = TextLayoutEngine.ToFlatIndex(_engine.Document, line.BlockIndex,
+                            run.ContentIndex, run.StartOffset);
+                        int runEndFlat = runStartFlat + run.Length;
+
+                        if (cursorFlat >= runStartFlat && cursorFlat <= runEndFlat)
+                        {
+                            int localOff = cursorFlat - runStartFlat;
+                            string beforeCursor = run.DisplayText[..Math.Min(localOff, run.DisplayText.Length)];
+                            float measuredWidth = Platform.Platform.MeasureText(beforeCursor, font, zoom).width;
+                            _cursorScreenX = (int)(runX + measuredWidth / zoom);
+                            _cursorScreenY = (int)runY;
+                            _cursorScreenValid = true;
+                        }
                     }
                 }
-
-                g.DrawString(run.Text, font, ForeColor, textStartX, y);
-
-                int runStartFlat = blockStartFlat + GetRunStartOffset(block, run);
-                int runEndFlat = runStartFlat + run.Length;
-
-                int selStart = Math.Min(_engine.CursorFlatIndex, _engine.SelectionFlatIndex);
-                int selEnd = Math.Max(_engine.CursorFlatIndex, _engine.SelectionFlatIndex);
-
-                if (selStart < runEndFlat && selEnd > runStartFlat)
+                else if (source is ImageRun image)
                 {
-                    int localSelStart = Math.Max(0, selStart - runStartFlat);
-                    int localSelEnd = Math.Min(run.Length, selEnd - runStartFlat);
-
-                    string beforeSel = run.Text[..localSelStart];
-                    string selText = run.Text[localSelStart..localSelEnd];
-                    float selBeforeWidth = Platform.Platform.MeasureText(beforeSel, font, zoom).width / zoom;
-                    float selTextWidth = Platform.Platform.MeasureText(selText, font, zoom).width / zoom;
-                    int selX = textStartX + (int)selBeforeWidth;
-                    int selW = (int)selTextWidth;
-                    if (selW < 2) selW = 2;
-                    g.FillRectangle(ThemeManager.CurrentTheme.Highlight, selX, y, selW, runHeightLogical);
-                    g.DrawString(selText, font, ThemeManager.CurrentTheme.HighlightText, selX, y);
+                    // Draw image placeholder
+                    g.FillRectangle(ThemeManager.CurrentTheme.TextBoxText, runX, runY, 32, 32);
                 }
-
-                int cursorFlat = _engine.CursorFlatIndex;
-                if (!_cursorScreenValid && cursorFlat >= runStartFlat && cursorFlat <= runEndFlat)
-                {
-                    int localOff = cursorFlat - runStartFlat;
-                    string beforeCursor = run.Text[..localOff];
-                    float measuredWidth = Platform.Platform.MeasureText(beforeCursor, font, zoom).width;
-                    _cursorScreenX = (int)(textStartX + measuredWidth / zoom);
-                    _cursorScreenY = y;
-                    _cursorScreenValid = true;
-                }
-
-                y += runHeightLogical;
             }
-
-            if (y == blockTop)
-                y += (int)fontSize + 4;
         }
 
         DrawCursor(g);
         base.Render(g);
     }
 
-    private static int GetTextStartX(RichTextBlockType type)
+    private void InvalidateLayout()
     {
-        if (type is RichTextBlockType.BulletItem or RichTextBlockType.NumberItem)
-            return 24;
-        return 4;
+        _layoutDirty = true;
+        _preferredX = -1;
     }
 
-    private static float GetBlockFontSize(RichTextBlockType type) => type switch
+    private void EnsureLayout(float availableWidth, float zoom)
     {
-        RichTextBlockType.Heading1 => 22,
-        RichTextBlockType.Heading2 => 18,
-        _ => 12
-    };
+        if (!_layoutDirty && _cachedLines != null &&
+            Math.Abs(_cachedAvailableWidth - availableWidth) < 0.5f &&
+            Math.Abs(_cachedZoom - zoom) < 0.01f)
+            return;
 
-    private static int GetRunStartOffset(RichTextBlock block, RichTextRun target)
-    {
-        int offset = 0;
-        foreach (var r in block.Runs)
-        {
-            if (r == target) return offset;
-            offset += r.Length;
-        }
-
-        return offset;
+        _cachedLines = TextLayoutEngine.Layout(
+            _engine.Document, Math.Max(availableWidth - 8, 50), zoom,
+            out _documentWidth, out _documentHeight);
+        _cachedAvailableWidth = availableWidth;
+        _cachedZoom = zoom;
+        _layoutDirty = false;
     }
 
     private void DrawCursor(Graphics g)
@@ -225,8 +346,11 @@ public class HtmlBox : Control
 
         bool visible = (Environment.TickCount % (CursorBlinkInterval * 2)) < CursorBlinkInterval;
         if (!visible) return;
-
-        if (!_cursorScreenValid) return;
+        if (!_cursorScreenValid)
+        {
+            _cursorScreenX = 4;
+            _cursorScreenY = 4;
+        }
 
         int cy = _cursorScreenY;
         if (cy < 0 || cy >= Height) return;
@@ -235,199 +359,160 @@ public class HtmlBox : Control
         g.DrawLine(ForeColor, _cursorScreenX, cy, _cursorScreenX, cy + 14, 1);
     }
 
+    /// <inheritdoc/>
     protected internal override void OnMouseDown(EventArgs e)
     {
         if (e is MouseEventArgs mouseArgs)
         {
-            int mx = mouseArgs.X;
             float zoom = EffectiveZoom;
-            int y = 4;
-            var doc = _engine.Document;
-            int lastBlock = -1, lastRun = -1, lastOffset = 0;
+            EnsureLayout(Width, zoom);
 
-            for (int bi = 0; bi < doc.Blocks.Count; bi++)
+            if (_cachedLines != null && _cachedLines.Count > 0)
             {
-                var block = doc.Blocks[bi];
-                float fontSize = GetBlockFontSize(block.Type);
-                int textStartX = GetTextStartX(block.Type);
+                var pos = TextLayoutEngine.HitTest(
+                    _engine.Document, _cachedLines,
+                    mouseArgs.X, mouseArgs.Y, zoom);
 
-                foreach (var run in block.Runs)
-                {
-                    if (string.IsNullOrEmpty(run.Text)) continue;
-
-                    var font = new Font("Arial", fontSize, run.Style);
-                    var measured = Platform.Platform.MeasureText(run.Text, font, zoom);
-                    int runHeightLogical = (int)(measured.height / zoom);
-
-                    lastBlock = bi;
-                    lastRun = doc.Blocks[bi].Runs.IndexOf(run);
-                    lastOffset = run.Length;
-
-                    if (mouseArgs.Y >= y && mouseArgs.Y < y + runHeightLogical)
-                    {
-                        int charOffset = FindCharAtX(run.Text, font, zoom, mx - (int)(textStartX * zoom));
-                        _engine.CursorBlock = bi;
-                        _engine.CursorRun = doc.Blocks[bi].Runs.IndexOf(run);
-                        _engine.CursorOffset = charOffset;
-                        _engine.SelectionBlock = _engine.CursorBlock;
-                        _engine.SelectionRun = _engine.CursorRun;
-                        _engine.SelectionOffset = _engine.CursorOffset;
-                        Invalidate();
-                        ContentChanged?.Invoke(this, EventArgs.Empty);
-                        base.OnMouseDown(e);
-                        Focused = true;
-                        return;
-                    }
-
-                    y += runHeightLogical;
-                }
-
-                if (block.Runs.Count == 0)
-                    y += (int)fontSize + 4;
-            }
-
-            if (lastBlock >= 0 && lastRun >= 0)
-            {
-                _engine.CursorBlock = lastBlock;
-                _engine.CursorRun = lastRun;
-                _engine.CursorOffset = lastOffset;
+                _engine.CursorBlock = pos.BlockIndex;
+                _engine.CursorContent = pos.ContentIndex;
+                _engine.CursorOffset = pos.CharOffset;
                 _engine.SelectionBlock = _engine.CursorBlock;
-                _engine.SelectionRun = _engine.CursorRun;
+                _engine.SelectionContent = _engine.CursorContent;
                 _engine.SelectionOffset = _engine.CursorOffset;
-                Invalidate();
-                ContentChanged?.Invoke(this, EventArgs.Empty);
+                _preferredX = -1;
             }
+
+            InvalidateLayout();
+            Invalidate();
+            ContentChanged?.Invoke(this, EventArgs.Empty);
         }
 
         base.OnMouseDown(e);
         Focused = true;
     }
 
-    private static int FindCharAtX(string text, Font font, float zoom, int targetX)
+    /// <inheritdoc/>
+    protected internal override void OnKeyDown(KeyEventArgs e)
     {
-        if (string.IsNullOrEmpty(text) || targetX <= 0) return 0;
-        int bestPos = 0;
-        int bestDist = int.MaxValue;
+        if (_readOnly) { base.OnKeyDown(e); return; }
 
-        for (int i = 0; i <= text.Length; i++)
+        bool shift = e.Modifiers.HasFlag(ModifierKeys.Shift);
+        bool ctrl = e.Modifiers.HasFlag(ModifierKeys.Control);
+
+        // Ctrl+ shortcuts
+        if (ctrl)
         {
-            string sub = text[..i];
-            int w = Platform.Platform.MeasureText(sub, font, zoom).width;
-            int dist = Math.Abs(targetX - w);
-            if (dist < bestDist)
+            switch (e.KeyCode)
             {
-                bestDist = dist;
-                bestPos = i;
+                case Keys.B: ApplyFormat("bold"); e.Handled = true; return;
+                case Keys.I: ApplyFormat("italic"); e.Handled = true; return;
+                case Keys.U: ApplyFormat("underline"); e.Handled = true; return;
+                case Keys.S: ApplyFormat("strikethrough"); e.Handled = true; return;
+                case Keys.Home:
+                    _engine.CursorBlock = 0;
+                    _engine.CursorContent = 0;
+                    _engine.CursorOffset = 0;
+                    _engine.SelectionBlock = 0;
+                    _engine.SelectionContent = 0;
+                    _engine.SelectionOffset = 0;
+                    e.Handled = true; return;
+                case Keys.End:
+                    {
+                        int lastB = _engine.Document.Blocks.Count - 1;
+                        if (lastB >= 0)
+                        {
+                            var blk = _engine.Document.Blocks[lastB];
+                            int lastC = blk.Content.Count - 1;
+                            int lastOff = lastC >= 0 && blk.Content[lastC] is TextRun tr ? tr.Length : 0;
+                            _engine.CursorBlock = lastB;
+                            _engine.CursorContent = Math.Max(0, lastC);
+                            _engine.CursorOffset = lastOff;
+                            _engine.SelectionBlock = lastB;
+                            _engine.SelectionContent = Math.Max(0, lastC);
+                            _engine.SelectionOffset = lastOff;
+                        }
+                        e.Handled = true; return;
+                    }
             }
         }
 
-        return bestPos;
-    }
-
-    protected internal override void OnMouseMove(EventArgs e)
-    {
-        base.OnMouseMove(e);
-    }
-
-    protected internal override void OnKeyDown(KeyEventArgs e)
-    {
-        if (_readOnly)
-        {
-            base.OnKeyDown(e);
-            return;
-        }
-
-        bool shift = e.Modifiers.HasFlag(ModifierKeys.Shift);
-
         switch (e.KeyCode)
         {
-            case Keys.Back: _engine.HandleBackspace(); break;
-            case Keys.Delete: _engine.HandleDelete(); break;
-            case Keys.Enter: _engine.HandleEnter(); break;
+            case Keys.Back:
+                _engine.HandleBackspace();
+                break;
+            case Keys.Delete:
+                _engine.HandleDelete();
+                break;
+            case Keys.Enter:
+                if (shift) _engine.InsertLineBreak();
+                else _engine.HandleEnter();
+                break;
             case Keys.Left:
                 if (shift && !_engine.HasSelection)
-                {
-                    _engine.SelectionBlock = _engine.CursorBlock;
-                    _engine.SelectionRun = _engine.CursorRun;
-                    _engine.SelectionOffset = _engine.CursorOffset;
-                }
-
+                    SyncSelectionAnchor();
                 _engine.MoveLeft();
                 if (!shift)
                 {
                     _engine.SelectionBlock = _engine.CursorBlock;
-                    _engine.SelectionRun = _engine.CursorRun;
+                    _engine.SelectionContent = _engine.CursorContent;
                     _engine.SelectionOffset = _engine.CursorOffset;
                 }
-
                 break;
             case Keys.Right:
                 if (shift && !_engine.HasSelection)
-                {
-                    _engine.SelectionBlock = _engine.CursorBlock;
-                    _engine.SelectionRun = _engine.CursorRun;
-                    _engine.SelectionOffset = _engine.CursorOffset;
-                }
-
+                    SyncSelectionAnchor();
                 _engine.MoveRight();
                 if (!shift)
                 {
                     _engine.SelectionBlock = _engine.CursorBlock;
-                    _engine.SelectionRun = _engine.CursorRun;
+                    _engine.SelectionContent = _engine.CursorContent;
                     _engine.SelectionOffset = _engine.CursorOffset;
                 }
-
                 break;
             case Keys.Up:
                 if (shift && !_engine.HasSelection)
+                    SyncSelectionAnchor();
+                _engine.MoveUp();
+                if (!shift)
                 {
                     _engine.SelectionBlock = _engine.CursorBlock;
-                    _engine.SelectionRun = _engine.CursorRun;
+                    _engine.SelectionContent = _engine.CursorContent;
                     _engine.SelectionOffset = _engine.CursorOffset;
                 }
-
-                if (_engine.CursorBlock > 0)
-                {
-                    _engine.CursorBlock--;
-                    var prevBlock = _engine.Document.Blocks[_engine.CursorBlock];
-                    _engine.CursorRun = prevBlock.Runs.Count - 1;
-                    _engine.CursorOffset = _engine.CursorRun >= 0 ? prevBlock.Runs[_engine.CursorRun].Length : 0;
-                    if (_engine.CursorRun < 0)
-                    {
-                        _engine.CursorRun = 0;
-                        _engine.CursorOffset = 0;
-                    }
-
-                    if (!shift)
-                    {
-                        _engine.SelectionBlock = _engine.CursorBlock;
-                        _engine.SelectionRun = _engine.CursorRun;
-                        _engine.SelectionOffset = _engine.CursorOffset;
-                    }
-                }
-
                 break;
             case Keys.Down:
                 if (shift && !_engine.HasSelection)
+                    SyncSelectionAnchor();
+                _engine.MoveDown();
+                if (!shift)
                 {
                     _engine.SelectionBlock = _engine.CursorBlock;
-                    _engine.SelectionRun = _engine.CursorRun;
+                    _engine.SelectionContent = _engine.CursorContent;
                     _engine.SelectionOffset = _engine.CursorOffset;
                 }
-
-                if (_engine.CursorBlock + 1 < _engine.Document.Blocks.Count)
+                break;
+            case Keys.Home:
+                if (shift && !_engine.HasSelection)
+                    SyncSelectionAnchor();
+                _engine.MoveHome();
+                if (!shift)
                 {
-                    _engine.CursorBlock++;
-                    _engine.CursorRun = 0;
-                    _engine.CursorOffset = 0;
-                    if (!shift)
-                    {
-                        _engine.SelectionBlock = _engine.CursorBlock;
-                        _engine.SelectionRun = _engine.CursorRun;
-                        _engine.SelectionOffset = _engine.CursorOffset;
-                    }
+                    _engine.SelectionBlock = _engine.CursorBlock;
+                    _engine.SelectionContent = _engine.CursorContent;
+                    _engine.SelectionOffset = _engine.CursorOffset;
                 }
-
+                break;
+            case Keys.End:
+                if (shift && !_engine.HasSelection)
+                    SyncSelectionAnchor();
+                _engine.MoveEnd();
+                if (!shift)
+                {
+                    _engine.SelectionBlock = _engine.CursorBlock;
+                    _engine.SelectionContent = _engine.CursorContent;
+                    _engine.SelectionOffset = _engine.CursorOffset;
+                }
                 break;
             default:
                 base.OnKeyDown(e);
@@ -435,45 +520,77 @@ public class HtmlBox : Control
         }
 
         e.Handled = true;
+
+        bool textModified = e.KeyCode is Keys.Back or Keys.Delete or Keys.Enter;
+        if (textModified)
+            InvalidateLayout();
         Invalidate();
         ContentChanged?.Invoke(this, EventArgs.Empty);
         base.OnKeyDown(e);
     }
 
-    protected internal override void OnTextInput(string text)
+    private void SyncSelectionAnchor()
     {
-        if (_readOnly || string.IsNullOrEmpty(text)) return;
-        foreach (char c in text)
-            if (c < 32)
-                return;
-        _engine.InsertText(text);
-        Invalidate();
-        ContentChanged?.Invoke(this, EventArgs.Empty);
+        _engine.SelectionBlock = _engine.CursorBlock;
+        _engine.SelectionContent = _engine.CursorContent;
+        _engine.SelectionOffset = _engine.CursorOffset;
     }
+
+    private static float GetLeftMargin(RichTextBlockType type) =>
+        type is RichTextBlockType.BulletItem or RichTextBlockType.NumberItem ? 20 : 0;
+
+    private static float GetBlockFontSize(RichTextBlockType type) => type switch
+    {
+        RichTextBlockType.Heading1 => 22,
+        RichTextBlockType.Heading2 => 18,
+        RichTextBlockType.Heading3 => 16,
+        RichTextBlockType.Heading4 => 14,
+        RichTextBlockType.Heading5 => 12,
+        RichTextBlockType.Heading6 => 11,
+        _ => 12
+    };
 }
 
+/// <summary>
+/// Defines how hyperlinks are handled when clicked.
+/// </summary>
 public enum LinkBehavior
 {
+    /// <summary>No action on link click.</summary>
     None,
+    /// <summary>Raise the LinkClick event.</summary>
     RaiseEvent,
+    /// <summary>Open the link in the default browser.</summary>
     OpenInBrowser
 }
 
+/// <summary>
+/// Provides data for the <see cref="HtmlBox.LinkClick"/> event.
+/// </summary>
 public class HtmlLinkEventArgs : EventArgs
 {
+    /// <summary>The URL of the clicked link.</summary>
     public string Url { get; }
+
+    /// <summary>Gets or sets whether the link click has been handled.</summary>
     public bool Handled { get; set; }
 
+    /// <summary>Initializes a new instance of <see cref="HtmlLinkEventArgs"/>.</summary>
     public HtmlLinkEventArgs(string url)
     {
         Url = url;
     }
 }
 
+/// <summary>
+/// Provides data for HTML parsing errors.
+/// </summary>
 public class HtmlErrorEventArgs : EventArgs
 {
+    /// <summary>Gets the list of error messages.</summary>
     public List<string> Errors { get; }
 
+    /// <summary>Initializes a new instance of <see cref="HtmlErrorEventArgs"/>.</summary>
     public HtmlErrorEventArgs(List<string> errors)
     {
         Errors = errors;

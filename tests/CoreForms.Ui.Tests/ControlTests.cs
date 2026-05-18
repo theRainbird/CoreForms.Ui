@@ -16,9 +16,10 @@ public class ControlTests
         engine.InitFromHtml("<p>Hello World</p>");
 
         Assert.Single(engine.Document.Blocks);
-        Assert.Single(engine.Document.Blocks[0].Runs);
-        Assert.Equal("Hello World", engine.Document.Blocks[0].Runs[0].Text);
-        Assert.Equal(FontStyle.Regular, engine.Document.Blocks[0].Runs[0].Style);
+        Assert.Single(engine.Document.Blocks[0].Content);
+        var run = Assert.IsType<TextRun>(engine.Document.Blocks[0].Content[0]);
+        Assert.Equal("Hello World", run.Text);
+        Assert.Equal(FontStyle.Regular, run.Style);
 
         engine.CursorBlock = 0;
         engine.CursorRun = 0;
@@ -30,10 +31,10 @@ public class ControlTests
         Assert.True(engine.HasSelection);
 
         engine.ToggleBold();
-        Assert.Equal(FontStyle.Bold, engine.Document.Blocks[0].Runs[0].Style);
+        Assert.Equal(FontStyle.Bold, ((TextRun)engine.Document.Blocks[0].Content[0]).Style);
 
         engine.ToggleBold();
-        Assert.Equal(FontStyle.Regular, engine.Document.Blocks[0].Runs[0].Style);
+        Assert.Equal(FontStyle.Regular, ((TextRun)engine.Document.Blocks[0].Content[0]).Style);
     }
 
     [Fact]
@@ -58,9 +59,9 @@ public class ControlTests
     {
         var engine = new RichTextEngine();
         engine.InitFromHtml("<p>Hello <b>World</b>!</p>");
-        // runs: "Hello " (Regular), "World" (Bold), "!" (Regular)
+        // content: "Hello " (Regular), "World" (Bold), "!" (Regular)
 
-        Assert.Equal(3, engine.Document.Blocks[0].Runs.Count);
+        Assert.Equal(3, engine.Document.Blocks[0].Content.Count);
 
         // Select "lo World" (cross-run: end of run 0, all of run 1)
         // Flat index: "Hello " = 6 chars, "World" = 5 chars
@@ -79,11 +80,11 @@ public class ControlTests
         engine.ToggleBold();
 
         // Run 0 ("Hello "): only "lo " was selected, so the entire run toggles
-        Assert.Equal(FontStyle.Bold, engine.Document.Blocks[0].Runs[0].Style);
+        Assert.Equal(FontStyle.Bold, ((TextRun)engine.Document.Blocks[0].Content[0]).Style);
         // Run 1 ("World"): entirely selected + toggle
-        Assert.Equal(FontStyle.Regular, engine.Document.Blocks[0].Runs[1].Style);
+        Assert.Equal(FontStyle.Regular, ((TextRun)engine.Document.Blocks[0].Content[1]).Style);
         // Run 2 ("!"): not selected
-        Assert.Equal(FontStyle.Regular, engine.Document.Blocks[0].Runs[2].Style);
+        Assert.Equal(FontStyle.Regular, ((TextRun)engine.Document.Blocks[0].Content[2]).Style);
     }
     [Fact]
     public void Control_Bounds_ShouldInitializeCorrectly()

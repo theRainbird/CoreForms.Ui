@@ -35,6 +35,12 @@ internal class MessageBoxOverlay : Control
     public DialogResult DialogResult => _dialogResult;
 
     /// <summary>
+    /// Gets whether the overlay is opaque. Returns false because the overlay draws with a
+    /// semi-transparent dimming effect, so controls behind it must still be rendered.
+    /// </summary>
+    public override bool IsOpaque => false;
+
+    /// <summary>
     /// Initializes a new MessageBoxOverlay with the specified parameters.
     /// </summary>
     /// <param name="owner">The owner form that will display this overlay.</param>

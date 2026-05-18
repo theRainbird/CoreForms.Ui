@@ -405,7 +405,6 @@ public class ComboBox : Control
                     _scrollOffset = 0;
                     _hoveredIndex = -1;
                     _dropScrollBar.ScrollTo(0);
-                    CapturingMouse = false;
                     Invalidate();
                     return;
                 }
@@ -415,7 +414,6 @@ public class ComboBox : Control
             _scrollOffset = 0;
             _hoveredIndex = -1;
             _dropScrollBar.ScrollTo(0);
-            CapturingMouse = false;
             Invalidate();
             return;
         }

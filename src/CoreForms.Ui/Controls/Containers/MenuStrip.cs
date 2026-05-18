@@ -146,6 +146,7 @@ public class MenuStrip : ContainerControl
     /// <summary>
     /// Handles mouse down events to detect menu item clicks and dropdown toggling.
     /// Captures the mouse when a dropdown is open to receive clicks in the dropdown area.
+    /// Capture is released in OnMouseUp to prevent clicks from passing through to underlying controls.
     /// </summary>
     /// <param name="e">The event arguments.</param>
     protected internal override void OnMouseDown(EventArgs e)
@@ -160,7 +161,7 @@ public class MenuStrip : ContainerControl
                 if (ddResult != null)
                 {
                     ddResult.PerformClick();
-                    CloseDropDown();
+                    CloseDropDownKeepCapture();
                     return;
                 }
 
@@ -171,7 +172,7 @@ public class MenuStrip : ContainerControl
                     return;
                 }
 
-                CloseDropDown();
+                CloseDropDownKeepCapture();
                 return;
             }
 
@@ -187,13 +188,32 @@ public class MenuStrip : ContainerControl
                     item.PerformClick();
                 }
             }
-            else
-            {
-                CapturingMouse = false;
-            }
         }
 
         base.OnMouseDown(e);
+    }
+
+    /// <summary>
+    /// Handles mouse up events to release mouse capture when the dropdown is closed,
+    /// preventing the event from propagating to controls underneath the dropdown.
+    /// </summary>
+    /// <param name="e">The event arguments.</param>
+    protected internal override void OnMouseUp(EventArgs e)
+    {
+        if (CapturingMouse && !_dropDownVisible)
+        {
+            CapturingMouse = false;
+            return;
+        }
+        base.OnMouseUp(e);
+    }
+
+    private void CloseDropDownKeepCapture()
+    {
+        _dropDownVisible = false;
+        _openItem = null;
+        _hoverDropDownItem = null;
+        _selectedDropDownIndex = -1;
     }
 
     /// <summary>

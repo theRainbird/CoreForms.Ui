@@ -358,6 +358,15 @@ public readonly struct Rectangle
         => Contains(point.X, point.Y);
 
     /// <summary>
+    /// Determines whether the specified rectangle is entirely contained within this rectangle.
+    /// </summary>
+    /// <param name="rect">The rectangle to test.</param>
+    /// <returns>True if the rectangle is entirely contained; otherwise, false.</returns>
+    public bool Contains(Rectangle rect)
+        => rect.X >= X && rect.Right <= Right &&
+           rect.Y >= Y && rect.Bottom <= Bottom;
+
+    /// <summary>
     /// Determines whether this rectangle intersects with the specified rectangle.
     /// </summary>
     /// <param name="rect">The rectangle to test.</param>

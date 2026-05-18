@@ -1530,7 +1530,7 @@ class Program
         numberListButton.Click += (s, e) => { htmlBox.ApplyFormat("insertOrderedList"); };
         linkButton.Click += (s, e) => { htmlBox.ApplyFormat("createLink"); };
         imageButton.Click += (s, e) => { htmlBox.ApplyFormat("insertImage"); };
-        htmlBox.ContentChanged += (s, e) => UpdateFormatButtons();
+        htmlBox.ContentChanged += (s, e) => { UpdateFormatButtons(); _statusLabel!.Text = htmlBox.CursorDebug; };
 
         toolStrip.Items.Add(boldButton);
         toolStrip.Items.Add(italicButton);

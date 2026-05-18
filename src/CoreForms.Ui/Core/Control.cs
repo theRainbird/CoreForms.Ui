@@ -346,6 +346,13 @@ public class Control : Component, IThemeChangeSubscriber, INotifyPropertyChanged
     }
 
     /// <summary>
+    /// Gets whether the control is opaque (fully covers the area behind it).
+    /// A control is considered opaque if its background color has full alpha (A == 255).
+    /// Controls that draw custom opaque content should override this property.
+    /// </summary>
+    public virtual bool IsOpaque => _backColor.A == 255;
+
+    /// <summary>
     /// Gets or sets the text displayed by the control.
     /// </summary>
     public string Text
@@ -561,42 +568,67 @@ if (_focused != value)
     }
 
     /// <summary>
+    /// Determines whether the specified child control is completely occluded by opaque siblings
+    /// that are drawn later (higher Z-order). A fully occluded child can be skipped during rendering.
+    /// </summary>
+    /// <param name="child">The child control to test.</param>
+    /// <param name="childIndex">The index of the child in the Controls collection.</param>
+    /// <returns>True if the child is fully occluded by later siblings; otherwise, false.</returns>
+    private bool IsCompletelyOccluded(Control child, int childIndex)
+    {
+        var childBounds = child.Bounds;
+        for (int i = childIndex + 1; i < Controls.Count; i++)
+        {
+            var sibling = Controls[i];
+            if (!sibling.Visible || !sibling.IsOpaque)
+                continue;
+            if (sibling.Bounds.Contains(childBounds))
+                return true;
+        }
+        return false;
+    }
+
+    /// <summary>
     /// Renders the control and its children using the specified graphics object.
     /// Applies zoom scaling to all child controls.
+    /// Children that are fully occluded by opaque siblings are skipped.
     /// </summary>
     /// <param name="g">The Graphics object to use for rendering.</param>
     public virtual void Render(Graphics g)
     {
         _dirty = false;
         g.Zoom = EffectiveZoom;
-        foreach (Control child in Controls)
+        for (int i = 0; i < Controls.Count; i++)
         {
-            if (child.Visible)
-            {
-                g.Save();
-                g.TranslateTransform(child.X, child.Y);
-                child.Render(g);
-                g.Restore();
-            }
+            var child = Controls[i];
+            if (!child.Visible) continue;
+            if (IsCompletelyOccluded(child, i)) continue;
+
+            g.Save();
+            g.TranslateTransform(child.X, child.Y);
+            child.Render(g);
+            g.Restore();
         }
     }
 
     /// <summary>
     /// Renders overlay elements (like dropdowns) on top of other controls.
+    /// Children that are fully occluded by opaque siblings are skipped.
     /// </summary>
     /// <param name="g">The Graphics object to use for rendering.</param>
     public virtual void RenderOverlay(Graphics g)
     {
         g.Zoom = EffectiveZoom;
-        foreach (Control child in Controls)
+        for (int i = 0; i < Controls.Count; i++)
         {
-            if (child.Visible)
-            {
-                g.Save();
-                g.TranslateTransform(child.X, child.Y);
-                child.RenderOverlay(g);
-                g.Restore();
-            }
+            var child = Controls[i];
+            if (!child.Visible) continue;
+            if (IsCompletelyOccluded(child, i)) continue;
+
+            g.Save();
+            g.TranslateTransform(child.X, child.Y);
+            child.RenderOverlay(g);
+            g.Restore();
         }
     }
 

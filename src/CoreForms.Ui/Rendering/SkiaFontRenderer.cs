@@ -62,18 +62,31 @@ namespace CoreForms.Ui.Rendering;
             canvas.Skew(-0.2f, 0);
             canvas.DrawText(text, 0, 0, paint);
 
+            float textWidth = paint.MeasureText(text);
+            float lineWidth = Math.Max(1, scaledSize / 14f);
+
             if (font.Style.HasFlag(Core.FontStyle.Underline))
             {
-                float textWidth = paint.MeasureText(text);
-                float underlineY = 1.5f;
                 using var linePaint = new SKPaint
                 {
                     Color = new SKColor(color.R, color.G, color.B, color.A),
-                    StrokeWidth = Math.Max(1, scaledSize / 14f),
+                    StrokeWidth = lineWidth,
                     Style = SKPaintStyle.Stroke,
                     IsAntialias = true
                 };
-                canvas.DrawLine(0, underlineY, textWidth, underlineY, linePaint);
+                canvas.DrawLine(0, 1.5f, textWidth, 1.5f, linePaint);
+            }
+
+            if (font.Style.HasFlag(Core.FontStyle.Strikeout))
+            {
+                using var linePaint = new SKPaint
+                {
+                    Color = new SKColor(color.R, color.G, color.B, color.A),
+                    StrokeWidth = lineWidth,
+                    Style = SKPaintStyle.Stroke,
+                    IsAntialias = true
+                };
+                canvas.DrawLine(0, -scaledSize * 0.3f, textWidth, -scaledSize * 0.3f, linePaint);
             }
 
             canvas.Restore();
@@ -82,18 +95,32 @@ namespace CoreForms.Ui.Rendering;
         {
             canvas.DrawText(text, x, y + scaledSize, paint);
 
+            float textWidth = paint.MeasureText(text);
+            float lineWidth = Math.Max(1, scaledSize / 14f);
+
             if (font.Style.HasFlag(Core.FontStyle.Underline))
             {
-                float textWidth = paint.MeasureText(text);
-                float underlineY = y + scaledSize + 1.5f;
                 using var linePaint = new SKPaint
                 {
                     Color = new SKColor(color.R, color.G, color.B, color.A),
-                    StrokeWidth = Math.Max(1, scaledSize / 14f),
+                    StrokeWidth = lineWidth,
                     Style = SKPaintStyle.Stroke,
                     IsAntialias = true
                 };
-                canvas.DrawLine(x, underlineY, x + textWidth, underlineY, linePaint);
+                canvas.DrawLine(x, y + scaledSize + 1.5f, x + textWidth, y + scaledSize + 1.5f, linePaint);
+            }
+
+            if (font.Style.HasFlag(Core.FontStyle.Strikeout))
+            {
+                using var linePaint = new SKPaint
+                {
+                    Color = new SKColor(color.R, color.G, color.B, color.A),
+                    StrokeWidth = lineWidth,
+                    Style = SKPaintStyle.Stroke,
+                    IsAntialias = true
+                };
+                float strikeY = y + scaledSize * 0.5f;
+                canvas.DrawLine(x, strikeY, x + textWidth, strikeY, linePaint);
             }
         }
     }

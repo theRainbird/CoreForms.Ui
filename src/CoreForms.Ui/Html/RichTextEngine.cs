@@ -2,363 +2,153 @@ using CoreForms.Ui.Core;
 
 namespace CoreForms.Ui.Html;
 
-public enum RichTextBlockType
-{
-    Paragraph,
-    Heading1,
-    Heading2,
-    BulletItem,
-    NumberItem
-}
-
-public class RichTextRun
-{
-    public string Text { get; set; } = string.Empty;
-    public FontStyle Style { get; set; } = FontStyle.Regular;
-
-    public int Length => Text.Length;
-}
-
-public class RichTextBlock
-{
-    public RichTextBlockType Type { get; set; } = RichTextBlockType.Paragraph;
-    public List<RichTextRun> Runs { get; } = new();
-
-    public int TotalLength => Runs.Sum(r => r.Length);
-}
-
-public class RichTextDocument
-{
-    public List<RichTextBlock> Blocks { get; } = new();
-
-    public int TotalLength => Blocks.Sum(b => b.TotalLength);
-
-    public (int blockIdx, int runIdx, int charOff) ToPosition(int flatIndex)
-    {
-        int remaining = flatIndex;
-        for (int bi = 0; bi < Blocks.Count; bi++)
-        {
-            var block = Blocks[bi];
-            int blockLen = block.TotalLength;
-            if (remaining <= blockLen)
-            {
-                for (int ri = 0; ri < block.Runs.Count; ri++)
-                {
-                    var run = block.Runs[ri];
-                    if (remaining <= run.Length)
-                        return (bi, ri, remaining);
-                    remaining -= run.Length;
-                }
-                return (bi, block.Runs.Count - 1, block.Runs.Count > 0 ? block.Runs[^1].Length : 0);
-            }
-            remaining -= blockLen;
-        }
-        var lastBlock = Blocks[^1];
-        var lastRun = lastBlock.Runs.Count > 0 ? lastBlock.Runs[^1] : null;
-        return (Blocks.Count - 1, lastBlock.Runs.Count - 1, lastRun?.Length ?? 0);
-    }
-
-    public int ToFlatIndex(int blockIdx, int runIdx, int charOff)
-    {
-        int idx = 0;
-        for (int bi = 0; bi < blockIdx && bi < Blocks.Count; bi++)
-            idx += Blocks[bi].TotalLength;
-        if (blockIdx < Blocks.Count)
-        {
-            var block = Blocks[blockIdx];
-            for (int ri = 0; ri < runIdx && ri < block.Runs.Count; ri++)
-                idx += block.Runs[ri].Length;
-            if (runIdx < block.Runs.Count)
-                idx += Math.Min(charOff, block.Runs[runIdx].Length);
-        }
-        return idx;
-    }
-}
-
+/// <summary>
+/// Provides editing operations over a <see cref="RichTextDocument"/>.
+/// Maintains cursor and selection state.
+/// </summary>
 public class RichTextEngine
 {
+    /// <summary>The underlying document.</summary>
     public RichTextDocument Document { get; } = new();
+
     public int CursorBlock { get; set; }
-    public int CursorRun { get; set; }
+    public int CursorContent { get; set; }
     public int CursorOffset { get; set; }
+
     public int SelectionBlock { get; set; }
-    public int SelectionRun { get; set; }
+    public int SelectionContent { get; set; }
     public int SelectionOffset { get; set; }
 
-    public int CursorFlatIndex =>
-        Document.ToFlatIndex(CursorBlock, CursorRun, CursorOffset);
+    /// <summary>Convenience alias for test compatibility.</summary>
+    public int CursorRun { get => CursorContent; set => CursorContent = value; }
+    /// <summary>Convenience alias for test compatibility.</summary>
+    public int SelectionRun { get => SelectionContent; set => SelectionContent = value; }
 
-    public int SelectionFlatIndex =>
-        Document.ToFlatIndex(SelectionBlock, SelectionRun, SelectionOffset);
-
+    public int CursorFlatIndex => TextLayoutEngine.ToFlatIndex(Document, CursorBlock, CursorContent, CursorOffset);
+    public int SelectionFlatIndex => TextLayoutEngine.ToFlatIndex(Document, SelectionBlock, SelectionContent, SelectionOffset);
     public bool HasSelection => CursorFlatIndex != SelectionFlatIndex;
 
+    /// <summary>
+    /// Loads the document from an HTML string.
+    /// </summary>
     public void InitFromHtml(string html)
     {
+        var parsed = HtmlImport.Parse(html);
         Document.Blocks.Clear();
-
-        if (string.IsNullOrWhiteSpace(html))
-        {
-            var b = new RichTextBlock();
-            b.Runs.Add(new RichTextRun());
+        foreach (var b in parsed.Blocks)
             Document.Blocks.Add(b);
-            ResetCursor();
-            return;
-        }
-
-        var haDoc = new HtmlAgilityPack.HtmlDocument();
-        haDoc.LoadHtml(html);
-        var body = haDoc.DocumentNode.SelectSingleNode("//body")
-                   ?? haDoc.DocumentNode;
-
-        if (body == null || !body.HasChildNodes)
-        {
-            var b = new RichTextBlock();
-            b.Runs.Add(new RichTextRun());
-            Document.Blocks.Add(b);
-            ResetCursor();
-            return;
-        }
-
-        foreach (var child in body.ChildNodes)
-        {
-            if (child.NodeType == HtmlAgilityPack.HtmlNodeType.Text)
-            {
-                string t = HtmlAgilityPack.HtmlEntity.DeEntitize(child.InnerText);
-                if (!string.IsNullOrWhiteSpace(t))
-                {
-                    var block = new RichTextBlock();
-                    block.Runs.Add(new RichTextRun { Text = t.Trim() });
-                    Document.Blocks.Add(block);
-                }
-            }
-            else if (child.NodeType == HtmlAgilityPack.HtmlNodeType.Element)
-            {
-                ConvertElement(child, Document);
-            }
-        }
-
-        if (Document.Blocks.Count == 0)
-        {
-            var b = new RichTextBlock();
-            b.Runs.Add(new RichTextRun());
-            Document.Blocks.Add(b);
-        }
         ResetCursor();
     }
 
-    private static void ConvertElement(HtmlAgilityPack.HtmlNode node, RichTextDocument doc)
-    {
-        string tag = node.Name.ToLowerInvariant();
-        RichTextBlockType blockType = tag switch
-        {
-            "h1" => RichTextBlockType.Heading1,
-            "h2" => RichTextBlockType.Heading2,
-            "li" when node.ParentNode?.Name == "ol" => RichTextBlockType.NumberItem,
-            "li" => RichTextBlockType.BulletItem,
-            _ => RichTextBlockType.Paragraph
-        };
-
-        var block = new RichTextBlock { Type = blockType };
-        ExtractRuns(node, block.Runs, FontStyle.Regular);
-
-        if (block.Runs.Count > 0)
-            doc.Blocks.Add(block);
-        else if (!IsVoidTag(tag))
-        {
-            block.Runs.Add(new RichTextRun());
-            doc.Blocks.Add(block);
-        }
-    }
-
-    private static bool IsVoidTag(string tag) => tag is "br" or "hr" or "img" or "input";
-
-    private static void ExtractRuns(HtmlAgilityPack.HtmlNode node, List<RichTextRun> runs, FontStyle inheritStyle)
-    {
-        foreach (var child in node.ChildNodes)
-        {
-            if (child.NodeType == HtmlAgilityPack.HtmlNodeType.Text)
-            {
-                string t = HtmlAgilityPack.HtmlEntity.DeEntitize(child.InnerText);
-                if (!string.IsNullOrWhiteSpace(t))
-                    runs.Add(new RichTextRun { Text = t, Style = inheritStyle });
-            }
-            else if (child.NodeType == HtmlAgilityPack.HtmlNodeType.Element)
-            {
-                string tag = child.Name.ToLowerInvariant();
-                FontStyle style = inheritStyle;
-                if (tag is "b" or "strong") style |= FontStyle.Bold;
-                if (tag is "i" or "em") style |= FontStyle.Italic;
-                if (tag is "u") style |= FontStyle.Underline;
-                if (tag is "br")
-                {
-                    if (runs.Count > 0)
-                    {
-                        var last = runs[^1];
-                        runs.RemoveAt(runs.Count - 1);
-                        runs.Add(new RichTextRun { Text = last.Text, Style = last.Style });
-                    }
-                    runs.Add(new RichTextRun { Text = "\n", Style = inheritStyle });
-                }
-                else if (tag is "ul" or "ol")
-                {
-                    foreach (var li in child.ChildNodes)
-                        ExtractRuns(li, runs, style);
-                }
-                else
-                {
-                    ExtractRuns(child, runs, style);
-                }
-            }
-        }
-    }
-
-    public string ToHtml()
-    {
-        var sb = new System.Text.StringBuilder();
-        sb.Append("<body>");
-        foreach (var block in Document.Blocks)
-        {
-            string tag = block.Type switch
-            {
-                RichTextBlockType.Heading1 => "h1",
-                RichTextBlockType.Heading2 => "h2",
-                RichTextBlockType.BulletItem => "li",
-                RichTextBlockType.NumberItem => "li",
-                _ => "p"
-            };
-
-            string wrapper = block.Type is RichTextBlockType.BulletItem or RichTextBlockType.NumberItem
-                ? (block.Type == RichTextBlockType.NumberItem ? "ol" : "ul") : null;
-
-            if (!string.IsNullOrEmpty(tag) && block.Runs.Count > 0)
-            {
-                string inner = RenderRuns(block.Runs);
-                if (wrapper != null)
-                {
-                    if (!sb.ToString().EndsWith($"<{wrapper}>"))
-                    {
-                        if (sb.Length > 6) sb.AppendLine();
-                        sb.Append($"<{wrapper}>");
-                    }
-                    sb.AppendLine();
-                    sb.Append($"  <{tag}>{inner}</{tag}>");
-                }
-                else
-                {
-                    if (sb.Length > 6) sb.AppendLine();
-                    sb.Append($"<{tag}>{inner}</{tag}>");
-                }
-            }
-
-            if (block.Runs.Count == 0)
-            {
-                if (sb.Length > 6) sb.AppendLine();
-                sb.Append($"<{tag}></{tag}>");
-            }
-        }
-        sb.AppendLine();
-        sb.Append("</body>");
-        return sb.ToString();
-    }
-
-    private static string RenderRuns(List<RichTextRun> runs)
-    {
-        var sb = new System.Text.StringBuilder();
-        foreach (var run in runs)
-        {
-            string t = System.Net.WebUtility.HtmlEncode(run.Text);
-            var style = run.Style;
-            if (style.HasFlag(FontStyle.Bold)) t = $"<b>{t}</b>";
-            if (style.HasFlag(FontStyle.Italic)) t = $"<i>{t}</i>";
-            if (style.HasFlag(FontStyle.Underline)) t = $"<u>{t}</u>";
-            sb.Append(t);
-        }
-        return sb.ToString();
-    }
+    /// <summary>
+    /// Serializes the document back to HTML.
+    /// </summary>
+    public string ToHtml() => HtmlExport.ToHtml(Document);
 
     public void ResetCursor()
     {
         CursorBlock = 0;
-        CursorRun = 0;
+        CursorContent = 0;
         CursorOffset = 0;
         SelectionBlock = 0;
-        SelectionRun = 0;
+        SelectionContent = 0;
         SelectionOffset = 0;
     }
 
     public void InsertText(string text)
     {
         if (string.IsNullOrEmpty(text) || Document.Blocks.Count == 0) return;
-
         if (HasSelection) DeleteSelection();
+        EnsureValidPosition();
 
         var block = Document.Blocks[CursorBlock];
-        if (block.Runs.Count == 0)
+
+        if (block.Content.Count == 0)
         {
-            block.Runs.Add(new RichTextRun { Text = text });
-            CursorRun = 0;
+            block.Content.Add(new TextRun { Text = text });
+            CursorContent = 0;
             CursorOffset = text.Length;
+            SyncSelection();
             return;
         }
 
-        if (CursorRun >= block.Runs.Count)
+        if (CursorContent >= block.Content.Count)
         {
-            CursorRun = block.Runs.Count - 1;
-            CursorOffset = block.Runs[CursorRun].Length;
+            block.Content.Add(new TextRun { Text = text });
+            CursorContent = block.Content.Count - 1;
+            CursorOffset = block.Content[CursorContent] is TextRun tr ? tr.Length : 0;
+            SyncSelection();
+            return;
         }
 
-        var run = block.Runs[CursorRun];
-        run.Text = run.Text.Insert(CursorOffset, text);
-        CursorOffset += text.Length;
-        SyncSelection();
+        if (block.Content[CursorContent] is TextRun run)
+        {
+            run.Text = run.Text.Insert(CursorOffset, text);
+            CursorOffset += text.Length;
+            SyncSelection();
+        }
+        else
+        {
+            // Insert a new text run after non-text content
+            var newRun = new TextRun { Text = text };
+            block.Content.Insert(CursorContent + 1, newRun);
+            CursorContent++;
+            CursorOffset = text.Length;
+            SyncSelection();
+        }
     }
 
     public void HandleEnter()
     {
         if (Document.Blocks.Count == 0) return;
-
         if (HasSelection) DeleteSelection();
+        EnsureValidPosition();
 
         var oldBlock = Document.Blocks[CursorBlock];
 
+        // Split content at cursor
         string beforeText = "", afterText = "";
         FontStyle afterStyle = FontStyle.Regular;
+        string afterFontFamily = "Arial";
+        float afterFontSize = 12;
+        Color afterForeColor = Color.Empty;
+        int splitIndex = CursorContent;
+        int splitOffset = CursorOffset;
 
-        if (CursorRun < oldBlock.Runs.Count)
+        if (splitIndex < oldBlock.Content.Count && oldBlock.Content[splitIndex] is TextRun splitRun)
         {
-            var run = oldBlock.Runs[CursorRun];
-            beforeText = run.Text[..CursorOffset];
-            afterText = run.Text[CursorOffset..];
-            afterStyle = run.Style;
-            run.Text = beforeText;
-
-            if (string.IsNullOrEmpty(run.Text))
-                oldBlock.Runs.RemoveAt(CursorRun);
+            beforeText = splitRun.Text[..splitOffset];
+            afterText = splitRun.Text[splitOffset..];
+            afterStyle = splitRun.Style;
+            afterFontFamily = splitRun.FontFamily;
+            afterFontSize = splitRun.FontSize;
+            afterForeColor = splitRun.ForeColor;
+            splitRun.Text = beforeText;
         }
 
+        // Build new block
         var newBlock = new RichTextBlock { Type = oldBlock.Type };
-
-        for (int i = CursorRun; i < oldBlock.Runs.Count; i++)
-        {
-            newBlock.Runs.Add(oldBlock.Runs[i]);
-        }
-        for (int i = oldBlock.Runs.Count - 1; i >= CursorRun; i--)
-        {
-            oldBlock.Runs.RemoveAt(i);
-        }
+        for (int i = splitIndex; i < oldBlock.Content.Count; i++)
+            newBlock.Content.Add(oldBlock.Content[i]);
+        for (int i = oldBlock.Content.Count - 1; i >= splitIndex; i--)
+            oldBlock.Content.RemoveAt(i);
 
         if (!string.IsNullOrEmpty(afterText))
-        {
-            newBlock.Runs.Insert(0, new RichTextRun { Text = afterText, Style = afterStyle });
-        }
+            newBlock.Content.Insert(0, new TextRun { Text = afterText, Style = afterStyle, FontFamily = afterFontFamily, FontSize = afterFontSize, ForeColor = afterForeColor });
 
-        if (newBlock.Runs.Count == 0)
-            newBlock.Runs.Add(new RichTextRun());
+        if (newBlock.Content.Count == 0)
+            newBlock.Content.Add(new TextRun());
+
+        // If the old block was a list item and is now empty, convert to paragraph
+        if (oldBlock.Type is RichTextBlockType.BulletItem or RichTextBlockType.NumberItem
+            && oldBlock.Content.Count == 1 && oldBlock.Content[0] is TextRun tr && string.IsNullOrEmpty(tr.Text))
+        {
+            oldBlock.Type = RichTextBlockType.Paragraph;
+        }
 
         Document.Blocks.Insert(CursorBlock + 1, newBlock);
         CursorBlock++;
-        CursorRun = 0;
+        CursorContent = 0;
         CursorOffset = 0;
         SyncSelection();
     }
@@ -366,161 +156,300 @@ public class RichTextEngine
     public void HandleBackspace()
     {
         if (Document.Blocks.Count == 0 || CursorFlatIndex <= 0) return;
-
         if (HasSelection) { DeleteSelection(); return; }
+        EnsureValidPosition();
 
-        if (CursorOffset > 0)
+        var block = Document.Blocks[CursorBlock];
+
+        if (CursorContent < block.Content.Count && block.Content[CursorContent] is TextRun run && CursorOffset > 0)
         {
-            var block = Document.Blocks[CursorBlock];
-            if (CursorRun < block.Runs.Count)
+            run.Text = run.Text.Remove(CursorOffset - 1, 1);
+            CursorOffset--;
+            if (string.IsNullOrEmpty(run.Text) && block.Content.Count > 1)
             {
-                var run = block.Runs[CursorRun];
-                run.Text = run.Text.Remove(CursorOffset - 1, 1);
-                CursorOffset--;
-                if (string.IsNullOrEmpty(run.Text))
-                {
-                    block.Runs.RemoveAt(CursorRun);
-                    if (CursorRun >= block.Runs.Count) CursorRun = block.Runs.Count - 1;
-                    if (CursorRun >= 0) CursorOffset = block.Runs[CursorRun].Length;
-                    else CursorOffset = 0;
-                }
+                block.Content.RemoveAt(CursorContent);
+                if (CursorContent >= block.Content.Count) CursorContent = block.Content.Count - 1;
+                CursorOffset = block.Content[CursorContent] is TextRun tr2 ? tr2.Length : 0;
             }
+            SyncSelection();
+            return;
         }
-        else if (CursorBlock > 0)
+
+        if (CursorBlock > 0)
         {
             var prevBlock = Document.Blocks[CursorBlock - 1];
             var curBlock = Document.Blocks[CursorBlock];
-            CursorOffset = prevBlock.TotalLength;
-            CursorRun = prevBlock.Runs.Count;
-            foreach (var run in curBlock.Runs)
-                prevBlock.Runs.Add(run);
+            CursorContent = prevBlock.Content.Count;
+            CursorOffset = prevBlock.Content.Count > 0 && prevBlock.Content[^1] is TextRun ptr ? ptr.Length : 0;
+
+            foreach (var c in curBlock.Content)
+                prevBlock.Content.Add(c);
             Document.Blocks.RemoveAt(CursorBlock);
             CursorBlock--;
+            SyncSelection();
         }
-        SyncSelection();
     }
 
     public void HandleDelete()
     {
         if (Document.Blocks.Count == 0) return;
-
         if (HasSelection) { DeleteSelection(); return; }
 
-        int totalLen = Document.TotalLength;
-        if (CursorFlatIndex >= totalLen) return;
+        int total = Document.TotalLength;
+        if (CursorFlatIndex >= total) return;
+        EnsureValidPosition();
 
         var block = Document.Blocks[CursorBlock];
-        if (CursorRun < block.Runs.Count)
+
+        if (CursorContent < block.Content.Count && block.Content[CursorContent] is TextRun run && CursorOffset < run.Length)
         {
-            var run = block.Runs[CursorRun];
-            if (CursorOffset < run.Length)
+            run.Text = run.Text.Remove(CursorOffset, 1);
+            if (string.IsNullOrEmpty(run.Text) && block.Content.Count > 1)
             {
-                run.Text = run.Text.Remove(CursorOffset, 1);
-                if (string.IsNullOrEmpty(run.Text))
-                {
-                    block.Runs.RemoveAt(CursorRun);
-                    if (CursorRun >= block.Runs.Count) CursorRun = block.Runs.Count - 1;
-                    if (CursorRun >= 0) CursorOffset = 0;
-                }
+                block.Content.RemoveAt(CursorContent);
+                if (CursorContent >= block.Content.Count) CursorContent = block.Content.Count - 1;
+                CursorOffset = block.Content[CursorContent] is TextRun tr2 ? 0 : 0;
             }
-            else if (CursorBlock + 1 < Document.Blocks.Count)
-            {
-                var nextBlock = Document.Blocks[CursorBlock + 1];
-                foreach (var r in nextBlock.Runs)
-                    block.Runs.Add(r);
-                Document.Blocks.RemoveAt(CursorBlock + 1);
-            }
+            SyncSelection();
+            return;
         }
-        SyncSelection();
+
+        if (CursorBlock + 1 < Document.Blocks.Count)
+        {
+            var nextBlock = Document.Blocks[CursorBlock + 1];
+            foreach (var c in nextBlock.Content)
+                block.Content.Add(c);
+            Document.Blocks.RemoveAt(CursorBlock + 1);
+            SyncSelection();
+        }
     }
 
     public void MoveLeft()
     {
+        if (Document.Blocks.Count == 0) return;
+        EnsureValidPosition();
+        var block = Document.Blocks[CursorBlock];
+
         if (CursorOffset > 0)
         {
             CursorOffset--;
         }
-        else if (CursorRun > 0)
+        else if (CursorContent > 0)
         {
-            CursorRun--;
-            CursorOffset = Document.Blocks[CursorBlock].Runs[CursorRun].Length;
+            CursorContent--;
+            CursorOffset = block.Content[CursorContent] is TextRun tr ? tr.Length : 0;
         }
         else if (CursorBlock > 0)
         {
             CursorBlock--;
-            var block = Document.Blocks[CursorBlock];
-            CursorRun = block.Runs.Count - 1;
-            CursorOffset = CursorRun >= 0 ? block.Runs[CursorRun].Length : 0;
-            if (CursorRun < 0) { CursorRun = 0; CursorOffset = 0; }
+            var prevBlock = Document.Blocks[CursorBlock];
+            CursorContent = prevBlock.Content.Count - 1;
+            if (CursorContent < 0) { CursorContent = 0; CursorOffset = 0; }
+            else CursorOffset = prevBlock.Content[CursorContent] is TextRun tr2 ? tr2.Length : 0;
+        }
+        if (!HasSelection) SyncSelection();
+    }
+
+    public void MoveRight()
+    {
+        if (Document.Blocks.Count == 0) return;
+        EnsureValidPosition();
+        var block = Document.Blocks[CursorBlock];
+
+        if (CursorContent < block.Content.Count && block.Content[CursorContent] is TextRun run && CursorOffset < run.Length)
+        {
+            CursorOffset++;
+        }
+        else if (CursorContent + 1 < block.Content.Count)
+        {
+            CursorContent++;
+            CursorOffset = 0;
+        }
+        else if (CursorBlock + 1 < Document.Blocks.Count)
+        {
+            if (CursorContent < block.Content.Count)
+            {
+                var lastContent = block.Content[CursorContent];
+                if (lastContent is TextRun tr2 && CursorOffset < tr2.Length)
+                {
+                    CursorOffset++;
+                }
+                else
+                {
+                    CursorBlock++;
+                    CursorContent = 0;
+                    CursorOffset = 0;
+                }
+            }
+            else
+            {
+                CursorBlock++;
+                CursorContent = 0;
+                CursorOffset = 0;
+            }
+        }
+        else if (CursorContent < block.Content.Count)
+        {
+            var lastContent = block.Content[CursorContent];
+            if (lastContent is TextRun tr2 && CursorOffset < tr2.Length)
+                CursorOffset++;
+        }
+        if (!HasSelection) SyncSelection();
+    }
+
+    public void MoveUp()
+    {
+        if (CursorBlock > 0)
+        {
+            CursorBlock--;
+            var prevBlock = Document.Blocks[CursorBlock];
+            CursorContent = prevBlock.Content.Count - 1;
+            if (CursorContent < 0) { CursorContent = 0; CursorOffset = 0; }
+            else CursorOffset = prevBlock.Content[CursorContent] is TextRun tr ? tr.Length : 0;
+        }
+        if (!HasSelection) SyncSelection();
+    }
+
+    public void MoveDown()
+    {
+        if (CursorBlock + 1 < Document.Blocks.Count)
+        {
+            CursorBlock++;
+            CursorContent = 0;
+            CursorOffset = 0;
+        }
+        if (!HasSelection) SyncSelection();
+    }
+
+    public void MoveHome()
+    {
+        if (CursorBlock < 0 || CursorBlock >= Document.Blocks.Count) return;
+        var block = Document.Blocks[CursorBlock];
+        CursorContent = block.Content.Count > 0 ? 0 : 0;
+        CursorOffset = 0;
+        if (!HasSelection) SyncSelection();
+    }
+
+    public void MoveEnd()
+    {
+        if (CursorBlock < 0 || CursorBlock >= Document.Blocks.Count) return;
+        var block = Document.Blocks[CursorBlock];
+        if (block.Content.Count > 0)
+        {
+            CursorContent = block.Content.Count - 1;
+            CursorOffset = block.Content[^1] is TextRun tr ? tr.Length : 0;
+        }
+        else
+        {
+            CursorContent = 0;
+            CursorOffset = 0;
         }
         if (!HasSelection) SyncSelection();
     }
 
     public FontStyle GetFontStyleAtCursor()
     {
-        if (CursorBlock < 0 || CursorBlock >= Document.Blocks.Count) return FontStyle.Regular;
+        if (!IsValidPosition()) return FontStyle.Regular;
         var block = Document.Blocks[CursorBlock];
-        if (CursorRun < 0 || CursorRun >= block.Runs.Count) return FontStyle.Regular;
-        return block.Runs[CursorRun].Style;
+        if (CursorContent < 0 || CursorContent >= block.Content.Count) return FontStyle.Regular;
+        if (block.Content[CursorContent] is TextRun run)
+            return run.Style;
+        return FontStyle.Regular;
     }
 
-    public void MoveRight()
+    public string GetFontFamilyAtCursor()
     {
-        if (Document.Blocks.Count == 0) return;
+        if (!IsValidPosition()) return "Arial";
         var block = Document.Blocks[CursorBlock];
-        if (CursorRun < block.Runs.Count)
-        {
-            var run = block.Runs[CursorRun];
-            if (CursorOffset < run.Length)
-            {
-                CursorOffset++;
-                if (!HasSelection) SyncSelection();
-                return;
-            }
-        }
+        if (CursorContent < 0 || CursorContent >= block.Content.Count) return "Arial";
+        if (block.Content[CursorContent] is TextRun run)
+            return run.FontFamily;
+        return "Arial";
+    }
 
-        if (CursorRun + 1 < block.Runs.Count)
-        {
-            CursorRun++;
-            CursorOffset = 0;
-        }
-        else if (CursorBlock + 1 < Document.Blocks.Count)
-        {
-            CursorBlock++;
-            CursorRun = 0;
-            CursorOffset = 0;
-        }
-        if (!HasSelection) SyncSelection();
+    public float GetFontSizeAtCursor()
+    {
+        if (!IsValidPosition()) return 12;
+        var block = Document.Blocks[CursorBlock];
+        if (CursorContent < 0 || CursorContent >= block.Content.Count) return 12;
+        if (block.Content[CursorContent] is TextRun run)
+            return run.FontSize;
+        return 12;
+    }
+
+    public Color GetForeColorAtCursor()
+    {
+        if (!IsValidPosition()) return Color.Empty;
+        var block = Document.Blocks[CursorBlock];
+        if (CursorContent < 0 || CursorContent >= block.Content.Count) return Color.Empty;
+        if (block.Content[CursorContent] is TextRun run)
+            return run.ForeColor;
+        return Color.Empty;
     }
 
     public void ToggleBold()
     {
         if (HasSelection) ToggleStyleOnSelection(FontStyle.Bold);
-        else if (CursorRun >= 0 && CursorRun < Document.Blocks[CursorBlock].Runs.Count)
-        {
-            var run = Document.Blocks[CursorBlock].Runs[CursorRun];
-            run.Style ^= FontStyle.Bold;
-        }
+        else ToggleStyleAtCursor(FontStyle.Bold);
     }
 
     public void ToggleItalic()
     {
         if (HasSelection) ToggleStyleOnSelection(FontStyle.Italic);
-        else if (CursorRun >= 0 && CursorRun < Document.Blocks[CursorBlock].Runs.Count)
-        {
-            var run = Document.Blocks[CursorBlock].Runs[CursorRun];
-            run.Style ^= FontStyle.Italic;
-        }
+        else ToggleStyleAtCursor(FontStyle.Italic);
     }
 
     public void ToggleUnderline()
     {
         if (HasSelection) ToggleStyleOnSelection(FontStyle.Underline);
-        else if (CursorRun >= 0 && CursorRun < Document.Blocks[CursorBlock].Runs.Count)
+        else ToggleStyleAtCursor(FontStyle.Underline);
+    }
+
+    public void ToggleStrikeout()
+    {
+        if (HasSelection) ToggleStyleOnSelection(FontStyle.Strikeout);
+        else ToggleStyleAtCursor(FontStyle.Strikeout);
+    }
+
+    public void ApplyFontFamily(string fontFamily)
+    {
+        if (string.IsNullOrEmpty(fontFamily)) return;
+        ApplyPropertyToSelectionOrCursor(run => run.FontFamily = fontFamily);
+    }
+
+    public void ApplyFontSize(float fontSize)
+    {
+        if (fontSize <= 0) return;
+        ApplyPropertyToSelectionOrCursor(run => run.FontSize = fontSize);
+    }
+
+    public void ApplyForeColor(Color color)
+    {
+        ApplyPropertyToSelectionOrCursor(run => run.ForeColor = color);
+    }
+
+    private void ApplyPropertyToSelectionOrCursor(Action<TextRun> action)
+    {
+        if (HasSelection)
         {
-            var run = Document.Blocks[CursorBlock].Runs[CursorRun];
-            run.Style ^= FontStyle.Underline;
+            int start = Math.Min(CursorFlatIndex, SelectionFlatIndex);
+            int end = Math.Max(CursorFlatIndex, SelectionFlatIndex);
+            ApplyActionAcrossRange(start, end, action);
         }
+        else if (IsValidPosition())
+        {
+            var block = Document.Blocks[CursorBlock];
+            if (CursorContent < block.Content.Count && block.Content[CursorContent] is TextRun run)
+                action(run);
+        }
+    }
+
+    private void ToggleStyleAtCursor(FontStyle style)
+    {
+        if (!IsValidPosition()) return;
+        var block = Document.Blocks[CursorBlock];
+        if (CursorContent < block.Content.Count && block.Content[CursorContent] is TextRun run)
+            run.Style ^= style;
     }
 
     private void ToggleStyleOnSelection(FontStyle style)
@@ -529,34 +458,24 @@ public class RichTextEngine
         int end = Math.Max(CursorFlatIndex, SelectionFlatIndex);
         if (start >= end) return;
 
-        var (sb, sr, so) = Document.ToPosition(start);
-        var (eb, er, eo) = Document.ToPosition(end);
+        ApplyActionAcrossRange(start, end, run => run.Style ^= style);
+    }
 
-        for (int bi = sb; bi <= eb && bi < Document.Blocks.Count; bi++)
+    private void ApplyActionAcrossRange(int startFlat, int endFlat, Action<TextRun> action)
+    {
+        var startPos = TextLayoutEngine.FromFlatIndex(Document, startFlat);
+        var endPos = TextLayoutEngine.FromFlatIndex(Document, endFlat);
+
+        for (int bi = startPos.BlockIndex; bi <= endPos.BlockIndex && bi < Document.Blocks.Count; bi++)
         {
             var block = Document.Blocks[bi];
-            int runStart = bi == sb ? sr : 0;
-            int runEnd = bi == eb ? er : block.Runs.Count - 1;
+            int ciStart = bi == startPos.BlockIndex ? startPos.ContentIndex : 0;
+            int ciEnd = bi == endPos.BlockIndex ? endPos.ContentIndex : block.Content.Count - 1;
 
-            for (int ri = runStart; ri <= runEnd && ri < block.Runs.Count; ri++)
+            for (int ci = ciStart; ci <= ciEnd && ci < block.Content.Count; ci++)
             {
-                var run = block.Runs[ri];
-                if (bi == sb && ri == sr && bi == eb && ri == er)
-                {
-                    if (so < eo) run.Style ^= style;
-                }
-                else if (bi == sb && ri == sr)
-                {
-                    if (so < run.Length) run.Style ^= style;
-                }
-                else if (bi == eb && ri == er)
-                {
-                    if (eo > 0) run.Style ^= style;
-                }
-                else
-                {
-                    run.Style ^= style;
-                }
+                if (block.Content[ci] is TextRun run)
+                    action(run);
             }
         }
     }
@@ -567,58 +486,114 @@ public class RichTextEngine
         int end = Math.Max(CursorFlatIndex, SelectionFlatIndex);
         if (start >= end) return;
 
-        var (sb, sr, so) = Document.ToPosition(start);
-        var (eb, er, eo) = Document.ToPosition(end);
+        var startPos = TextLayoutEngine.FromFlatIndex(Document, start);
+        var endPos = TextLayoutEngine.FromFlatIndex(Document, end);
 
-        if (sb == eb)
+        if (startPos.BlockIndex == endPos.BlockIndex)
         {
-            var block = Document.Blocks[sb];
-            if (sr == er)
+            var block = Document.Blocks[startPos.BlockIndex];
+            if (startPos.ContentIndex == endPos.ContentIndex)
             {
-                block.Runs[sr].Text = block.Runs[sr].Text.Remove(so, eo - so);
-                if (string.IsNullOrEmpty(block.Runs[sr].Text))
-                    block.Runs.RemoveAt(sr);
+                if (block.Content[startPos.ContentIndex] is TextRun run)
+                {
+                    run.Text = run.Text.Remove(startPos.CharOffset, endPos.CharOffset - startPos.CharOffset);
+                    if (string.IsNullOrEmpty(run.Text))
+                        block.Content.RemoveAt(startPos.ContentIndex);
+                }
             }
             else
             {
-                block.Runs[sr].Text = block.Runs[sr].Text[..so];
-                if (er < block.Runs.Count)
-                    block.Runs[er].Text = block.Runs[er].Text[eo..];
-                int removeCount = er - sr;
-                if (removeCount > 0)
-                {
-                    for (int i = sr + 1; i <= sr + removeCount && i < block.Runs.Count; i++)
-                        block.Runs.RemoveAt(sr + 1);
-                }
+                if (block.Content[startPos.ContentIndex] is TextRun firstRun)
+                    firstRun.Text = firstRun.Text[..startPos.CharOffset];
+                if (endPos.ContentIndex < block.Content.Count && block.Content[endPos.ContentIndex] is TextRun lastRun)
+                    lastRun.Text = lastRun.Text[endPos.CharOffset..];
+
+                int removeStart = startPos.ContentIndex + 1;
+                int removeCount = endPos.ContentIndex - startPos.ContentIndex;
+                for (int i = 0; i < removeCount && removeStart < block.Content.Count; i++)
+                    block.Content.RemoveAt(removeStart);
             }
         }
         else
         {
-            var firstBlock = Document.Blocks[sb];
-            firstBlock.Runs[sr].Text = firstBlock.Runs[sr].Text[..so];
-            for (int i = firstBlock.Runs.Count - 1; i > sr; i--)
-                firstBlock.Runs.RemoveAt(i);
+            var firstBlock = Document.Blocks[startPos.BlockIndex];
+            if (firstBlock.Content[startPos.ContentIndex] is TextRun fr)
+                fr.Text = fr.Text[..startPos.CharOffset];
+            for (int i = firstBlock.Content.Count - 1; i > startPos.ContentIndex; i--)
+                firstBlock.Content.RemoveAt(i);
 
-            var lastBlock = Document.Blocks[eb];
-            if (er < lastBlock.Runs.Count)
-            {
-                lastBlock.Runs[er].Text = lastBlock.Runs[er].Text[eo..];
-                for (int i = 0; i < er; i++)
-                    firstBlock.Runs.Add(lastBlock.Runs[i]);
-            }
+            var lastBlock = Document.Blocks[endPos.BlockIndex];
+            if (endPos.ContentIndex < lastBlock.Content.Count && lastBlock.Content[endPos.ContentIndex] is TextRun lr)
+                lr.Text = lr.Text[endPos.CharOffset..];
+            for (int i = 0; i < endPos.ContentIndex && i < lastBlock.Content.Count; i++)
+                firstBlock.Content.Add(lastBlock.Content[i]);
 
-            for (int bi = sb + 1; bi <= eb && bi < Document.Blocks.Count; bi++)
-                Document.Blocks.RemoveAt(sb + 1);
+            for (int bi = startPos.BlockIndex + 1; bi <= endPos.BlockIndex && bi < Document.Blocks.Count; bi++)
+                Document.Blocks.RemoveAt(startPos.BlockIndex + 1);
         }
 
-        CursorBlock = sb; CursorRun = sr; CursorOffset = so;
+        CursorBlock = startPos.BlockIndex;
+        CursorContent = startPos.ContentIndex;
+        CursorOffset = startPos.CharOffset;
+        SyncSelection();
+    }
+
+    /// <summary>Inserts an empty paragraph at the cursor position.</summary>
+    public void InsertParagraph()
+    {
+        if (HasSelection) DeleteSelection();
+        var block = new RichTextBlock();
+        block.Content.Add(new TextRun());
+        Document.Blocks.Insert(CursorBlock + 1, block);
+        CursorBlock++;
+        CursorContent = 0;
+        CursorOffset = 0;
+        SyncSelection();
+    }
+
+    /// <summary>Inserts a horizontal rule at the cursor position.</summary>
+    public void InsertHorizontalRule()
+    {
+        if (HasSelection) DeleteSelection();
+        var block = new RichTextBlock { Type = RichTextBlockType.Paragraph };
+        block.Content.Add(new TextRun { Text = "---" });
+        Document.Blocks.Insert(CursorBlock + 1, block);
+        CursorBlock++;
+        CursorContent = 0;
+        CursorOffset = 0;
+        SyncSelection();
+    }
+
+    public void InsertLineBreak()
+    {
+        if (HasSelection) DeleteSelection();
+        var block = Document.Blocks[CursorBlock];
+        block.Content.Insert(CursorContent + 1, new LineBreakRun());
+        CursorContent++;
+        CursorOffset = 0;
         SyncSelection();
     }
 
     private void SyncSelection()
     {
         SelectionBlock = CursorBlock;
-        SelectionRun = CursorRun;
+        SelectionContent = CursorContent;
         SelectionOffset = CursorOffset;
+    }
+
+    private void EnsureValidPosition()
+    {
+        if (CursorBlock >= Document.Blocks.Count)
+            CursorBlock = Document.Blocks.Count - 1;
+        if (CursorBlock < 0)
+            CursorBlock = 0;
+    }
+
+    private bool IsValidPosition()
+    {
+        if (CursorBlock < 0 || CursorBlock >= Document.Blocks.Count) return false;
+        var block = Document.Blocks[CursorBlock];
+        if (CursorContent < 0 || CursorContent >= block.Content.Count) return false;
+        return true;
     }
 }

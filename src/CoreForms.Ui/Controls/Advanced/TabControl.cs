@@ -224,7 +224,7 @@ public class TabControl : ContainerControl
         g.FillRectangle(theme.TabHeaderBackground, 0, 0, Width, tabHeaderHeight);
 
         var tabTextColor = Enabled ? theme.TabSelectedText : theme.GrayText;
-        var unselectedTabTextColor = Enabled ? theme.TabUnselectedText : theme.GrayText;
+        var unselectedTabTextColor = Enabled ? theme.TabSelectedText : theme.GrayText;
 
         // Draw individual tabs with vertical separators
         for (int i = 0; i < _tabPages.Count; i++)

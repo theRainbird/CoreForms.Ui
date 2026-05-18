@@ -2,6 +2,7 @@ using System.Diagnostics;
 using System.Reflection;
 using CoreForms.Ui.Core;
 using CoreForms.Ui.Rendering;
+using CoreForms.Ui.Resources;
 using Silk.NET.Input;
 using Silk.NET.Maths;
 using Silk.NET.Windowing;
@@ -590,10 +591,10 @@ public static class Platform
     {
         return icon switch
         {
-            MessageBoxIcon.Information => "CoreForms.Ui.Resources.Icons.FluentColor.ic_fluent_checkmark_circle_24_color.svg",
-            MessageBoxIcon.Warning => "CoreForms.Ui.Resources.Icons.FluentColor.ic_fluent_warning_24_color.svg",
-            MessageBoxIcon.Error => "CoreForms.Ui.Resources.Icons.FluentColor.ic_fluent_error_circle_24_color.svg",
-            MessageBoxIcon.Question => "CoreForms.Ui.Resources.Icons.FluentColor.ic_fluent_question_circle_24_color.svg",
+            MessageBoxIcon.Information => "CoreForms.Ui.Resources.Icons.FluentColor.ic_fluent_chat_48_color.svg",
+            MessageBoxIcon.Warning => "CoreForms.Ui.Resources.Icons.FluentColor.ic_fluent_warning_48_color.svg",
+            MessageBoxIcon.Error => "CoreForms.Ui.Resources.Icons.FluentColor.ic_fluent_error_circle_48_color.svg",
+            MessageBoxIcon.Question => "CoreForms.Ui.Resources.Icons.FluentColor.ic_fluent_question_circle_48_color.svg",
             _ => null
         };
     }
@@ -755,15 +756,27 @@ public static class Platform
                 if (cmd.Image?.NativeImage != null)
                 {
                     var skImage = cmd.Image.NativeImage;
+                    var drawX = cmd.X;
+                    var drawY = cmd.Y;
+                    var drawW = cmd.Width;
+                    var drawH = cmd.Height;
+
                     if (cmd.Image is SvgImage svgImage)
                     {
                         int targetW = Math.Max(1, (int)Math.Ceiling(cmd.Width));
                         int targetH = Math.Max(1, (int)Math.Ceiling(cmd.Height));
                         var rasterized = svgImage.GetRasterized(targetW, targetH);
                         if (rasterized != null)
+                        {
                             skImage = rasterized;
+                            drawX = MathF.Round(cmd.X);
+                            drawY = MathF.Round(cmd.Y);
+                            drawW = targetW;
+                            drawH = targetH;
+                        }
                     }
-                    renderer.DrawImage(skImage, cmd.X, cmd.Y, cmd.Width, cmd.Height);
+
+                    renderer.DrawImage(skImage, drawX, drawY, drawW, drawH);
                 }
                 break;
         }

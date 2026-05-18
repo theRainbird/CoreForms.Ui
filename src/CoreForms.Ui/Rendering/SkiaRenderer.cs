@@ -290,11 +290,13 @@ public class SkiaRenderer : IDisposable
     }
 
     /// <summary>
-    /// Draws an image at the specified location and size.
+    /// Draws an image at the specified location and size with bilinear filtering
+    /// for smooth rendering at non-integer zoom levels.
     /// </summary>
     public void DrawImage(SKImage image, float x, float y, float width, float height)
     {
-        _surface.Canvas.DrawImage(image, new SKRect(x, y, x + width, y + height));
+        using var paint = new SKPaint { FilterQuality = SKFilterQuality.Low };
+        _surface.Canvas.DrawImage(image, new SKRect(x, y, x + width, y + height), paint);
     }
 
     /// <summary>
