@@ -251,6 +251,7 @@ public class TextBox : Control
         public Font Font => _owner.EffectiveFont;
         public float Zoom => _owner.EffectiveZoom;
         public int TextAreaWidth => _owner.Width - 8;
+        public int TextAreaHeight => _owner.Height;
         public void Invalidate() => _owner.Invalidate();
     }
 }

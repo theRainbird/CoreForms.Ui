@@ -21,6 +21,11 @@ public interface ITextEditorContext
     int TextAreaWidth { get; }
 
     /// <summary>
+    /// Gets the height of the text display area in pixels (excluding padding and borders and scrollbars).
+    /// </summary>
+    int TextAreaHeight { get; }
+
+    /// <summary>
     /// Requests the host control to repaint.
     /// </summary>
     void Invalidate();

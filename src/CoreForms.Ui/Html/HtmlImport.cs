@@ -57,6 +57,14 @@ public static class HtmlImport
     private static void ConvertElement(HtmlNode node, RichTextDocument doc)
     {
         string tag = node.Name.ToLowerInvariant();
+
+        // <ul> and <ol>: each <li> becomes its own block, not inline content
+        if (tag is "ul" or "ol")
+        {
+            ConvertList(node, tag == "ol", doc);
+            return;
+        }
+
         RichTextBlockType blockType = tag switch
         {
             "h1" => RichTextBlockType.Heading1,
@@ -80,6 +88,28 @@ public static class HtmlImport
         else if (!IsVoidTag(tag))
         {
             block.Content.Add(new TextRun { Text = string.Empty });
+            doc.Blocks.Add(block);
+        }
+    }
+
+    private static void ConvertList(HtmlNode node, bool ordered, RichTextDocument doc)
+    {
+        foreach (var li in node.ChildNodes)
+        {
+            if (li.NodeType != HtmlNodeType.Element || li.Name.ToLowerInvariant() != "li")
+                continue;
+
+            var block = new RichTextBlock
+            {
+                Type = ordered ? RichTextBlockType.NumberItem : RichTextBlockType.BulletItem
+            };
+            var style = new TextStyleInfo();
+            ExtractStyleFromAttributes(li, style);
+            ExtractInlineContent(li, block.Content, style);
+
+            if (block.Content.Count == 0)
+                block.Content.Add(new TextRun());
+
             doc.Blocks.Add(block);
         }
     }
@@ -193,8 +223,8 @@ public static class HtmlImport
                 }
                 else if (tag is "ul" or "ol")
                 {
-                    foreach (var li in child.ChildNodes)
-                        ExtractInlineContent(li, content, childStyle);
+                    // <ul>/<ol> are handled at the block level in ConvertElement.
+                    // Each <li> becomes its own RichTextBlock — skip inline extraction.
                 }
                 else
                 {

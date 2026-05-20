@@ -598,6 +598,9 @@ if (_focused != value)
     {
         _dirty = false;
         g.Zoom = EffectiveZoom;
+
+        g.SetClip(GetChildClipRectangle());
+
         for (int i = 0; i < Controls.Count; i++)
         {
             var child = Controls[i];
@@ -609,6 +612,8 @@ if (_focused != value)
             child.Render(g);
             g.Restore();
         }
+
+        g.ResetClip();
     }
 
     /// <summary>
@@ -685,6 +690,13 @@ if (_focused != value)
         }
         return null;
     }
+
+    /// <summary>
+    /// Gets the clipping rectangle applied to child controls during rendering.
+    /// Override to customize child clipping (e.g., to exclude borders).
+    /// </summary>
+    /// <returns>The clip rectangle in the control's local coordinates.</returns>
+    protected virtual Rectangle GetChildClipRectangle() => new Rectangle(0, 0, Width, Height);
 
     /// <summary>
     /// Gets the render offset applied to child controls by this parent.

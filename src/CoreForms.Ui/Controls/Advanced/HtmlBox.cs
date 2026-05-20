@@ -212,7 +212,7 @@ public class HtmlBox : Control
         int selEnd = Math.Max(_engine.CursorFlatIndex, _engine.SelectionFlatIndex);
         bool hasSel = _engine.HasSelection;
 
-        float padding = 4;
+        float padding = 8;
         int numberCounter = 0;
         int lastBlockIndex = -1;
 
@@ -245,9 +245,16 @@ public class HtmlBox : Control
             if (block.Type is RichTextBlockType.BulletItem or RichTextBlockType.NumberItem
                 && (li == 0 || _cachedLines[li - 1].BlockIndex != bi))
             {
-                string marker = block.Type == RichTextBlockType.BulletItem
-                    ? "\u2022" : $"{numberCounter}.";
-                g.DrawString(marker, new Font("Arial", fontSize, FontStyle.Regular), ForeColor, markerX, line.Y);
+                if (block.Type == RichTextBlockType.BulletItem)
+                {
+                    float dotSize = fontSize * 0.4f;
+                    float dotY = line.Y + (fontSize * 0.4f);
+                    g.FillEllipse(ForeColor, markerX + 2, dotY, dotSize, dotSize);
+                }
+                else
+                {
+                    g.DrawString($"{numberCounter}.", new Font("Arial", fontSize, FontStyle.Regular), ForeColor, markerX, line.Y);
+                }
             }
 
             foreach (var run in line.Runs)
@@ -258,12 +265,30 @@ public class HtmlBox : Control
 
                 if (run.Source is TextRun tr)
                 {
-                    var font = new Font(tr.FontFamily, tr.FontSize, tr.Style);
+                    // Compute effective style: add bold for headings and underline for hyperlinks
+                    var effectiveStyle = tr.Style;
+                    if (block.Type is RichTextBlockType.Heading1 or RichTextBlockType.Heading2
+                        or RichTextBlockType.Heading3 or RichTextBlockType.Heading4
+                        or RichTextBlockType.Heading5 or RichTextBlockType.Heading6)
+                        effectiveStyle |= FontStyle.Bold;
+
+                    // Check if this run is inside a HyperlinkRun
+                    bool isLink = false;
+                    if (run.ContentIndex >= 0 && run.ContentIndex < block.Content.Count
+                        && block.Content[run.ContentIndex] is HyperlinkRun)
+                    {
+                        isLink = true;
+                        effectiveStyle |= FontStyle.Underline;
+                    }
+
+                    var font = new Font(tr.FontFamily, fontSize, effectiveStyle);
+                    var textColor = isLink ? Color.FromArgb(0, 0, 238)
+                        : (tr.ForeColor.Equals(Color.Empty) ? ForeColor : tr.ForeColor);
                     var measured = Platform.Platform.MeasureText(run.DisplayText, font, zoom);
                     float runHeight = (float)measured.height / zoom;
 
                     // Draw text
-                    g.DrawString(run.DisplayText, font, tr.ForeColor.Equals(Color.Empty) ? ForeColor : tr.ForeColor, runX, runY);
+                    g.DrawString(run.DisplayText, font, textColor, runX, runY);
 
                     // Draw selection
                     if (hasSel)
@@ -289,28 +314,48 @@ public class HtmlBox : Control
                         }
                     }
 
-                    // Cursor positioning
+                    // Cursor positioning — use model position, not flat index
+                    // This avoids ambiguity at block boundaries (both blocks have the same flat index)
                     if (!_cursorScreenValid)
                     {
-                        int runStartFlat = TextLayoutEngine.ToFlatIndex(_engine.Document, line.BlockIndex,
-                            run.ContentIndex, run.StartOffset);
-                        int runEndFlat = runStartFlat + run.Length;
-
-                        if (cursorFlat >= runStartFlat && cursorFlat <= runEndFlat)
+                        if (line.BlockIndex == _engine.CursorBlock &&
+                            run.ContentIndex == _engine.CursorContent &&
+                            run.StartOffset <= _engine.CursorOffset &&
+                            _engine.CursorOffset <= run.StartOffset + run.Length)
                         {
-                            int localOff = cursorFlat - runStartFlat;
+                            int localOff = _engine.CursorOffset - run.StartOffset;
                             string beforeCursor = run.DisplayText[..Math.Min(localOff, run.DisplayText.Length)];
                             float measuredWidth = Platform.Platform.MeasureText(beforeCursor, font, zoom).width;
                             _cursorScreenX = (int)(runX + measuredWidth / zoom);
                             _cursorScreenY = (int)runY;
                             _cursorScreenValid = true;
                         }
-                    }
-                }
+        }
+        // Fallback: no visual line found — use block-level navigation
+        _engine.MoveDown();
+    }
                 else if (source is ImageRun image)
                 {
                     // Draw image placeholder
                     g.FillRectangle(ThemeManager.CurrentTheme.TextBoxText, runX, runY, 32, 32);
+                }
+            }
+        }
+
+        // End-of-document fallback: cursor at total length
+        if (!_cursorScreenValid && _cachedLines != null && _cachedLines.Count > 0)
+        {
+            int totalLen = _engine.Document.TotalLength;
+            if (cursorFlat >= totalLen && totalLen > 0)
+            {
+                var lastLine = _cachedLines[^1];
+                if (lastLine.Runs.Count > 0)
+                {
+                    var last = lastLine.Runs[^1];
+                    float lx = padding + GetLeftMargin(lastLine.Block?.Type ?? 0) + last.X + last.Width;
+                    _cursorScreenX = (int)lx;
+                    _cursorScreenY = (int)lastLine.Y;
+                    _cursorScreenValid = true;
                 }
             }
         }
@@ -473,7 +518,7 @@ public class HtmlBox : Control
             case Keys.Up:
                 if (shift && !_engine.HasSelection)
                     SyncSelectionAnchor();
-                _engine.MoveUp();
+                MoveVisualLineUp();
                 if (!shift)
                 {
                     _engine.SelectionBlock = _engine.CursorBlock;
@@ -484,7 +529,7 @@ public class HtmlBox : Control
             case Keys.Down:
                 if (shift && !_engine.HasSelection)
                     SyncSelectionAnchor();
-                _engine.MoveDown();
+                MoveVisualLineDown();
                 if (!shift)
                 {
                     _engine.SelectionBlock = _engine.CursorBlock;
@@ -495,7 +540,7 @@ public class HtmlBox : Control
             case Keys.Home:
                 if (shift && !_engine.HasSelection)
                     SyncSelectionAnchor();
-                _engine.MoveHome();
+                MoveToVisualLineStart();
                 if (!shift)
                 {
                     _engine.SelectionBlock = _engine.CursorBlock;
@@ -506,7 +551,7 @@ public class HtmlBox : Control
             case Keys.End:
                 if (shift && !_engine.HasSelection)
                     SyncSelectionAnchor();
-                _engine.MoveEnd();
+                MoveToVisualLineEnd();
                 if (!shift)
                 {
                     _engine.SelectionBlock = _engine.CursorBlock;
@@ -536,17 +581,222 @@ public class HtmlBox : Control
         _engine.SelectionOffset = _engine.CursorOffset;
     }
 
+    private void MoveVisualLineUp()
+    {
+        EnsureLayout(Width, EffectiveZoom);
+        if (_cachedLines == null || _cachedLines.Count == 0)
+        {
+            _engine.MoveUp();
+            return;
+        }
+
+        int cursorFlat = _engine.CursorFlatIndex;
+
+        for (int li = 0; li < _cachedLines.Count; li++)
+        {
+            var line = _cachedLines[li];
+            if (line.BlockIndex != _engine.CursorBlock) continue;
+
+            // Check if cursor is on this visual line
+            foreach (var run in line.Runs)
+            {
+                int runStart = TextLayoutEngine.ToFlatIndex(_engine.Document,
+                    line.BlockIndex, run.ContentIndex, run.StartOffset);
+                int runEnd = runStart + run.Length;
+                if (cursorFlat >= runStart && cursorFlat <= runEnd)
+                {
+                    // Found the current visual line
+                    if (li > 0 && _cachedLines[li - 1].BlockIndex == _engine.CursorBlock)
+                    {
+                        // Previous visual line is in the same block → go to its end
+                        var prev = _cachedLines[li - 1];
+                        var lastRun = prev.Runs[^1];
+                        int lastFlat = TextLayoutEngine.ToFlatIndex(_engine.Document,
+                            prev.BlockIndex, lastRun.ContentIndex, lastRun.StartOffset + lastRun.Length);
+                        var pos = TextLayoutEngine.FromFlatIndex(_engine.Document, lastFlat);
+                        _engine.CursorBlock = pos.BlockIndex;
+                        _engine.CursorContent = pos.ContentIndex;
+                        _engine.CursorOffset = pos.CharOffset;
+                    }
+                    else
+                    {
+                        // First line of this block → go to end of previous block
+                        _engine.MoveUp();
+                    }
+                    return;
+                }
+            }
+            // Empty line in current block
+            if (line.BlockIndex == _engine.CursorBlock && line.Runs.Count == 0)
+            {
+                if (li > 0 && _cachedLines[li - 1].BlockIndex == _engine.CursorBlock)
+                {
+                    var prev = _cachedLines[li - 1];
+                    var lastRun = prev.Runs[^1];
+                    int lastFlat = TextLayoutEngine.ToFlatIndex(_engine.Document,
+                        prev.BlockIndex, lastRun.ContentIndex, lastRun.StartOffset + lastRun.Length);
+                    var pos = TextLayoutEngine.FromFlatIndex(_engine.Document, lastFlat);
+                    _engine.CursorBlock = pos.BlockIndex;
+                    _engine.CursorContent = pos.ContentIndex;
+                    _engine.CursorOffset = pos.CharOffset;
+                }
+                else
+                {
+                    _engine.MoveUp();
+                }
+                return;
+            }
+        }
+        // Fallback: no visual line found in layout — use block-level navigation
+        _engine.MoveUp();
+    }
+
+    private void MoveVisualLineDown()
+    {
+        EnsureLayout(Width, EffectiveZoom);
+        if (_cachedLines == null || _cachedLines.Count == 0)
+        {
+            _engine.MoveDown();
+            return;
+        }
+
+        int cursorFlat = _engine.CursorFlatIndex;
+
+        for (int li = 0; li < _cachedLines.Count; li++)
+        {
+            var line = _cachedLines[li];
+            if (line.BlockIndex != _engine.CursorBlock) continue;
+
+            foreach (var run in line.Runs)
+            {
+                int runStart = TextLayoutEngine.ToFlatIndex(_engine.Document,
+                    line.BlockIndex, run.ContentIndex, run.StartOffset);
+                int runEnd = runStart + run.Length;
+                if (cursorFlat >= runStart && cursorFlat <= runEnd)
+                {
+                    if (li + 1 < _cachedLines.Count && _cachedLines[li + 1].BlockIndex == _engine.CursorBlock)
+                    {
+                        // Next visual line is in the same block → go to its start
+                        var next = _cachedLines[li + 1];
+                        var firstRun = next.Runs[0];
+                        int firstFlat = TextLayoutEngine.ToFlatIndex(_engine.Document,
+                            next.BlockIndex, firstRun.ContentIndex, firstRun.StartOffset);
+                        var pos = TextLayoutEngine.FromFlatIndex(_engine.Document, firstFlat);
+                        _engine.CursorBlock = pos.BlockIndex;
+                        _engine.CursorContent = pos.ContentIndex;
+                        _engine.CursorOffset = pos.CharOffset;
+                    }
+                    else
+                    {
+                        // Last line of this block → go to start of next block
+                        _engine.MoveDown();
+                    }
+                    return;
+                }
+            }
+            if (line.BlockIndex == _engine.CursorBlock && line.Runs.Count == 0)
+            {
+                if (li + 1 < _cachedLines.Count && _cachedLines[li + 1].BlockIndex == _engine.CursorBlock)
+                {
+                    var next = _cachedLines[li + 1];
+                    var firstRun = next.Runs[0];
+                    int firstFlat = TextLayoutEngine.ToFlatIndex(_engine.Document,
+                        next.BlockIndex, firstRun.ContentIndex, firstRun.StartOffset);
+                    var pos = TextLayoutEngine.FromFlatIndex(_engine.Document, firstFlat);
+                    _engine.CursorBlock = pos.BlockIndex;
+                    _engine.CursorContent = pos.ContentIndex;
+                    _engine.CursorOffset = pos.CharOffset;
+                }
+                else
+                {
+                    _engine.MoveDown();
+                }
+                return;
+            }
+        }
+    }
+
+    private void MoveToVisualLineStart()
+    {
+        EnsureLayout(Width, EffectiveZoom);
+        if (_cachedLines == null || _cachedLines.Count == 0) return;
+
+        int cursorFlat = _engine.CursorFlatIndex;
+
+        foreach (var line in _cachedLines)
+        {
+            if (line.BlockIndex != _engine.CursorBlock) continue;
+            foreach (var run in line.Runs)
+            {
+                int runStart = TextLayoutEngine.ToFlatIndex(_engine.Document,
+                    line.BlockIndex, run.ContentIndex, run.StartOffset);
+                int runEnd = runStart + run.Length;
+                if (cursorFlat >= runStart && cursorFlat <= runEnd)
+                {
+                    var first = line.Runs[0];
+                    int firstFlat = TextLayoutEngine.ToFlatIndex(_engine.Document,
+                        line.BlockIndex, first.ContentIndex, first.StartOffset);
+                    var pos = TextLayoutEngine.FromFlatIndex(_engine.Document, firstFlat);
+                    _engine.CursorBlock = pos.BlockIndex;
+                    _engine.CursorContent = pos.ContentIndex;
+                    _engine.CursorOffset = pos.CharOffset;
+                    return;
+                }
+            }
+        }
+        // No matching line found — fallback: go to block start
+        var b = _engine.Document.Blocks[_engine.CursorBlock];
+        _engine.CursorContent = 0;
+        _engine.CursorOffset = 0;
+    }
+
+    private void MoveToVisualLineEnd()
+    {
+        EnsureLayout(Width, EffectiveZoom);
+        if (_cachedLines == null || _cachedLines.Count == 0) return;
+
+        int cursorFlat = _engine.CursorFlatIndex;
+
+        foreach (var line in _cachedLines)
+        {
+            if (line.BlockIndex != _engine.CursorBlock) continue;
+            foreach (var run in line.Runs)
+            {
+                int runStart = TextLayoutEngine.ToFlatIndex(_engine.Document,
+                    line.BlockIndex, run.ContentIndex, run.StartOffset);
+                int runEnd = runStart + run.Length;
+                if (cursorFlat >= runStart && cursorFlat <= runEnd)
+                {
+                    var last = line.Runs[^1];
+                    int lastFlat = TextLayoutEngine.ToFlatIndex(_engine.Document,
+                        line.BlockIndex, last.ContentIndex, last.StartOffset + last.Length);
+                    var pos = TextLayoutEngine.FromFlatIndex(_engine.Document, lastFlat);
+                    _engine.CursorBlock = pos.BlockIndex;
+                    _engine.CursorContent = pos.ContentIndex;
+                    _engine.CursorOffset = pos.CharOffset;
+                    return;
+                }
+            }
+            if (line.BlockIndex == _engine.CursorBlock && line.Runs.Count == 0)
+            {
+                _engine.CursorContent = 0;
+                _engine.CursorOffset = 0;
+                return;
+            }
+        }
+    }
+
     private static float GetLeftMargin(RichTextBlockType type) =>
-        type is RichTextBlockType.BulletItem or RichTextBlockType.NumberItem ? 20 : 0;
+        type is RichTextBlockType.BulletItem or RichTextBlockType.NumberItem ? 30 : 0;
 
     private static float GetBlockFontSize(RichTextBlockType type) => type switch
     {
-        RichTextBlockType.Heading1 => 22,
-        RichTextBlockType.Heading2 => 18,
-        RichTextBlockType.Heading3 => 16,
-        RichTextBlockType.Heading4 => 14,
-        RichTextBlockType.Heading5 => 12,
-        RichTextBlockType.Heading6 => 11,
+        RichTextBlockType.Heading1 => 24,
+        RichTextBlockType.Heading2 => 20,
+        RichTextBlockType.Heading3 => 18,
+        RichTextBlockType.Heading4 => 16,
+        RichTextBlockType.Heading5 => 14,
+        RichTextBlockType.Heading6 => 12,
         _ => 12
     };
 }

@@ -16,6 +16,7 @@ public class GroupBox : ContainerControl
     public GroupBox()
     {
         _backColor = Color.Transparent;
+        _backColorSet = true;
         Size = new Size(200, 150);
         Text = "GroupBox";
     }
@@ -32,6 +33,15 @@ public class GroupBox : ContainerControl
             int titleHeight = (int)(font.Size * zoom);
             return titleHeight / 2;
         }
+    }
+
+    /// <summary>
+    /// Gets the clipping rectangle excluding the title area and border.
+    /// </summary>
+    protected override Rectangle GetChildClipRectangle()
+    {
+        int offsetY = ContentOffsetY;
+        return new Rectangle(1, 0, Width - 2, Height - offsetY);
     }
 
     /// <summary>

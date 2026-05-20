@@ -41,11 +41,6 @@ class Program
         form.Controls.Add(mainTabControl);
 
         _mainDataGrid = form.Controls.FindControl<Controls.Advanced.DataGridView>("dataGrid", recursive: true);
-        var addButton = form.Controls.FindControl<Button>("addButton", recursive: true);
-        addButton?.Click += (sender, args) =>
-        {
-            _mainDataGrid?.AddRow(_mainDataGrid.Rows.Count + 1, "John Doe", "john@example.com", "Active", 65000m);
-        };
 
         Application.Run(form);
     }
@@ -320,7 +315,7 @@ class Program
         {
             Text = "Text Input",
             Location = new Point(10, 10),
-            Size = new Size(300, 160)
+            Size = new Size(300, 210)
         };
 
         var nameLabel = new Label { Text = "Name:", Location = new Point(10, 25), Size = new Size(70, 20) };
@@ -330,7 +325,7 @@ class Program
         var passwordLabel = new Label { Text = "Password:", Location = new Point(10, 85), Size = new Size(70, 20) };
         var passwordTextBox = new TextBox { Location = new Point(90, 85), Size = new Size(180, 25), Text = "secret", UseSystemPasswordChar = true };
         var multiLineLabel = new Label { Text = "Multi-line:", Location = new Point(10, 115), Size = new Size(70, 20) };
-        var multiLineTextBox = new TextBox { Location = new Point(90, 115), Size = new Size(180, 35), Text = "Multi-line text" };
+        var multiLineTextBox = new MemoBox { Location = new Point(90, 115), Size = new Size(180, 80), Text = "Line 1\nLine 2\nLine 3\nLine 4\nLine 5\nLine 6" };
 
         groupBox1.Controls.Add(nameLabel);
         groupBox1.Controls.Add(nameTextBox);
@@ -370,7 +365,7 @@ class Program
         var groupBox3 = new GroupBox
         {
             Text = "Lists & Combo Boxes",
-            Location = new Point(10, 180),
+            Location = new Point(10, 230),
             Size = new Size(280, 200)
         };
 
@@ -405,7 +400,7 @@ class Program
         var groupBox4 = new GroupBox
         {
             Text = "Progress & Buttons",
-            Location = new Point(300, 180),
+            Location = new Point(300, 230),
             Size = new Size(270, 200)
         };
 
@@ -486,7 +481,7 @@ class Program
         var addButton = new Button { Text = "Add Row", Location = new Point(10, 270), Size = new Size(130, 30), Name = "addButton" };
         addButton.Click += (s, e) =>
         {
-            var nextId = (_personList.Count > 0 ? _personList[^1].Id : 0) + 1;
+            var nextId = (_personList.Count > 0 ? _personList.Max(p => p.Id) : 0) + 1;
             _personList.Add(new Person(nextId, "New Person", "new@example.com", "Active"));
         };
 

@@ -36,6 +36,16 @@ public class Panel : ContainerControl
     }
 
     /// <summary>
+    /// Gets the clipping rectangle excluding the border when FixedSingle.
+    /// </summary>
+    protected override Rectangle GetChildClipRectangle()
+    {
+        if (_borderStyle == BorderStyle.FixedSingle)
+            return new Rectangle(1, 1, Width - 2, Height - 2);
+        return base.GetChildClipRectangle();
+    }
+
+    /// <summary>
     /// Renders the panel with its background and border.
     /// </summary>
     /// <param name="g">The Graphics object to use for rendering.</param>

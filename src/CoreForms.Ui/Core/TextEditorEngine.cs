@@ -7,12 +7,27 @@ namespace CoreForms.Ui.Core;
 /// </summary>
 public class TextEditorEngine
 {
-    private string _text = string.Empty;
-    private int _cursorPosition;
-    private int _selectionAnchor;
-    private int _selectionLength;
     private bool _useSystemPasswordChar;
-    private int _scrollOffset;
+    /// <summary>
+    /// The full text content.
+    /// </summary>
+    protected string _text = string.Empty;
+    /// <summary>
+    /// The current cursor position as an index into <see cref="_text"/>.
+    /// </summary>
+    protected int _cursorPosition;
+    /// <summary>
+    /// The anchor position for selection (other end of the selection range).
+    /// </summary>
+    protected int _selectionAnchor;
+    /// <summary>
+    /// The length of the current selection in characters.
+    /// </summary>
+    protected int _selectionLength;
+    /// <summary>
+    /// The horizontal scroll offset in pixels.
+    /// </summary>
+    protected int _scrollOffset;
 
     /// <summary>
     /// The bullet character used in password mode.
@@ -30,10 +45,15 @@ public class TextEditorEngine
     public event EventHandler? TextChanged;
 
     /// <summary>
+    /// Raises the <see cref="TextChanged"/> event. Can be called from derived classes.
+    /// </summary>
+    protected void FireTextChanged() => TextChanged?.Invoke(this, EventArgs.Empty);
+
+    /// <summary>
     /// Gets or sets the text content. When set, the cursor is moved to the end and selection is cleared.
     /// The caller should call EnsureCursorVisible and fire TextChanged after setting.
     /// </summary>
-    public string Text
+    public virtual string Text
     {
         get => _text;
         set
@@ -50,6 +70,11 @@ public class TextEditorEngine
     /// Gets the display text, replacing characters with bullets in password mode.
     /// </summary>
     public string DisplayText => _useSystemPasswordChar ? new string('\u25CF', _text.Length) : _text;
+
+    /// <summary>
+    /// Gets whether the UseSystemPasswordChar option is active.
+    /// </summary>
+    protected bool UseSystemPasswordCharActive => _useSystemPasswordChar;
 
     /// <summary>
     /// Gets or sets whether password mode is active.
@@ -141,7 +166,7 @@ public class TextEditorEngine
     /// <summary>
     /// Measures the total display width of the current text.
     /// </summary>
-    public int MeasureDisplayWidth(ITextEditorContext context)
+    public virtual int MeasureDisplayWidth(ITextEditorContext context)
     {
         if (_text.Length == 0) return 0;
         if (_useSystemPasswordChar)
@@ -156,7 +181,7 @@ public class TextEditorEngine
     /// <summary>
     /// Adjusts the scroll offset so the cursor is visible within the text area.
     /// </summary>
-    public void EnsureCursorVisible(ITextEditorContext context)
+    public virtual void EnsureCursorVisible(ITextEditorContext context)
     {
         if (string.IsNullOrEmpty(_text))
         {
@@ -200,11 +225,12 @@ public class TextEditorEngine
 
     /// <summary>
     /// Handles mouse down to set the cursor position based on a logical x-coordinate
-    /// (pixels from the text origin, including scroll offset).
+    /// (pixels from the text origin, including scroll offset). The y-coordinate is ignored
+    /// in single-line mode; override for multi-line support.
     /// </summary>
     /// <param name="logicalX">The x-coordinate relative to the text start, adjusted for scroll offset.</param>
     /// <param name="context">The editor context.</param>
-    public void HandleMouseDown(int logicalX, ITextEditorContext context)
+    public virtual void HandleMouseDown(int logicalX, ITextEditorContext context)
     {
         if (_useSystemPasswordChar && _text.Length > 0)
         {
@@ -238,9 +264,22 @@ public class TextEditorEngine
     }
 
     /// <summary>
+    /// Handles mouse down with both x and y logical coordinates. By default ignores y
+    /// and delegates to <see cref="HandleMouseDown(int, ITextEditorContext)"/>.
+    /// Override this method for multi-line text editors that need line-based positioning.
+    /// </summary>
+    /// <param name="logicalX">The x-coordinate relative to the text start, adjusted for scroll offset.</param>
+    /// <param name="logicalY">The y-coordinate relative to the text start, adjusted for scroll offset.</param>
+    /// <param name="context">The editor context.</param>
+    public virtual void HandleMouseDown(int logicalX, int logicalY, ITextEditorContext context)
+    {
+        HandleMouseDown(logicalX, context);
+    }
+
+    /// <summary>
     /// Handles a key down event. Returns true if the key was handled.
     /// </summary>
-    public bool HandleKeyDown(KeyEventArgs e, ITextEditorContext context)
+    public virtual bool HandleKeyDown(KeyEventArgs e, ITextEditorContext context)
     {
         if (e.Modifiers.HasFlag(ModifierKeys.Control))
         {
@@ -400,7 +439,7 @@ public class TextEditorEngine
     /// <summary>
     /// Handles text input from the user, inserting at the cursor position.
     /// </summary>
-    public void HandleTextInput(string text, ITextEditorContext context)
+    public virtual void HandleTextInput(string text, ITextEditorContext context)
     {
         if (string.IsNullOrEmpty(text)) return;
 
@@ -418,7 +457,7 @@ public class TextEditorEngine
     /// <summary>
     /// Copies the selected text (or all text if no selection) to the clipboard.
     /// </summary>
-    public void CopyToClipboard()
+    public virtual void CopyToClipboard()
     {
         string text = _selectionLength > 0 ? SelectedText : _text;
         if (!string.IsNullOrEmpty(text))
@@ -430,7 +469,7 @@ public class TextEditorEngine
     /// <summary>
     /// Cuts the selected text to the clipboard.
     /// </summary>
-    public void Cut(ITextEditorContext context)
+    public virtual void Cut(ITextEditorContext context)
     {
         if (_selectionLength > 0)
         {
@@ -444,7 +483,7 @@ public class TextEditorEngine
     /// <summary>
     /// Pastes text from the clipboard at the cursor position.
     /// </summary>
-    public void Paste(ITextEditorContext context)
+    public virtual void Paste(ITextEditorContext context)
     {
         var text = Core.Clipboard.GetText();
         if (string.IsNullOrEmpty(text)) return;
@@ -463,7 +502,7 @@ public class TextEditorEngine
     /// <summary>
     /// Selects all text.
     /// </summary>
-    public void SelectAll(ITextEditorContext context)
+    public virtual void SelectAll(ITextEditorContext context)
     {
         _selectionAnchor = 0;
         _cursorPosition = _text.Length;
@@ -471,7 +510,11 @@ public class TextEditorEngine
         EnsureCursorVisible(context);
     }
 
-    private void DeleteSelection(ITextEditorContext context)
+    /// <summary>
+    /// Deletes the currently selected text and moves the cursor to the selection start.
+    /// </summary>
+    /// <param name="context">The editor context for invalidation and scrolling.</param>
+    protected virtual void DeleteSelection(ITextEditorContext context)
     {
         int start = Math.Min(_selectionAnchor, _cursorPosition);
         int end = Math.Max(_selectionAnchor, _cursorPosition);

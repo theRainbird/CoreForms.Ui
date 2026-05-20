@@ -282,6 +282,7 @@ public class ToolStripTextBox : ToolStripItem
         public Font Font => _owner.Owner?.Font ?? Font.Default;
         public float Zoom => _owner.Owner?.EffectiveZoom ?? 1.0f;
         public int TextAreaWidth => _owner._width - 8;
+        public int TextAreaHeight => _owner.Owner?.Height ?? 0;
         public void Invalidate() => _owner.Owner?.Invalidate();
     }
 }

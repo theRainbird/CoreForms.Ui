@@ -73,9 +73,9 @@ public static class TextLayoutEngine
             if (bi > 0)
             {
                 if (block.Type is RichTextBlockType.Heading1 or RichTextBlockType.Heading2)
-                    y += 8;
+                    y += 10;
                 else
-                    y += 4;
+                    y += 6;
             }
 
             blockTopY = y;
@@ -86,7 +86,7 @@ public static class TextLayoutEngine
             float markerWidth = 0;
             int numberCounter = CountNumberBefore(doc, bi);
             if (block.Type == RichTextBlockType.BulletItem)
-                markerWidth = MeasureText("• ", "Arial", blockFontSize, FontStyle.Regular, zoom).width / zoom;
+                markerWidth = MeasureText("* ", "Arial", blockFontSize, FontStyle.Regular, zoom).width / zoom;
             else if (block.Type == RichTextBlockType.NumberItem)
                 markerWidth = MeasureText($"{numberCounter}. ", "Arial", blockFontSize, FontStyle.Regular, zoom).width / zoom;
 
@@ -124,9 +124,9 @@ public static class TextLayoutEngine
 
             if (line.Runs.Count == 0)
             {
-                y = blockTopY + blockFontSize * 1.2f;
+                y = blockTopY + blockFontSize * 1.4f;
                 line.Y = blockTopY;
-                line.Height = blockFontSize * 1.2f;
+                line.Height = blockFontSize * 1.4f;
                 lines.Add(line);
             }
         }
@@ -351,7 +351,7 @@ public static class TextLayoutEngine
 
                 string wrapText = segment[..breakPos];
                 float wrapWidth = MeasureText(wrapText, fontFamily, fontSize, style, zoom).width / zoom;
-                float wrapHeight = MeasureText("X", fontFamily, fontSize, style, zoom).height / zoom;
+                float wrapHeight = fontSize * 1.4f;
 
                 AddRunToLine(line, run, contentIndex, wrapText, pos, wrapWidth, wrapHeight, ref maxLineWidth);
                 lines.Add(line);
@@ -362,7 +362,7 @@ public static class TextLayoutEngine
             }
             else
             {
-                float runHeight = MeasureText("X", fontFamily, fontSize, style, zoom).height / zoom;
+                float runHeight = fontSize * 1.4f;
                 AddRunToLine(line, run, contentIndex, segment, pos, segWidth, runHeight, ref maxLineWidth);
                 pos += segment.Length;
             }
@@ -413,8 +413,8 @@ public static class TextLayoutEngine
         float zoom,
         ref float maxLineWidth)
     {
-        float imgWidth = 32;
-        float imgHeight = 32;
+        float imgWidth = 24;
+        float imgHeight = 24;
         float currentWidth = 0;
         foreach (var r in line.Runs)
             currentWidth += r.Width;
@@ -464,17 +464,17 @@ public static class TextLayoutEngine
 
     private static float GetBlockFontSize(RichTextBlockType type) => type switch
     {
-        RichTextBlockType.Heading1 => 22,
-        RichTextBlockType.Heading2 => 18,
-        RichTextBlockType.Heading3 => 16,
-        RichTextBlockType.Heading4 => 14,
-        RichTextBlockType.Heading5 => 12,
-        RichTextBlockType.Heading6 => 11,
+        RichTextBlockType.Heading1 => 24,
+        RichTextBlockType.Heading2 => 20,
+        RichTextBlockType.Heading3 => 18,
+        RichTextBlockType.Heading4 => 16,
+        RichTextBlockType.Heading5 => 14,
+        RichTextBlockType.Heading6 => 12,
         _ => 12
     };
 
     private static float GetLeftMargin(RichTextBlockType type) =>
-        type is RichTextBlockType.BulletItem or RichTextBlockType.NumberItem ? 20 : 0;
+        type is RichTextBlockType.BulletItem or RichTextBlockType.NumberItem ? 30 : 0;
 
     private static int CountNumberBefore(RichTextDocument doc, int blockIndex)
     {

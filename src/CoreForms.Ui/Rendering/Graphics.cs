@@ -11,7 +11,7 @@ namespace CoreForms.Ui.Rendering;
         private float _offsetY;
         private float _zoom = 1.0f;
     private readonly Stack<Matrix> _transforms = new();
-    private readonly Stack<Rectangle> _clipStack = new();
+    private readonly List<Rectangle> _clipStack = new();
     private readonly List<DrawCommand> _commands = new();
     private bool _disposed;
 
@@ -66,9 +66,29 @@ namespace CoreForms.Ui.Rendering;
     }
 
     /// <summary>
-    /// Gets the current clip bounds, if any.
+    /// Gets the current clip bounds as the intersection of all active clip regions.
+    /// Returns null if no clip is active.
     /// </summary>
-    public Rectangle? ClipBounds => _clipStack.Count > 0 ? _clipStack.Peek() : null;
+    public Rectangle? ClipBounds
+    {
+        get
+        {
+            if (_clipStack.Count == 0) return null;
+            Rectangle result = _clipStack[0];
+            for (int i = 1; i < _clipStack.Count; i++)
+            {
+                var next = _clipStack[i];
+                int x = Math.Max(result.X, next.X);
+                int y = Math.Max(result.Y, next.Y);
+                int right = Math.Min(result.Right, next.Right);
+                int bottom = Math.Min(result.Bottom, next.Bottom);
+                if (right <= x || bottom <= y)
+                    return Rectangle.Empty;
+                result = new Rectangle(x, y, right - x, bottom - y);
+            }
+            return result;
+        }
+    }
 
     /// <summary>
     /// Sets the clipping region to the specified rectangle.
@@ -76,7 +96,7 @@ namespace CoreForms.Ui.Rendering;
     /// <param name="rect">The clipping rectangle.</param>
     public void SetClip(Rectangle rect)
     {
-        _clipStack.Push(new Rectangle(
+        _clipStack.Add(new Rectangle(
             (int)((rect.X + _offsetX) * _zoom),
             (int)((rect.Y + _offsetY) * _zoom),
             (int)(rect.Width * _zoom),
@@ -89,7 +109,7 @@ namespace CoreForms.Ui.Rendering;
     public void ResetClip()
     {
         if (_clipStack.Count > 0)
-            _clipStack.Pop();
+            _clipStack.RemoveAt(_clipStack.Count - 1);
     }
 
     /// <summary>
