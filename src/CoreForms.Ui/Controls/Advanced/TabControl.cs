@@ -13,6 +13,19 @@ public class TabControl : ContainerControl
     private int _selectedIndex = 0;
     private int _tabHeight = 24;
 
+    private const int OverflowButtonWidth = 17;
+    private bool _showOverflowButton;
+    private bool _overflowDroppedDown;
+    private int _overflowHoveredIndex = -1;
+    private int _overflowScrollOffset;
+    private int _overflowDropDownHeight = 160;
+    private int _lastVisibleCount;
+    private int _firstVisibleTab;
+    private readonly ScrollBarEngine _overflowScrollBar = new();
+    private OverflowScrollBarContext? _overflowScrollBarContext;
+
+    private OverflowScrollBarContext OverflowScrollBarCtx => _overflowScrollBarContext ??= new OverflowScrollBarContext(this);
+
     private int TabHeaderHeight => _tabHeight + 2;
 
     /// <summary>
@@ -115,26 +128,80 @@ public class TabControl : ContainerControl
         }
     }
 
-    private (int[] positions, int[] widths) CalculateTabLayout()
+    private (int[] positions, int[] widths, int visibleCount) CalculateTabLayout()
     {
         const int horizontalPadding = 16;
         const int minTabWidth = 40;
-        var fontSize = (int)(EffectiveFont.Size * EffectiveZoom);
-        var charWidth = fontSize / 2;
+        float zoom = EffectiveZoom;
 
         var widths = new int[_tabPages.Count];
-        var positions = new int[_tabPages.Count];
-        int totalWidth = 0;
-
+        int totalAllWidth = 0;
         for (int i = 0; i < _tabPages.Count; i++)
         {
-            var textWidth = _tabPages[i].Text.Length * charWidth + horizontalPadding;
-            widths[i] = Math.Max(textWidth, minTabWidth);
-            positions[i] = totalWidth;
-            totalWidth += widths[i];
+            var text = _tabPages[i].Text;
+            var measured = CoordinateTransform.MeasureText(text, EffectiveFont, zoom);
+            var textLogicalWidth = measured.width / Math.Max(zoom, 0.001f);
+            widths[i] = Math.Max((int)(textLogicalWidth + horizontalPadding), minTabWidth);
+            totalAllWidth += widths[i];
         }
 
-        return (positions, widths);
+        var positions = new int[_tabPages.Count];
+        int currentX = 0;
+
+        if (totalAllWidth <= Width && _tabPages.Count > 0)
+        {
+            _showOverflowButton = false;
+            _firstVisibleTab = 0;
+            _lastVisibleCount = _tabPages.Count;
+            for (int i = 0; i < _tabPages.Count; i++)
+            {
+                positions[i] = currentX;
+                currentX += widths[i];
+            }
+            return (positions, widths, _tabPages.Count);
+        }
+
+        _showOverflowButton = true;
+        int availableWidth = Width - OverflowButtonWidth;
+
+        // Determine visible range that includes the selected tab
+        // Start from selected tab and go backwards
+        int lastVisible = _selectedIndex;
+        int usedWidth = widths[_selectedIndex];
+        int firstVisible = _selectedIndex;
+        while (firstVisible > 0 && usedWidth + widths[firstVisible - 1] <= availableWidth)
+        {
+            firstVisible--;
+            usedWidth += widths[firstVisible];
+        }
+
+        // Try to add tabs after the selected tab if space allows
+        int rightEdge = usedWidth;
+        for (int i = _selectedIndex + 1; i < _tabPages.Count; i++)
+        {
+            if (rightEdge + widths[i] <= availableWidth)
+            {
+                rightEdge += widths[i];
+                lastVisible = i;
+            }
+            else
+            {
+                break;
+            }
+        }
+
+        // Compute positions for visible range
+        currentX = 0;
+        for (int i = firstVisible; i <= lastVisible; i++)
+        {
+            positions[i] = currentX;
+            currentX += widths[i];
+        }
+
+        int visibleCount = lastVisible - firstVisible + 1;
+        _firstVisibleTab = firstVisible;
+        _lastVisibleCount = visibleCount;
+        return (positions, widths, visibleCount);
     }
 
     /// <summary>
@@ -218,7 +285,7 @@ public class TabControl : ContainerControl
         var tabHeaderHeight = TabHeaderHeight;
         const int horizontalPadding = 16;
 
-        var (tabPositions, tabWidths) = CalculateTabLayout();
+        var (tabPositions, tabWidths, visibleCount) = CalculateTabLayout();
 
         // Draw tab headers background
         g.FillRectangle(theme.TabHeaderBackground, 0, 0, Width, tabHeaderHeight);
@@ -227,7 +294,7 @@ public class TabControl : ContainerControl
         var unselectedTabTextColor = Enabled ? theme.TabSelectedText : theme.GrayText;
 
         // Draw individual tabs with vertical separators
-        for (int i = 0; i < _tabPages.Count; i++)
+        for (int i = _firstVisibleTab; i < _firstVisibleTab + visibleCount; i++)
         {
             var x = tabPositions[i];
             var tabWidth = tabWidths[i];
@@ -252,28 +319,57 @@ public class TabControl : ContainerControl
             }
 
             // Vertical separator between tabs (except after last tab)
-            if (i < _tabPages.Count - 1)
+            if (i < _firstVisibleTab + visibleCount - 1)
             {
                 var sepX = x + tabWidth;
                 g.DrawLine(theme.TabSeparator, sepX, 2, sepX, tabHeaderHeight - 2);
             }
         }
 
-        // Draw separator line below tab headers (only for unselected area)
-        var selectedTabX = tabPositions[_selectedIndex];
-        var selectedTabWidth = tabWidths[_selectedIndex];
-
-        // Line to the left of selected tab
-        if (selectedTabX > 0)
+        // Draw overflow dropdown button
+        if (_showOverflowButton)
         {
-            g.DrawLine(theme.TabSeparator, 0, tabHeaderHeight, selectedTabX, tabHeaderHeight);
+            var btnX = Width - OverflowButtonWidth;
+            g.FillRectangle(theme.ControlBackground, btnX, 1, OverflowButtonWidth, tabHeaderHeight - 2);
+            g.DrawLine(theme.ComboBoxDropdownButtonSeparator, btnX, 0, btnX, tabHeaderHeight);
+
+            var cx = btnX + OverflowButtonWidth / 2;
+            var cy = tabHeaderHeight / 2;
+            var tw = 4;
+            var th = 3;
+            g.FillTriangle(theme.ComboBoxDropdownArrow,
+                cx - tw, cy - th,
+                cx + tw, cy - th,
+                cx, cy + th);
         }
 
-        // Line to the right of selected tab
-        var rightStart = selectedTabX + selectedTabWidth;
-        if (rightStart < Width)
+        // Draw separator line below tab headers (only for unselected area)
+        if (visibleCount > 0 && _selectedIndex >= _firstVisibleTab && _selectedIndex < _firstVisibleTab + visibleCount)
         {
-            g.DrawLine(theme.TabSeparator, rightStart, tabHeaderHeight, Width, tabHeaderHeight);
+            var selectedTabX = tabPositions[_selectedIndex];
+            var selectedTabWidth = tabWidths[_selectedIndex];
+
+            if (_showOverflowButton)
+            {
+                var btnLeftEdge = Width - OverflowButtonWidth;
+                // Line to the left of selected tab
+                if (selectedTabX > 0)
+                    g.DrawLine(theme.TabSeparator, 0, tabHeaderHeight, selectedTabX, tabHeaderHeight);
+                // Line to the right of selected tab
+                var rightStart = selectedTabX + selectedTabWidth;
+                if (rightStart < btnLeftEdge)
+                    g.DrawLine(theme.TabSeparator, rightStart, tabHeaderHeight, btnLeftEdge, tabHeaderHeight);
+            }
+            else
+            {
+                // Line to the left of selected tab
+                if (selectedTabX > 0)
+                    g.DrawLine(theme.TabSeparator, 0, tabHeaderHeight, selectedTabX, tabHeaderHeight);
+                // Line to the right of selected tab
+                var rightStart = selectedTabX + selectedTabWidth;
+                if (rightStart < Width)
+                    g.DrawLine(theme.TabSeparator, rightStart, tabHeaderHeight, Width, tabHeaderHeight);
+            }
         }
 
         // Draw content area background (start at tabHeaderHeight to hide any child control borders at top)
@@ -310,71 +406,360 @@ public class TabControl : ContainerControl
             SelectedTab.RenderOverlay(g);
             g.Restore();
         }
+
+        if (!_overflowDroppedDown) return;
+
+        var theme = ThemeManager.CurrentTheme;
+        var font = EffectiveFont;
+        var itemHeight = CoordinateTransform.GetItemHeight(font, EffectiveZoom);
+        var overflowItems = GetOverflowTabs();
+        var totalHeight = overflowItems.Count * itemHeight;
+        var scrollBarWidth = ScrollBarEngine.DefaultScrollBarSize;
+        var needsScrollbar = totalHeight > _overflowDropDownHeight;
+        const int fullListWidth = OverflowButtonWidth + 150;
+        var contentListWidth = needsScrollbar ? fullListWidth - scrollBarWidth : fullListWidth;
+        var btnX = Width - OverflowButtonWidth;
+        var dropX = btnX - (fullListWidth - OverflowButtonWidth);
+        int dropY = tabHeaderHeight;
+
+        g.FillRectangle(theme.MenuDropdownBackground, dropX, dropY, fullListWidth, _overflowDropDownHeight);
+        g.DrawRectangle(theme.MenuDropdownBorder, dropX, dropY, fullListWidth, _overflowDropDownHeight, 1);
+
+        _overflowScrollBar.SmallChange = itemHeight;
+        _overflowScrollBar.ViewSize = _overflowDropDownHeight;
+        _overflowScrollBar.ContentSize = totalHeight;
+        if (needsScrollbar)
+        {
+            var scrollBarBounds = new Rectangle(dropX + contentListWidth, dropY, scrollBarWidth, _overflowDropDownHeight);
+            _overflowScrollBar.Render(g, scrollBarBounds, theme);
+        }
+
+        g.SetClip(new Rectangle(dropX, dropY, contentListWidth, _overflowDropDownHeight));
+
+        for (int i = 0; i < overflowItems.Count; i++)
+        {
+            var y = dropY + 2 + i * itemHeight - _overflowScrollOffset;
+
+            if (y + itemHeight <= dropY) continue;
+            if (y >= dropY + _overflowDropDownHeight) break;
+
+            var actualIndex = _tabPages.IndexOf(overflowItems[i]);
+
+            if (actualIndex == _selectedIndex)
+            {
+                g.FillRectangle(theme.Highlight, dropX + 1, y, contentListWidth - 2, itemHeight);
+                g.DrawString(overflowItems[i].Text, font, theme.HighlightText, dropX + 4, y + 2);
+            }
+            else if (i == _overflowHoveredIndex)
+            {
+                g.FillRectangle(theme.HoverHighlight, dropX + 1, y, contentListWidth - 2, itemHeight);
+                g.DrawString(overflowItems[i].Text, font, theme.ControlText, dropX + 4, y + 2);
+            }
+            else
+            {
+                g.DrawString(overflowItems[i].Text, font, theme.ControlText, dropX + 4, y + 2);
+            }
+        }
+
+        g.ResetClip();
     }
 
     /// <summary>
-    /// Raises the MouseDown event to handle tab header clicks.
-    /// Content area clicks are routed to child controls by the base ContainerControl.
+    /// Tests hit test including the overflow dropdown area when open.
+    /// </summary>
+    public override bool HitTest(Point point)
+    {
+        if (Bounds.Contains(point))
+            return true;
+
+        if (_overflowDroppedDown)
+        {
+            const int fullListWidth = OverflowButtonWidth + 150;
+            var btnX = Width - OverflowButtonWidth;
+            var dropX = btnX - (fullListWidth - OverflowButtonWidth);
+            var dropBounds = new Rectangle(X + dropX, Y + TabHeaderHeight, fullListWidth, _overflowDropDownHeight);
+            if (dropBounds.Contains(point))
+                return true;
+        }
+
+        return false;
+    }
+
+    /// <summary>
+    /// Gets the list of tab pages that are not in the visible tab header area.
+    /// </summary>
+    private List<TabPage> GetOverflowTabs()
+    {
+        if (!_showOverflowButton || _lastVisibleCount >= _tabPages.Count)
+            return new List<TabPage>();
+
+        var overflow = new List<TabPage>();
+        for (int i = 0; i < _tabPages.Count; i++)
+        {
+            if (i < _firstVisibleTab || i >= _firstVisibleTab + _lastVisibleCount)
+                overflow.Add(_tabPages[i]);
+        }
+        return overflow;
+    }
+
+    private void CloseOverflowDropdown()
+    {
+        _overflowDroppedDown = false;
+        _overflowScrollOffset = 0;
+        _overflowHoveredIndex = -1;
+        _overflowScrollBar.ScrollTo(0);
+        CapturingMouse = false;
+        Invalidate();
+    }
+
+    /// <summary>
+    /// Raises the MouseDown event to handle tab header clicks and overflow dropdown.
     /// </summary>
     /// <param name="e">The event arguments.</param>
     protected internal override void OnMouseDown(EventArgs e)
     {
         if (!Enabled) return;
         var args = e as MouseEventArgs;
-        if (args != null && _tabPages.Count > 0)
+        if (args == null) return;
+
+        // Handle overflow dropdown item selection and button click
+        var tabHeaderHeight = TabHeaderHeight;
+
+        if (_overflowDroppedDown)
         {
-            var tabHeaderHeight = TabHeaderHeight;
-            if (args.Y < tabHeaderHeight)
+            var itemHeight = CoordinateTransform.GetItemHeight(EffectiveFont, EffectiveZoom);
+            var overflowItems = GetOverflowTabs();
+            var totalHeight = overflowItems.Count * itemHeight;
+            var scrollBarWidth = ScrollBarEngine.DefaultScrollBarSize;
+            bool needsScrollbar = totalHeight > _overflowDropDownHeight;
+            const int fullListWidth = OverflowButtonWidth + 150;
+            var contentListWidth = needsScrollbar ? fullListWidth - scrollBarWidth : fullListWidth;
+            var btnX = Width - OverflowButtonWidth;
+            var dropX = btnX - (fullListWidth - OverflowButtonWidth);
+            int dropY = tabHeaderHeight;
+
+            if (args.X >= dropX && args.X < dropX + fullListWidth && args.Y >= dropY && args.Y < dropY + _overflowDropDownHeight)
             {
-                var (tabPositions, tabWidths) = CalculateTabLayout();
-                var clickedX = args.X;
-                for (int i = 0; i < _tabPages.Count; i++)
+                if (needsScrollbar && args.X >= dropX + contentListWidth)
                 {
-                    if (clickedX >= tabPositions[i] && clickedX < tabPositions[i] + tabWidths[i])
+                    var scrollBarBounds = new Rectangle(dropX + contentListWidth, dropY, scrollBarWidth, _overflowDropDownHeight);
+                    _overflowScrollBar.HandleMouseDown(new Point(args.X, args.Y), scrollBarBounds, OverflowScrollBarCtx);
+                    return;
+                }
+
+                int localY = args.Y - dropY - 2 + _overflowScrollOffset;
+                if (localY >= 0)
+                {
+                    int index = localY / itemHeight;
+                    if (index >= 0 && index < overflowItems.Count)
                     {
-                        SelectedIndex = i;
-                        return;
+                        var actualIndex = _tabPages.IndexOf(overflowItems[index]);
+                        if (actualIndex >= 0)
+                            SelectedIndex = actualIndex;
                     }
+                }
+
+                CloseOverflowDropdown();
+                return;
+            }
+
+            CloseOverflowDropdown();
+            return;
+        }
+
+        // Handle overflow button click
+        if (_showOverflowButton && args.Y < tabHeaderHeight && args.X >= Width - OverflowButtonWidth && args.X < Width)
+        {
+            _overflowDroppedDown = true;
+            CapturingMouse = true;
+            _overflowScrollOffset = 0;
+            _overflowHoveredIndex = -1;
+            Invalidate();
+            return;
+        }
+
+        // Handle tab header clicks
+        if (args.Y < tabHeaderHeight && _tabPages.Count > 0)
+        {
+            var (tabPositions, tabWidths, _) = CalculateTabLayout();
+            var clickedX = args.X;
+            for (int i = _firstVisibleTab; i < _firstVisibleTab + _lastVisibleCount; i++)
+            {
+                if (clickedX >= tabPositions[i] && clickedX < tabPositions[i] + tabWidths[i])
+                {
+                    SelectedIndex = i;
+                    return;
                 }
             }
         }
+
         base.OnMouseDown(e);
     }
 
     /// <summary>
-    /// Raises the MouseUp event. Content area clicks are routed by the base ContainerControl.
+    /// Raises the MouseUp event. Handles scrollbar release in overflow dropdown.
     /// </summary>
     /// <param name="e">The event arguments.</param>
     protected internal override void OnMouseUp(EventArgs e)
     {
+        if (_overflowScrollBar.IsDragging || _overflowScrollBar.IsUpButtonPressed || _overflowScrollBar.IsDownButtonPressed)
+        {
+            _overflowScrollBar.HandleMouseUp(OverflowScrollBarCtx);
+            return;
+        }
+
+        if (!_overflowDroppedDown && CapturingMouse)
+        {
+            CapturingMouse = false;
+            return;
+        }
         base.OnMouseUp(e);
     }
 
     /// <summary>
-    /// Raises the MouseMove event. Routed by the base ContainerControl.
+    /// Raises the MouseMove event for hover tracking in overflow dropdown and scrollbar.
     /// </summary>
     /// <param name="e">The event arguments.</param>
     protected internal override void OnMouseMove(EventArgs e)
     {
+        if (!Enabled) return;
+
+        if (_overflowDroppedDown)
+        {
+            var args = e as MouseEventArgs;
+            if (args != null)
+            {
+                var itemHeight = CoordinateTransform.GetItemHeight(EffectiveFont, EffectiveZoom);
+                var overflowItems = GetOverflowTabs();
+                var totalHeight = overflowItems.Count * itemHeight;
+                var scrollBarWidth = ScrollBarEngine.DefaultScrollBarSize;
+                const int fullListWidth = OverflowButtonWidth + 150;
+                var contentListWidth = totalHeight > _overflowDropDownHeight ? fullListWidth - scrollBarWidth : fullListWidth;
+                var btnX = Width - OverflowButtonWidth;
+                var dropX = btnX - (fullListWidth - OverflowButtonWidth);
+                int dropY = TabHeaderHeight;
+
+                _overflowScrollBar.SmallChange = itemHeight;
+                _overflowScrollBar.ViewSize = _overflowDropDownHeight;
+                _overflowScrollBar.ContentSize = totalHeight;
+                bool needsScrollbar = _overflowScrollBar.NeedsScrollbar;
+
+                if (needsScrollbar)
+                {
+                    var scrollBarBounds = new Rectangle(dropX + contentListWidth, dropY, scrollBarWidth, _overflowDropDownHeight);
+                    _overflowScrollBar.HandleMouseMove(new Point(args.X, args.Y), scrollBarBounds, OverflowScrollBarCtx);
+                }
+
+                if (args.Y >= dropY && args.Y < dropY + _overflowDropDownHeight)
+                {
+                    int localY = args.Y - dropY - 2 + _overflowScrollOffset;
+                    if (localY >= 0)
+                    {
+                        int index = localY / itemHeight;
+                        if (index >= 0 && index < overflowItems.Count)
+                        {
+                            if (_overflowHoveredIndex != index)
+                            {
+                                _overflowHoveredIndex = index;
+                                Invalidate();
+                            }
+                        }
+                        else if (_overflowHoveredIndex != -1)
+                        {
+                            _overflowHoveredIndex = -1;
+                            Invalidate();
+                        }
+                    }
+                    else if (_overflowHoveredIndex != -1)
+                    {
+                        _overflowHoveredIndex = -1;
+                        Invalidate();
+                    }
+                }
+                else if (_overflowHoveredIndex != -1)
+                {
+                    _overflowHoveredIndex = -1;
+                    Invalidate();
+                }
+            }
+            return;
+        }
+
         base.OnMouseMove(e);
     }
 
     /// <summary>
-    /// Raises the MouseWheel event. Routed by the base ContainerControl.
+    /// Raises the MouseWheel event for scrolling in the overflow dropdown.
     /// </summary>
     /// <param name="e">The event arguments.</param>
     protected internal override void OnMouseWheel(EventArgs e)
     {
+        if (!Enabled) return;
+        if (_overflowDroppedDown && !_overflowScrollBar.IsDragging)
+        {
+            var args = e as MouseEventArgs;
+            if (args != null)
+            {
+                var itemHeight = CoordinateTransform.GetItemHeight(EffectiveFont, EffectiveZoom);
+                var overflowItems = GetOverflowTabs();
+                _overflowScrollBar.SmallChange = itemHeight;
+                _overflowScrollBar.ViewSize = _overflowDropDownHeight;
+                _overflowScrollBar.ContentSize = overflowItems.Count * itemHeight;
+                if (_overflowScrollBar.NeedsScrollbar)
+                    _overflowScrollBar.HandleMouseWheel(args.Delta, OverflowScrollBarCtx);
+            }
+            return;
+        }
         base.OnMouseWheel(e);
     }
 
     /// <summary>
-    /// Raises the KeyDown event and routes to the active control in the selected tab page.
+    /// Raises the KeyDown event and handles overflow dropdown keyboard navigation.
     /// </summary>
     /// <param name="e">A KeyEventArgs that contains the event data.</param>
     protected internal override void OnKeyDown(KeyEventArgs e)
     {
         if (!Enabled) return;
+
+        var overflowItems = GetOverflowTabs();
+
+        if (_overflowDroppedDown)
+        {
+            switch (e.KeyCode)
+            {
+                case Keys.Down:
+                    if (_selectedIndex < _tabPages.Count - 1)
+                    {
+                        SelectedIndex++;
+                        if (overflowItems.Count > 0)
+                            EnsureOverflowSelectedVisible();
+                    }
+                    e.Handled = true;
+                    break;
+                case Keys.Up:
+                    if (_selectedIndex > 0)
+                    {
+                        SelectedIndex--;
+                        if (overflowItems.Count > 0)
+                            EnsureOverflowSelectedVisible();
+                    }
+                    e.Handled = true;
+                    break;
+                case Keys.Enter:
+                    CloseOverflowDropdown();
+                    e.Handled = true;
+                    break;
+                case Keys.Escape:
+                    CloseOverflowDropdown();
+                    e.Handled = true;
+                    break;
+                default:
+                    base.OnKeyDown(e);
+                    break;
+            }
+            return;
+        }
+
         switch (e.KeyCode)
         {
             case Keys.Left:
@@ -391,6 +776,18 @@ public class TabControl : ContainerControl
                     e.Handled = true;
                 }
                 break;
+            case Keys.F4:
+                if (_showOverflowButton && overflowItems.Count > 0)
+                {
+                    _overflowDroppedDown = true;
+                    CapturingMouse = true;
+                    _overflowScrollOffset = 0;
+                    _overflowHoveredIndex = -1;
+                    EnsureOverflowSelectedVisible();
+                    Invalidate();
+                    e.Handled = true;
+                }
+                break;
             default:
                 if (SelectedTab?.ActiveControl != null)
                 {
@@ -400,6 +797,38 @@ public class TabControl : ContainerControl
                 break;
         }
         base.OnKeyDown(e);
+    }
+
+    private void EnsureOverflowSelectedVisible()
+    {
+        var overflowItems = GetOverflowTabs();
+        if (overflowItems.Count == 0) return;
+
+        var selInOverflow = overflowItems.FindIndex(t => _tabPages.IndexOf(t) == _selectedIndex);
+        if (selInOverflow < 0) return;
+
+        var itemHeight = CoordinateTransform.GetItemHeight(EffectiveFont, EffectiveZoom);
+        int selTop = selInOverflow * itemHeight;
+        int oldOffset = _overflowScrollOffset;
+        _overflowScrollBar.ViewSize = _overflowDropDownHeight;
+        _overflowScrollBar.ContentSize = overflowItems.Count * itemHeight;
+        _overflowScrollBar.EnsureVisible(selTop, itemHeight);
+        if (_overflowScrollBar.Value != oldOffset)
+        {
+            _overflowScrollOffset = _overflowScrollBar.Value;
+            Invalidate();
+        }
+    }
+
+    /// <summary>
+    /// Raises the LostFocus event and closes the overflow dropdown.
+    /// </summary>
+    /// <param name="e">The event arguments.</param>
+    protected internal override void OnLostFocus(EventArgs e)
+    {
+        if (_overflowDroppedDown)
+            CloseOverflowDropdown();
+        base.OnLostFocus(e);
     }
 
     /// <summary>
@@ -454,6 +883,15 @@ public class TabControl : ContainerControl
     /// Occurs when the selected tab index changes.
     /// </summary>
     public event EventHandler? SelectedIndexChanged;
+
+    private sealed class OverflowScrollBarContext : IScrollBarContext
+    {
+        private readonly TabControl _owner;
+        public OverflowScrollBarContext(TabControl owner) => _owner = owner;
+        public float Zoom => _owner.EffectiveZoom;
+        public void Invalidate() => _owner.Invalidate();
+        public void CaptureMouse(bool capture) => _owner.CapturingMouse = capture;
+    }
 }
 
 /// <summary>
