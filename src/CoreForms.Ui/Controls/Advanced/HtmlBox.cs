@@ -330,15 +330,20 @@ public class HtmlBox : Control
                             _cursorScreenY = (int)runY;
                             _cursorScreenValid = true;
                         }
-        }
-        // Fallback: no visual line found — use block-level navigation
-        _engine.MoveDown();
-    }
+                    }
+                }
                 else if (source is ImageRun image)
                 {
                     // Draw image placeholder
                     g.FillRectangle(ThemeManager.CurrentTheme.TextBoxText, runX, runY, 32, 32);
                 }
+            }
+
+            if (!_cursorScreenValid && line.BlockIndex == _engine.CursorBlock && line.Runs.Count == 0)
+            {
+                _cursorScreenX = (int)(padding + GetLeftMargin(line.Block!.Type));
+                _cursorScreenY = (int)line.Y;
+                _cursorScreenValid = true;
             }
         }
 
@@ -574,6 +579,16 @@ public class HtmlBox : Control
         base.OnKeyDown(e);
     }
 
+    /// <summary>Handles text input from keyboard.</summary>
+    protected internal override void OnTextInput(string text)
+    {
+        if (_readOnly || string.IsNullOrEmpty(text)) { base.OnTextInput(text); return; }
+        _engine.InsertText(text);
+        InvalidateLayout();
+        Invalidate();
+        ContentChanged?.Invoke(this, EventArgs.Empty);
+    }
+
     private void SyncSelectionAnchor()
     {
         _engine.SelectionBlock = _engine.CursorBlock;
@@ -714,6 +729,8 @@ public class HtmlBox : Control
                 return;
             }
         }
+        // Fallback: no visual line found in layout — use block-level navigation
+        _engine.MoveDown();
     }
 
     private void MoveToVisualLineStart()
@@ -734,14 +751,17 @@ public class HtmlBox : Control
                 if (cursorFlat >= runStart && cursorFlat <= runEnd)
                 {
                     var first = line.Runs[0];
-                    int firstFlat = TextLayoutEngine.ToFlatIndex(_engine.Document,
-                        line.BlockIndex, first.ContentIndex, first.StartOffset);
-                    var pos = TextLayoutEngine.FromFlatIndex(_engine.Document, firstFlat);
-                    _engine.CursorBlock = pos.BlockIndex;
-                    _engine.CursorContent = pos.ContentIndex;
-                    _engine.CursorOffset = pos.CharOffset;
+                    _engine.CursorBlock = line.BlockIndex;
+                    _engine.CursorContent = first.ContentIndex;
+                    _engine.CursorOffset = first.StartOffset;
                     return;
                 }
+            }
+            if (line.BlockIndex == _engine.CursorBlock && line.Runs.Count == 0)
+            {
+                _engine.CursorContent = 0;
+                _engine.CursorOffset = 0;
+                return;
             }
         }
         // No matching line found — fallback: go to block start
@@ -768,12 +788,9 @@ public class HtmlBox : Control
                 if (cursorFlat >= runStart && cursorFlat <= runEnd)
                 {
                     var last = line.Runs[^1];
-                    int lastFlat = TextLayoutEngine.ToFlatIndex(_engine.Document,
-                        line.BlockIndex, last.ContentIndex, last.StartOffset + last.Length);
-                    var pos = TextLayoutEngine.FromFlatIndex(_engine.Document, lastFlat);
-                    _engine.CursorBlock = pos.BlockIndex;
-                    _engine.CursorContent = pos.ContentIndex;
-                    _engine.CursorOffset = pos.CharOffset;
+                    _engine.CursorBlock = line.BlockIndex;
+                    _engine.CursorContent = last.ContentIndex;
+                    _engine.CursorOffset = last.StartOffset + last.Length;
                     return;
                 }
             }

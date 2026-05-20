@@ -128,9 +128,15 @@ public class RichTextEngine
 
         // Build new block
         var newBlock = new RichTextBlock { Type = oldBlock.Type };
-        for (int i = splitIndex; i < oldBlock.Content.Count; i++)
+
+        // Move content after the split run to new block; keep the split run in old block
+        int moveFrom = splitIndex;
+        if (splitIndex < oldBlock.Content.Count && oldBlock.Content[splitIndex] is TextRun)
+            moveFrom = splitIndex + 1;
+
+        for (int i = moveFrom; i < oldBlock.Content.Count; i++)
             newBlock.Content.Add(oldBlock.Content[i]);
-        for (int i = oldBlock.Content.Count - 1; i >= splitIndex; i--)
+        for (int i = oldBlock.Content.Count - 1; i >= moveFrom; i--)
             oldBlock.Content.RemoveAt(i);
 
         if (!string.IsNullOrEmpty(afterText))
