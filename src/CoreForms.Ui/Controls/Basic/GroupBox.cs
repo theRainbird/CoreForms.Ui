@@ -36,6 +36,12 @@ public class GroupBox : ContainerControl
     }
 
     /// <summary>
+    /// Reports the title offset so that <see cref="ContainerControl.GetDeepestChildAtPoint"/>
+    /// correctly transforms child coordinates.
+    /// </summary>
+    protected internal override Point GetChildRenderOffset() => new Point(0, ContentOffsetY);
+
+    /// <summary>
     /// Gets the clipping rectangle excluding the title area and border.
     /// </summary>
     protected override Rectangle GetChildClipRectangle()
@@ -55,18 +61,6 @@ public class GroupBox : ContainerControl
         if (!_foreColorSet)
             _foreColor = newTheme.ControlText;
         Invalidate();
-    }
-
-    /// <summary>
-    /// Gets the deepest child control at the specified point, accounting for the title offset.
-    /// </summary>
-    /// <param name="point">The point in this container's coordinate space.</param>
-    /// <param name="localPoint">The resulting point in the deepest child's coordinate space.</param>
-    /// <returns>The deepest child control, or null if none found.</returns>
-    protected override Control? GetDeepestChildAtPoint(Point point, out Point localPoint)
-    {
-        var adjustedPoint = new Point(point.X, point.Y - ContentOffsetY);
-        return base.GetDeepestChildAtPoint(adjustedPoint, out localPoint);
     }
 
     /// <summary>

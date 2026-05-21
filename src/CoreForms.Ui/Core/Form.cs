@@ -306,8 +306,8 @@ public class Form : ContainerControl, IWin32Window
         var args = e as MouseEventArgs;
         if (args != null && _captureControl != null)
         {
-            var capturePos = _captureControl.GetFormRelativePosition();
-            var localArgs = new MouseEventArgs(args.Button, args.Clicks, args.X - capturePos.X, args.Y - capturePos.Y, args.Delta);
+            var localPoint = _captureControl.PointToClient(new Point(args.X, args.Y));
+            var localArgs = new MouseEventArgs(args.Button, args.Clicks, localPoint.X, localPoint.Y, args.Delta);
             _captureControl.OnMouseDown(localArgs);
             return;
         }
@@ -332,8 +332,8 @@ public class Form : ContainerControl, IWin32Window
         var args = e as MouseEventArgs;
         if (args != null && _captureControl != null)
         {
-            var capturePos = _captureControl.GetFormRelativePosition();
-            var localArgs = new MouseEventArgs(args.Button, args.Clicks, args.X - capturePos.X, args.Y - capturePos.Y, args.Delta);
+            var localPoint = _captureControl.PointToClient(new Point(args.X, args.Y));
+            var localArgs = new MouseEventArgs(args.Button, args.Clicks, localPoint.X, localPoint.Y, args.Delta);
             _captureControl.OnMouseUp(localArgs);
             return;
         }
@@ -358,8 +358,8 @@ public class Form : ContainerControl, IWin32Window
         var args = e as MouseEventArgs;
         if (args != null && _captureControl != null)
         {
-            var capturePos = _captureControl.GetFormRelativePosition();
-            var localArgs = new MouseEventArgs(args.Button, args.Clicks, args.X - capturePos.X, args.Y - capturePos.Y, args.Delta);
+            var localPoint = _captureControl.PointToClient(new Point(args.X, args.Y));
+            var localArgs = new MouseEventArgs(args.Button, args.Clicks, localPoint.X, localPoint.Y, args.Delta);
             _captureControl.OnMouseMove(localArgs);
             return;
         }

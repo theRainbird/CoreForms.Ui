@@ -38,15 +38,19 @@ public class ContainerControl : Control
     /// <summary>
     /// Gets the direct child control at the specified point.
     /// Does not recurse into nested containers — only checks immediate children.
+    /// Accounts for the parent's <see cref="Control.GetChildRenderOffset"/> so that
+    /// visually shifted children (e.g. inside a GroupBox with a title) are hit-tested correctly.
     /// </summary>
     /// <param name="point">The point to test, in this container's coordinate space.</param>
     /// <returns>The direct child control at the point, or null if none found.</returns>
     protected virtual Control? GetChildAtPoint(Point point)
     {
+        var offset = GetChildRenderOffset();
+        var adjusted = new Point(point.X - offset.X, point.Y - offset.Y);
         for (int i = Controls.Count - 1; i >= 0; i--)
         {
             var child = Controls[i];
-            if (child.Visible && child.Enabled && child.HitTest(point))
+            if (child.Visible && child.Enabled && child.HitTest(adjusted))
             {
                 return child;
             }
@@ -56,9 +60,9 @@ public class ContainerControl : Control
 
     /// <summary>
     /// Finds the deepest child control at the specified point and computes its local coordinates.
-    /// Recursively descends through nested containers, tracking coordinate transformations at each level.
-    /// Uses GetChildAtPoint (virtual) so that derived classes like TabControl can apply
-    /// coordinate transformations (e.g., tab header offset).
+    /// Recursively descends through nested containers, using <see cref="GetChildRenderOffset"/>
+    /// at each level to correctly convert coordinates across containers with visual offsets
+    /// (e.g. GroupBox title, TabControl headers).
     /// </summary>
     /// <param name="point">The point in this container's coordinate space.</param>
     /// <param name="localPoint">The resulting point in the deepest child's coordinate space.</param>
@@ -69,7 +73,10 @@ public class ContainerControl : Control
         var child = GetChildAtPoint(point);
         if (child != null)
         {
-            var childLocal = new Point(point.X - child.X, point.Y - child.Y);
+            var offset = GetChildRenderOffset();
+            var childLocal = new Point(
+                point.X - child.X - offset.X,
+                point.Y - child.Y - offset.Y);
             if (child is ContainerControl container)
             {
                 var deepest = container.GetDeepestChildAtPoint(childLocal, out var deepestLocal);

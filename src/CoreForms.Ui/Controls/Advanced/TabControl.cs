@@ -222,57 +222,6 @@ public class TabControl : ContainerControl
     }
 
     /// <summary>
-    /// Finds the deepest child at the point, shifting coordinates past the tab header.
-    /// Manually handles the TabPage descent to avoid re-applying the header offset
-    /// through the virtual GetChildAtPoint dispatch.
-    /// </summary>
-    protected override Control? GetDeepestChildAtPoint(Point point, out Point localPoint)
-    {
-        var tabHeaderHeight = TabHeaderHeight;
-        if (point.Y < tabHeaderHeight)
-        {
-            localPoint = point;
-            return null;
-        }
-        var contentPoint = new Point(point.X, point.Y - tabHeaderHeight);
-        if (SelectedTab == null || !SelectedTab.HitTest(contentPoint))
-        {
-            localPoint = point;
-            return null;
-        }
-        var tabPageLocal = new Point(contentPoint.X - SelectedTab.X, contentPoint.Y - SelectedTab.Y);
-        var deepest = (Control?)SelectedTab;
-        var deepestLocal = tabPageLocal;
-        FindDeepest(SelectedTab, tabPageLocal, ref deepest, ref deepestLocal);
-        localPoint = deepestLocal;
-        return deepest;
-    }
-
-    /// <summary>
-    /// Recursively finds the deepest child control within a container.
-    /// </summary>
-    private void FindDeepest(ContainerControl container, Point containerLocal, ref Control? deepest, ref Point deepestLocal)
-    {
-        for (int i = container.Controls.Count - 1; i >= 0; i--)
-        {
-            var child = container.Controls[i];
-            if (!child.Visible || !child.HitTest(containerLocal))
-                continue;
-            var childLocal = new Point(containerLocal.X - child.X, containerLocal.Y - child.Y);
-            if (child is ContainerControl childContainer)
-            {
-                deepest = child;
-                deepestLocal = childLocal;
-                FindDeepest(childContainer, childLocal, ref deepest, ref deepestLocal);
-                return;
-            }
-            deepest = child;
-            deepestLocal = childLocal;
-            return;
-        }
-    }
-
-    /// <summary>
     /// Renders the tab control with its tab headers and selected page.
     /// </summary>
     /// <param name="g">The Graphics object to use for rendering.</param>

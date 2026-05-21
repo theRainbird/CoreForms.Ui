@@ -739,23 +739,36 @@ if (_focused != value)
     }
 
     /// <summary>
-    /// Converts screen coordinates to client coordinates.
+    /// Converts form/screen coordinates to client (control-local) coordinates.
+    /// Walks the parent chain to compute the control's origin in form coordinates.
     /// </summary>
-    /// <param name="screenPoint">A point in screen coordinates.</param>
-    /// <returns>A point in client coordinates.</returns>
+    /// <param name="screenPoint">A point in form (screen) coordinates.</param>
+    /// <returns>A point in control-local coordinates.</returns>
     public Point PointToClient(Point screenPoint)
     {
-        return screenPoint;
+        var origin = PointToScreen(Point.Empty);
+        return new Point(screenPoint.X - origin.X, screenPoint.Y - origin.Y);
     }
 
     /// <summary>
-    /// Converts client coordinates to screen coordinates.
+    /// Converts client (control-local) coordinates to form/screen coordinates.
+    /// Walks the parent chain, accumulating positions and render offsets.
     /// </summary>
-    /// <param name="clientPoint">A point in client coordinates.</param>
-    /// <returns>A point in screen coordinates.</returns>
+    /// <param name="clientPoint">A point in control-local coordinates.</param>
+    /// <returns>A point in form (screen) coordinates.</returns>
     public Point PointToScreen(Point clientPoint)
     {
-        return clientPoint;
+        int x = X + clientPoint.X;
+        int y = Y + clientPoint.Y;
+        Control? current = Parent;
+        while (current != null)
+        {
+            var offset = current.GetChildRenderOffset();
+            x += current.X + offset.X;
+            y += current.Y + offset.Y;
+            current = current.Parent;
+        }
+        return new Point(x, y);
     }
 
     /// <summary>
