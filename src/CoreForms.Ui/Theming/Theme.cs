@@ -362,6 +362,47 @@ public abstract class Theme
     /// </summary>
     public abstract Color SeparatorLight { get; }
 
+    // Calendar colors
+    /// <summary>
+    /// Gets the calendar header background color.
+    /// </summary>
+    public abstract Color CalendarHeaderBackground { get; }
+
+    /// <summary>
+    /// Gets the background color for today's date cell.
+    /// </summary>
+    public abstract Color CalendarTodayHighlight { get; }
+
+    /// <summary>
+    /// Gets the border color for the selected date cell.
+    /// </summary>
+    public abstract Color CalendarSelectedBorder { get; }
+
+    /// <summary>
+    /// Gets the background color for weekend day cells.
+    /// </summary>
+    public abstract Color CalendarWeekendBackground { get; }
+
+    /// <summary>
+    /// Gets the background color for work hours in week/day views.
+    /// </summary>
+    public abstract Color CalendarWorkHoursBackground { get; }
+
+    /// <summary>
+    /// Gets the default color for appointment bars.
+    /// </summary>
+    public abstract Color CalendarAppointmentDefault { get; }
+
+    /// <summary>
+    /// Gets the time ruler text color.
+    /// </summary>
+    public abstract Color CalendarTimeRulerText { get; }
+
+    /// <summary>
+    /// Gets the day header background color.
+    /// </summary>
+    public abstract Color CalendarDayHeaderBackground { get; }
+
     // Fonts
     /// <summary>
     /// Gets the default font for controls.

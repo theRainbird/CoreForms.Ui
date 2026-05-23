@@ -289,7 +289,21 @@ public class WebView : Control
     {
         base.OnMouseMove(e);
         if (_platformHandler is Platform.Linux.CefPlatformHandler cef && e is MouseEventArgs me)
+        {
             cef.SendMouseMove(me.X, me.Y);
+            var form = FindForm();
+            if (form != null)
+                form.Cursor = cef.CurrentCursor;
+        }
+    }
+
+    /// <inheritdoc/>
+    protected override void OnMouseLeave(EventArgs e)
+    {
+        base.OnMouseLeave(e);
+        var form = FindForm();
+        if (form != null)
+            form.Cursor = null;
     }
 
     /// <inheritdoc/>
@@ -372,12 +386,6 @@ public class WebView : Control
 
             var form = FindForm();
             _platformHandler.Initialize(form?.WindowId ?? 0);
-
-            if (!_platformHandler.IsInitialized)
-            {
-                _initFailed = true;
-                _initError = "Platform handler initialization failed (native libraries not found or incompatible)";
-            }
 
             _isLoaded = true;
         }

@@ -25,6 +25,7 @@ dotnet run --project samples/CoreForms.Ui.Demo  # Run demo (requires X11/display
 - TabControl, TabPage, StatusStrip
 - MessageBox (modal dialog with standard button combinations, icons, localization)
 - DataGridView
+- CalendarView (Month/Week/Day views, appointment display & editing with modal dialog, mini-calendar navigation, Outlook-like UI)
 
 **Layout:**
 - FlowLayoutPanel, TableLayoutPanel

@@ -217,6 +217,31 @@ public class LightTheme : Theme
     /// <inheritdoc />
     public override Color SeparatorLight => Color.FromArgb(255, 255, 255);
 
+    // Calendar colors
+    /// <inheritdoc />
+    public override Color CalendarHeaderBackground => Color.FromArgb(248, 248, 248);
+
+    /// <inheritdoc />
+    public override Color CalendarTodayHighlight => Color.FromArgb(230, 240, 250);
+
+    /// <inheritdoc />
+    public override Color CalendarSelectedBorder => Color.FromArgb(10, 36, 99);
+
+    /// <inheritdoc />
+    public override Color CalendarWeekendBackground => Color.FromArgb(245, 245, 245);
+
+    /// <inheritdoc />
+    public override Color CalendarWorkHoursBackground => Color.FromArgb(250, 250, 250);
+
+    /// <inheritdoc />
+    public override Color CalendarAppointmentDefault => Color.FromArgb(0, 120, 215);
+
+    /// <inheritdoc />
+    public override Color CalendarTimeRulerText => Color.FromArgb(100, 100, 100);
+
+    /// <inheritdoc />
+    public override Color CalendarDayHeaderBackground => Color.FromArgb(242, 242, 242);
+
     // Fonts
     /// <inheritdoc />
     public override Font DefaultFont => ResolveFont(new[] { "Segoe UI", "Liberation Sans", "DejaVu Sans", "FreeSans", "Arial" }, 14f);

@@ -5,6 +5,7 @@ using System.Runtime.InteropServices;
 using System.Threading.Tasks;
 using CoreForms.Ui.WebBrowser.Controls;
 using CoreForms.Ui.WebBrowser.Events;
+using CoreForms.Ui.Core;
 using KeyEventArgs = CoreForms.Ui.Core.KeyEventArgs;
 using MouseEventArgs = CoreForms.Ui.Core.MouseEventArgs;
 using Rectangle = CoreForms.Ui.Core.Rectangle;
@@ -94,6 +95,18 @@ internal sealed class CefFocusHandlerImpl : CefFocusHandler
     protected override void OnTakeFocus(CefBrowser browser, bool next) { }
 }
 
+internal sealed class CefDisplayHandlerImpl : CefDisplayHandler
+{
+    private readonly CefPlatformHandler _owner;
+    public CefDisplayHandlerImpl(CefPlatformHandler owner) => _owner = owner;
+
+    protected override bool OnCursorChange(CefBrowser browser, IntPtr cursorHandle, CefCursorType type, CefCursorInfo customCursorInfo)
+    {
+        _owner.OnCursorChanged(type);
+        return true;
+    }
+}
+
 internal sealed class CefClientImpl : CefClient
 {
     private readonly CefPlatformHandler _owner;
@@ -102,6 +115,7 @@ internal sealed class CefClientImpl : CefClient
     private readonly CefLoadHandler _loader;
     private readonly CefRequestHandler _request;
     private readonly CefFocusHandler _focus;
+    private readonly CefDisplayHandler _display;
 
     public CefClientImpl(CefPlatformHandler owner)
     {
@@ -111,6 +125,7 @@ internal sealed class CefClientImpl : CefClient
         _loader = new CefLoadHandlerImpl(owner);
         _request = new CefRequestHandlerImpl();
         _focus = new CefFocusHandlerImpl(owner);
+        _display = new CefDisplayHandlerImpl(owner);
     }
 
     protected override CefRenderHandler GetRenderHandler() => _renderer;
@@ -118,6 +133,7 @@ internal sealed class CefClientImpl : CefClient
     protected override CefLoadHandler GetLoadHandler() => _loader;
     protected override CefRequestHandler GetRequestHandler() => _request;
     protected override CefFocusHandler GetFocusHandler() => _focus;
+    protected override CefDisplayHandler GetDisplayHandler() => _display;
 }
 
 internal sealed class CefBrowserProcessHandlerImpl : CefBrowserProcessHandler
@@ -160,6 +176,7 @@ public class CefPlatformHandler : IWebViewPlatformHandler
     private string? _pendingUrl;
     private CoreForms.Ui.Core.MouseButtons _mouseButtons;
     private double _browserZoomLevel;
+    private SystemCursorType? _currentCursor;
 
     // Popup (select dropdown) tracking
     private bool _popupVisible;
@@ -178,6 +195,11 @@ public class CefPlatformHandler : IWebViewPlatformHandler
     public bool CanGoBack => _browser?.CanGoBack ?? false;
     public bool CanGoForward => _browser?.CanGoForward ?? false;
     public bool IsInitialized => _browser != null;
+
+    /// <summary>
+    /// Gets the last cursor type reported by CEF, or null for the default arrow cursor.
+    /// </summary>
+    public SystemCursorType? CurrentCursor => _currentCursor;
 
     public event EventHandler<WebNavigatingEventArgs>? Navigating;
     public event EventHandler<WebNavigatedEventArgs>? Navigated;
@@ -227,30 +249,22 @@ public class CefPlatformHandler : IWebViewPlatformHandler
 
     public void Initialize(uint parentWindowId)
     {
-        try
-        {
-            InitializeCef();
-            CoreForms.Ui.Platform.Platform.OnFrame += CefRuntime.DoMessageLoopWork;
+        InitializeCef();
+        CoreForms.Ui.Platform.Platform.OnFrame += CefRuntime.DoMessageLoopWork;
 
-            // Use the actual WebView size from the start (device-aware)
-            Width = DeviceWidth;
-            Height = DeviceHeight;
+        Width = DeviceWidth;
+        Height = DeviceHeight;
 
-            var windowInfo = CefWindowInfo.Create();
-            windowInfo.SetAsWindowless(IntPtr.Zero, false);
+        var windowInfo = CefWindowInfo.Create();
+        windowInfo.SetAsWindowless(IntPtr.Zero, false);
 
-            var client = new CefClientImpl(this);
-            var settings = new CefBrowserSettings();
+        var client = new CefClientImpl(this);
+        var settings = new CefBrowserSettings();
 
-            _currentUrl = "about:blank";
-            CefBrowserHost.CreateBrowser(windowInfo, client, settings, _currentUrl, null);
+        _currentUrl = "about:blank";
+        CefBrowserHost.CreateBrowser(windowInfo, client, settings, _currentUrl, null);
 
-            Console.WriteLine("[CefPlatformHandler] Browser created (OSR)");
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"[CefPlatformHandler] Init failed: {ex}");
-        }
+        Console.WriteLine("[CefPlatformHandler] Browser created (OSR)");
     }
 
     public void Navigate(string url)
@@ -459,6 +473,41 @@ public class CefPlatformHandler : IWebViewPlatformHandler
         _currentUrl = url;
         Navigated?.Invoke(this, new WebNavigatedEventArgs(url, WebNavigationResult.Success));
     }
+
+    internal void OnCursorChanged(CefCursorType type)
+    {
+        _currentCursor = MapCursorType(type);
+    }
+
+    private static SystemCursorType? MapCursorType(CefCursorType type) => type switch
+    {
+        CefCursorType.Pointer => null,
+        CefCursorType.None => null,
+        CefCursorType.Cross => SystemCursorType.Crosshair,
+        CefCursorType.Hand => SystemCursorType.Hand,
+        CefCursorType.Grab => SystemCursorType.Hand,
+        CefCursorType.Grabbing => SystemCursorType.Hand,
+        CefCursorType.IBeam => SystemCursorType.IBeam,
+        CefCursorType.VerticalText => SystemCursorType.IBeam,
+        CefCursorType.EastResize => SystemCursorType.SizeWE,
+        CefCursorType.WestResize => SystemCursorType.SizeWE,
+        CefCursorType.EastWestResize => SystemCursorType.SizeWE,
+        CefCursorType.NorthEastSouthWestResize => SystemCursorType.SizeWE,
+        CefCursorType.ColumnResize => SystemCursorType.SizeWE,
+        CefCursorType.MiddlePanningHorizontal => SystemCursorType.SizeWE,
+        CefCursorType.NorthResize => SystemCursorType.SizeNS,
+        CefCursorType.SouthResize => SystemCursorType.SizeNS,
+        CefCursorType.NorthSouthResize => SystemCursorType.SizeNS,
+        CefCursorType.NorthWestSouthEastResize => SystemCursorType.SizeNS,
+        CefCursorType.RowResize => SystemCursorType.SizeNS,
+        CefCursorType.MiddlePanningVertical => SystemCursorType.SizeNS,
+        CefCursorType.Move => SystemCursorType.SizeAll,
+        CefCursorType.MiddlePanning => SystemCursorType.SizeAll,
+        CefCursorType.NotAllowed => SystemCursorType.NotAllowed,
+        CefCursorType.NoDrop => SystemCursorType.NotAllowed,
+        CefCursorType.DragAndDropNone => SystemCursorType.NotAllowed,
+        _ => null
+    };
 
     public byte[]? GetPixelBuffer() => _pixelBuffer;
     public int BufferWidth => _bufferWidth;

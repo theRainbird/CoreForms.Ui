@@ -303,6 +303,7 @@ class Program
         tabControl.AddTabPage(CreateSplitPanelPage());
         tabControl.AddTabPage(CreateWebBrowserPage());
         tabControl.AddTabPage(CreateHtmlEditorPage());
+        tabControl.AddTabPage(CreateCalendarPage());
 
         return tabControl;
     }
@@ -1540,6 +1541,87 @@ class Program
         page.Controls.Add(toolStrip);
         page.Controls.Add(htmlBox);
 
+        return page;
+    }
+
+    static TabPage CreateCalendarPage()
+    {
+        var page = new TabPage { Text = "Calendar" };
+
+        var calendar = new CalendarView
+        {
+            Dock = DockStyle.Fill,
+            ViewType = CalendarViewType.Month
+        };
+
+        // Add some sample appointments
+        var today = DateTime.Today;
+        calendar.Appointments.Add(new CalendarAppointment
+        {
+            Subject = "Team Meeting",
+            StartTime = today.AddHours(10),
+            EndTime = today.AddHours(11),
+            Location = "Room 101",
+            CategoryColor = CoreForms.Ui.Controls.Advanced.CalendarView.CategoryColors[0]
+        });
+
+        calendar.Appointments.Add(new CalendarAppointment
+        {
+            Subject = "Lunch",
+            StartTime = today.AddHours(12),
+            EndTime = today.AddHours(13),
+            Location = "Cafeteria",
+            CategoryColor = CoreForms.Ui.Controls.Advanced.CalendarView.CategoryColors[2]
+        });
+
+        calendar.Appointments.Add(new CalendarAppointment
+        {
+            Subject = "Project Review",
+            StartTime = today.AddHours(14).AddMinutes(30),
+            EndTime = today.AddHours(16),
+            Location = "Conference Room",
+            CategoryColor = CoreForms.Ui.Controls.Advanced.CalendarView.CategoryColors[1]
+        });
+
+        calendar.Appointments.Add(new CalendarAppointment
+        {
+            Subject = "Workshop: Cross-Platform UI",
+            StartTime = today.AddDays(1).AddHours(9),
+            EndTime = today.AddDays(1).AddHours(12),
+            Location = "Training Room",
+            CategoryColor = CoreForms.Ui.Controls.Advanced.CalendarView.CategoryColors[3]
+        });
+
+        calendar.Appointments.Add(new CalendarAppointment
+        {
+            Subject = "Sprint Planning",
+            StartTime = today.AddDays(3).AddHours(10),
+            EndTime = today.AddDays(3).AddHours(12),
+            Location = "Room 204",
+            CategoryColor = CoreForms.Ui.Controls.Advanced.CalendarView.CategoryColors[0]
+        });
+
+        calendar.Appointments.Add(new CalendarAppointment
+        {
+            Subject = "Conference",
+            StartTime = today.AddDays(10),
+            EndTime = today.AddDays(12),
+            IsAllDay = true,
+            CategoryColor = CoreForms.Ui.Controls.Advanced.CalendarView.CategoryColors[4]
+        });
+
+        // Event handlers
+        calendar.DateSelected += (s, e) =>
+        {
+            _statusLabel!.Text = $"Selected: {e.Date:dddd, MMMM dd, yyyy}";
+        };
+
+        calendar.ViewChanged += (s, e) =>
+        {
+            _statusLabel!.Text = $"View: {calendar.ViewType}";
+        };
+
+        page.Controls.Add(calendar);
         return page;
     }
 }

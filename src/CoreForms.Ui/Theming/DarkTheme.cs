@@ -217,6 +217,31 @@ public class DarkTheme : Theme
     /// <inheritdoc />
     public override Color SeparatorLight => Color.FromArgb(60, 60, 63);
 
+    // Calendar colors
+    /// <inheritdoc />
+    public override Color CalendarHeaderBackground => Color.FromArgb(58, 58, 60);
+
+    /// <inheritdoc />
+    public override Color CalendarTodayHighlight => Color.FromArgb(58, 95, 122);
+
+    /// <inheritdoc />
+    public override Color CalendarSelectedBorder => Color.FromArgb(0, 120, 212);
+
+    /// <inheritdoc />
+    public override Color CalendarWeekendBackground => Color.FromArgb(42, 42, 45);
+
+    /// <inheritdoc />
+    public override Color CalendarWorkHoursBackground => Color.FromArgb(50, 50, 53);
+
+    /// <inheritdoc />
+    public override Color CalendarAppointmentDefault => Color.FromArgb(0, 120, 212);
+
+    /// <inheritdoc />
+    public override Color CalendarTimeRulerText => Color.FromArgb(140, 140, 140);
+
+    /// <inheritdoc />
+    public override Color CalendarDayHeaderBackground => Color.FromArgb(50, 50, 53);
+
     // Fonts
     /// <inheritdoc />
     public override Font DefaultFont => ResolveFont(new[] { "Segoe UI", "Liberation Sans", "DejaVu Sans", "FreeSans", "Arial" }, 14f);
