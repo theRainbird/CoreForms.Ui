@@ -48,14 +48,14 @@ public class CalendarView : ContainerControl
 
     public static readonly Color[] CategoryColors =
     {
-        Color.FromArgb(0, 120, 215),
-        Color.FromArgb(196, 43, 28),
-        Color.FromArgb(0, 150, 25),
-        Color.FromArgb(196, 160, 0),
-        Color.FromArgb(128, 0, 196),
-        Color.FromArgb(0, 180, 180),
-        Color.FromArgb(255, 100, 50),
-        Color.FromArgb(100, 100, 100),
+        Color.FromArgb(100, 160, 220),
+        Color.FromArgb(220, 120, 110),
+        Color.FromArgb(110, 180, 110),
+        Color.FromArgb(220, 200, 100),
+        Color.FromArgb(170, 130, 210),
+        Color.FromArgb(100, 190, 190),
+        Color.FromArgb(230, 160, 100),
+        Color.FromArgb(160, 160, 160),
     };
 
     // ============================================================
@@ -92,19 +92,22 @@ public class CalendarView : ContainerControl
     // Scrollbar
     private readonly ScrollBarEngine _vScrollBar = new();
     private Rectangle _scrollBarBounds;
+    private int _dayColWidth;
 
     // Appointment selection, drag, and resize state
     private CalendarAppointment? _selectedAppointment;
     private bool _allowEdit = true;
     private bool _isDragging;
     private bool _isResizing;
-    private enum DragHandle { None, Top, Bottom, Body }
+    private enum DragHandle { None, Top, Bottom, LeftEdge, RightEdge, Body }
     private DragHandle _dragHandle = DragHandle.None;
+    private int _dragStartMouseX;
     private int _dragStartMouseY;
     private DateTime _dragOriginalStart;
     private DateTime _dragOriginalEnd;
     private int _dragOriginalScrollOffset;
     private const int ResizeHandleHeight = 7;
+    private const int ResizeHandleWidth = 7;
 
     // ============================================================
     // Structs
@@ -822,7 +825,8 @@ public class CalendarView : ContainerControl
         var smallFont = theme.SmallFont;
         var today = DateTime.Today;
 
-        int dayColW = (w - TimeRulerWidth) / 7;
+        _dayColWidth = (w - TimeRulerWidth) / 7;
+        int dayColW = _dayColWidth;
         if (dayColW < 60) dayColW = 60;
 
         int totalContentH = 48 * SlotHeight;
@@ -937,6 +941,7 @@ public class CalendarView : ContainerControl
         }
 
         // Draw appointments in week view (keep all-day layouts already added above)
+        int headerBottom = y + dayHeaderH;
         for (int i = 0; i < 7; i++)
         {
             var day = _currentDate.AddDays(i);
@@ -948,15 +953,30 @@ public class CalendarView : ContainerControl
                 if (layout.Bounds.Y + layout.Bounds.Height < y || layout.Bounds.Y > y + h)
                     continue;
 
+                // Clip appointment to below header
+                int clipY = Math.Max(layout.Bounds.Y, headerBottom);
+                int clipH = layout.Bounds.Height - (clipY - layout.Bounds.Y);
+                if (clipH <= 0) continue;
+
                 var barColor = layout.Appointment.CategoryColor.A > 0
                     ? layout.Appointment.CategoryColor
                     : theme.CalendarAppointmentDefault;
-                g.FillRectangle(barColor, layout.Bounds.X, layout.Bounds.Y, layout.Bounds.Width, layout.Bounds.Height);
+                g.FillRectangle(barColor, layout.Bounds.X, clipY, layout.Bounds.Width, clipH);
 
-                var appText = TruncateText(g, layout.Appointment.Subject, smallFont, layout.Bounds.Width - 4);
-                g.DrawString(appText, smallFont, Color.White, layout.Bounds.X + 2, layout.Bounds.Y + 2);
+                if (clipY == layout.Bounds.Y)
+                {
+                    var appText = TruncateText(g, layout.Appointment.Subject, smallFont, layout.Bounds.Width - 4);
+                    g.DrawString(appText, smallFont, Color.White, layout.Bounds.X + 2, clipY + 2);
+                }
 
-                _currentAppLayouts.Add(layout);
+                var clippedLayout = new AppointmentLayout
+                {
+                    Appointment = layout.Appointment,
+                    Bounds = new Rectangle(layout.Bounds.X, clipY, layout.Bounds.Width, clipH),
+                    Column = layout.Column,
+                    TotalColumns = layout.TotalColumns
+                };
+                _currentAppLayouts.Add(clippedLayout);
             }
         }
 
@@ -1074,21 +1094,36 @@ public class CalendarView : ContainerControl
 
         // Appointments for day (all-day already added above)
         var dayLayouts = LayoutDayAppointments(day, x + TimeRulerWidth, dayColW, timeTop, slotH);
+        int dayHeaderBottom = y + dayHeaderH;
 
         foreach (var layout in dayLayouts)
         {
             if (layout.Bounds.Y + layout.Bounds.Height < y || layout.Bounds.Y > y + h)
                 continue;
 
+            int clipY = Math.Max(layout.Bounds.Y, dayHeaderBottom);
+            int clipH = layout.Bounds.Height - (clipY - layout.Bounds.Y);
+            if (clipH <= 0) continue;
+
             var barColor = layout.Appointment.CategoryColor.A > 0
                 ? layout.Appointment.CategoryColor
                 : theme.CalendarAppointmentDefault;
-            g.FillRectangle(barColor, layout.Bounds.X, layout.Bounds.Y, layout.Bounds.Width, layout.Bounds.Height);
+            g.FillRectangle(barColor, layout.Bounds.X, clipY, layout.Bounds.Width, clipH);
 
-            var text = TruncateText(g, layout.Appointment.Subject, smallFont, layout.Bounds.Width - 4);
-            g.DrawString(text, smallFont, Color.White, layout.Bounds.X + 2, layout.Bounds.Y + 2);
+            if (clipY == layout.Bounds.Y)
+            {
+                var text = TruncateText(g, layout.Appointment.Subject, smallFont, layout.Bounds.Width - 4);
+                g.DrawString(text, smallFont, Color.White, layout.Bounds.X + 2, clipY + 2);
+            }
 
-            _currentAppLayouts.Add(layout);
+            var clippedLayout = new AppointmentLayout
+            {
+                Appointment = layout.Appointment,
+                Bounds = new Rectangle(layout.Bounds.X, clipY, layout.Bounds.Width, clipH),
+                Column = layout.Column,
+                TotalColumns = layout.TotalColumns
+            };
+            _currentAppLayouts.Add(clippedLayout);
         }
 
         // Draw focus border and resize handles on selected appointment
@@ -1196,25 +1231,66 @@ public class CalendarView : ContainerControl
 
     private void DrawAppointmentFocusAndHandles(Graphics g, List<AppointmentLayout> layouts, Theme theme)
     {
+        // First pass: find all layout entries for this appointment
+        AppointmentLayout? firstEntry = null;
+        AppointmentLayout? lastEntry = null;
+        int count = 0;
+        foreach (var layout in layouts)
+        {
+            if (layout.Appointment != _selectedAppointment) continue;
+            if (firstEntry == null) firstEntry = layout;
+            lastEntry = layout;
+            count++;
+        }
+
+        if (firstEntry == null) return;
+
+        // Draw focus border on all segments
+        var firstBounds = firstEntry.Value.Bounds;
+        var lastBounds = lastEntry.Value.Bounds;
+        bool isMultiDay = count > 1;
+        bool canEdit = _allowEdit && !_selectedAppointment.IsReadOnly;
+
         foreach (var layout in layouts)
         {
             if (layout.Appointment != _selectedAppointment) continue;
 
             var r = layout.Bounds;
-            bool canEdit = _allowEdit && !layout.Appointment.IsReadOnly;
-
             g.DrawRectangle(theme.FocusIndicator, r.X - 1, r.Y - 1, r.Width + 2, r.Height + 2, 2);
 
+            bool isFirst = r.X == firstBounds.X && r.Y == firstBounds.Y;
+            bool isLast = r.X == lastBounds.X && r.Y == lastBounds.Y;
+
+            // Top/bottom handles: only on first and last segments
             if (canEdit && (_viewType == CalendarViewType.Week || _viewType == CalendarViewType.Day) && r.Height >= ResizeHandleHeight * 3)
             {
-                int handleW = Math.Min(r.Width - 8, 40);
-                int handleX = r.X + (r.Width - handleW) / 2;
+                if (isFirst || !isMultiDay)
+                {
+                    int handleW = Math.Min(r.Width - 8, 40);
+                    int handleX = r.X + (r.Width - handleW) / 2;
+                    g.FillRectangle(theme.FocusIndicator, handleX, r.Y - 2, handleW, ResizeHandleHeight);
+                }
 
-                g.FillRectangle(theme.FocusIndicator, handleX, r.Y - 2, handleW, ResizeHandleHeight);
-                g.FillRectangle(theme.FocusIndicator, handleX, r.Bottom - ResizeHandleHeight + 2, handleW, ResizeHandleHeight);
+                if (isLast || !isMultiDay)
+                {
+                    int handleW = Math.Min(r.Width - 8, 40);
+                    int handleX = r.X + (r.Width - handleW) / 2;
+                    g.FillRectangle(theme.FocusIndicator, handleX, r.Bottom - ResizeHandleHeight + 2, handleW, ResizeHandleHeight);
+                }
             }
 
-            break;
+            // Left/right resize handles: left on first day, right on last day (week view)
+            if (canEdit && _viewType == CalendarViewType.Week && r.Height >= ResizeHandleHeight * 3)
+            {
+                int handleH = Math.Min(r.Height - 8, 30);
+                int handleY = r.Y + (r.Height - handleH) / 2;
+
+                if (isFirst || !isMultiDay)
+                    g.FillRectangle(theme.FocusIndicator, r.X - 3, handleY, ResizeHandleWidth, handleH);
+
+                if (isLast || !isMultiDay)
+                    g.FillRectangle(theme.FocusIndicator, r.Right - ResizeHandleWidth + 3, handleY, ResizeHandleWidth, handleH);
+            }
         }
     }
 
@@ -1237,7 +1313,9 @@ public class CalendarView : ContainerControl
         MonthCell,
         Appointment,
         AppointmentResizeTop,
-        AppointmentResizeBottom
+        AppointmentResizeBottom,
+        AppointmentResizeLeft,
+        AppointmentResizeRight
     }
 
     private (HitTarget target, object? data) CalendarHitTest(Point point)
@@ -1271,16 +1349,31 @@ public class CalendarView : ContainerControl
                 if (layout.Appointment != _selectedAppointment) continue;
                 if (!_allowEdit || layout.Appointment.IsReadOnly) break;
 
-                int handleW = Math.Min(layout.Bounds.Width - 8, 40);
-                int handleX = layout.Bounds.X + (layout.Bounds.Width - handleW) / 2;
+                int topBotHandleW = Math.Min(layout.Bounds.Width - 8, 40);
+                int topBotHandleX = layout.Bounds.X + (layout.Bounds.Width - topBotHandleW) / 2;
 
-                var topRect = new Rectangle(handleX, layout.Bounds.Y - 2, handleW, ResizeHandleHeight + 2);
-                var bottomRect = new Rectangle(handleX, layout.Bounds.Bottom - ResizeHandleHeight, handleW, ResizeHandleHeight + 2);
+                var topRect = new Rectangle(topBotHandleX, layout.Bounds.Y - 2, topBotHandleW, ResizeHandleHeight + 2);
+                var bottomRect = new Rectangle(topBotHandleX, layout.Bounds.Bottom - ResizeHandleHeight, topBotHandleW, ResizeHandleHeight + 2);
 
                 if (topRect.Contains(point))
                     return (HitTarget.AppointmentResizeTop, layout.Appointment);
                 if (bottomRect.Contains(point))
                     return (HitTarget.AppointmentResizeBottom, layout.Appointment);
+
+                // Left/right handles only in week view and for tall enough appointments
+                if (_viewType == CalendarViewType.Week && layout.Bounds.Height >= ResizeHandleHeight * 3)
+                {
+                    int leftRightHandleH = Math.Min(layout.Bounds.Height - 8, 30);
+                    int leftRightHandleY = layout.Bounds.Y + (layout.Bounds.Height - leftRightHandleH) / 2;
+
+                    var leftRect = new Rectangle(layout.Bounds.X - 3, leftRightHandleY, ResizeHandleWidth + 4, leftRightHandleH);
+                    var rightRect = new Rectangle(layout.Bounds.Right - ResizeHandleWidth - 1, leftRightHandleY, ResizeHandleWidth + 4, leftRightHandleH);
+
+                    if (leftRect.Contains(point))
+                        return (HitTarget.AppointmentResizeLeft, layout.Appointment);
+                    if (rightRect.Contains(point))
+                        return (HitTarget.AppointmentResizeRight, layout.Appointment);
+                }
 
                 break;
             }
@@ -1399,12 +1492,18 @@ public class CalendarView : ContainerControl
             }
             case HitTarget.AppointmentResizeTop:
             case HitTarget.AppointmentResizeBottom:
+            case HitTarget.AppointmentResizeLeft:
+            case HitTarget.AppointmentResizeRight:
                 if (data is CalendarAppointment resizeApp && _allowEdit && !resizeApp.IsReadOnly)
                 {
                     _selectedAppointment = resizeApp;
                     OnAppointmentSelected(new AppointmentSelectedEventArgs(resizeApp));
                     _isResizing = true;
-                    _dragHandle = target == HitTarget.AppointmentResizeTop ? DragHandle.Top : DragHandle.Bottom;
+                    if (target == HitTarget.AppointmentResizeTop) _dragHandle = DragHandle.Top;
+                    else if (target == HitTarget.AppointmentResizeBottom) _dragHandle = DragHandle.Bottom;
+                    else if (target == HitTarget.AppointmentResizeLeft) _dragHandle = DragHandle.LeftEdge;
+                    else _dragHandle = DragHandle.RightEdge;
+                    _dragStartMouseX = point.X;
                     _dragStartMouseY = point.Y;
                     _dragOriginalStart = resizeApp.StartTime;
                     _dragOriginalEnd = resizeApp.EndTime;
@@ -1433,6 +1532,7 @@ public class CalendarView : ContainerControl
                     {
                         _isDragging = true;
                         _dragHandle = DragHandle.Body;
+                        _dragStartMouseX = point.X;
                         _dragStartMouseY = point.Y;
                         _dragOriginalStart = app.StartTime;
                         _dragOriginalEnd = app.EndTime;
@@ -1545,35 +1645,61 @@ public class CalendarView : ContainerControl
             if (_isDragging && _selectedAppointment != null)
             {
                 int deltaY = args.Y - _dragStartMouseY;
+                int deltaX = args.X - _dragStartMouseX;
                 int deltaSlots = (int)Math.Round((double)deltaY / SlotHeight);
                 int minutesDelta = deltaSlots * 30;
+                int dayDelta = (_viewType == CalendarViewType.Week && _dayColWidth > 0)
+                    ? (int)Math.Round((double)deltaX / _dayColWidth) : 0;
 
-                _selectedAppointment.StartTime = _dragOriginalStart.AddMinutes(minutesDelta);
-                _selectedAppointment.EndTime = _dragOriginalEnd.AddMinutes(minutesDelta);
+                var newStart = _dragOriginalStart.Date
+                    .AddDays(dayDelta)
+                    .Add(_dragOriginalStart.TimeOfDay)
+                    .AddMinutes(minutesDelta);
+                var duration = _dragOriginalEnd - _dragOriginalStart;
+                _selectedAppointment.StartTime = newStart;
+                _selectedAppointment.EndTime = newStart.Add(duration);
                 Invalidate();
                 handled = true;
             }
             else if (_isResizing && _selectedAppointment != null)
             {
                 int deltaY = args.Y - _dragStartMouseY;
+                int deltaX = args.X - _dragStartMouseX;
                 int deltaSlots = (int)Math.Round((double)deltaY / SlotHeight);
                 int minutesDelta = deltaSlots * 30;
+                int dayDelta = (_viewType == CalendarViewType.Week && _dayColWidth > 0
+                    && (_dragHandle == DragHandle.LeftEdge || _dragHandle == DragHandle.RightEdge))
+                    ? (int)Math.Round((double)deltaX / _dayColWidth) : 0;
 
                 if (_dragHandle == DragHandle.Top)
                 {
                     var newStart = _dragOriginalStart.AddMinutes(minutesDelta);
                     if (newStart < _dragOriginalEnd)
-                    {
                         _selectedAppointment.StartTime = newStart;
-                    }
                 }
                 else if (_dragHandle == DragHandle.Bottom)
                 {
                     var newEnd = _dragOriginalEnd.AddMinutes(minutesDelta);
                     if (newEnd > _selectedAppointment.StartTime)
-                    {
                         _selectedAppointment.EndTime = newEnd;
-                    }
+                }
+                else if (_dragHandle == DragHandle.LeftEdge)
+                {
+                    var newStart = _dragOriginalStart.Date
+                        .AddDays(dayDelta)
+                        .Add(_dragOriginalStart.TimeOfDay)
+                        .AddMinutes(minutesDelta);
+                    if (newStart < _selectedAppointment.EndTime)
+                        _selectedAppointment.StartTime = newStart;
+                }
+                else if (_dragHandle == DragHandle.RightEdge)
+                {
+                    var newEnd = _dragOriginalEnd.Date
+                        .AddDays(dayDelta)
+                        .Add(_dragOriginalEnd.TimeOfDay)
+                        .AddMinutes(minutesDelta);
+                    if (newEnd > _selectedAppointment.StartTime)
+                        _selectedAppointment.EndTime = newEnd;
                 }
                 Invalidate();
                 handled = true;
@@ -1583,7 +1709,8 @@ public class CalendarView : ContainerControl
             {
                 // Cursor for resize handles
                 var form = FindForm();
-                bool overResizeHandle = false;
+                bool overResizeNS = false;
+                bool overResizeWE = false;
                 if (_selectedAppointment != null && (_viewType == CalendarViewType.Week || _viewType == CalendarViewType.Day))
                 {
                     foreach (var layout in _currentAppLayouts)
@@ -1591,27 +1718,42 @@ public class CalendarView : ContainerControl
                         if (layout.Appointment != _selectedAppointment) continue;
                         if (!_allowEdit || layout.Appointment.IsReadOnly) break;
 
-                        int handleW = Math.Min(layout.Bounds.Width - 8, 40);
-                        int handleX = layout.Bounds.X + (layout.Bounds.Width - handleW) / 2;
+                        int tbHandleW = Math.Min(layout.Bounds.Width - 8, 40);
+                        int tbHandleX = layout.Bounds.X + (layout.Bounds.Width - tbHandleW) / 2;
 
-                        var topRect = new Rectangle(handleX, layout.Bounds.Y - 3, handleW, ResizeHandleHeight + 4);
-                        var bottomRect = new Rectangle(handleX, layout.Bounds.Bottom - ResizeHandleHeight - 1, handleW, ResizeHandleHeight + 4);
+                        var topRect = new Rectangle(tbHandleX, layout.Bounds.Y - 3, tbHandleW, ResizeHandleHeight + 4);
+                        var bottomRect = new Rectangle(tbHandleX, layout.Bounds.Bottom - ResizeHandleHeight - 1, tbHandleW, ResizeHandleHeight + 4);
 
                         if (topRect.Contains(args.X, args.Y) || bottomRect.Contains(args.X, args.Y))
+                            overResizeNS = true;
+
+                        if (_viewType == CalendarViewType.Week && layout.Bounds.Height >= ResizeHandleHeight * 3)
                         {
-                            overResizeHandle = true;
+                            int lrHandleH = Math.Min(layout.Bounds.Height - 8, 30);
+                            int lrHandleY = layout.Bounds.Y + (layout.Bounds.Height - lrHandleH) / 2;
+
+                            var leftRect = new Rectangle(layout.Bounds.X - 3, lrHandleY, ResizeHandleWidth + 4, lrHandleH);
+                            var rightRect = new Rectangle(layout.Bounds.Right - ResizeHandleWidth - 1, lrHandleY, ResizeHandleWidth + 4, lrHandleH);
+
+                            if (leftRect.Contains(args.X, args.Y) || rightRect.Contains(args.X, args.Y))
+                                overResizeWE = true;
                         }
+
                         break;
                     }
                 }
 
-                if (overResizeHandle)
+                if (overResizeNS)
                 {
                     if (form != null) form.Cursor = SystemCursorType.SizeNS;
                 }
+                else if (overResizeWE)
+                {
+                    if (form != null) form.Cursor = SystemCursorType.SizeWE;
+                }
                 else
                 {
-                    if (form != null && form.Cursor == SystemCursorType.SizeNS)
+                    if (form != null && (form.Cursor == SystemCursorType.SizeNS || form.Cursor == SystemCursorType.SizeWE))
                         form.Cursor = null;
                 }
 
@@ -1651,7 +1793,7 @@ public class CalendarView : ContainerControl
             Invalidate();
         }
         var form = FindForm();
-        if (form != null && form.Cursor == SystemCursorType.SizeNS)
+        if (form != null && (form.Cursor == SystemCursorType.SizeNS || form.Cursor == SystemCursorType.SizeWE))
             form.Cursor = null;
         _vScrollBar.HandleMouseLeave(ScrollBarCtx);
         base.OnMouseLeave(e);
