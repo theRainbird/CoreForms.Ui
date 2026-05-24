@@ -500,6 +500,21 @@ public class TextEditorEngine
     }
 
     /// <summary>
+    /// Sets the cursor position and selection range. The selection starts at <paramref name="start"/>
+    /// and extends <paramref name="length"/> characters to the right. The cursor is placed at <paramref name="start"/>.
+    /// </summary>
+    /// <param name="start">The start position of the selection (and cursor position).</param>
+    /// <param name="length">The length of the selection. Must be non-negative.</param>
+    public void SetSelectionRange(int start, int length)
+    {
+        int clampedStart = Math.Max(0, Math.Min(start, _text.Length));
+        int clampedEnd = Math.Min(_text.Length, start + Math.Max(0, length));
+        _cursorPosition = clampedStart;
+        _selectionAnchor = clampedEnd;
+        _selectionLength = Math.Abs(clampedEnd - clampedStart);
+    }
+
+    /// <summary>
     /// Selects all text.
     /// </summary>
     public virtual void SelectAll(ITextEditorContext context)

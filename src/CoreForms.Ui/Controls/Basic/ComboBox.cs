@@ -7,7 +7,7 @@ using Graphics = CoreForms.Ui.Rendering.Graphics;
 namespace CoreForms.Ui.Controls.Basic;
 
 /// <summary>
-/// A control that presents a drop-down list of items.
+/// A control that presents a drop-down list of items with configurable <see cref="DropDownStyle"/>.
 /// </summary>
 public class ComboBox : Control
 {
@@ -27,6 +27,13 @@ public class ComboBox : Control
 
     private ComboBoxScrollBarContext ScrollBarCtx => _scrollBarContext ??= new ComboBoxScrollBarContext(this);
 
+    private DropDownStyle _dropDownStyle = DropDownStyle.DropDownList;
+    private readonly TextEditorEngine _engine = new();
+    private ComboBoxTextEditorContext? _engineContext;
+    private bool _syncingSelection;
+    private bool _autoCompleting;
+    private int _lastAutoCompleteTypedLength = -1;
+
     /// <summary>
     /// Initializes a new instance of ComboBox.
     /// </summary>
@@ -37,6 +44,16 @@ public class ComboBox : Control
         Size = new Size(200, 32);
         TabStop = true;
         _dropScrollBar.Scroll += (s, e) => _scrollOffset = _dropScrollBar.Value;
+        _engine.TextChanged += (s, e) =>
+        {
+            if (!_autoCompleting && !_syncingSelection)
+            {
+                OnTextChanged();
+                Invalidate();
+            }
+            if (!_autoCompleting && !_syncingSelection && _dropDownStyle != DropDownStyle.DropDownList)
+                PerformAutoComplete();
+        };
     }
 
     /// <summary>
@@ -147,6 +164,7 @@ public class ComboBox : Control
             if (_selectedIndex != value && value >= -1 && value < _items.Count)
             {
                 _selectedIndex = value;
+                SyncEngineText();
                 OnSelectedIndexChanged();
                 OnPropertyChanged(nameof(SelectedIndex));
                 Invalidate();
@@ -204,6 +222,177 @@ public class ComboBox : Control
     }
 
     /// <summary>
+    /// Gets or sets the style of the drop-down list.
+    /// </summary>
+    public DropDownStyle DropDownStyle
+    {
+        get => _dropDownStyle;
+        set
+        {
+            if (_dropDownStyle == value) return;
+            _dropDownStyle = value;
+
+            if (value == DropDownStyle.Simple)
+            {
+                _droppedDown = true;
+                CapturingMouse = false;
+            }
+            else
+            {
+                _droppedDown = false;
+                _scrollOffset = 0;
+                _dropScrollBar.ScrollTo(0);
+                _hoveredIndex = -1;
+                CapturingMouse = false;
+            }
+
+            if (value != DropDownStyle.DropDownList)
+            {
+                _syncingSelection = true;
+                _engine.Text = GetItemDisplayText(SelectedItem);
+                _engine.EnsureCursorVisible(EngineContext);
+                _syncingSelection = false;
+            }
+
+            OnPropertyChanged(nameof(DropDownStyle));
+            Invalidate();
+        }
+    }
+
+    /// <summary>
+    /// Gets or sets the text in the combo box. In <see cref="DropDownStyle.DropDownList"/> mode, the getter returns
+    /// the selected item's display text and the setter has no effect.
+    /// </summary>
+    public new string Text
+    {
+        get
+        {
+            if (_dropDownStyle == DropDownStyle.DropDownList)
+                return GetItemDisplayText(SelectedItem);
+            return _engine.Text;
+        }
+        set
+        {
+            if (_dropDownStyle == DropDownStyle.DropDownList)
+            {
+                TrySelectByText(value);
+                return;
+            }
+            _syncingSelection = true;
+            _engine.Text = value ?? string.Empty;
+            _engine.EnsureCursorVisible(EngineContext);
+            _syncingSelection = false;
+            OnTextChanged();
+            OnPropertyChanged(nameof(Text));
+            Invalidate();
+        }
+    }
+
+    /// <summary>
+    /// Occurs when the text changes in editable modes (<see cref="DropDownStyle.DropDown"/> or <see cref="DropDownStyle.Simple"/>).
+    /// </summary>
+    public event EventHandler? TextChanged;
+
+    /// <summary>
+    /// Raises the <see cref="TextChanged"/> event.
+    /// </summary>
+    protected override void OnTextChanged()
+    {
+        base.OnTextChanged();
+        TextChanged?.Invoke(this, EventArgs.Empty);
+    }
+
+    /// <summary>
+    /// Handles text input for editable modes.
+    /// </summary>
+    /// <param name="text">The text input to process.</param>
+    protected internal override void OnTextInput(string text)
+    {
+        if (!Enabled) return;
+        if (_dropDownStyle == DropDownStyle.DropDownList) return;
+        _engine.HandleTextInput(text, EngineContext);
+    }
+
+    private ComboBoxTextEditorContext EngineContext =>
+        _engineContext ??= new ComboBoxTextEditorContext(this);
+
+    private void SyncEngineText()
+    {
+        if (_dropDownStyle == DropDownStyle.DropDownList) return;
+        _lastAutoCompleteTypedLength = -1;
+        if (_selectedIndex < 0 || _selectedIndex >= _items.Count)
+        {
+            _syncingSelection = true;
+            _engine.Text = string.Empty;
+            _syncingSelection = false;
+            return;
+        }
+        _syncingSelection = true;
+        _engine.Text = GetItemDisplayText(_items[_selectedIndex]);
+        _engine.EnsureCursorVisible(EngineContext);
+        _syncingSelection = false;
+    }
+
+    private void PerformAutoComplete()
+    {
+        if (_dropDownStyle == DropDownStyle.DropDownList) return;
+        if (_autoCompleting || _syncingSelection) return;
+        if (_items.Count == 0) return;
+
+        string typedText = _engine.Text;
+        if (string.IsNullOrEmpty(typedText)) return;
+
+        if (typedText.Length < _lastAutoCompleteTypedLength)
+            _lastAutoCompleteTypedLength = typedText.Length;
+
+        if (typedText.Length <= _lastAutoCompleteTypedLength)
+            return;
+
+        _autoCompleting = true;
+        try
+        {
+            for (int i = 0; i < _items.Count; i++)
+            {
+                string itemText = GetItemDisplayText(_items[i]);
+                if (string.IsNullOrEmpty(itemText)) continue;
+
+                if (itemText.StartsWith(typedText, StringComparison.OrdinalIgnoreCase) &&
+                    !itemText.Equals(typedText, StringComparison.Ordinal))
+                {
+                    int typedLen = typedText.Length;
+                    _engine.Text = itemText;
+                    _engine.SetSelectionRange(typedLen, itemText.Length - typedLen);
+                    _engine.EnsureCursorVisible(EngineContext);
+
+                    if (_selectedIndex != i)
+                        SelectedIndex = i;
+
+                    _lastAutoCompleteTypedLength = typedLen;
+                    Invalidate();
+                    return;
+                }
+            }
+        }
+        finally
+        {
+            _autoCompleting = false;
+        }
+    }
+
+    private void TrySelectByText(string? value)
+    {
+        if (string.IsNullOrEmpty(value)) return;
+        for (int i = 0; i < _items.Count; i++)
+        {
+            if (string.Equals(GetItemDisplayText(_items[i]), value, StringComparison.OrdinalIgnoreCase))
+            {
+                SelectedIndex = i;
+                return;
+            }
+        }
+    }
+
+    /// <summary>
     /// Renders the combo box with its text and dropdown button.
     /// </summary>
     /// <param name="g">The Graphics object to use for rendering.</param>
@@ -220,21 +409,98 @@ public class ComboBox : Control
         else
             g.DrawRectangle(theme.TextBoxBorder, 0, 0, Width, Height, 1);
 
+        if (Enabled)
+            DrawFocusIndicator(g);
+
+        if (_dropDownStyle == DropDownStyle.Simple)
+        {
+            RenderSimple(g, theme);
+        }
+        else
+        {
+            RenderDropDownStyle(g, theme);
+        }
+
+        base.Render(g);
+    }
+
+    private void RenderSimple(Graphics g, Theme theme)
+    {
+        int textBoxHeight = GetTextBoxHeight();
+        int listY = textBoxHeight;
+
+        RenderEditableText(g, theme, 0, textBoxHeight, Width - 6);
+
+        int listHeight = Height - listY;
+        if (listHeight <= 0) return;
+
         var font = EffectiveFont;
-        float zoom = EffectiveZoom;
-        float scaledFontSize = font.Size * zoom;
-        var selectedText = GetItemDisplayText(SelectedItem);
+        var itemHeight = GetItemHeight();
+        var totalHeight = _items.Count * itemHeight;
+        var scrollBarWidth = 16;
+        var needsScrollbar = totalHeight > listHeight;
+        var listWidth = needsScrollbar ? Width - scrollBarWidth : Width;
+
+        g.FillRectangle(theme.MenuDropdownBackground, 0, listY, Width, listHeight);
+        g.DrawRectangle(theme.MenuDropdownBorder, 0, listY, Width, listHeight, 1);
+
+        _dropScrollBar.SmallChange = itemHeight;
+        _dropScrollBar.ViewSize = listHeight;
+        _dropScrollBar.ContentSize = totalHeight;
+        if (needsScrollbar)
+        {
+            var scrollBarBounds = new Rectangle(Width - scrollBarWidth, listY, scrollBarWidth, listHeight);
+            _dropScrollBar.Render(g, scrollBarBounds, theme);
+        }
+
+        g.SetClip(new Rectangle(0, listY, listWidth, listHeight));
+
+        for (int i = 0; i < _items.Count; i++)
+        {
+            var y = listY + 2 + i * itemHeight - _scrollOffset;
+
+            if (y + itemHeight <= listY) continue;
+            if (y >= listY + listHeight) break;
+
+            if (i == _selectedIndex)
+            {
+                g.FillRectangle(theme.Highlight, 1, y, listWidth - 2, itemHeight);
+                g.DrawString(GetItemDisplayText(_items[i]), font, theme.HighlightText, 4, y + 2);
+            }
+            else if (i == _hoveredIndex)
+            {
+                g.FillRectangle(theme.HoverHighlight, 1, y, listWidth - 2, itemHeight);
+                g.DrawString(GetItemDisplayText(_items[i]), font, ForeColor, 4, y + 2);
+            }
+            else
+            {
+                g.DrawString(GetItemDisplayText(_items[i]), font, ForeColor, 4, y + 2);
+            }
+        }
+
+        g.ResetClip();
+    }
+
+    private void RenderDropDownStyle(Graphics g, Theme theme)
+    {
         var btnWidth = 17;
         var btnX = Width - btnWidth;
 
-        var textColor = Enabled ? ForeColor : theme.GrayText;
-        g.DrawString(selectedText, font, textColor, 3, (Height - scaledFontSize) / 2);
+        if (_dropDownStyle == DropDownStyle.DropDown)
+        {
+            RenderEditableText(g, theme, 0, Height, Width - btnWidth - 6);
+        }
+        else
+        {
+            var font = EffectiveFont;
+            float zoom = EffectiveZoom;
+            float scaledFontSize = font.Size * zoom;
+            var textColor = Enabled ? ForeColor : theme.GrayText;
+            g.DrawString(GetItemDisplayText(SelectedItem), font, textColor, 3, (Height - scaledFontSize) / 2);
+        }
 
         g.FillRectangle(theme.ControlBackground, btnX, 1, btnWidth, Height - 2);
         g.DrawLine(theme.ComboBoxDropdownButtonSeparator, btnX, 0, btnX, Height);
-
-        if (Enabled)
-            DrawFocusIndicator(g);
 
         var cx = btnX + btnWidth / 2;
         var cy = Height / 2;
@@ -244,14 +510,59 @@ public class ComboBox : Control
             cx - tw, cy - th,
             cx + tw, cy - th,
             cx, cy + th);
+    }
 
-        base.Render(g);
+    private void RenderEditableText(Graphics g, Theme theme, int areaY, int areaHeight, int textWidth)
+    {
+        var font = EffectiveFont;
+        float zoom = EffectiveZoom;
+        float scaledFontSize = font.Size * zoom;
+        float textY = CoordinateTransform.CenterVertically(areaHeight, font, zoom) + areaY;
+        float textX = 3 - _engine.ScrollOffset;
+
+        g.SetClip(new Rectangle(3, areaY, textWidth, areaHeight));
+
+        var textColor = Enabled ? ForeColor : theme.GrayText;
+        string displayText = _engine.DisplayText;
+        var context = EngineContext;
+
+        if (Enabled && _engine.HasSelection && Focused)
+        {
+            int selStart = _engine.SelectionStartIndex;
+            int selEnd = _engine.SelectionEndIndex;
+            string beforeSel = displayText.Substring(0, selStart);
+            string selStr = displayText.Substring(selStart, selEnd - selStart);
+            float selX = textX + _engine.MeasureTextWidth(beforeSel, context);
+            float selWidth = Math.Max(_engine.MeasureTextWidth(selStr, context), 2);
+
+            g.DrawString(displayText, font, textColor, textX, textY);
+            g.FillRectangle(theme.Highlight, selX, textY, selWidth, scaledFontSize + 2);
+            g.DrawString(selStr, font, theme.HighlightText, selX, textY);
+        }
+        else
+        {
+            g.DrawString(displayText, font, textColor, textX, textY);
+        }
+
+        if (Enabled && Focused && TextEditorEngine.IsCursorBlinkVisible)
+        {
+            string textBeforeCursor = displayText.Substring(0, _engine.CursorPosition);
+            float cursorX = textX + _engine.MeasureTextWidth(textBeforeCursor, context);
+            g.DrawLine(theme.CursorLine, cursorX, textY, cursorX, textY + scaledFontSize, 1);
+        }
+
+        g.ResetClip();
     }
 
     private int GetItemHeight()
     {
         var font = EffectiveFont;
         return CoordinateTransform.GetItemHeight(font, EffectiveZoom);
+    }
+
+    private int GetTextBoxHeight()
+    {
+        return Math.Max(GetItemHeight() + 8, 20);
     }
 
     /// <summary>
@@ -264,7 +575,7 @@ public class ComboBox : Control
 
         base.RenderOverlay(g);
 
-        if (!_droppedDown) return;
+        if (!_droppedDown || _dropDownStyle == DropDownStyle.Simple) return;
 
         var theme = ThemeManager.CurrentTheme;
         var font = EffectiveFont;
@@ -319,7 +630,7 @@ public class ComboBox : Control
     }
 
     /// <summary>
-    /// Tests whether the specified point is within the control bounds (including dropdown).
+    /// Tests whether the specified point is within the control bounds (including dropdown overlay).
     /// </summary>
     /// <param name="point">The point to test.</param>
     /// <returns>True if the point is within bounds; otherwise, false.</returns>
@@ -328,7 +639,7 @@ public class ComboBox : Control
         if (Bounds.Contains(point))
             return true;
 
-        if (_droppedDown)
+        if (_droppedDown && _dropDownStyle != DropDownStyle.Simple)
         {
             var dropBounds = new Rectangle(X, Y + Height, Width, _dropDownHeight);
             if (dropBounds.Contains(point))
@@ -339,12 +650,12 @@ public class ComboBox : Control
     }
 
     /// <summary>
-    /// Raises the LostFocus event and closes the dropdown.
+    /// Raises the LostFocus event and closes the dropdown (except in Simple mode).
     /// </summary>
     /// <param name="e">The event arguments.</param>
     protected internal override void OnLostFocus(EventArgs e)
     {
-        if (_droppedDown)
+        if (_dropDownStyle != DropDownStyle.Simple && _droppedDown)
         {
             _droppedDown = false;
             _scrollOffset = 0;
@@ -365,49 +676,100 @@ public class ComboBox : Control
         if (!Enabled) return;
 
         if (!Focused)
-        {
             Focused = true;
+
+        var args = e as MouseEventArgs;
+        if (args == null) return;
+
+        if (_dropDownStyle == DropDownStyle.Simple)
+        {
+            HandleSimpleMouseDown(args);
+            return;
         }
 
+        if (_dropDownStyle == DropDownStyle.DropDown)
+        {
+            HandleDropDownMouseDown(args);
+            return;
+        }
+
+        HandleDropDownListMouseDown(args);
+    }
+
+    private void HandleSimpleMouseDown(MouseEventArgs args)
+    {
+        int textBoxHeight = GetTextBoxHeight();
+
+        if (args.Y < textBoxHeight)
+        {
+            int logicalX = args.X - 3 + _engine.ScrollOffset;
+            _engine.HandleMouseDown(logicalX, EngineContext);
+            return;
+        }
+
+        int listY = textBoxHeight;
+        int listHeight = Height - listY;
+        if (listHeight <= 0) return;
+
+        var itemHeight = GetItemHeight();
+        int totalHeight = _items.Count * itemHeight;
+        bool needsScrollbar = _dropScrollBar.NeedsScrollbar;
+        int scrollBarWidth = needsScrollbar ? ScrollBarEngine.DefaultScrollBarSize : 0;
+
+        if (needsScrollbar && args.X >= Width - scrollBarWidth)
+        {
+            var scrollBarBounds = new Rectangle(Width - scrollBarWidth, listY, scrollBarWidth, listHeight);
+            _dropScrollBar.HandleMouseDown(new Point(args.X, args.Y), scrollBarBounds, ScrollBarCtx);
+            return;
+        }
+
+        if (args.Y >= listY && args.Y < listY + listHeight)
+        {
+            int localY = args.Y - listY - 2 + _scrollOffset;
+            if (localY >= 0)
+            {
+                int index = localY / itemHeight;
+                if (index >= 0 && index < _items.Count)
+                    SelectedIndex = index;
+            }
+
+            Invalidate();
+        }
+    }
+
+    private void HandleDropDownMouseDown(MouseEventArgs args)
+    {
         if (_droppedDown)
         {
-            var args = e as MouseEventArgs;
-            if (args != null)
+            var itemHeight = GetItemHeight();
+            int dropY = Height;
+            int totalHeight = _items.Count * itemHeight;
+            bool needsScrollbar = _dropScrollBar.NeedsScrollbar;
+            int scrollBarWidth = needsScrollbar ? ScrollBarEngine.DefaultScrollBarSize : 0;
+
+            if (args.X >= 0 && args.X < Width && args.Y >= dropY && args.Y < dropY + _dropDownHeight)
             {
-                var itemHeight = GetItemHeight();
-                int dropY = Height;
-                int dropDownHeight = _dropDownHeight;
-                int totalHeight = _items.Count * itemHeight;
-                bool needsScrollbar = _dropScrollBar.NeedsScrollbar;
-                int scrollBarWidth = needsScrollbar ? ScrollBarEngine.DefaultScrollBarSize : 0;
-
-                if (args.X >= 0 && args.X < Width && args.Y >= dropY && args.Y < dropY + dropDownHeight)
+                if (needsScrollbar && args.X >= Width - scrollBarWidth)
                 {
-                    // Check scrollbar click
-                    if (needsScrollbar && args.X >= Width - scrollBarWidth)
-                    {
-                        var scrollBarBounds = new Rectangle(Width - scrollBarWidth, dropY, scrollBarWidth, dropDownHeight);
-                        _dropScrollBar.HandleMouseDown(new Point(args.X, args.Y), scrollBarBounds, ScrollBarCtx);
-                        return;
-                    }
-
-                    int localY = args.Y - dropY - 2 + _scrollOffset;
-                    if (localY >= 0)
-                    {
-                        int index = localY / itemHeight;
-                        if (index >= 0 && index < _items.Count)
-                        {
-                            SelectedIndex = index;
-                        }
-                    }
-
-                    _droppedDown = false;
-                    _scrollOffset = 0;
-                    _hoveredIndex = -1;
-                    _dropScrollBar.ScrollTo(0);
-                    Invalidate();
+                    var scrollBarBounds = new Rectangle(Width - scrollBarWidth, dropY, scrollBarWidth, _dropDownHeight);
+                    _dropScrollBar.HandleMouseDown(new Point(args.X, args.Y), scrollBarBounds, ScrollBarCtx);
                     return;
                 }
+
+                int localY = args.Y - dropY - 2 + _scrollOffset;
+                if (localY >= 0)
+                {
+                    int index = localY / itemHeight;
+                    if (index >= 0 && index < _items.Count)
+                        SelectedIndex = index;
+                }
+
+                _droppedDown = false;
+                _scrollOffset = 0;
+                _hoveredIndex = -1;
+                _dropScrollBar.ScrollTo(0);
+                Invalidate();
+                return;
             }
 
             _droppedDown = false;
@@ -418,8 +780,64 @@ public class ComboBox : Control
             return;
         }
 
-        var mouseArgs = e as MouseEventArgs;
-        if (mouseArgs != null && mouseArgs.X >= Width - 17)
+        if (args.X >= Width - 17)
+        {
+            _droppedDown = true;
+            CapturingMouse = true;
+            EnsureSelectedVisible();
+            Invalidate();
+        }
+        else
+        {
+            int logicalX = args.X - 3 + _engine.ScrollOffset;
+            _engine.HandleMouseDown(logicalX, EngineContext);
+        }
+    }
+
+    private void HandleDropDownListMouseDown(MouseEventArgs args)
+    {
+        if (_droppedDown)
+        {
+            var itemHeight = GetItemHeight();
+            int dropY = Height;
+            int totalHeight = _items.Count * itemHeight;
+            bool needsScrollbar = _dropScrollBar.NeedsScrollbar;
+            int scrollBarWidth = needsScrollbar ? ScrollBarEngine.DefaultScrollBarSize : 0;
+
+            if (args.X >= 0 && args.X < Width && args.Y >= dropY && args.Y < dropY + _dropDownHeight)
+            {
+                if (needsScrollbar && args.X >= Width - scrollBarWidth)
+                {
+                    var scrollBarBounds = new Rectangle(Width - scrollBarWidth, dropY, scrollBarWidth, _dropDownHeight);
+                    _dropScrollBar.HandleMouseDown(new Point(args.X, args.Y), scrollBarBounds, ScrollBarCtx);
+                    return;
+                }
+
+                int localY = args.Y - dropY - 2 + _scrollOffset;
+                if (localY >= 0)
+                {
+                    int index = localY / itemHeight;
+                    if (index >= 0 && index < _items.Count)
+                        SelectedIndex = index;
+                }
+
+                _droppedDown = false;
+                _scrollOffset = 0;
+                _hoveredIndex = -1;
+                _dropScrollBar.ScrollTo(0);
+                Invalidate();
+                return;
+            }
+
+            _droppedDown = false;
+            _scrollOffset = 0;
+            _hoveredIndex = -1;
+            _dropScrollBar.ScrollTo(0);
+            Invalidate();
+            return;
+        }
+
+        if (args.X >= Width - 17)
         {
             _droppedDown = true;
             CapturingMouse = true;
@@ -488,22 +906,22 @@ public class ComboBox : Control
             if (args != null)
             {
                 var itemHeight = GetItemHeight();
-                int dropY = Height;
+                int dropY = _dropDownStyle == DropDownStyle.Simple ? GetTextBoxHeight() : Height;
+                int viewHeight = _dropDownStyle == DropDownStyle.Simple ? Height - dropY : _dropDownHeight;
                 int totalHeight = _items.Count * itemHeight;
                 _dropScrollBar.SmallChange = itemHeight;
-                _dropScrollBar.ViewSize = _dropDownHeight;
+                _dropScrollBar.ViewSize = viewHeight;
                 _dropScrollBar.ContentSize = totalHeight;
                 bool needsScrollbar = _dropScrollBar.NeedsScrollbar;
                 int scrollBarWidth = needsScrollbar ? ScrollBarEngine.DefaultScrollBarSize : 0;
 
-                // Handle scrollbar hover/drag
                 if (needsScrollbar)
                 {
-                    var scrollBarBounds = new Rectangle(Width - scrollBarWidth, dropY, scrollBarWidth, _dropDownHeight);
+                    var scrollBarBounds = new Rectangle(Width - scrollBarWidth, dropY, scrollBarWidth, viewHeight);
                     _dropScrollBar.HandleMouseMove(new Point(args.X, args.Y), scrollBarBounds, ScrollBarCtx);
                 }
 
-                if (args.Y >= dropY && args.Y < dropY + _dropDownHeight)
+                if (args.Y >= dropY && args.Y < dropY + viewHeight)
                 {
                     int localY = args.Y - dropY - 2 + _scrollOffset;
                     if (localY >= 0)
@@ -551,15 +969,27 @@ public class ComboBox : Control
     }
 
     /// <summary>
-    /// Raises the KeyDown event to handle keyboard navigation.
+    /// Raises the KeyDown event to handle keyboard navigation and text editing.
     /// </summary>
     /// <param name="e">A KeyEventArgs that contains the event data.</param>
     protected internal override void OnKeyDown(KeyEventArgs e)
     {
         if (!Enabled) return;
+
+        if (_dropDownStyle != DropDownStyle.DropDownList)
+        {
+            _engine.HandleKeyDown(e, EngineContext);
+            if (e.Handled)
+            {
+                base.OnKeyDown(e);
+                return;
+            }
+        }
+
         switch (e.KeyCode)
         {
             case Keys.F4:
+                if (_dropDownStyle == DropDownStyle.Simple) break;
                 _droppedDown = !_droppedDown;
                 if (_droppedDown)
                 {
@@ -576,36 +1006,25 @@ public class ComboBox : Control
                 e.Handled = true;
                 break;
             case Keys.Down:
-                if (_droppedDown)
-                {
-                    if (_selectedIndex < _items.Count - 1)
-                    {
-                        SelectedIndex++;
-                        EnsureSelectedVisible();
-                    }
-                }
-                else if (_selectedIndex < _items.Count - 1)
+                if (_selectedIndex < _items.Count - 1)
                 {
                     SelectedIndex++;
+                    if (_droppedDown)
+                        EnsureSelectedVisible();
                 }
                 e.Handled = true;
                 break;
             case Keys.Up:
-                if (_droppedDown)
-                {
-                    if (_selectedIndex > 0)
-                    {
-                        SelectedIndex--;
-                        EnsureSelectedVisible();
-                    }
-                }
-                else if (_selectedIndex > 0)
+                if (_selectedIndex > 0)
                 {
                     SelectedIndex--;
+                    if (_droppedDown)
+                        EnsureSelectedVisible();
                 }
                 e.Handled = true;
                 break;
             case Keys.Enter:
+                if (_dropDownStyle == DropDownStyle.Simple) break;
                 if (_droppedDown)
                 {
                     _droppedDown = false;
@@ -617,6 +1036,7 @@ public class ComboBox : Control
                 e.Handled = true;
                 break;
             case Keys.Escape:
+                if (_dropDownStyle == DropDownStyle.Simple) break;
                 if (_droppedDown)
                 {
                     _droppedDown = false;
@@ -637,7 +1057,6 @@ public class ComboBox : Control
 
         var itemHeight = GetItemHeight();
         int selTop = _selectedIndex * itemHeight;
-        int selBottom = selTop + itemHeight;
 
         int oldOffset = _scrollOffset;
         _dropScrollBar.ViewSize = _dropDownHeight;
@@ -724,6 +1143,7 @@ public class ComboBox : Control
             }
 
             _selectedIndex = _items.Count > 0 ? 0 : -1;
+            SyncEngineText();
             Invalidate();
         }
         finally
@@ -804,5 +1224,24 @@ public class ComboBox : Control
         public float Zoom => _owner.EffectiveZoom;
         public void Invalidate() => _owner.Invalidate();
         public void CaptureMouse(bool capture) => _owner.CapturingMouse = capture;
+    }
+
+    private sealed class ComboBoxTextEditorContext : ITextEditorContext
+    {
+        private readonly ComboBox _owner;
+        public ComboBoxTextEditorContext(ComboBox owner) => _owner = owner;
+        public Font Font => _owner.EffectiveFont;
+        public float Zoom => _owner.EffectiveZoom;
+        public int TextAreaWidth
+        {
+            get
+            {
+                if (_owner._dropDownStyle == DropDownStyle.Simple)
+                    return _owner.Width - 6;
+                return _owner.Width - 20;
+            }
+        }
+        public int TextAreaHeight => _owner.Height;
+        public void Invalidate() => _owner.Invalidate();
     }
 }

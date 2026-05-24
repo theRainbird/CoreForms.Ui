@@ -1,3 +1,5 @@
+using CoreForms.Ui.Core;
+
 namespace CoreForms.Ui.Controls.Advanced;
 
 /// <summary>
@@ -37,5 +39,34 @@ public class AppointmentSelectedEventArgs : EventArgs
     public AppointmentSelectedEventArgs(CalendarAppointment appointment)
     {
         Appointment = appointment;
+    }
+}
+
+/// <summary>
+/// Provides data for the AppointmentChanged event of the CalendarView.
+/// Supports cancellation to revert the change.
+/// </summary>
+public class CalendarAppointmentChangedEventArgs : CancelEventArgs
+{
+    /// <summary>
+    /// Gets the appointment that was changed.
+    /// </summary>
+    public CalendarAppointment Appointment { get; }
+
+    /// <summary>
+    /// Gets or sets a description of the change (e.g. "move", "resize", "edit").
+    /// </summary>
+    public string ChangeType { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Initializes a new instance of CalendarAppointmentChangedEventArgs.
+    /// </summary>
+    /// <param name="appointment">The changed appointment.</param>
+    /// <param name="changeType">The type of change.</param>
+    public CalendarAppointmentChangedEventArgs(CalendarAppointment appointment, string changeType)
+        : base(false)
+    {
+        Appointment = appointment;
+        ChangeType = changeType;
     }
 }

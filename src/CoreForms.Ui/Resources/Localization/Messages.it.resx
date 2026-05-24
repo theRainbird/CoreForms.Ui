@@ -20,40 +20,40 @@
     <value>OK</value>
   </data>
   <data name="Cancel">
-    <value>Cancel</value>
+    <value>Annulla</value>
   </data>
   <data name="Yes">
-    <value>Yes</value>
+    <value>Sì</value>
   </data>
   <data name="No">
     <value>No</value>
   </data>
   <data name="Abort">
-    <value>Abort</value>
+    <value>Interrompi</value>
   </data>
   <data name="Retry">
-    <value>Retry</value>
+    <value>Riprova</value>
   </data>
   <data name="Ignore">
-    <value>Ignore</value>
+    <value>Ignora</value>
   </data>
   <data name="AppointmentSubject">
-    <value>Subject</value>
+    <value>Oggetto</value>
   </data>
   <data name="AppointmentLocation">
-    <value>Location</value>
+    <value>Luogo</value>
   </data>
   <data name="AppointmentStart">
-    <value>Start</value>
+    <value>Inizio</value>
   </data>
   <data name="AppointmentEnd">
-    <value>End</value>
+    <value>Fine</value>
   </data>
   <data name="AppointmentAllDay">
-    <value>All-day</value>
+    <value>Tutto il giorno</value>
   </data>
   <data name="AppointmentColor">
-    <value>Color</value>
+    <value>Colore</value>
   </data>
   <data name="GroupBoxDefaultText">
     <value>GroupBox</value>

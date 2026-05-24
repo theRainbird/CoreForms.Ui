@@ -12,9 +12,7 @@ namespace CoreForms.Ui.Controls.Advanced;
 /// </summary>
 public class CalendarView : ContainerControl
 {
-    // ============================================================
-    // Constants
-    // ============================================================
+    #region Constants
 
     private const int HeaderHeight = 46;
     private const int NavButtonWidth = 28;
@@ -58,9 +56,9 @@ public class CalendarView : ContainerControl
         Color.FromArgb(160, 160, 160),
     };
 
-    // ============================================================
-    // Fields
-    // ============================================================
+    #endregion
+
+    #region Fields
 
     private CalendarViewType _viewType = CalendarViewType.Month;
     private DateTime _currentDate;
@@ -94,6 +92,12 @@ public class CalendarView : ContainerControl
     private Rectangle _scrollBarBounds;
     private int _dayColWidth;
 
+    // Month view grid positions (for drag hit-testing)
+    private int _monthGridX;
+    private int _monthGridY;
+    private int _monthCellW;
+    private int _monthCellH;
+
     // Appointment selection, drag, and resize state
     private CalendarAppointment? _selectedAppointment;
     private bool _allowEdit = true;
@@ -106,12 +110,14 @@ public class CalendarView : ContainerControl
     private DateTime _dragOriginalStart;
     private DateTime _dragOriginalEnd;
     private int _dragOriginalScrollOffset;
+    private DateTime? _dragTargetDate;
+    private TimeSpan _dragOriginalDuration;
     private const int ResizeHandleHeight = 7;
     private const int ResizeHandleWidth = 7;
 
-    // ============================================================
-    // Structs
-    // ============================================================
+    #endregion
+
+    #region Structs
 
     private struct AppointmentLayout
     {
@@ -121,9 +127,9 @@ public class CalendarView : ContainerControl
         public int TotalColumns;
     }
 
-    // ============================================================
-    // Properties
-    // ============================================================
+    #endregion
+
+    #region Properties
 
     /// <summary>
     /// Gets or sets the current view type (Month, Week, or Day).
@@ -188,9 +194,9 @@ public class CalendarView : ContainerControl
     /// </summary>
     public CalendarAppointment? SelectedAppointment => _selectedAppointment;
 
-    // ============================================================
-    // Constructor
-    // ============================================================
+    #endregion
+
+    #region Constructor
 
     /// <summary>
     /// Initializes a new instance of CalendarView.
@@ -213,9 +219,9 @@ public class CalendarView : ContainerControl
         };
     }
 
-    // ============================================================
-    // Theme
-    // ============================================================
+    #endregion
+
+    #region Theme
 
     /// <summary>
     /// Called when the theme changes.
@@ -229,9 +235,9 @@ public class CalendarView : ContainerControl
         Invalidate();
     }
 
-    // ============================================================
-    // Navigation
-    // ============================================================
+    #endregion
+
+    #region Navigation
 
     /// <summary>
     /// Navigates to the next period (month/week/day depending on view).
@@ -308,9 +314,9 @@ public class CalendarView : ContainerControl
         return AppointmentDialogOverlay.Show(this, appointment, _selectedDate);
     }
 
-    // ============================================================
-    // Date Helpers
-    // ============================================================
+    #endregion
+
+    #region Date Helpers
 
     private static DateTime StartOfWeek(DateTime date)
     {
@@ -371,9 +377,9 @@ public class CalendarView : ContainerControl
         }
     }
 
-    // ============================================================
-    // Rendering
-    // ============================================================
+    #endregion
+
+    #region Rendering
 
     /// <summary>
     /// Renders the calendar control.
@@ -425,9 +431,7 @@ public class CalendarView : ContainerControl
         }
     }
 
-    // ----------------------------------------------------------
-    // Header
-    // ----------------------------------------------------------
+    #region Header
 
     private void RenderHeader(Graphics g)
     {
@@ -503,9 +507,9 @@ public class CalendarView : ContainerControl
         g.DrawString(text, theme.DefaultFont, fg, tx < rect.X ? rect.X + 2 : tx, ty);
     }
 
-    // ----------------------------------------------------------
-    // Mini Calendar
-    // ----------------------------------------------------------
+    #endregion
+
+    #region Mini Calendar
 
     private void RenderMiniCalendar(Graphics g, int x, int y, int w, int h)
     {
@@ -634,9 +638,9 @@ public class CalendarView : ContainerControl
         }
     }
 
-    // ----------------------------------------------------------
-    // Month View
-    // ----------------------------------------------------------
+    #endregion
+
+    #region Month View
 
     private void RenderMonthView(Graphics g, int x, int y, int w, int h)
     {
@@ -732,6 +736,10 @@ public class CalendarView : ContainerControl
 
                 g.FillRectangle(cellBg, cx, cy, cellW, cellH);
 
+                // Highlight drag target cell
+                if (_isDragging && _dragTargetDate.HasValue && cellDate == _dragTargetDate.Value)
+                    g.FillRectangle(theme.HoverHighlight, cx, cy, cellW, cellH);
+
                 if (isSelected)
                     selectedCellRect = new Rectangle(cx, cy, cellW, cellH);
 
@@ -814,9 +822,9 @@ public class CalendarView : ContainerControl
         }
     }
 
-    // ----------------------------------------------------------
-    // Week View
-    // ----------------------------------------------------------
+    #endregion
+
+    #region Week View
 
     private void RenderWeekView(Graphics g, int x, int y, int w, int h)
     {
@@ -991,9 +999,9 @@ public class CalendarView : ContainerControl
         _vScrollBar.Render(g, _scrollBarBounds, theme);
     }
 
-    // ----------------------------------------------------------
-    // Day View
-    // ----------------------------------------------------------
+    #endregion
+
+    #region Day View
 
     private void RenderDayView(Graphics g, int x, int y, int w, int h)
     {
@@ -1137,9 +1145,9 @@ public class CalendarView : ContainerControl
         _vScrollBar.Render(g, _scrollBarBounds, theme);
     }
 
-    // ----------------------------------------------------------
-    // Appointment Layout Helpers
-    // ----------------------------------------------------------
+    #endregion
+
+    #region Appointment Layout Helpers
 
     private List<AppointmentLayout> LayoutDayAppointments(DateTime day, int dayLeft, int dayWidth, int timeTop, int slotH)
     {
@@ -1208,9 +1216,9 @@ public class CalendarView : ContainerControl
         return result;
     }
 
-    // ----------------------------------------------------------
-    // Helpers
-    // ----------------------------------------------------------
+    #endregion
+
+    #region Helpers
 
     private static string TruncateText(Graphics g, string text, Font font, int maxWidth)
     {
@@ -1294,9 +1302,11 @@ public class CalendarView : ContainerControl
         }
     }
 
-    // ============================================================
-    // Hit Testing & Mouse/Keyboard
-    // ============================================================
+    #endregion
+
+    #endregion
+
+    #region Hit Testing & Mouse/Keyboard
 
     private enum HitTarget
     {
@@ -1507,6 +1517,7 @@ public class CalendarView : ContainerControl
                     _dragStartMouseY = point.Y;
                     _dragOriginalStart = resizeApp.StartTime;
                     _dragOriginalEnd = resizeApp.EndTime;
+                    _dragOriginalDuration = resizeApp.EndTime - resizeApp.StartTime;
                     _dragOriginalScrollOffset = _scrollOffset;
                     Invalidate();
                 }
@@ -1526,9 +1537,8 @@ public class CalendarView : ContainerControl
                     _selectedAppointment = app;
                     OnAppointmentSelected(new AppointmentSelectedEventArgs(app));
 
-                    // Start drag in week/day views if editable
-                    if ((_viewType == CalendarViewType.Week || _viewType == CalendarViewType.Day)
-                        && _allowEdit && !app.IsReadOnly)
+                    // Start drag in week/day/month views if editable
+                    if (_allowEdit && !app.IsReadOnly && !app.IsAllDay)
                     {
                         _isDragging = true;
                         _dragHandle = DragHandle.Body;
@@ -1536,7 +1546,9 @@ public class CalendarView : ContainerControl
                         _dragStartMouseY = point.Y;
                         _dragOriginalStart = app.StartTime;
                         _dragOriginalEnd = app.EndTime;
+                        _dragOriginalDuration = app.EndTime - app.StartTime;
                         _dragOriginalScrollOffset = _scrollOffset;
+                        _dragTargetDate = null;
                     }
 
                     // Double-click opens edit dialog
@@ -1549,6 +1561,12 @@ public class CalendarView : ContainerControl
                             if (idx >= 0)
                                 _appointments[idx] = result;
                             _selectedAppointment = result;
+
+                            var changedArgs = new CalendarAppointmentChangedEventArgs(result, "edit");
+                            OnAppointmentChanged(changedArgs);
+                            if (changedArgs.Cancel && idx >= 0)
+                                _appointments[idx] = app;
+
                             Invalidate();
                         }
                     }
@@ -1623,9 +1641,20 @@ public class CalendarView : ContainerControl
 
         if (_isResizing || _isDragging)
         {
+            var changeType = _isResizing ? "resize" : "move";
+            var args = new CalendarAppointmentChangedEventArgs(_selectedAppointment!, changeType);
+            OnAppointmentChanged(args);
+
+            if (args.Cancel && _selectedAppointment != null)
+            {
+                _selectedAppointment.StartTime = _dragOriginalStart;
+                _selectedAppointment.EndTime = _dragOriginalEnd;
+            }
+
             _isDragging = false;
             _isResizing = false;
             _dragHandle = DragHandle.None;
+            _dragTargetDate = null;
             Invalidate();
         }
 
@@ -1644,21 +1673,64 @@ public class CalendarView : ContainerControl
 
             if (_isDragging && _selectedAppointment != null)
             {
-                int deltaY = args.Y - _dragStartMouseY;
-                int deltaX = args.X - _dragStartMouseX;
-                int deltaSlots = (int)Math.Round((double)deltaY / SlotHeight);
-                int minutesDelta = deltaSlots * 30;
-                int dayDelta = (_viewType == CalendarViewType.Week && _dayColWidth > 0)
-                    ? (int)Math.Round((double)deltaX / _dayColWidth) : 0;
+                if (_viewType == CalendarViewType.Month)
+                {
+                    // Month view: only change date, keep time and duration
+                    int monthLeft = _showMiniCal ? MiniCalWidth : 0;
+                    int monthW = _showMiniCal ? Width - MiniCalWidth : Width;
+                    int monthGridX = monthLeft;
+                    int monthGridY = HeaderHeight + MonthDayHeaderHeight;
+                    int cellW = monthW / 7;
+                    int cellH = (Height - HeaderHeight - MonthDayHeaderHeight) / 6;
 
-                var newStart = _dragOriginalStart.Date
-                    .AddDays(dayDelta)
-                    .Add(_dragOriginalStart.TimeOfDay)
-                    .AddMinutes(minutesDelta);
-                var duration = _dragOriginalEnd - _dragOriginalStart;
-                _selectedAppointment.StartTime = newStart;
-                _selectedAppointment.EndTime = newStart.Add(duration);
-                Invalidate();
+                    int relX = args.X - monthGridX;
+                    int relY = args.Y - monthGridY;
+                    if (relX >= 0 && relY >= 0)
+                    {
+                        int col = relX / cellW;
+                        int row = relY / cellH;
+                        if (col >= 0 && col < 7 && row >= 0 && row < 6)
+                        {
+                            int firstDow = (7 + (new DateTime(_currentDate.Year, _currentDate.Month, 1).DayOfWeek - DayOfWeek.Monday)) % 7;
+                            int daysInMonth = DateTime.DaysInMonth(_currentDate.Year, _currentDate.Month);
+                            int cellIndex = row * 7 + col;
+
+                            if (cellIndex >= firstDow && cellIndex - firstDow < daysInMonth)
+                            {
+                                int dayNum = cellIndex - firstDow + 1;
+                                var targetDate = new DateTime(_currentDate.Year, _currentDate.Month, dayNum);
+
+                                if (_dragTargetDate != targetDate)
+                                {
+                                    _dragTargetDate = targetDate;
+                                    int dayOffset = (targetDate - _dragOriginalStart.Date).Days;
+                                    _selectedAppointment.StartTime = _dragOriginalStart.Date.AddDays(dayOffset).Add(_dragOriginalStart.TimeOfDay);
+                                    _selectedAppointment.EndTime = _selectedAppointment.StartTime.Add(_dragOriginalDuration);
+                                    Invalidate();
+                                }
+                            }
+                        }
+                    }
+                }
+                else
+                {
+                    // Week/day view: change by slots (vertical) and days (horizontal)
+                    int deltaY = args.Y - _dragStartMouseY;
+                    int deltaX = args.X - _dragStartMouseX;
+                    int deltaSlots = (int)Math.Round((double)deltaY / SlotHeight);
+                    int minutesDelta = deltaSlots * 30;
+                    int dayDelta = (_viewType == CalendarViewType.Week && _dayColWidth > 0)
+                        ? (int)Math.Round((double)deltaX / _dayColWidth) : 0;
+
+                    var newStart = _dragOriginalStart.Date
+                        .AddDays(dayDelta)
+                        .Add(_dragOriginalStart.TimeOfDay)
+                        .AddMinutes(minutesDelta);
+                    var duration = _dragOriginalEnd - _dragOriginalStart;
+                    _selectedAppointment.StartTime = newStart;
+                    _selectedAppointment.EndTime = newStart.Add(duration);
+                    Invalidate();
+                }
                 handled = true;
             }
             else if (_isResizing && _selectedAppointment != null)
@@ -1904,9 +1976,9 @@ public class CalendarView : ContainerControl
         base.OnKeyDown(e);
     }
 
-    // ============================================================
-    // Events
-    // ============================================================
+    #endregion
+
+    #region Events
 
     /// <summary>
     /// Raised when the selected date changes.
@@ -1946,11 +2018,25 @@ public class CalendarView : ContainerControl
     {
         ViewChanged?.Invoke(this, EventArgs.Empty);
     }
+
+    /// <summary>
+    /// Raised when an appointment has been moved, resized, or edited.
+    /// Set e.Cancel = true to revert the change.
+    /// </summary>
+    public event EventHandler<CalendarAppointmentChangedEventArgs>? AppointmentChanged;
+
+    /// <summary>
+    /// Raises the AppointmentChanged event.
+    /// </summary>
+    /// <param name="e">The event data. If e.Cancel is set to true by a handler, the change is reverted.</param>
+    protected virtual void OnAppointmentChanged(CalendarAppointmentChangedEventArgs e)
+    {
+        AppointmentChanged?.Invoke(this, e);
+    }
+    #endregion
 }
 
-// ============================================================
-// ScrollBar Context
-// ============================================================
+#region ScrollBar Context
 
 internal sealed class CalendarViewScrollBarContext : IScrollBarContext
 {
@@ -1965,9 +2051,9 @@ internal sealed class CalendarViewScrollBarContext : IScrollBarContext
     public void CaptureMouse(bool capture) => _owner.CapturingMouse = capture;
 }
 
-// ============================================================
-// Appointment Dialog Overlay
-// ============================================================
+#endregion
+
+#region Appointment Dialog Overlay
 
 /// <summary>
 /// Internal overlay dialog for creating or editing calendar appointments.
@@ -2031,7 +2117,7 @@ internal class AppointmentDialogOverlay : ContainerControl
         int margin = 16;
 
         // Subject
-        AddLabel("Betreff:", margin, y + 4, col1, ctrlH);
+        AddLabel(SR.GetString("AppointmentSubject") + ":", margin, y + 4, col1, ctrlH);
         _subjectBox = new TextBox
         {
             Text = appointment.Subject,
@@ -2042,7 +2128,7 @@ internal class AppointmentDialogOverlay : ContainerControl
         y += ctrlH + gap;
 
         // Location
-        AddLabel("Ort:", margin, y + 4, col1, ctrlH);
+        AddLabel(SR.GetString("AppointmentLocation") + ":", margin, y + 4, col1, ctrlH);
         _locationBox = new TextBox
         {
             Text = appointment.Location ?? string.Empty,
@@ -2053,7 +2139,7 @@ internal class AppointmentDialogOverlay : ContainerControl
         y += ctrlH + gap;
 
         // Start date
-        AddLabel("Start:", margin, y + 4, col1, ctrlH);
+        AddLabel(SR.GetString("AppointmentStart") + ":", margin, y + 4, col1, ctrlH);
         _startDateBox = new TextBox
         {
             Text = appointment.StartTime.ToString("yyyy-MM-dd"),
@@ -2078,7 +2164,7 @@ internal class AppointmentDialogOverlay : ContainerControl
         y += ctrlH + gap;
 
         // End date
-        AddLabel("Ende:", margin, y + 4, col1, ctrlH);
+        AddLabel(SR.GetString("AppointmentEnd") + ":", margin, y + 4, col1, ctrlH);
         _endDateBox = new TextBox
         {
             Text = appointment.EndTime.ToString("yyyy-MM-dd"),
@@ -2105,7 +2191,7 @@ internal class AppointmentDialogOverlay : ContainerControl
         // All-day
         _allDayCheck = new CheckBox
         {
-            Text = "Ganztägig",
+            Text = SR.GetString("AppointmentAllDay"),
             Checked = appointment.IsAllDay,
             Bounds = new Rectangle(margin + col1, y, 140, ctrlH),
             TabStop = true
@@ -2114,7 +2200,7 @@ internal class AppointmentDialogOverlay : ContainerControl
         y += ctrlH + gap + 4;
 
         // Color selection
-        AddLabel("Farbe:", margin, y + 4, col1, ctrlH);
+        AddLabel(SR.GetString("AppointmentColor") + ":", margin, y + 4, col1, ctrlH);
         int colorBtnSize = 22;
         int colorGap = 4;
         var colors = CalendarView.CategoryColors;
@@ -2149,7 +2235,7 @@ internal class AppointmentDialogOverlay : ContainerControl
 
         _okButton = new Button
         {
-            Text = "OK",
+            Text = SR.GetString("OK"),
             Bounds = new Rectangle(margin + col1 + col2 - 2 * btnW - btnGap, btnY, btnW, 28),
             TabStop = true
         };
@@ -2158,7 +2244,7 @@ internal class AppointmentDialogOverlay : ContainerControl
 
         _cancelButton = new Button
         {
-            Text = "Abbrechen",
+            Text = SR.GetString("Cancel"),
             Bounds = new Rectangle(margin + col1 + col2 - btnW, btnY, btnW, 28),
             TabStop = true
         };
@@ -2306,3 +2392,5 @@ internal class AppointmentDialogOverlay : ContainerControl
         base.Render(g);
     }
 }
+
+#endregion

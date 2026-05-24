@@ -37,4 +37,25 @@
   <data name="Ignore">
     <value>Ignorieren</value>
   </data>
+  <data name="AppointmentSubject">
+    <value>Betreff</value>
+  </data>
+  <data name="AppointmentLocation">
+    <value>Ort</value>
+  </data>
+  <data name="AppointmentStart">
+    <value>Start</value>
+  </data>
+  <data name="AppointmentEnd">
+    <value>Ende</value>
+  </data>
+  <data name="AppointmentAllDay">
+    <value>Ganztägig</value>
+  </data>
+  <data name="AppointmentColor">
+    <value>Farbe</value>
+  </data>
+  <data name="GroupBoxDefaultText">
+    <value>GroupBox</value>
+  </data>
 </root>

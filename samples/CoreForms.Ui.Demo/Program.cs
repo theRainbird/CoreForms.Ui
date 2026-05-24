@@ -1,4 +1,5 @@
 using System.ComponentModel;
+using System.Globalization;
 using CoreForms.Ui.Controls.Advanced;
 using CoreForms.Ui.Core;
 using CoreForms.Ui.Controls.Basic;
@@ -18,17 +19,32 @@ class Program
 {
     private static Label? _statusLabel;
     private static Controls.Advanced.DataGridView? _mainDataGrid;
+    private static Form? _mainForm;
 
     [STAThread]
     static void Main()
     {
-        var form = new Form
+        LocalizationManager.LoadSavedCulture();
+
+        _mainForm = new Form
         {
-            Text = "CoreForms.Ui Demo",
+            Text = SR.GetString("FormTitle"),
             Width = 1200,
             Height = 900,
             Zoom = 1.25f
         };
+
+        PopulateForm(_mainForm);
+
+        Application.Run(_mainForm);
+    }
+
+    static void PopulateForm(Form form)
+    {
+        form.SuspendLayout();
+        form.Controls.Clear();
+        _statusLabel = null;
+        _mainDataGrid = null;
 
         var menuStrip = CreateMenuStrip(form);
         var toolStrip = CreateToolStrip(form);
@@ -42,7 +58,8 @@ class Program
 
         _mainDataGrid = form.Controls.FindControl<Controls.Advanced.DataGridView>("dataGrid", recursive: true);
 
-        Application.Run(form);
+        form.Text = SR.GetString("FormTitle");
+        form.ResumeLayout();
     }
 
     static MenuStrip CreateMenuStrip(Form form)
@@ -51,17 +68,17 @@ class Program
         menuStrip.Dock = DockStyle.Top;
         menuStrip.Size = new Size(900, 30);
 
-        var fileItem = new ToolStripMenuItem("&File");
-        var fileNewItem = new ToolStripMenuItem("&New");
-        fileNewItem.Click += (s, e) => MessageBox.Show("Create a new file?", "New File", MessageBoxButtons.YesNo, MessageBoxIcon.Question);
-        var fileOpenItem = new ToolStripMenuItem("&Open");
-        fileOpenItem.Click += (s, e) => MessageBox.Show("Open an existing file.", "Open", MessageBoxButtons.OK, MessageBoxIcon.Information);
-        var fileSaveItem = new ToolStripMenuItem("&Save");
-        fileSaveItem.Click += (s, e) => MessageBox.Show("File saved successfully!", "Save", MessageBoxButtons.OK, MessageBoxIcon.Information);
-        var fileExitItem = new ToolStripMenuItem("E&xit");
+        var fileItem = new ToolStripMenuItem(SR.GetString("MenuFile"));
+        var fileNewItem = new ToolStripMenuItem(SR.GetString("MenuNew"));
+        fileNewItem.Click += (s, e) => MessageBox.Show(SR.GetString("MsgTextNewFile"), SR.GetString("MsgTitleNewFile"), MessageBoxButtons.YesNo, MessageBoxIcon.Question);
+        var fileOpenItem = new ToolStripMenuItem(SR.GetString("MenuOpen"));
+        fileOpenItem.Click += (s, e) => MessageBox.Show(SR.GetString("MsgTextOpen"), SR.GetString("MsgTitleOpen"), MessageBoxButtons.OK, MessageBoxIcon.Information);
+        var fileSaveItem = new ToolStripMenuItem(SR.GetString("MenuSave"));
+        fileSaveItem.Click += (s, e) => MessageBox.Show(SR.GetString("MsgTextSaved"), SR.GetString("MsgTitleSave"), MessageBoxButtons.OK, MessageBoxIcon.Information);
+        var fileExitItem = new ToolStripMenuItem(SR.GetString("MenuExit"));
         fileExitItem.Click += (s, e) =>
         {
-            var result = MessageBox.Show("Are you sure you want to exit?", "Exit", MessageBoxButtons.YesNo, MessageBoxIcon.Warning);
+            var result = MessageBox.Show(SR.GetString("MsgTextExit"), SR.GetString("MsgTitleExit"), MessageBoxButtons.YesNo, MessageBoxIcon.Warning);
             if (result == DialogResult.Yes)
                 Application.Exit();
         };
@@ -71,15 +88,15 @@ class Program
         fileItem.DropDownItems.Add(fileExitItem);
         menuStrip.Items.Add(fileItem);
 
-        var editItem = new ToolStripMenuItem("&Edit");
-        var editUndoItem = new ToolStripMenuItem("&Undo");
-        editUndoItem.Click += (s, e) => MessageBox.Show("Undo last action?", "Undo", MessageBoxButtons.OKCancel, MessageBoxIcon.Question);
-        var editRedoItem = new ToolStripMenuItem("&Redo");
-        editRedoItem.Click += (s, e) => MessageBox.Show("Redo last action?", "Redo", MessageBoxButtons.OKCancel, MessageBoxIcon.Question);
-        var editDeleteItem = new ToolStripMenuItem("&Delete");
-        editDeleteItem.Click += (s, e) => MessageBox.Show("Delete this item? This cannot be undone.", "Delete", MessageBoxButtons.YesNoCancel, MessageBoxIcon.Error);
+        var editItem = new ToolStripMenuItem(SR.GetString("MenuEdit"));
+        var editUndoItem = new ToolStripMenuItem(SR.GetString("MenuUndo"));
+        editUndoItem.Click += (s, e) => MessageBox.Show(SR.GetString("MsgTextUndo"), SR.GetString("MsgTitleUndo"), MessageBoxButtons.OKCancel, MessageBoxIcon.Question);
+        var editRedoItem = new ToolStripMenuItem(SR.GetString("MenuRedo"));
+        editRedoItem.Click += (s, e) => MessageBox.Show(SR.GetString("MsgTextRedo"), SR.GetString("MsgTitleRedo"), MessageBoxButtons.OKCancel, MessageBoxIcon.Question);
+        var editDeleteItem = new ToolStripMenuItem(SR.GetString("MenuDelete"));
+        editDeleteItem.Click += (s, e) => MessageBox.Show(SR.GetString("MsgTextDelete"), SR.GetString("MsgTitleDelete"), MessageBoxButtons.YesNoCancel, MessageBoxIcon.Error);
         var editSep1 = new ToolStripMenuItem("-");
-        var editCutItem = new ToolStripMenuItem("Cu&t");
+        var editCutItem = new ToolStripMenuItem(SR.GetString("MenuCut"));
         editCutItem.Click += (s, e) => {
             if (form.ActiveControl is TextBox tb)
             {
@@ -87,25 +104,25 @@ class Program
                 catch (Exception ex) { MessageBox.Show($"Clipboard error: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error); }
             }
         };
-        var editCopyItem = new ToolStripMenuItem("&Copy");
+        var editCopyItem = new ToolStripMenuItem(SR.GetString("MenuCopy"));
         editCopyItem.Click += (s, e) => {
             if (form.ActiveControl != null)
             {
                 try {
                     var method = form.ActiveControl.GetType().GetMethod("CopyToClipboard");
                     method?.Invoke(form.ActiveControl, null);
-                } catch (Exception ex) { MessageBox.Show($"Clipboard error: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error); }
+                } catch (Exception ex) { MessageBox.Show(string.Format(SR.GetString("MsgTextClipboardError"), ex.Message), SR.GetString("MsgTitleError"), MessageBoxButtons.OK, MessageBoxIcon.Error); }
             }
         };
-        var editPasteItem = new ToolStripMenuItem("&Paste");
+        var editPasteItem = new ToolStripMenuItem(SR.GetString("MenuPaste"));
         editPasteItem.Click += (s, e) => {
             if (form.ActiveControl is TextBox tb)
             {
                 try { tb.Paste(); }
-                catch (Exception ex) { MessageBox.Show($"Clipboard error: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error); }
+                catch (Exception ex) { MessageBox.Show(string.Format(SR.GetString("MsgTextClipboardError"), ex.Message), SR.GetString("MsgTitleError"), MessageBoxButtons.OK, MessageBoxIcon.Error); }
             }
         };
-        var editSelectAllItem = new ToolStripMenuItem("Select &All");
+        var editSelectAllItem = new ToolStripMenuItem(SR.GetString("MenuSelectAll"));
         editSelectAllItem.Click += (s, e) => {
             if (form.ActiveControl is TextBox tb)
                 tb.SelectAll();
@@ -120,23 +137,32 @@ class Program
         editItem.DropDownItems.Add(editSelectAllItem);
         menuStrip.Items.Add(editItem);
 
-        var viewItem = new ToolStripMenuItem("&View");
-        var viewRefreshItem = new ToolStripMenuItem("&Refresh");
-        viewRefreshItem.Click += (s, e) => MessageBox.Show("View refreshed.", "Refresh", MessageBoxButtons.OK, MessageBoxIcon.Information);
-        var viewFullscreenItem = new ToolStripMenuItem("Fullscreen");
-        viewFullscreenItem.Click += (s, e) => MessageBox.Show("Toggle fullscreen mode is not yet implemented.", "Fullscreen", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+        var viewItem = new ToolStripMenuItem(SR.GetString("MenuView"));
+        var viewRefreshItem = new ToolStripMenuItem(SR.GetString("MenuRefresh"));
+        viewRefreshItem.Click += (s, e) => MessageBox.Show(SR.GetString("MsgTextRefreshed"), SR.GetString("MsgTitleRefresh"), MessageBoxButtons.OK, MessageBoxIcon.Information);
+        var viewFullscreenItem = new ToolStripMenuItem(SR.GetString("MenuFullscreen"));
+        viewFullscreenItem.Click += (s, e) => MessageBox.Show(SR.GetString("MsgTextFullscreen"), SR.GetString("MsgTitleFullscreen"), MessageBoxButtons.OK, MessageBoxIcon.Warning);
         viewItem.DropDownItems.Add(viewRefreshItem);
         viewItem.DropDownItems.Add(viewFullscreenItem);
         menuStrip.Items.Add(viewItem);
 
-        var helpItem = new ToolStripMenuItem("&Help");
-        var helpAboutItem = new ToolStripMenuItem("&About");
-        helpAboutItem.Click += (s, e) => MessageBox.Show("CoreForms.Ui Demo\nVersion 1.0\n\nA cross-platform UI framework.", "About", MessageBoxButtons.OK, MessageBoxIcon.Information);
-        var helpLicenseItem = new ToolStripMenuItem("License");
-        helpLicenseItem.Click += (s, e) => MessageBox.Show("Retry loading the license?", "License Error", MessageBoxButtons.AbortRetryIgnore, MessageBoxIcon.Error);
+        var helpItem = new ToolStripMenuItem(SR.GetString("MenuHelp"));
+        var helpAboutItem = new ToolStripMenuItem(SR.GetString("MenuAbout"));
+        helpAboutItem.Click += (s, e) => MessageBox.Show(string.Format(SR.GetString("MsgTextAbout"), "\n"), SR.GetString("MsgTitleAbout"), MessageBoxButtons.OK, MessageBoxIcon.Information);
+        var helpLicenseItem = new ToolStripMenuItem(SR.GetString("MenuLicense"));
+        helpLicenseItem.Click += (s, e) => MessageBox.Show(SR.GetString("MsgTextLicense"), SR.GetString("MsgTitleLicenseError"), MessageBoxButtons.AbortRetryIgnore, MessageBoxIcon.Error);
         helpItem.DropDownItems.Add(helpAboutItem);
         helpItem.DropDownItems.Add(helpLicenseItem);
         menuStrip.Items.Add(helpItem);
+
+        var languageItem = new ToolStripMenuItem(SR.GetString("MenuLanguage"));
+        languageItem.DropDownItems.Add(CreateLanguageItem("English", "en"));
+        languageItem.DropDownItems.Add(CreateLanguageItem("Deutsch", "de"));
+        languageItem.DropDownItems.Add(CreateLanguageItem("Français", "fr"));
+        languageItem.DropDownItems.Add(CreateLanguageItem("Italiano", "it"));
+        languageItem.DropDownItems.Add(CreateLanguageItem("Español", "es"));
+        languageItem.DropDownItems.Add(CreateLanguageItem("Русский", "ru"));
+        menuStrip.Items.Add(languageItem);
 
         return menuStrip;
     }
@@ -146,59 +172,59 @@ class Program
         var toolStrip = new ToolStrip();
         toolStrip.Dock = DockStyle.Top;
 
-        var newButton = new ToolStripButton("New", Icons.DocumentAdd24!);
+        var newButton = new ToolStripButton(SR.GetString("ToolNew"), Icons.DocumentAdd24!);
         newButton.DisplayStyle = ToolStripItemDisplayStyle.ImageAndText;
-        newButton.Click += (s, e) => _statusLabel!.Text = "New clicked";
+        newButton.Click += (s, e) => _statusLabel!.Text = SR.GetString("StatusNewClicked");
         toolStrip.Items.Add(newButton);
 
-        var openButton = new ToolStripButton("Open", Icons.Document24!);
+        var openButton = new ToolStripButton(SR.GetString("ToolOpen"), Icons.Document24!);
         openButton.DisplayStyle = ToolStripItemDisplayStyle.ImageAndText;
-        openButton.Click += (s, e) => _statusLabel!.Text = "Open clicked";
+        openButton.Click += (s, e) => _statusLabel!.Text = SR.GetString("StatusOpenClicked");
         toolStrip.Items.Add(openButton);
 
-        var saveButton = new ToolStripButton("Save", Icons.DocumentEdit24!);
+        var saveButton = new ToolStripButton(SR.GetString("ToolSave"), Icons.DocumentEdit24!);
         saveButton.DisplayStyle = ToolStripItemDisplayStyle.ImageAndText;
-        saveButton.Click += (s, e) => _statusLabel!.Text = "Save clicked";
+        saveButton.Click += (s, e) => _statusLabel!.Text = SR.GetString("StatusSaveClicked");
         toolStrip.Items.Add(saveButton);
 
         toolStrip.Items.Add(new ToolStripSeparator());
 
-        var boldButton = new ToolStripButton("B");
+        var boldButton = new ToolStripButton(SR.GetString("ToolBold"));
         boldButton.DisplayStyle = ToolStripItemDisplayStyle.Text;
         boldButton.CheckOnClick = true;
-        boldButton.CheckedChanged += (s, e) => _statusLabel!.Text = $"Bold: {boldButton.Checked}";
+        boldButton.CheckedChanged += (s, e) => _statusLabel!.Text = string.Format(SR.GetString("StatusBoldFormat"), boldButton.Checked);
         toolStrip.Items.Add(boldButton);
 
-        var italicButton = new ToolStripButton("I");
+        var italicButton = new ToolStripButton(SR.GetString("ToolItalic"));
         italicButton.DisplayStyle = ToolStripItemDisplayStyle.Text;
         italicButton.CheckOnClick = true;
-        italicButton.CheckedChanged += (s, e) => _statusLabel!.Text = $"Italic: {italicButton.Checked}";
+        italicButton.CheckedChanged += (s, e) => _statusLabel!.Text = string.Format(SR.GetString("StatusItalicFormat"), italicButton.Checked);
         toolStrip.Items.Add(italicButton);
 
         toolStrip.Items.Add(new ToolStripSeparator());
 
         var searchBox = new ToolStripTextBox();
         searchBox.TextBoxWidth = 120;
-        searchBox.TextChanged += (s, e) => _statusLabel!.Text = $"Search: {searchBox.Text}";
+        searchBox.TextChanged += (s, e) => _statusLabel!.Text = string.Format(SR.GetString("StatusSearchFormat"), searchBox.Text);
         toolStrip.Items.Add(searchBox);
 
-        var searchButton = new ToolStripButton("Search", Icons.SearchSparkle24!);
+        var searchButton = new ToolStripButton(SR.GetString("ToolSearch"), Icons.SearchSparkle24!);
         searchButton.DisplayStyle = ToolStripItemDisplayStyle.ImageAndText;
-        searchButton.Click += (s, e) => _statusLabel!.Text = $"Searching for: {searchBox.Text}";
+        searchButton.Click += (s, e) => _statusLabel!.Text = string.Format(SR.GetString("StatusSearchingFormat"), searchBox.Text);
         toolStrip.Items.Add(searchButton);
 
         toolStrip.Items.Add(new ToolStripSeparator());
 
-        var zoomLabel = new ToolStripLabel("Zoom:");
+        var zoomLabel = new ToolStripLabel(SR.GetString("ToolZoomLabel"));
         toolStrip.Items.Add(zoomLabel);
 
-        var zoomComboBox = new ToolStripLabel("100%");
+        var zoomComboBox = new ToolStripLabel(SR.GetString("ToolZoom100"));
         zoomComboBox.IsLink = true;
         zoomComboBox.Click += (s, e) =>
         {
             form.Zoom = form.Zoom == 1.0f ? 1.5f : 1.0f;
             zoomComboBox.Text = $"{(int)(form.Zoom * 100)}%";
-            _statusLabel!.Text = $"Zoom: {zoomComboBox.Text}";
+            _statusLabel!.Text = string.Format(SR.GetString("StatusZoomFormat"), zoomComboBox.Text);
         };
         toolStrip.Items.Add(zoomComboBox);
 
@@ -207,7 +233,7 @@ class Program
         ToolStripButton? lightButton = null;
         ToolStripButton? darkButton = null;
 
-        lightButton = new ToolStripButton("Light", Icons.WeatherSunnyLow24!);
+        lightButton = new ToolStripButton(SR.GetString("ToolLight"), Icons.WeatherSunnyLow24!);
         lightButton.DisplayStyle = ToolStripItemDisplayStyle.ImageAndText;
         lightButton.Checked = true;
         lightButton.CheckOnClick = true;
@@ -217,12 +243,12 @@ class Program
             {
                 ThemeManager.SetTheme(new LightTheme());
                 darkButton!.Checked = false;
-                _statusLabel!.Text = "Theme: Light";
+                _statusLabel!.Text = SR.GetString("StatusThemeLight");
             }
         };
         toolStrip.Items.Add(lightButton);
 
-        darkButton = new ToolStripButton("Dark", Icons.WeatherSnowflake24!);
+        darkButton = new ToolStripButton(SR.GetString("ToolDark"), Icons.WeatherSnowflake24!);
         darkButton.DisplayStyle = ToolStripItemDisplayStyle.ImageAndText;
         darkButton.CheckOnClick = true;
         darkButton.CheckedChanged += (s, e) =>
@@ -231,30 +257,43 @@ class Program
             {
                 ThemeManager.SetTheme(new DarkTheme());
                 lightButton!.Checked = false;
-                _statusLabel!.Text = "Theme: Dark";
+                _statusLabel!.Text = SR.GetString("StatusThemeDark");
             }
         };
         toolStrip.Items.Add(darkButton);
 
         toolStrip.Items.Add(new ToolStripSeparator());
 
-        var toggleEnabledButton = new ToolStripButton("Toggle Enabled");
+        var toggleEnabledButton = new ToolStripButton(SR.GetString("ToolToggleEnabled"));
         toggleEnabledButton.DisplayStyle = ToolStripItemDisplayStyle.ImageAndText;
         toggleEnabledButton.Click += (s, e) =>
         {
             ToggleControlsEnabled(form, toolStrip);
-            _statusLabel!.Text = "Controls enabled state toggled";
+            _statusLabel!.Text = SR.GetString("StatusToggled");
         };
         toolStrip.Items.Add(toggleEnabledButton);
 
         toolStrip.Items.Add(new ToolStripSeparator());
 
-        var helpButton = new ToolStripButton("Help", Icons.QuestionCircle24!);
+        var helpButton = new ToolStripButton(SR.GetString("ToolHelp"), Icons.QuestionCircle24!);
         helpButton.DisplayStyle = ToolStripItemDisplayStyle.ImageAndText;
-        helpButton.Click += (s, e) => MessageBox.Show("CoreForms.Ui ToolStrip Demo\n\nDemonstrates all ToolStrip item types.", "Help", MessageBoxButtons.OK, MessageBoxIcon.Information);
+        helpButton.Click += (s, e) => MessageBox.Show(string.Format(SR.GetString("MsgTextToolStripDemo"), "\n"), SR.GetString("MsgTitleHelp"), MessageBoxButtons.OK, MessageBoxIcon.Information);
         toolStrip.Items.Add(helpButton);
 
         return toolStrip;
+    }
+
+    static ToolStripMenuItem CreateLanguageItem(string displayName, string cultureCode)
+    {
+        var item = new ToolStripMenuItem(displayName);
+        item.Click += (s, e) =>
+        {
+            LocalizationManager.SetCulture(new CultureInfo(cultureCode));
+            LocalizationManager.SaveCurrentCulture();
+            if (_mainForm != null)
+                PopulateForm(_mainForm);
+        };
+        return item;
     }
 
     static void ToggleControlsEnabled(Control parent, Control exclude)
@@ -271,7 +310,7 @@ class Program
 
     static Panel CreateStatusStrip()
     {
-        _statusLabel = new Label { Text = "Ready" };
+        _statusLabel = new Label { Text = SR.GetString("StatusReady") };
 
         var statusStrip = new Panel
         {
@@ -300,6 +339,7 @@ class Program
         tabControl.AddTabPage(CreateDockAnchorPage());
         tabControl.AddTabPage(CreateTreeViewPage());
         tabControl.AddTabPage(CreateUserControlPage());
+        tabControl.AddTabPage(CreateImagesPage());
         tabControl.AddTabPage(CreateSplitPanelPage());
         tabControl.AddTabPage(CreateWebBrowserPage());
         tabControl.AddTabPage(CreateHtmlEditorPage());
@@ -310,23 +350,23 @@ class Program
 
     static TabPage CreateBasicControlsPage()
     {
-        var page = new TabPage { Text = "Basic Controls" };
+        var page = new TabPage { Text = SR.GetString("TabBasicControls") };
 
         var groupBox1 = new GroupBox
         {
-            Text = "Text Input",
+            Text = SR.GetString("GroupTextInput"),
             Location = new Point(10, 10),
             Size = new Size(300, 210)
         };
 
-        var nameLabel = new Label { Text = "Name:", Location = new Point(10, 25), Size = new Size(70, 20) };
-        var nameTextBox = new TextBox { Location = new Point(90, 25), Size = new Size(180, 25), Text = "John Doe" };
-        var emailLabel = new Label { Text = "Email:", Location = new Point(10, 55), Size = new Size(70, 20) };
-        var emailTextBox = new TextBox { Location = new Point(90, 55), Size = new Size(180, 25), Text = "john@example.com" };
-        var passwordLabel = new Label { Text = "Password:", Location = new Point(10, 85), Size = new Size(70, 20) };
-        var passwordTextBox = new TextBox { Location = new Point(90, 85), Size = new Size(180, 25), Text = "secret", UseSystemPasswordChar = true };
-        var multiLineLabel = new Label { Text = "Multi-line:", Location = new Point(10, 115), Size = new Size(70, 20) };
-        var multiLineTextBox = new MemoBox { Location = new Point(90, 115), Size = new Size(180, 80), Text = "Line 1\nLine 2\nLine 3\nLine 4\nLine 5\nLine 6" };
+        var nameLabel = new Label { Text = SR.GetString("LabelName") + ":", Location = new Point(10, 25), Size = new Size(70, 20) };
+        var nameTextBox = new TextBox { Location = new Point(90, 25), Size = new Size(180, 25), Text = SR.GetString("DefaultName") };
+        var emailLabel = new Label { Text = SR.GetString("LabelEmail") + ":", Location = new Point(10, 55), Size = new Size(70, 20) };
+        var emailTextBox = new TextBox { Location = new Point(90, 55), Size = new Size(180, 25), Text = SR.GetString("DefaultEmail") };
+        var passwordLabel = new Label { Text = SR.GetString("LabelPassword") + ":", Location = new Point(10, 85), Size = new Size(70, 20) };
+        var passwordTextBox = new TextBox { Location = new Point(90, 85), Size = new Size(180, 25), Text = SR.GetString("DefaultPassword"), UseSystemPasswordChar = true };
+        var multiLineLabel = new Label { Text = SR.GetString("LabelMultiLine") + ":", Location = new Point(10, 115), Size = new Size(70, 20) };
+        var multiLineTextBox = new MemoBox { Location = new Point(90, 115), Size = new Size(180, 80), Text = string.Format(SR.GetString("DefaultMultiLine"), "\n") };
 
         groupBox1.Controls.Add(nameLabel);
         groupBox1.Controls.Add(nameTextBox);
@@ -339,20 +379,20 @@ class Program
 
         var groupBox2 = new GroupBox
         {
-            Text = "Selection",
+            Text = SR.GetString("GroupSelection"),
             Location = new Point(320, 10),
             Size = new Size(250, 160)
         };
 
-        var genderLabel = new Label { Text = "Gender:", Location = new Point(10, 25), Size = new Size(100, 20) };
-        var maleRadio = new RadioButton { Text = "Male", Location = new Point(10, 50), Size = new Size(100, 20), Checked = true };
-        var femaleRadio = new RadioButton { Text = "Female", Location = new Point(10, 75), Size = new Size(100, 20) };
-        var otherRadio = new RadioButton { Text = "Other", Location = new Point(10, 100), Size = new Size(100, 20) };
+        var genderLabel = new Label { Text = SR.GetString("LabelGender") + ":", Location = new Point(10, 25), Size = new Size(100, 20) };
+        var maleRadio = new RadioButton { Text = SR.GetString("RadioMale"), Location = new Point(10, 50), Size = new Size(100, 20), Checked = true };
+        var femaleRadio = new RadioButton { Text = SR.GetString("RadioFemale"), Location = new Point(10, 75), Size = new Size(100, 20) };
+        var otherRadio = new RadioButton { Text = SR.GetString("RadioOther"), Location = new Point(10, 100), Size = new Size(100, 20) };
 
-        var roleLabel = new Label { Text = "Role:", Location = new Point(120, 25), Size = new Size(80, 20) };
-        var adminRadio = new RadioButton { Text = "Admin", Location = new Point(120, 50), Size = new Size(80, 20) };
-        var userRadio = new RadioButton { Text = "User", Location = new Point(120, 75), Size = new Size(80, 20), Checked = true };
-        var guestRadio = new RadioButton { Text = "Guest", Location = new Point(120, 100), Size = new Size(80, 20) };
+        var roleLabel = new Label { Text = SR.GetString("LabelRole") + ":", Location = new Point(120, 25), Size = new Size(80, 20) };
+        var adminRadio = new RadioButton { Text = SR.GetString("RadioAdmin"), Location = new Point(120, 50), Size = new Size(80, 20) };
+        var userRadio = new RadioButton { Text = SR.GetString("RadioUser"), Location = new Point(120, 75), Size = new Size(80, 20), Checked = true };
+        var guestRadio = new RadioButton { Text = SR.GetString("RadioGuest"), Location = new Point(120, 100), Size = new Size(80, 20) };
 
         groupBox2.Controls.Add(genderLabel);
         groupBox2.Controls.Add(maleRadio);
@@ -365,62 +405,89 @@ class Program
 
         var groupBox3 = new GroupBox
         {
-            Text = "Lists & Combo Boxes",
+            Text = SR.GetString("GroupListsCombos"),
             Location = new Point(10, 230),
-            Size = new Size(280, 200)
+            Size = new Size(280, 310)
         };
 
-        var listBoxLabel = new Label { Text = "ListBox:", Location = new Point(10, 25), Size = new Size(70, 20) };
-        var listBox = new ListBox { Location = new Point(10, 45), Size = new Size(120, 120) };
-        listBox.Items.Add("Item 1");
-        listBox.Items.Add("Item 2");
-        listBox.Items.Add("Item 3");
-        listBox.Items.Add("Item 4");
-        listBox.Items.Add("Item 5");
-        listBox.SelectedIndexChanged += (s, e) => _statusLabel!.Text = $"ListBox: {listBox.SelectedItem}";
+        var listBoxLabel = new Label { Text = SR.GetString("LabelListBox") + ":", Location = new Point(10, 25), Size = new Size(70, 20) };
+        var listBox = new ListBox { Location = new Point(10, 45), Size = new Size(120, 150) };
+        listBox.Items.Add(SR.GetString("ListItem1"));
+        listBox.Items.Add(SR.GetString("ListItem2"));
+        listBox.Items.Add(SR.GetString("ListItem3"));
+        listBox.Items.Add(SR.GetString("ListItem4"));
+        listBox.Items.Add(SR.GetString("ListItem5"));
+        listBox.SelectedIndexChanged += (s, e) => _statusLabel!.Text = string.Format(SR.GetString("StatusListBoxFormat"), listBox.SelectedItem);
 
-        var comboBoxLabel = new Label { Text = "ComboBox:", Location = new Point(140, 25), Size = new Size(80, 20) };
-        var comboBox = new ComboBox { Location = new Point(140, 45), Size = new Size(120, 24) };
-        comboBox.Items.Add("Active");
-        comboBox.Items.Add("Inactive");
-        comboBox.Items.Add("Pending");
-        comboBox.SelectedIndexChanged += (s, e) => _statusLabel!.Text = $"ComboBox: {comboBox.SelectedItem}";
+        var comboBoxLabel = new Label { Text = "ComboBox Styles:", Location = new Point(140, 14), Size = new Size(130, 16) };
 
-        var checkBox1 = new CheckBox { Text = "Option A", Location = new Point(140, 80), Size = new Size(100, 25) };
-        var checkBox2 = new CheckBox { Text = "Option B", Location = new Point(140, 105), Size = new Size(100, 25), Checked = true };
-        var checkBox3 = new CheckBox { Text = "Option C", Location = new Point(140, 130), Size = new Size(100, 25) };
+        var ddlStyleLabel = new Label { Text = "\u2014 DropDownList", Location = new Point(140, 34), Size = new Size(120, 14) };
+        var ddlComboBox = new ComboBox { Location = new Point(140, 50), Size = new Size(120, 24) };
+        ddlComboBox.Items.Add(SR.GetString("ComboActive"));
+        ddlComboBox.Items.Add(SR.GetString("ComboInactive"));
+        ddlComboBox.Items.Add(SR.GetString("ComboPending"));
+        ddlComboBox.SelectedIndexChanged += (s, e) => _statusLabel!.Text = "DropDownList: " + ddlComboBox.SelectedItem;
+
+        var ddStyleLabel = new Label { Text = "\u2014 DropDown", Location = new Point(140, 80), Size = new Size(120, 14) };
+        var ddComboBox = new ComboBox { Location = new Point(140, 96), Size = new Size(120, 24) };
+        ddComboBox.Items.Add(SR.GetString("ComboActive"));
+        ddComboBox.Items.Add(SR.GetString("ComboInactive"));
+        ddComboBox.Items.Add(SR.GetString("ComboPending"));
+        ddComboBox.DropDownStyle = DropDownStyle.DropDown;
+        ddComboBox.SelectedIndex = 1;
+        ddComboBox.SelectedIndexChanged += (s, e) => _statusLabel!.Text = "DropDown: " + ddComboBox.SelectedItem;
+
+        var simpleStyleLabel = new Label { Text = "\u2014 Simple", Location = new Point(140, 126), Size = new Size(120, 14) };
+        var simpleComboBox = new ComboBox { Location = new Point(140, 142), Size = new Size(120, 96) };
+        simpleComboBox.Items.Add(SR.GetString("ComboActive"));
+        simpleComboBox.Items.Add(SR.GetString("ComboInactive"));
+        simpleComboBox.Items.Add(SR.GetString("ComboPending"));
+        simpleComboBox.DropDownStyle = DropDownStyle.Simple;
+        simpleComboBox.SelectedIndexChanged += (s, e) => _statusLabel!.Text = "Simple: " + simpleComboBox.SelectedItem;
+
+        var checkBox1 = new CheckBox { Text = SR.GetString("ChkOptionA"), Location = new Point(10, 210), Size = new Size(100, 25) };
+        var checkBox2 = new CheckBox { Text = SR.GetString("ChkOptionB"), Location = new Point(10, 235), Size = new Size(100, 25), Checked = true };
+        var checkBox3 = new CheckBox { Text = SR.GetString("ChkOptionC"), Location = new Point(10, 260), Size = new Size(100, 25) };
 
         groupBox3.Controls.Add(listBoxLabel);
         groupBox3.Controls.Add(listBox);
         groupBox3.Controls.Add(comboBoxLabel);
-        groupBox3.Controls.Add(comboBox);
+        
+        groupBox3.Controls.Add(ddlStyleLabel);
+        groupBox3.Controls.Add(ddlComboBox);
+        
+        groupBox3.Controls.Add(ddStyleLabel);
+        groupBox3.Controls.Add(ddComboBox);
+        
+        groupBox3.Controls.Add(simpleStyleLabel);
+        groupBox3.Controls.Add(simpleComboBox);
         groupBox3.Controls.Add(checkBox1);
         groupBox3.Controls.Add(checkBox2);
         groupBox3.Controls.Add(checkBox3);
 
         var groupBox4 = new GroupBox
         {
-            Text = "Progress & Buttons",
+            Text = SR.GetString("GroupProgressButtons"),
             Location = new Point(300, 230),
             Size = new Size(270, 200)
         };
 
         var progressBar = new ProgressBar { Location = new Point(10, 25), Size = new Size(250, 20), Value = 60 };
 
-        var progressButton = new Button { Text = "Progress +10", Location = new Point(10, 55), Size = new Size(120, 30) };
+        var progressButton = new Button { Text = SR.GetString("BtnProgress10"), Location = new Point(10, 55), Size = new Size(120, 30) };
         progressButton.Click += (s, e) => { if (progressBar.Value < 100) progressBar.Value += 10; };
 
-        var resetProgressButton = new Button { Text = "Reset", Location = new Point(140, 55), Size = new Size(120, 30) };
+        var resetProgressButton = new Button { Text = SR.GetString("BtnReset"), Location = new Point(140, 55), Size = new Size(120, 30) };
         resetProgressButton.Click += (s, e) => progressBar.Value = 0;
 
-        var testButton = new Button { Text = "Test Button", Location = new Point(10, 95), Size = new Size(120, 30) };
-        testButton.Click += (s, e) => _statusLabel!.Text = "Button clicked!";
+        var testButton = new Button { Text = SR.GetString("BtnTestButton"), Location = new Point(10, 95), Size = new Size(120, 30) };
+        testButton.Click += (s, e) => _statusLabel!.Text = SR.GetString("StatusButtonClicked");
 
-        var disabledButton = new Button { Text = "Disabled", Location = new Point(140, 95), Size = new Size(120, 30), Enabled = false };
+        var disabledButton = new Button { Text = SR.GetString("BtnDisabled"), Location = new Point(140, 95), Size = new Size(120, 30), Enabled = false };
 
-        var spinnerLabel = new Label { Text = "Spinner:", Location = new Point(10, 140), Size = new Size(50, 20) };
+        var spinnerLabel = new Label { Text = SR.GetString("LabelSpinner") + ":", Location = new Point(10, 140), Size = new Size(50, 20) };
         var spinner = new Spinner { Location = new Point(60, 132), Size = new Size(36, 36), Active = true, AutoStart = false };
-        var spinnerButton = new Button { Text = "Toggle", Location = new Point(110, 135), Size = new Size(140, 28) };
+        var spinnerButton = new Button { Text = SR.GetString("BtnToggle"), Location = new Point(110, 135), Size = new Size(140, 28) };
         spinnerButton.Click += (s, e) => spinner.Active = !spinner.Active;
 
         groupBox4.Controls.Add(progressBar);
@@ -444,7 +511,7 @@ class Program
 
     static TabPage CreateDataGridPage()
     {
-        var page = new TabPage { Text = "Data Grid" };
+        var page = new TabPage { Text = SR.GetString("TabDataGrid") };
 
         var dataGrid = new Controls.Advanced.DataGridView
         {
@@ -456,17 +523,17 @@ class Program
         };
 
         dataGrid.Columns.Add(new Controls.Advanced.DataGridViewColumn
-            { HeaderText = "ID", Width = 60, Name = "Id", DataPropertyName = "Id",
+            { HeaderText = SR.GetString("ColId"), Width = 60, Name = "Id", DataPropertyName = "Id",
               TextAlign = DataGridViewContentAlignment.Right, FormatString = "D3" });
         dataGrid.Columns.Add(new Controls.Advanced.DataGridViewColumn
-            { HeaderText = "Name", Width = 150, Name = "Name", DataPropertyName = "Name" });
+            { HeaderText = SR.GetString("ColName"), Width = 150, Name = "Name", DataPropertyName = "Name" });
         dataGrid.Columns.Add(new Controls.Advanced.DataGridViewColumn
-            { HeaderText = "Email", Width = 200, Name = "Email", DataPropertyName = "Email" });
+            { HeaderText = SR.GetString("ColEmail"), Width = 200, Name = "Email", DataPropertyName = "Email" });
         dataGrid.Columns.Add(new Controls.Advanced.DataGridViewColumn
-            { HeaderText = "Status", Width = 100, Name = "Status", DataPropertyName = "Status",
+            { HeaderText = SR.GetString("ColStatus"), Width = 100, Name = "Status", DataPropertyName = "Status",
               TextAlign = DataGridViewContentAlignment.Center });
         dataGrid.Columns.Add(new Controls.Advanced.DataGridViewColumn
-            { HeaderText = "Salary", Width = 110, Name = "Salary", DataPropertyName = "Salary",
+            { HeaderText = SR.GetString("ColSalary"), Width = 110, Name = "Salary", DataPropertyName = "Salary",
               TextAlign = DataGridViewContentAlignment.Right, FormatString = "C" });
 
         _personList = new BindingList<Person>
@@ -479,14 +546,14 @@ class Program
         };
         dataGrid.DataSource = _personList;
 
-        var addButton = new Button { Text = "Add Row", Location = new Point(10, 270), Size = new Size(130, 30), Name = "addButton" };
+        var addButton = new Button { Text = SR.GetString("BtnAddRow"), Location = new Point(10, 270), Size = new Size(130, 30), Name = "addButton" };
         addButton.Click += (s, e) =>
         {
             var nextId = (_personList.Count > 0 ? _personList.Max(p => p.Id) : 0) + 1;
             _personList.Add(new Person(nextId, "New Person", "new@example.com", "Active"));
         };
 
-        var removeButton = new Button { Text = "Remove Last", Location = new Point(150, 270), Size = new Size(130, 30) };
+        var removeButton = new Button { Text = SR.GetString("BtnRemoveLast"), Location = new Point(150, 270), Size = new Size(130, 30) };
         removeButton.Click += (s, e) =>
         {
             if (_personList.Count > 0)
@@ -502,9 +569,9 @@ class Program
 
     static TabPage CreateDataBindingPage()
     {
-        var page = new TabPage { Text = "Data Binding" };
+        var page = new TabPage { Text = SR.GetString("TabDataBinding") };
 
-        // ===== Data source =====
+        #region Data source
         var contacts = new BindingList<Person>
         {
             new Person(1, "Alice Wonder", "alice@example.com", "Active"),
@@ -513,10 +580,12 @@ class Program
         };
         var bindingSource = new BindingSource(contacts);
 
-        // ===== Left: List + Navigation =====
+        #endregion
+
+        #region Left: List + Navigation
         var listGroup = new GroupBox
         {
-            Text = "Contact List (BindingSource)",
+            Text = SR.GetString("GroupContactList"),
             Location = new Point(10, 10),
             Size = new Size(220, 350)
         };
@@ -532,10 +601,10 @@ class Program
 
         var navPanel = new Panel { Location = new Point(10, 235), Size = new Size(195, 100) };
 
-        var firstButton = new Button { Text = "|<", Location = new Point(0, 0), Size = new Size(45, 28) };
-        var prevButton = new Button { Text = "<", Location = new Point(50, 0), Size = new Size(45, 28) };
-        var nextButton = new Button { Text = ">", Location = new Point(100, 0), Size = new Size(45, 28) };
-        var lastButton = new Button { Text = ">|", Location = new Point(150, 0), Size = new Size(45, 28) };
+        var firstButton = new Button { Text = SR.GetString("BtnFirst"), Location = new Point(0, 0), Size = new Size(45, 28) };
+        var prevButton = new Button { Text = SR.GetString("BtnPrev"), Location = new Point(50, 0), Size = new Size(45, 28) };
+        var nextButton = new Button { Text = SR.GetString("BtnNext"), Location = new Point(100, 0), Size = new Size(45, 28) };
+        var lastButton = new Button { Text = SR.GetString("BtnLast"), Location = new Point(150, 0), Size = new Size(45, 28) };
 
         firstButton.Click += (s, e) => bindingSource.MoveFirst();
         prevButton.Click += (s, e) => bindingSource.MovePrevious();
@@ -544,7 +613,7 @@ class Program
 
         var addPersonButton = new Button
         {
-            Text = "Add Contact",
+            Text = SR.GetString("BtnAddContact"),
             Location = new Point(0, 35),
             Size = new Size(95, 28)
         };
@@ -557,7 +626,7 @@ class Program
 
         var removePersonButton = new Button
         {
-            Text = "Remove",
+            Text = SR.GetString("BtnRemove"),
             Location = new Point(100, 35),
             Size = new Size(95, 28)
         };
@@ -571,16 +640,16 @@ class Program
 
         var positionLabel = new Label
         {
-            Text = "Position: 0 / 0",
+            Text = string.Format(SR.GetString("StatusPositionFormat"), 0, 0),
             Location = new Point(0, 70),
             Size = new Size(195, 20)
         };
 
         bindingSource.PositionChanged += (s, e) =>
         {
-            positionLabel.Text = $"Position: {bindingSource.Position + 1} / {bindingSource.Count}";
+            positionLabel.Text = string.Format(SR.GetString("StatusPositionFormat"), bindingSource.Position + 1, bindingSource.Count);
         };
-        positionLabel.Text = $"Position: 1 / {contacts.Count}";
+        positionLabel.Text = string.Format(SR.GetString("StatusPositionFormat"), 1, contacts.Count);
 
         navPanel.Controls.Add(firstButton);
         navPanel.Controls.Add(prevButton);
@@ -593,39 +662,41 @@ class Program
         listGroup.Controls.Add(contactListBox);
         listGroup.Controls.Add(navPanel);
 
-        // ===== Right: Detail editing with Bindings =====
+        #endregion
+
+        #region Right: Detail editing with Bindings
         var detailGroup = new GroupBox
         {
-            Text = "Contact Details (DataBindings)",
+            Text = SR.GetString("GroupContactDetails"),
             Location = new Point(240, 10),
             Size = new Size(350, 350)
         };
 
-        var idLabel = new Label { Text = "ID:", Location = new Point(10, 25), Size = new Size(60, 20) };
+        var idLabel = new Label { Text = SR.GetString("LabelId") + ":", Location = new Point(10, 25), Size = new Size(60, 20) };
         var idValue = new Label { Text = "", Location = new Point(80, 25), Size = new Size(60, 20) };
 
-        var nameLabel = new Label { Text = "Name:", Location = new Point(10, 55), Size = new Size(60, 20) };
+        var nameLabel = new Label { Text = SR.GetString("LabelName") + ":", Location = new Point(10, 55), Size = new Size(60, 20) };
         var nameTextBox = new TextBox { Location = new Point(80, 55), Size = new Size(250, 25) };
 
-        var emailLabel = new Label { Text = "Email:", Location = new Point(10, 90), Size = new Size(60, 20) };
+        var emailLabel = new Label { Text = SR.GetString("LabelEmail") + ":", Location = new Point(10, 90), Size = new Size(60, 20) };
         var emailTextBox = new TextBox { Location = new Point(80, 90), Size = new Size(250, 25) };
 
-        var statusLabel_ = new Label { Text = "Status:", Location = new Point(10, 125), Size = new Size(60, 20) };
+        var statusLabel_ = new Label { Text = SR.GetString("LabelStatus") + ":", Location = new Point(10, 125), Size = new Size(60, 20) };
         var statusComboBox = new ComboBox { Location = new Point(80, 125), Size = new Size(150, 25) };
-        statusComboBox.Items.Add("Active");
-        statusComboBox.Items.Add("Inactive");
-        statusComboBox.Items.Add("Pending");
+        statusComboBox.Items.Add(SR.GetString("ComboActive"));
+        statusComboBox.Items.Add(SR.GetString("ComboInactive"));
+        statusComboBox.Items.Add(SR.GetString("ComboPending"));
 
         var isActiveCheckBox = new CheckBox
         {
-            Text = "Is Active",
+            Text = SR.GetString("ChkIsActive"),
             Location = new Point(10, 165),
             Size = new Size(120, 25)
         };
 
         var feedbackLabel = new Label
         {
-            Text = "Bindings push changes automatically.",
+            Text = SR.GetString("LabelBindingFeedback"),
             Location = new Point(10, 210),
             Size = new Size(320, 40)
         };
@@ -641,10 +712,12 @@ class Program
         detailGroup.Controls.Add(isActiveCheckBox);
         detailGroup.Controls.Add(feedbackLabel);
 
-        // ===== Bottom: ComboBox + Live Preview =====
+        #endregion
+
+        #region Bottom: ComboBox + Live Preview
         var comboGroup = new GroupBox
         {
-            Text = "ComboBox DataSource",
+            Text = SR.GetString("GroupComboDataSource"),
             Location = new Point(10, 370),
             Size = new Size(250, 100)
         };
@@ -659,19 +732,21 @@ class Program
 
         var selectedValueLabel = new Label
         {
-            Text = "SelectedValue: -",
+            Text = string.Format(SR.GetString("StatusSelectedValueFormat"), "-"),
             Location = new Point(10, 60),
             Size = new Size(225, 20)
         };
         contactCombo.SelectedIndexChanged += (s, e) =>
         {
-            selectedValueLabel.Text = $"SelectedValue: {contactCombo.SelectedValue}";
+            selectedValueLabel.Text = string.Format(SR.GetString("StatusSelectedValueFormat"), contactCombo.SelectedValue);
         };
 
         comboGroup.Controls.Add(contactCombo);
         comboGroup.Controls.Add(selectedValueLabel);
 
-        // ===== Bindings (after controls created) =====
+        #endregion
+
+        #region Bindings (after controls created)
         // Bind detail controls to bindingSource's current item
         // We bind to the BindingSource itself — it forwards change events
         nameTextBox.DataBindings.Add("Text", bindingSource, "Name");
@@ -709,6 +784,8 @@ class Program
             }
         };
 
+        #endregion
+
         page.Controls.Add(listGroup);
         page.Controls.Add(detailGroup);
         page.Controls.Add(comboGroup);
@@ -718,62 +795,62 @@ class Program
 
     static TabPage CreateMessageBoxPage()
     {
-        var page = new TabPage { Text = "Message Boxes" };
+        var page = new TabPage { Text = SR.GetString("TabMessageBoxes") };
 
-        var infoButton = new Button { Text = "Information", Location = new Point(10, 10), Size = new Size(150, 35) };
+        var infoButton = new Button { Text = SR.GetString("BtnInformation"), Location = new Point(10, 10), Size = new Size(150, 35) };
         infoButton.Click += (s, e) =>
         {
-            var result = MessageBox.Show("This is an information message.", "Information", MessageBoxButtons.OK, MessageBoxIcon.Information);
-            _statusLabel!.Text = $"Result: {result}";
+            var result = MessageBox.Show(SR.GetString("MsgTextInformation"), SR.GetString("MsgTitleInformation"), MessageBoxButtons.OK, MessageBoxIcon.Information);
+            _statusLabel!.Text = string.Format(SR.GetString("StatusResultFormat"), result);
         };
 
-        var warningButton = new Button { Text = "Warning", Location = new Point(170, 10), Size = new Size(150, 35) };
+        var warningButton = new Button { Text = SR.GetString("BtnWarning"), Location = new Point(170, 10), Size = new Size(150, 35) };
         warningButton.Click += (s, e) =>
         {
-            var result = MessageBox.Show("Attention! A warning has been triggered.", "Warning", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-            _statusLabel!.Text = $"Result: {result}";
+            var result = MessageBox.Show(SR.GetString("MsgTextWarning"), SR.GetString("MsgTitleWarning"), MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            _statusLabel!.Text = string.Format(SR.GetString("StatusResultFormat"), result);
         };
 
-        var errorButton = new Button { Text = "Error", Location = new Point(330, 10), Size = new Size(150, 35) };
+        var errorButton = new Button { Text = SR.GetString("BtnError"), Location = new Point(330, 10), Size = new Size(150, 35) };
         errorButton.Click += (s, e) =>
         {
-            var result = MessageBox.Show("An error has occurred!", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
-            _statusLabel!.Text = $"Result: {result}";
+            var result = MessageBox.Show(SR.GetString("MsgTextError"), SR.GetString("MsgTitleError"), MessageBoxButtons.OK, MessageBoxIcon.Error);
+            _statusLabel!.Text = string.Format(SR.GetString("StatusResultFormat"), result);
         };
 
-        var questionButton = new Button { Text = "Question (Yes/No)", Location = new Point(10, 55), Size = new Size(150, 35) };
+        var questionButton = new Button { Text = SR.GetString("BtnQuestionYesNo"), Location = new Point(10, 55), Size = new Size(150, 35) };
         questionButton.Click += (s, e) =>
         {
-            var result = MessageBox.Show("Do you want to continue?", "Question", MessageBoxButtons.YesNo, MessageBoxIcon.Question);
-            _statusLabel!.Text = $"Result: {result}";
+            var result = MessageBox.Show(SR.GetString("MsgTextQuestion"), SR.GetString("MsgTitleQuestion"), MessageBoxButtons.YesNo, MessageBoxIcon.Question);
+            _statusLabel!.Text = string.Format(SR.GetString("StatusResultFormat"), result);
         };
 
-        var okCancelButton = new Button { Text = "OK / Cancel", Location = new Point(170, 55), Size = new Size(150, 35) };
+        var okCancelButton = new Button { Text = SR.GetString("BtnOKCancel"), Location = new Point(170, 55), Size = new Size(150, 35) };
         okCancelButton.Click += (s, e) =>
         {
-            var result = MessageBox.Show("Confirm or cancel the operation.", "Confirmation", MessageBoxButtons.OKCancel, MessageBoxIcon.Question);
-            _statusLabel!.Text = $"Result: {result}";
+            var result = MessageBox.Show(SR.GetString("MsgTextConfirmCancel"), SR.GetString("MsgTitleConfirmation"), MessageBoxButtons.OKCancel, MessageBoxIcon.Question);
+            _statusLabel!.Text = string.Format(SR.GetString("StatusResultFormat"), result);
         };
 
-        var yesNoCancelButton = new Button { Text = "Yes / No / Cancel", Location = new Point(330, 55), Size = new Size(180, 35) };
+        var yesNoCancelButton = new Button { Text = SR.GetString("BtnYesNoCancel"), Location = new Point(330, 55), Size = new Size(180, 35) };
         yesNoCancelButton.Click += (s, e) =>
         {
-            var result = MessageBox.Show("Save changes?", "Save", MessageBoxButtons.YesNoCancel, MessageBoxIcon.Warning);
-            _statusLabel!.Text = $"Result: {result}";
+            var result = MessageBox.Show(SR.GetString("MsgTextSaveChanges"), SR.GetString("MsgTitleSave"), MessageBoxButtons.YesNoCancel, MessageBoxIcon.Warning);
+            _statusLabel!.Text = string.Format(SR.GetString("StatusResultFormat"), result);
         };
 
-        var retryButton = new Button { Text = "Retry / Cancel", Location = new Point(10, 100), Size = new Size(180, 35) };
+        var retryButton = new Button { Text = SR.GetString("BtnRetryCancel"), Location = new Point(10, 100), Size = new Size(180, 35) };
         retryButton.Click += (s, e) =>
         {
-            var result = MessageBox.Show("Connection failed. Try again?", "Connection", MessageBoxButtons.RetryCancel, MessageBoxIcon.Error);
-            _statusLabel!.Text = $"Result: {result}";
+            var result = MessageBox.Show(SR.GetString("MsgTextConnectionFailed"), SR.GetString("MsgTitleConnection"), MessageBoxButtons.RetryCancel, MessageBoxIcon.Error);
+            _statusLabel!.Text = string.Format(SR.GetString("StatusResultFormat"), result);
         };
 
-        var abortButton = new Button { Text = "Abort / Retry / Ignore", Location = new Point(200, 100), Size = new Size(250, 35) };
+        var abortButton = new Button { Text = SR.GetString("BtnAbortRetryIgnore"), Location = new Point(200, 100), Size = new Size(250, 35) };
         abortButton.Click += (s, e) =>
         {
-            var result = MessageBox.Show("The operation can be aborted, retried, or ignored.", "Operation", MessageBoxButtons.AbortRetryIgnore, MessageBoxIcon.Error);
-            _statusLabel!.Text = $"Result: {result}";
+            var result = MessageBox.Show(SR.GetString("MsgTextOperation"), SR.GetString("MsgTitleOperation"), MessageBoxButtons.AbortRetryIgnore, MessageBoxIcon.Error);
+            _statusLabel!.Text = string.Format(SR.GetString("StatusResultFormat"), result);
         };
 
         page.Controls.Add(infoButton);
@@ -790,84 +867,84 @@ class Program
 
     static TabPage CreateFileDialogPage()
     {
-        var page = new TabPage { Text = "File Dialogs" };
+        var page = new TabPage { Text = SR.GetString("TabFileDialogs") };
 
         // D-Bus diagnostic button (Linux only)
         var dbusTestButton = new Button
         {
-            Text = "Test D-Bus Connection",
+            Text = SR.GetString("BtnTestDBus"),
             Location = new Point(10, 10),
             Size = new Size(180, 30)
         };
         dbusTestButton.Click += (s, e) =>
         {
-            _statusLabel!.Text = "Click Open File to test D-Bus portal dialog";
+            _statusLabel!.Text = SR.GetString("StatusTestDBus");
         };
 
         var groupBox = new GroupBox
         {
-            Text = "OpenFileDialog",
+            Text = SR.GetString("GroupOpenFileDialog"),
             Location = new Point(10, 50),
             Size = new Size(350, 250)
         };
 
-        var openSingleButton = new Button { Text = "Open File...", Location = new Point(10, 25), Size = new Size(150, 35) };
+        var openSingleButton = new Button { Text = SR.GetString("BtnOpenFile"), Location = new Point(10, 25), Size = new Size(150, 35) };
         openSingleButton.Click += (s, e) =>
         {
             var dlg = new OpenFileDialog
             {
-                Title = "Select a text file",
-                Filter = "Text files|*.txt|All files|*.*",
+                Title = SR.GetString("DlgTitleSelectTextFile"),
+                Filter = SR.GetString("DlgFilterTextAndAll"),
                 FilterIndex = 1,
                 CheckFileExists = true
             };
             var result = dlg.ShowDialog();
             _statusLabel!.Text = result == DialogResult.OK
-                ? $"Open: {dlg.FileName}"
-                : "Open cancelled";
+                ? string.Format(SR.GetString("StatusOpenFormat"), dlg.FileName)
+                : SR.GetString("StatusOpenCancelled");
         };
 
-        var openMultiButton = new Button { Text = "Open Files (Multi)...", Location = new Point(10, 70), Size = new Size(150, 35) };
+        var openMultiButton = new Button { Text = SR.GetString("BtnOpenFilesMulti"), Location = new Point(10, 70), Size = new Size(150, 35) };
         openMultiButton.Click += (s, e) =>
         {
             var dlg = new OpenFileDialog
             {
-                Title = "Select one or more files",
-                Filter = "All files|*.*|C# files|*.cs|Text files|*.txt",
+                Title = SR.GetString("DlgTitleSelectMulti"),
+                Filter = SR.GetString("DlgFilterAllCSharpText"),
                 Multiselect = true,
                 CheckFileExists = true
             };
             var result = dlg.ShowDialog();
             if (result == DialogResult.OK)
             {
-                _statusLabel!.Text = $"Open: {string.Join("; ", dlg.FileNames)}";
+                _statusLabel!.Text = string.Format(SR.GetString("StatusOpenFormat"), string.Join("; ", dlg.FileNames));
             }
             else
             {
-                _statusLabel!.Text = "Open cancelled";
+                _statusLabel!.Text = SR.GetString("StatusOpenCancelled");
             }
         };
 
-        var openWithInitialDirButton = new Button { Text = "Open from /tmp...", Location = new Point(10, 115), Size = new Size(150, 35) };
+        var openWithInitialDirButton = new Button { Text = SR.GetString("BtnOpenFromTemp"), Location = new Point(10, 115), Size = new Size(150, 35) };
         openWithInitialDirButton.Click += (s, e) =>
         {
             var dlg = new OpenFileDialog
             {
-                Title = "Open from temp directory",
+                Title = SR.GetString("DlgTitleOpenTemp"),
                 InitialDirectory = "/tmp",
-                Filter = "All files|*.*",
+                Filter = SR.GetString("DlgFilterAll"),
                 DefaultExt = "txt",
                 AddExtension = true
             };
             var result = dlg.ShowDialog();
             _statusLabel!.Text = result == DialogResult.OK
-                ? $"Open: {dlg.FileName}"
-                : "Open cancelled";
+                ? string.Format(SR.GetString("StatusOpenFormat"), dlg.FileName)
+                : SR.GetString("StatusOpenCancelled");
         };
 
         var resultLabel = new Label
         {
-            Text = "Result will appear in the status bar.",
+            Text = SR.GetString("LabelResultInStatusBar"),
             Location = new Point(10, 170),
             Size = new Size(320, 50)
         };
@@ -879,46 +956,46 @@ class Program
 
         var saveGroupBox = new GroupBox
         {
-            Text = "SaveFileDialog",
+            Text = SR.GetString("GroupSaveFileDialog"),
             Location = new Point(370, 50),
             Size = new Size(350, 250)
         };
 
-        var saveButton = new Button { Text = "Save File...", Location = new Point(10, 25), Size = new Size(150, 35) };
+        var saveButton = new Button { Text = SR.GetString("BtnSaveFile"), Location = new Point(10, 25), Size = new Size(150, 35) };
         saveButton.Click += (s, e) =>
         {
             var dlg = new SaveFileDialog
             {
-                Title = "Save file as",
-                Filter = "Text files|*.txt|All files|*.*",
+                Title = SR.GetString("DlgTitleSaveAs"),
+                Filter = SR.GetString("DlgFilterTextAndAll"),
                 DefaultExt = "txt",
                 AddExtension = true,
                 OverwritePrompt = true,
-                FileName = "document.txt"
+                FileName = SR.GetString("DefaultSaveFileName")
             };
             var result = dlg.ShowDialog();
             _statusLabel!.Text = result == DialogResult.OK
-                ? $"Save: {dlg.FileName}"
-                : "Save cancelled";
+                ? string.Format(SR.GetString("StatusSaveFormat"), dlg.FileName)
+                : SR.GetString("StatusSaveCancelled");
         };
 
-        var saveWithDirButton = new Button { Text = "Save to /tmp...", Location = new Point(10, 70), Size = new Size(150, 35) };
+        var saveWithDirButton = new Button { Text = SR.GetString("BtnSaveToTemp"), Location = new Point(10, 70), Size = new Size(150, 35) };
         saveWithDirButton.Click += (s, e) =>
         {
             var dlg = new SaveFileDialog
             {
-                Title = "Save to temp directory",
+                Title = SR.GetString("DlgTitleSaveTemp"),
                 InitialDirectory = "/tmp",
-                Filter = "C# files|*.cs|All files|*.*",
+                Filter = SR.GetString("DlgFilterCSharpAll"),
                 DefaultExt = "cs",
                 AddExtension = true,
                 OverwritePrompt = true,
-                FileName = "output.cs"
+                FileName = SR.GetString("DefaultSaveFileNameCs")
             };
             var result = dlg.ShowDialog();
             _statusLabel!.Text = result == DialogResult.OK
-                ? $"Save: {dlg.FileName}"
-                : "Save cancelled";
+                ? string.Format(SR.GetString("StatusSaveFormat"), dlg.FileName)
+                : SR.GetString("StatusSaveCancelled");
         };
 
         saveGroupBox.Controls.Add(saveButton);
@@ -933,7 +1010,7 @@ class Program
 
     static TabPage CreatePrintDialogPage()
     {
-        var page = new TabPage { Text = "Print Dialog" };
+        var page = new TabPage { Text = SR.GetString("TabPrintDialog") };
 
         var printerListBox = new ListBox
         {
@@ -941,7 +1018,7 @@ class Program
             Size = new Size(250, 200)
         };
 
-        var setupButton = new Button { Text = "Print Setup...", Location = new Point(10, 10), Size = new Size(150, 35) };
+        var setupButton = new Button { Text = SR.GetString("BtnPrintSetup"), Location = new Point(10, 10), Size = new Size(150, 35) };
         setupButton.Click += (s, e) =>
         {
             var dlg = new PrintDialog
@@ -954,30 +1031,30 @@ class Program
             if (result == DialogResult.OK)
             {
                 var ps = dlg.PrinterSettings!;
-                _statusLabel!.Text = $"Printer: {ps.PrinterName}, Copies: {ps.Copies}, Range: {ps.PrintRange}";
+                _statusLabel!.Text = string.Format(SR.GetString("StatusPrintSetupFormat"), ps.PrinterName, ps.Copies, ps.PrintRange);
             }
             else
             {
-                _statusLabel!.Text = "Print cancelled";
+                _statusLabel!.Text = SR.GetString("StatusPrintCancelled");
             }
         };
 
-        var listButton = new Button { Text = "Printer List", Location = new Point(10, 55), Size = new Size(150, 35) };
+        var listButton = new Button { Text = SR.GetString("BtnPrinterList"), Location = new Point(10, 55), Size = new Size(150, 35) };
         listButton.Click += (s, e) =>
         {
             printerListBox.Items.Clear();
             var printers = PrinterSettings.InstalledPrinters;
             foreach (var p in printers)
                 printerListBox.Items.Add(p);
-            _statusLabel!.Text = $"{printers.Length} printers found";
+            _statusLabel!.Text = string.Format(SR.GetString("StatusPrintersFoundFormat"), printers.Length);
         };
 
-        var testPrintButton = new Button { Text = "Quick Print Test", Location = new Point(10, 100), Size = new Size(150, 35) };
+        var testPrintButton = new Button { Text = SR.GetString("BtnQuickPrint"), Location = new Point(10, 100), Size = new Size(150, 35) };
         testPrintButton.Click += (s, e) =>
         {
             var doc = new PrintDocument
             {
-                DocumentName = "Test Page",
+                DocumentName = SR.GetString("PrintDocName"),
                 PrinterSettings = new PrinterSettings()
             };
             doc.DefaultPageSettings = new PageSettings
@@ -1003,13 +1080,13 @@ class Program
                     g.DrawRectangle(Core.Color.Black, bounds.X, bounds.Y, bounds.Width, bounds.Height);
                 }
 
-                g.DrawString("CoreForms.Ui Test Page", new Core.Font("Arial", 24), Core.Color.Black,
+                g.DrawString(SR.GetString("PrintTestPageTitle"), new Core.Font("Arial", 24), Core.Color.Black,
                     bounds.X + 10, bounds.Y + 10);
 
-                g.DrawString($"Date: {DateTime.Now:yyyy-MM-dd HH:mm:ss}", new Core.Font("Arial", 12), Core.Color.Black,
+                g.DrawString(string.Format(SR.GetString("PrintDateFormat"), DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss")), new Core.Font("Arial", 12), Core.Color.Black,
                     bounds.X + 10, bounds.Y + 60);
 
-                g.DrawString("This is a test print page.", new Core.Font("Arial", 12), Core.Color.Black,
+                g.DrawString(SR.GetString("PrintTestPageBody"), new Core.Font("Arial", 12), Core.Color.Black,
                     bounds.X + 10, bounds.Y + 100);
 
                 args.HasMorePages = false;
@@ -1017,11 +1094,11 @@ class Program
             try
             {
                 doc.Print();
-                _statusLabel!.Text = "Test page sent to printer";
+                _statusLabel!.Text = SR.GetString("StatusPrintSent");
             }
             catch (Exception ex)
             {
-                _statusLabel!.Text = $"Print error: {ex.Message}";
+                _statusLabel!.Text = string.Format(SR.GetString("StatusPrintErrorFormat"), ex.Message);
                 Console.WriteLine($"[Print] Error: {ex}");
             }
         };
@@ -1036,7 +1113,7 @@ class Program
 
     static TabPage CreateDockAnchorPage()
     {
-        var page = new TabPage { Text = "Dock & Anchor" };
+        var page = new TabPage { Text = SR.GetString("TabDockAnchor") };
 
         var dockPanel = new Panel
         {
@@ -1045,7 +1122,7 @@ class Program
             BorderStyle = BorderStyle.FixedSingle
         };
 
-        var dockedTopLabel = new Label { Text = "Dock=Top", Size = new Size(250, 22) };
+        var dockedTopLabel = new Label { Text = SR.GetString("LabelDockTop"), Size = new Size(250, 22) };
         dockedTopLabel.Dock = DockStyle.Top;
 
         var hSep = new SeperatorControl
@@ -1055,10 +1132,10 @@ class Program
             Dock = DockStyle.Top
         };
 
-        var dockedBottomLabel = new Label { Text = "Dock=Bottom", Size = new Size(250, 22) };
+        var dockedBottomLabel = new Label { Text = SR.GetString("LabelDockBottom"), Size = new Size(250, 22) };
         dockedBottomLabel.Dock = DockStyle.Bottom;
 
-        var dockedLeftLabel = new Label { Text = "L", Size = new Size(30, 176) };
+        var dockedLeftLabel = new Label { Text = SR.GetString("LabelDockLeft"), Size = new Size(30, 176) };
         dockedLeftLabel.Dock = DockStyle.Left;
 
         var vSep = new SeperatorControl
@@ -1068,7 +1145,7 @@ class Program
             Dock = DockStyle.Left
         };
 
-        var centerLabel = new Label { Text = "Dock=Fill", Size = new Size(50, 50) };
+        var centerLabel = new Label { Text = SR.GetString("LabelDockFill"), Size = new Size(50, 50) };
         centerLabel.Dock = DockStyle.Fill;
 
         dockPanel.Controls.Add(dockedTopLabel);
@@ -1087,7 +1164,7 @@ class Program
 
         var anchorLabel = new Label
         {
-            Text = "Anchored to all sides (Anchor=All)",
+            Text = SR.GetString("LabelAnchorAll"),
             Location = new Point(10, 10),
             Size = new Size(280, 280)
         };
@@ -1103,7 +1180,7 @@ class Program
 
     static TabPage CreateTreeViewPage()
     {
-        var page = new TabPage { Text = "Tree View" };
+        var page = new TabPage { Text = SR.GetString("TabTreeView") };
 
         // Create an ImageList with some icons
         var imageList = new ImageList();
@@ -1121,16 +1198,16 @@ class Program
         };
 
         // Build sample nodes
-        var root1 = new TreeNode("Root 1") { ImageIndex = 0 };
-        var child1 = new TreeNode("Child 1") { ImageIndex = 1 };
-        var child2 = new TreeNode("Child 2") { ImageIndex = 2 };
+        var root1 = new TreeNode(SR.GetString("TreeNodeRoot1")) { ImageIndex = 0 };
+        var child1 = new TreeNode(SR.GetString("TreeNodeChild1")) { ImageIndex = 1 };
+        var child2 = new TreeNode(SR.GetString("TreeNodeChild2")) { ImageIndex = 2 };
         root1.Add(child1);
         root1.Add(child2);
 
-        var root2 = new TreeNode("Root 2") { ImageIndex = 0 };
-        var subRoot = new TreeNode("Sub Root") { ImageIndex = 1 };
-        subRoot.Add(new TreeNode("Leaf A") { ImageIndex = 2 });
-        subRoot.Add(new TreeNode("Leaf B") { ImageIndex = 2 });
+        var root2 = new TreeNode(SR.GetString("TreeNodeRoot2")) { ImageIndex = 0 };
+        var subRoot = new TreeNode(SR.GetString("TreeNodeSubRoot")) { ImageIndex = 1 };
+        subRoot.Add(new TreeNode(SR.GetString("TreeNodeLeafA")) { ImageIndex = 2 });
+        subRoot.Add(new TreeNode(SR.GetString("TreeNodeLeafB")) { ImageIndex = 2 });
         root2.Add(subRoot);
 
         treeView.Nodes.Add(root1);
@@ -1142,7 +1219,7 @@ class Program
 
     static TabPage CreateUserControlPage()
     {
-        var page = new TabPage { Text = "User Control" };
+        var page = new TabPage { Text = SR.GetString("TabUserControl") };
 
         var loginControl = new LoginUserControl
         {
@@ -1151,7 +1228,7 @@ class Program
         };
         loginControl.LoginClicked += (s, e) =>
         {
-            _statusLabel!.Text = $"Login: {loginControl.Username}";
+            _statusLabel!.Text = string.Format(SR.GetString("StatusLoginFormat"), loginControl.Username);
         };
 
         page.Controls.Add(loginControl);
@@ -1160,11 +1237,11 @@ class Program
 
     static TabPage CreateImagesPage()
     {
-        var page = new TabPage { Text = "Images" };
+        var page = new TabPage { Text = SR.GetString("TabImages") };
 
         var svgGroup = new GroupBox
         {
-            Text = "SVG Images",
+            Text = SR.GetString("GroupSvgImages"),
             Location = new Point(10, 10),
             Size = new Size(250, 200)
         };
@@ -1193,7 +1270,7 @@ class Program
         };
         svgCenterBox.Image = Icons.CheckmarkCircle24;
 
-        var svgLabel = new Label { Text = "Zoom | Stretch | Center", Location = new Point(15, 175), Size = new Size(210, 20) };
+        var svgLabel = new Label { Text = SR.GetString("LabelSvgModes"), Location = new Point(15, 175), Size = new Size(210, 20) };
 
         svgGroup.Controls.Add(svgPictureBox);
         svgGroup.Controls.Add(svgStretchBox);
@@ -1202,7 +1279,7 @@ class Program
 
         var rasterGroup = new GroupBox
         {
-            Text = "Raster Images (PNG)",
+            Text = SR.GetString("GroupRasterImages"),
             Location = new Point(270, 10),
             Size = new Size(250, 200)
         };
@@ -1234,7 +1311,7 @@ class Program
         };
         rasterZoomBox.Image = rasterImage;
 
-        var rasterLabel = new Label { Text = "Normal | Stretch | Zoom", Location = new Point(15, 175), Size = new Size(210, 20) };
+        var rasterLabel = new Label { Text = SR.GetString("LabelRasterModes"), Location = new Point(15, 175), Size = new Size(210, 20) };
 
         rasterGroup.Controls.Add(rasterNormalBox);
         rasterGroup.Controls.Add(rasterStretchBox);
@@ -1262,7 +1339,7 @@ class Program
 
     static TabPage CreateSplitPanelPage()
     {
-        var page = new TabPage { Text = "Split Panel" };
+        var page = new TabPage { Text = SR.GetString("TabSplitPanel") };
 
         var verticalSplit = new SplitPanel
         {
@@ -1275,23 +1352,23 @@ class Program
 
         var topLabel = new Label
         {
-            Text = "Top Panel (Panel1)",
+            Text = SR.GetString("LabelTopPanel"),
             Location = new Point(10, 10),
             Size = new Size(100, 30)
         };
         var topButton = new Button
         {
-            Text = "Button in Top",
+            Text = SR.GetString("BtnButtonInTop"),
             Location = new Point(10, 50),
             Size = new Size(120, 25)
         };
-        topButton.Click += (s, e) => _statusLabel!.Text = "Top button clicked!";
+        topButton.Click += (s, e) => _statusLabel!.Text = SR.GetString("StatusTopButtonClicked");
         verticalSplit.Panel1.Controls.Add(topLabel);
         verticalSplit.Panel1.Controls.Add(topButton);
 
         var bottomTextBox = new TextBox
         {
-            Text = "Bottom Panel (Panel2)",
+            Text = SR.GetString("LabelBottomPanel"),
             Location = new Point(10, 10),
             Size = new Size(260, 25)
         };
@@ -1307,7 +1384,7 @@ class Program
 
         var leftLabel = new Label
         {
-            Text = "Left Panel (Panel1)",
+            Text = SR.GetString("LabelLeftPanel"),
             Location = new Point(10, 10),
             Size = new Size(100, 30)
         };
@@ -1315,43 +1392,43 @@ class Program
 
         var rightLabel = new Label
         {
-            Text = "Right Panel (Panel2)",
+            Text = SR.GetString("LabelRightPanel"),
             Location = new Point(10, 10),
             Size = new Size(140, 30)
         };
         var rightButton = new Button
         {
-            Text = "Button in Right",
+            Text = SR.GetString("BtnButtonInRight"),
             Location = new Point(10, 50),
             Size = new Size(120, 25)
         };
-        rightButton.Click += (s, e) => _statusLabel!.Text = "Right button clicked!";
+        rightButton.Click += (s, e) => _statusLabel!.Text = SR.GetString("StatusRightButtonClicked");
         horizontalSplit.Panel2.Controls.Add(rightLabel);
         horizontalSplit.Panel2.Controls.Add(rightButton);
 
         var distanceLabel = new Label
         {
-            Text = $"SplitterDist: {verticalSplit.SplitterDistance}",
+            Text = string.Format(SR.GetString("StatusSplitterDistFormat"), verticalSplit.SplitterDistance),
             Location = new Point(10, 275),
             Size = new Size(200, 20)
         };
 
         var set200Button = new Button
         {
-            Text = "Set Dist 200",
+            Text = SR.GetString("BtnSetDist200"),
             Location = new Point(10, 300),
             Size = new Size(120, 25)
         };
         set200Button.Click += (s, e) =>
         {
             verticalSplit.SplitterDistance = 200;
-            distanceLabel.Text = $"SplitterDist: {verticalSplit.SplitterDistance}";
-            _statusLabel!.Text = "Splitter distance set to 200";
+            distanceLabel.Text = string.Format(SR.GetString("StatusSplitterDistFormat"), verticalSplit.SplitterDistance);
+            _statusLabel!.Text = SR.GetString("StatusSplitterSet200");
         };
 
         var toggleOrientationButton = new Button
         {
-            Text = "Toggle Orientation",
+            Text = SR.GetString("BtnToggleOrientation"),
             Location = new Point(140, 300),
             Size = new Size(150, 25)
         };
@@ -1360,25 +1437,25 @@ class Program
             horizontalSplit.Orientation = horizontalSplit.Orientation == SplitOrientation.Horizontal
                 ? SplitOrientation.Vertical
                 : SplitOrientation.Horizontal;
-            _statusLabel!.Text = $"Orientation: {horizontalSplit.Orientation}";
+            _statusLabel!.Text = string.Format(SR.GetString("StatusOrientationFormat"), horizontalSplit.Orientation);
         };
 
         var incMinSizeButton = new Button
         {
-            Text = "Panel1 Min +10",
+            Text = SR.GetString("BtnPanel1Min10"),
             Location = new Point(10, 335),
             Size = new Size(120, 25)
         };
         incMinSizeButton.Click += (s, e) =>
         {
             verticalSplit.Panel1MinSize += 10;
-            _statusLabel!.Text = $"Panel1MinSize: {verticalSplit.Panel1MinSize}";
+            _statusLabel!.Text = string.Format(SR.GetString("StatusPanel1MinSizeFormat"), verticalSplit.Panel1MinSize);
         };
 
         verticalSplit.SplitterMoved += (s, e) =>
         {
-            distanceLabel.Text = $"SplitterDist: {verticalSplit.SplitterDistance}";
-            _statusLabel!.Text = $"Splitter moved to {verticalSplit.SplitterDistance}";
+            distanceLabel.Text = string.Format(SR.GetString("StatusSplitterDistFormat"), verticalSplit.SplitterDistance);
+            _statusLabel!.Text = string.Format(SR.GetString("StatusSplitterMovedFormat"), verticalSplit.SplitterDistance);
         };
 
         page.Controls.Add(verticalSplit);
@@ -1393,13 +1470,13 @@ class Program
 
     static TabPage CreateWebBrowserPage()
     {
-        var page = new TabPage { Text = "Web Browser" };
+        var page = new TabPage { Text = SR.GetString("TabWebBrowser") };
 
         var toolStrip = new ToolStrip { Dock = DockStyle.Top };
 
         // Navigation buttons
-        var backButton = new ToolStripButton("← Back");
-        var forwardButton = new ToolStripButton("Forward →");
+        var backButton = new ToolStripButton(SR.GetString("BtnWebBack"));
+        var forwardButton = new ToolStripButton(SR.GetString("BtnWebForward"));
         var refreshButton = new ToolStripButton("", Icons.ArrowSync24!) { DisplayStyle = ToolStripItemDisplayStyle.Image };
         var stopButton = new ToolStripButton("", Icons.DismissCircle24!) { DisplayStyle = ToolStripItemDisplayStyle.Image };
 
@@ -1481,13 +1558,13 @@ class Program
 
     static TabPage CreateHtmlEditorPage()
     {
-        var page = new TabPage { Text = "HTML Editor" };
+        var page = new TabPage { Text = SR.GetString("TabHtmlEditor") };
 
         var toolStrip = new ToolStrip { Dock = DockStyle.Top, GripStyle = ToolStripGripStyle.Hidden };
 
-        var boldButton = new ToolStripButton("B", Icons.TextEditStyle24!) { DisplayStyle = ToolStripItemDisplayStyle.ImageAndText };
-        var italicButton = new ToolStripButton("I") { DisplayStyle = ToolStripItemDisplayStyle.Text };
-        var underlineButton = new ToolStripButton("U") { DisplayStyle = ToolStripItemDisplayStyle.Text };
+        var boldButton = new ToolStripButton(SR.GetString("ToolBold"), Icons.TextEditStyle24!) { DisplayStyle = ToolStripItemDisplayStyle.ImageAndText };
+        var italicButton = new ToolStripButton(SR.GetString("ToolItalic")) { DisplayStyle = ToolStripItemDisplayStyle.Text };
+        var underlineButton = new ToolStripButton(SR.GetString("ToolUnderline")) { DisplayStyle = ToolStripItemDisplayStyle.Text };
         var bulletListButton = new ToolStripButton("", Icons.TextBulletListSquare24!) { DisplayStyle = ToolStripItemDisplayStyle.Image };
         var numberListButton = new ToolStripButton("", Icons.NumberSymbolSquare24!) { DisplayStyle = ToolStripItemDisplayStyle.Image };
         var linkButton = new ToolStripButton("", Icons.Link24!) { DisplayStyle = ToolStripItemDisplayStyle.Image };
@@ -1546,7 +1623,7 @@ class Program
 
     static TabPage CreateCalendarPage()
     {
-        var page = new TabPage { Text = "Calendar" };
+        var page = new TabPage { Text = SR.GetString("TabCalendar") };
 
         var calendar = new CalendarView
         {
@@ -1558,52 +1635,52 @@ class Program
         var today = DateTime.Today;
         calendar.Appointments.Add(new CalendarAppointment
         {
-            Subject = "Team Meeting",
+            Subject = SR.GetString("AppointmentTeamMeeting"),
             StartTime = today.AddHours(10),
             EndTime = today.AddHours(11),
-            Location = "Room 101",
+            Location = SR.GetString("AppointmentRoom101"),
             CategoryColor = CoreForms.Ui.Controls.Advanced.CalendarView.CategoryColors[0]
         });
 
         calendar.Appointments.Add(new CalendarAppointment
         {
-            Subject = "Lunch",
+            Subject = SR.GetString("AppointmentLunch"),
             StartTime = today.AddHours(12),
             EndTime = today.AddHours(13),
-            Location = "Cafeteria",
+            Location = SR.GetString("AppointmentCafeteria"),
             CategoryColor = CoreForms.Ui.Controls.Advanced.CalendarView.CategoryColors[2]
         });
 
         calendar.Appointments.Add(new CalendarAppointment
         {
-            Subject = "Project Review",
+            Subject = SR.GetString("AppointmentProjectReview"),
             StartTime = today.AddHours(14).AddMinutes(30),
             EndTime = today.AddHours(16),
-            Location = "Conference Room",
+            Location = SR.GetString("AppointmentConfRoom"),
             CategoryColor = CoreForms.Ui.Controls.Advanced.CalendarView.CategoryColors[1]
         });
 
         calendar.Appointments.Add(new CalendarAppointment
         {
-            Subject = "Workshop: Cross-Platform UI",
+            Subject = SR.GetString("AppointmentWorkshop"),
             StartTime = today.AddDays(1).AddHours(9),
             EndTime = today.AddDays(1).AddHours(12),
-            Location = "Training Room",
+            Location = SR.GetString("AppointmentTrainingRoom"),
             CategoryColor = CoreForms.Ui.Controls.Advanced.CalendarView.CategoryColors[3]
         });
 
         calendar.Appointments.Add(new CalendarAppointment
         {
-            Subject = "Sprint Planning",
+            Subject = SR.GetString("AppointmentSprintPlanning"),
             StartTime = today.AddDays(3).AddHours(10),
             EndTime = today.AddDays(3).AddHours(12),
-            Location = "Room 204",
+            Location = SR.GetString("AppointmentRoom204"),
             CategoryColor = CoreForms.Ui.Controls.Advanced.CalendarView.CategoryColors[0]
         });
 
         calendar.Appointments.Add(new CalendarAppointment
         {
-            Subject = "Conference",
+            Subject = SR.GetString("AppointmentConference"),
             StartTime = today.AddDays(10),
             EndTime = today.AddDays(12),
             IsAllDay = true,
@@ -1613,12 +1690,12 @@ class Program
         // Event handlers
         calendar.DateSelected += (s, e) =>
         {
-            _statusLabel!.Text = $"Selected: {e.Date:dddd, MMMM dd, yyyy}";
+            _statusLabel!.Text = string.Format(SR.GetString("StatusSelectedDateFormat"), e.Date.ToString("dddd, MMMM dd, yyyy"));
         };
 
         calendar.ViewChanged += (s, e) =>
         {
-            _statusLabel!.Text = $"View: {calendar.ViewType}";
+            _statusLabel!.Text = string.Format(SR.GetString("StatusViewFormat"), calendar.ViewType);
         };
 
         page.Controls.Add(calendar);
@@ -1722,15 +1799,15 @@ public class LoginUserControl : UserControl
         BackColor = ThemeManager.CurrentTheme.ControlBackground;
         BorderStyle = BorderStyle.FixedSingle;
 
-        _usernameLabel = new Label { Text = "Username:", Location = new Point(10, 15), Size = new Size(80, 20) };
-        _usernameTextBox = new TextBox { Location = new Point(100, 15), Size = new Size(230, 25), Text = "admin" };
+        _usernameLabel = new Label { Text = SR.GetString("LabelUsername") + ":", Location = new Point(10, 15), Size = new Size(80, 20) };
+        _usernameTextBox = new TextBox { Location = new Point(100, 15), Size = new Size(230, 25), Text = SR.GetString("DefaultLoginUsername") };
 
-        _passwordLabel = new Label { Text = "Password:", Location = new Point(10, 50), Size = new Size(80, 20) };
-        _passwordTextBox = new TextBox { Location = new Point(100, 50), Size = new Size(230, 25), Text = "password", UseSystemPasswordChar = true };
+        _passwordLabel = new Label { Text = SR.GetString("LabelPassword") + ":", Location = new Point(10, 50), Size = new Size(80, 20) };
+        _passwordTextBox = new TextBox { Location = new Point(100, 50), Size = new Size(230, 25), Text = SR.GetString("DefaultLoginPassword"), UseSystemPasswordChar = true };
 
-        _rememberCheckBox = new CheckBox { Text = "Remember me", Location = new Point(100, 80), Size = new Size(150, 20), Checked = true };
+        _rememberCheckBox = new CheckBox { Text = SR.GetString("ChkRememberMe"), Location = new Point(100, 80), Size = new Size(150, 20), Checked = true };
 
-        _loginButton = new Button { Text = "Login", Location = new Point(100, 115), Size = new Size(100, 30) };
+        _loginButton = new Button { Text = SR.GetString("BtnLogin"), Location = new Point(100, 115), Size = new Size(100, 30) };
         _loginButton.Click += (s, e) => LoginClicked?.Invoke(this, EventArgs.Empty);
 
         Controls.Add(_usernameLabel);

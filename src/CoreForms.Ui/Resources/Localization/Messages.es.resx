@@ -20,37 +20,37 @@
     <value>OK</value>
   </data>
   <data name="Cancel">
-    <value>Cancel</value>
+    <value>Cancelar</value>
   </data>
   <data name="Yes">
-    <value>Yes</value>
+    <value>Sí</value>
   </data>
   <data name="No">
     <value>No</value>
   </data>
   <data name="Abort">
-    <value>Abort</value>
+    <value>Abortar</value>
   </data>
   <data name="Retry">
-    <value>Retry</value>
+    <value>Reintentar</value>
   </data>
   <data name="Ignore">
-    <value>Ignore</value>
+    <value>Ignorar</value>
   </data>
   <data name="AppointmentSubject">
-    <value>Subject</value>
+    <value>Asunto</value>
   </data>
   <data name="AppointmentLocation">
-    <value>Location</value>
+    <value>Ubicación</value>
   </data>
   <data name="AppointmentStart">
-    <value>Start</value>
+    <value>Inicio</value>
   </data>
   <data name="AppointmentEnd">
-    <value>End</value>
+    <value>Fin</value>
   </data>
   <data name="AppointmentAllDay">
-    <value>All-day</value>
+    <value>Todo el día</value>
   </data>
   <data name="AppointmentColor">
     <value>Color</value>

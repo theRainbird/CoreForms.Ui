@@ -43,7 +43,7 @@ public class DataBindingTests
         public event PropertyChangedEventHandler? PropertyChanged;
     }
 
-    // ===== INotifyPropertyChanged on Control =====
+    #region INotifyPropertyChanged on Control
 
     [Fact]
     public void Control_PropertyChanged_FiresOnTextChange()
@@ -94,7 +94,9 @@ public class DataBindingTests
         Assert.Equal(0, fireCount);
     }
 
-    // ===== BindingList<T> =====
+    #endregion
+
+    #region BindingList<T>
 
     [Fact]
     public void BindingList_Add_RaisesListChanged()
@@ -170,7 +172,9 @@ public class DataBindingTests
         Assert.Equal(0, changedIndex);
     }
 
-    // ===== Binding =====
+    #endregion
+
+    #region Binding
 
     [Fact]
     public void Binding_OneWay_PushesInitialValue()
@@ -225,7 +229,9 @@ public class DataBindingTests
         Assert.True(control.Checked);
     }
 
-    // ===== CurrencyManager =====
+    #endregion
+
+    #region CurrencyManager
 
     [Fact]
     public void CurrencyManager_PositionInitializesCorrectly()
@@ -279,7 +285,9 @@ public class DataBindingTests
         Assert.Equal("C", cm.Current);
     }
 
-    // ===== BindingSource =====
+    #endregion
+
+    #region BindingSource
 
     [Fact]
     public void BindingSource_WrapsBindingList()
@@ -331,7 +339,9 @@ public class DataBindingTests
         Assert.Equal(2, bs.Count);
     }
 
-    // ===== ListBox DataSource =====
+    #endregion
+
+    #region ListBox DataSource
 
     [Fact]
     public void ListBox_DataSource_PopulatesItems()
@@ -471,7 +481,9 @@ public class DataBindingTests
         Assert.Equal(1, bs.Position);
     }
 
-    // ===== ComboBox DataSource =====
+    #endregion
+
+    #region ComboBox DataSource
 
     [Fact]
     public void ComboBox_DataSource_PopulatesItems()
@@ -513,7 +525,9 @@ public class DataBindingTests
         Assert.Equal(2, cb.SelectedValue);
     }
 
-    // ===== DataGridView DataSource =====
+    #endregion
+
+    #region DataGridView DataSource
 
     [Fact]
     public void DataGridView_DataSource_PopulatesRows()
@@ -531,7 +545,9 @@ public class DataBindingTests
         Assert.Equal(2, dgv.Rows.Count);
     }
 
-    // ===== PropertyDescriptor =====
+    #endregion
+
+    #region PropertyDescriptor
 
     [Fact]
     public void ReflectionPropertyDescriptor_GetsAndSetsValue()
@@ -550,7 +566,9 @@ public class DataBindingTests
         Assert.Equal("Updated", item.Name);
     }
 
-    // ===== BindingContext =====
+    #endregion
+
+    #region BindingContext
 
     [Fact]
     public void BindingContext_CreatesCurrencyManagerForList()
@@ -576,7 +594,9 @@ public class DataBindingTests
         Assert.Equal(1, mgr.Count);
     }
 
-    // ===== ControlBindingsCollection =====
+    #endregion
+
+    #region ControlBindingsCollection
 
     [Fact]
     public void ControlBindingsCollection_AddAndRetrieve()
@@ -614,4 +634,6 @@ public class DataBindingTests
 
         Assert.Empty(control.DataBindings);
     }
+
+    #endregion
 }

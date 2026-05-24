@@ -18,7 +18,7 @@ public class GroupBox : ContainerControl
         _backColor = Color.Transparent;
         _backColorSet = true;
         Size = new Size(200, 150);
-        Text = "GroupBox";
+        Text = SR.GetString("GroupBoxDefaultText");
     }
 
     /// <summary>
@@ -100,7 +100,8 @@ public class GroupBox : ContainerControl
             if (leftTopEnd > 0)
                 g.DrawLine(borderColor, 0, offsetY, leftTopEnd, offsetY, 1);
 
-            int rightTopStart = textX + textWidth + gap;
+            int logicalTextWidth = zoom > 0 ? (int)MathF.Round(textWidth / zoom) : textWidth;
+            int rightTopStart = textX + logicalTextWidth + gap;
             if (rightTopStart < Width - 1)
                 g.DrawLine(borderColor, rightTopStart, offsetY, Width - 1, offsetY, 1);
         }

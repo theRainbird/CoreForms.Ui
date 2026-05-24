@@ -535,6 +535,279 @@ public class ControlTests
     }
 
     [Fact]
+    public void ComboBox_DropDownStyle_Default_IsDropDownList()
+    {
+        var comboBox = new ComboBox();
+        Assert.Equal(DropDownStyle.DropDownList, comboBox.DropDownStyle);
+    }
+
+    [Fact]
+    public void ComboBox_DropDownStyle_CanSetAndGet()
+    {
+        var comboBox = new ComboBox();
+        comboBox.DropDownStyle = DropDownStyle.DropDown;
+        Assert.Equal(DropDownStyle.DropDown, comboBox.DropDownStyle);
+
+        comboBox.DropDownStyle = DropDownStyle.Simple;
+        Assert.Equal(DropDownStyle.Simple, comboBox.DropDownStyle);
+
+        comboBox.DropDownStyle = DropDownStyle.DropDownList;
+        Assert.Equal(DropDownStyle.DropDownList, comboBox.DropDownStyle);
+    }
+
+    [Fact]
+    public void ComboBox_DropDownStyle_DropDownList_TextIsReadOnly()
+    {
+        var comboBox = new ComboBox();
+        comboBox.Items.Add("Item 1");
+        comboBox.Items.Add("Item 2");
+        comboBox.SelectedIndex = 0;
+
+        comboBox.DropDownStyle = DropDownStyle.DropDownList;
+        Assert.Equal("Item 1", comboBox.Text);
+
+        comboBox.Text = "Custom Text";
+        Assert.NotEqual("Custom Text", comboBox.Text);
+        Assert.Equal("Item 1", comboBox.Text);
+    }
+
+    [Fact]
+    public void ComboBox_DropDownStyle_DropDown_AllowsTextEditing()
+    {
+        var comboBox = new ComboBox();
+        comboBox.Items.Add("Item 1");
+        comboBox.Items.Add("Item 2");
+
+        comboBox.DropDownStyle = DropDownStyle.DropDown;
+        comboBox.Text = "Custom Text";
+        Assert.Equal("Custom Text", comboBox.Text);
+    }
+
+    [Fact]
+    public void ComboBox_DropDownStyle_Simple_AllowsTextEditing()
+    {
+        var comboBox = new ComboBox();
+        comboBox.Items.Add("Item 1");
+        comboBox.Items.Add("Item 2");
+
+        comboBox.DropDownStyle = DropDownStyle.Simple;
+        comboBox.Text = "Custom Text";
+        Assert.Equal("Custom Text", comboBox.Text);
+    }
+
+    [Fact]
+    public void ComboBox_DropDownStyle_DropDown_TextChanged_FiresOnTextInput()
+    {
+        var comboBox = new ComboBox();
+        comboBox.DropDownStyle = DropDownStyle.DropDown;
+        var fired = false;
+        comboBox.TextChanged += (s, e) => fired = true;
+
+        comboBox.OnTextInput("H");
+        Assert.True(fired);
+    }
+
+    [Fact]
+    public void ComboBox_DropDownStyle_DropDownList_TextInputDoesNothing()
+    {
+        var comboBox = new ComboBox();
+        comboBox.Items.Add("Item 1");
+        comboBox.DropDownStyle = DropDownStyle.DropDownList;
+
+        comboBox.OnTextInput("H");
+        Assert.Equal(string.Empty, comboBox.Text);
+    }
+
+    [Fact]
+    public void ComboBox_DropDownStyle_DropDown_SelectedIndexSyncsText()
+    {
+        var comboBox = new ComboBox();
+        comboBox.Items.Add("Choice A");
+        comboBox.Items.Add("Choice B");
+        comboBox.DropDownStyle = DropDownStyle.DropDown;
+
+        comboBox.SelectedIndex = 1;
+        Assert.Equal("Choice B", comboBox.Text);
+    }
+
+    [Fact]
+    public void ComboBox_DropDownStyle_Simple_SelectedIndexSyncsText()
+    {
+        var comboBox = new ComboBox();
+        comboBox.Items.Add("Choice A");
+        comboBox.Items.Add("Choice B");
+        comboBox.DropDownStyle = DropDownStyle.Simple;
+
+        comboBox.SelectedIndex = 1;
+        Assert.Equal("Choice B", comboBox.Text);
+    }
+
+    [Fact]
+    public void ComboBox_DropDownStyle_DropDown_KeyboardEditingWorks()
+    {
+        var comboBox = new ComboBox();
+        comboBox.DropDownStyle = DropDownStyle.DropDown;
+        comboBox.Focused = true;
+
+        comboBox.OnTextInput("Hello");
+        Assert.Equal("Hello", comboBox.Text);
+
+        // Backspace should remove last character
+        comboBox.OnKeyDown(new KeyEventArgs { KeyCode = Keys.Back, Modifiers = ModifierKeys.None });
+        Assert.Equal("Hell", comboBox.Text);
+    }
+
+    [Fact]
+    public void ComboBox_DropDownStyle_DropDownList_OnKeyDown_UpDown_ChangesSelection()
+    {
+        var comboBox = new ComboBox();
+        comboBox.Items.Add("Item 1");
+        comboBox.Items.Add("Item 2");
+        comboBox.Items.Add("Item 3");
+        comboBox.SelectedIndex = 0;
+
+        comboBox.OnKeyDown(new KeyEventArgs { KeyCode = Keys.Down, Modifiers = ModifierKeys.None });
+        Assert.Equal(1, comboBox.SelectedIndex);
+    }
+
+    [Fact]
+    public void ComboBox_DropDown_AutoComplete_AppendsMatchingItem()
+    {
+        var comboBox = new ComboBox();
+        comboBox.DropDownStyle = DropDownStyle.DropDown;
+        comboBox.Items.Add("Active");
+        comboBox.Items.Add("Inactive");
+        comboBox.Items.Add("Pending");
+
+        comboBox.OnTextInput("Ac");
+        Assert.Equal("Active", comboBox.Text);
+        Assert.Equal(0, comboBox.SelectedIndex);
+    }
+
+    [Fact]
+    public void ComboBox_DropDown_AutoComplete_CaseInsensitive()
+    {
+        var comboBox = new ComboBox();
+        comboBox.DropDownStyle = DropDownStyle.DropDown;
+        comboBox.Items.Add("Active");
+        comboBox.Items.Add("Inactive");
+        comboBox.Items.Add("Pending");
+
+        comboBox.OnTextInput("ac");
+        Assert.Equal("Active", comboBox.Text);
+        Assert.Equal(0, comboBox.SelectedIndex);
+    }
+
+    [Fact]
+    public void ComboBox_DropDown_AutoComplete_NoMatch_NoChange()
+    {
+        var comboBox = new ComboBox();
+        comboBox.DropDownStyle = DropDownStyle.DropDown;
+        comboBox.Items.Add("Active");
+        comboBox.Items.Add("Inactive");
+        comboBox.Items.Add("Pending");
+
+        comboBox.OnTextInput("Xyz");
+        Assert.Equal("Xyz", comboBox.Text);
+    }
+
+    [Fact]
+    public void ComboBox_DropDown_AutoComplete_SelectsDifferentIndexOnNewMatch()
+    {
+        var comboBox = new ComboBox();
+        comboBox.DropDownStyle = DropDownStyle.DropDown;
+        comboBox.Items.Add("Alpha");
+        comboBox.Items.Add("Active");
+        comboBox.Items.Add("Ace");
+
+        comboBox.OnTextInput("Ac");
+        Assert.Equal("Active", comboBox.Text);
+        Assert.Equal(1, comboBox.SelectedIndex);
+    }
+
+    [Fact]
+    public void ComboBox_DropDown_AutoComplete_Backspace_RevertsSelection()
+    {
+        var comboBox = new ComboBox();
+        comboBox.DropDownStyle = DropDownStyle.DropDown;
+        comboBox.Items.Add("Active");
+        comboBox.Items.Add("Inactive");
+        comboBox.Items.Add("Pending");
+
+        comboBox.OnTextInput("Ac");        // Auto-completes to "Active", "tive" selected
+        Assert.Equal("Active", comboBox.Text);
+
+        comboBox.OnKeyDown(new KeyEventArgs { KeyCode = Keys.Back, Modifiers = ModifierKeys.None });
+        Assert.Equal("Ac", comboBox.Text); // Backspace should delete the auto-completed selection
+    }
+
+    [Fact]
+    public void ComboBox_DropDown_AutoComplete_ExactMatch_NoChange()
+    {
+        var comboBox = new ComboBox();
+        comboBox.DropDownStyle = DropDownStyle.DropDown;
+        comboBox.Items.Add("Active");
+        comboBox.Items.Add("Inactive");
+
+        comboBox.OnTextInput("Active");
+        Assert.Equal("Active", comboBox.Text); // Should stay exactly as typed
+    }
+
+    [Fact]
+    public void ComboBox_DropDownList_TextSet_WithMatchingItem_SelectsIt()
+    {
+        var comboBox = new ComboBox();
+        comboBox.DropDownStyle = DropDownStyle.DropDownList;
+        comboBox.Items.Add("Active");
+        comboBox.Items.Add("Inactive");
+        comboBox.Items.Add("Pending");
+
+        comboBox.Text = "Inactive";
+        Assert.Equal(1, comboBox.SelectedIndex);
+        Assert.Equal("Inactive", comboBox.Text);
+    }
+
+    [Fact]
+    public void ComboBox_DropDownList_TextSet_WithNonMatchingItem_Ignored()
+    {
+        var comboBox = new ComboBox();
+        comboBox.DropDownStyle = DropDownStyle.DropDownList;
+        comboBox.Items.Add("Active");
+        comboBox.Items.Add("Inactive");
+        comboBox.Items.Add("Pending");
+        comboBox.SelectedIndex = 0;
+
+        comboBox.Text = "NonExistent";
+        Assert.Equal(0, comboBox.SelectedIndex); // Selection should not change
+        Assert.Equal("Active", comboBox.Text);   // Text should still show current selection
+    }
+
+    [Fact]
+    public void ComboBox_Simple_AutoComplete_AppendsMatchingItem()
+    {
+        var comboBox = new ComboBox();
+        comboBox.DropDownStyle = DropDownStyle.Simple;
+        comboBox.Items.Add("Active");
+        comboBox.Items.Add("Inactive");
+        comboBox.Items.Add("Pending");
+
+        comboBox.OnTextInput("Pen");
+        Assert.Equal("Pending", comboBox.Text);
+    }
+
+    [Fact]
+    public void ComboBox_DropDownList_TextSet_CaseInsensitiveMatch()
+    {
+        var comboBox = new ComboBox();
+        comboBox.DropDownStyle = DropDownStyle.DropDownList;
+        comboBox.Items.Add("Active");
+        comboBox.Items.Add("Inactive");
+
+        comboBox.Text = "active";
+        Assert.Equal(0, comboBox.SelectedIndex);
+    }
+
+    [Fact]
     public void Form_Tab_ShouldMoveFocusToNextControl()
     {
         var form = new Form();
