@@ -43,7 +43,7 @@
   <data name="ToolBold"><value>Ж</value></data>
   <data name="ToolItalic"><value>К</value></data>
   <data name="ToolSearch"><value>Поиск</value></data>
-  <data name="ToolZoomLabel"><value>Масштаб:</value></data>
+  <data name="ToolZoomLabel"><value>Масштаб</value></data>
   <data name="ToolZoom100"><value>100%</value></data>
   <data name="ToolLight"><value>Светлая</value></data>
   <data name="ToolDark"><value>Тёмная</value></data>

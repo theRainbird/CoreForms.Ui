@@ -43,7 +43,7 @@
   <data name="ToolBold"><value>F</value></data>
   <data name="ToolItalic"><value>K</value></data>
   <data name="ToolSearch"><value>Suchen</value></data>
-  <data name="ToolZoomLabel"><value>Zoom:</value></data>
+  <data name="ToolZoomLabel"><value>Zoom</value></data>
   <data name="ToolZoom100"><value>100%</value></data>
   <data name="ToolLight"><value>Hell</value></data>
   <data name="ToolDark"><value>Dunkel</value></data>

@@ -76,6 +76,12 @@ dotnet run --project samples/CoreForms.Ui.Demo  # Run demo (requires X11/display
 
 ## Code Conventions
 
+**Label text without trailing colons:**
+- Label control text must not end with a colon (`:`)
+- Use `Text = "Name"` instead of `Text = "Name:"` or `Text = SR.GetString("LabelName")` instead of `Text = SR.GetString("LabelName") + ":"`
+- This applies to all controls that serve as labels (Label, ToolStripLabel, etc.)
+- Resource strings for label captions must not include trailing colons
+
 **Deleting files that cause build errors:**
 - AI agents must NOT delete source code files that cause build errors but are not directly related to the current task without first asking the user for permission
 - Instead, the agent should inform the user and ask for confirmation

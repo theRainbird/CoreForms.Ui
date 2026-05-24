@@ -43,7 +43,7 @@
   <data name="ToolBold"><value>G</value></data>
   <data name="ToolItalic"><value>I</value></data>
   <data name="ToolSearch"><value>Rechercher</value></data>
-  <data name="ToolZoomLabel"><value>Zoom:</value></data>
+  <data name="ToolZoomLabel"><value>Zoom</value></data>
   <data name="ToolZoom100"><value>100%</value></data>
   <data name="ToolLight"><value>Clair</value></data>
   <data name="ToolDark"><value>Sombre</value></data>

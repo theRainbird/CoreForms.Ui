@@ -34,7 +34,11 @@ public class ReportViewer : UserControl
     private static readonly SvgImage? IconLast = SvgImage.FromSvgString(
         "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20'><path d='M6 4l6 6-6 6M11 4l6 6-6 6' stroke='currentColor' stroke-width='2' fill='none' stroke-linecap='round' stroke-linejoin='round'/></svg>", 20);
     private static readonly SvgImage? IconPrint = SvgImage.FromSvgString(
-        "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20'><path d='M5 7V3h10v4M3 9h14M5 12v5h10v-5' stroke='currentColor' stroke-width='1.5' fill='none' stroke-linecap='round' stroke-linejoin='round'/><path d='M3 9h14v3H3z' stroke='currentColor' stroke-width='1.2' fill='none' stroke-linecap='round' stroke-linejoin='round'/></svg>", 20);
+        "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20'>" +
+        "<path d='M5 7V3h10v4' stroke='#2563eb' stroke-width='1.5' fill='none' stroke-linecap='round' stroke-linejoin='round'/>" +
+        "<rect x='3' y='7' width='14' height='5' rx='1' fill='#3b82f6'/>" +
+        "<rect x='5' y='12' width='10' height='5' rx='1' fill='#dbeafe' stroke='#2563eb' stroke-width='1'/>" +
+        "<path d='M8 7v3h4V7' fill='#e5e7eb' stroke='#2563eb' stroke-width='0.8'/></svg>", 20);
 
     /// <summary>
     /// Raised when the current page or total page count changes.
@@ -157,7 +161,7 @@ public class ReportViewer : UserControl
         _toolStrip.Items.Add(btnPrint);
         _toolStrip.Items.Add(btnExport);
         _toolStrip.Items.Add(new ToolStripSeparator());
-        _toolStrip.Items.Add(new ToolStripLabel("Zoom:"));
+        _toolStrip.Items.Add(new ToolStripLabel("Zoom"));
         _toolStrip.Items.Add(_txtZoom);
         _toolStrip.Dock = DockStyle.Top;
 

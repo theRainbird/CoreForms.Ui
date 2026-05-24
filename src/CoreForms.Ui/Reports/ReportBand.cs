@@ -117,6 +117,10 @@ public class ReportBand
             g.FillRectangle(BackColor, bgX, bgY, bgW, bgH);
         }
 
+        float lmPx = context.Report.LeftMargin.ToPixelF(context.RenderDpi);
+        g.Save();
+        g.TranslateTransform(lmPx, 0);
+
         foreach (var ctrl in _controls)
         {
             if (!ctrl.Visible) continue;
@@ -134,6 +138,8 @@ public class ReportBand
 
             ctrl.Render(g, context, ctrlTop, ctrlContentHeight);
         }
+
+        g.Restore();
     }
 
     private static float CmToPx(Cm value, ReportRenderContext context) => value.ToPixelF(context.RenderDpi);

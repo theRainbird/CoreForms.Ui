@@ -20,6 +20,7 @@ public class Form : ContainerControl, IWin32Window
     private IntPtr _handle;
     private Control? _captureControl;
     private float _zoom = Dpi.GetDefaultZoom();
+    private bool _zoomSet;
     private bool _processingKeyDown;
     private bool _processingKeyUp;
     private bool _requiresRender = true;
@@ -159,6 +160,7 @@ public class Form : ContainerControl, IWin32Window
         get => _zoom;
         set
         {
+            _zoomSet = true;
             var oldZoom = _zoom;
             _zoom = Dpi.ClampZoom(value);
             if (Math.Abs(oldZoom - _zoom) > 0.001f)
@@ -208,6 +210,7 @@ public class Form : ContainerControl, IWin32Window
 
     /// <summary>
     /// Shows the form and registers it with the application.
+    /// Inherits zoom from the currently focused window if zoom was not explicitly set.
     /// </summary>
     public void Show()
     {
@@ -215,6 +218,13 @@ public class Form : ContainerControl, IWin32Window
         {
             Console.WriteLine($"[Form.Show] handle already set, skipping. form='{Text}'");
             return;
+        }
+
+        if (!_zoomSet)
+        {
+            var activeForm = CoreForms.Ui.Platform.Platform.FocusedWindow;
+            if (activeForm != null && activeForm != this)
+                _zoom = activeForm.Zoom;
         }
 
         Create();
@@ -252,6 +262,8 @@ public class Form : ContainerControl, IWin32Window
                 if (f is IWin32Window w && w.Handle == owner.Handle)
                 {
                     _ownerForm = f;
+                    if (!_zoomSet)
+                        _zoom = f.Zoom;
                     break;
                 }
             }
@@ -259,6 +271,8 @@ public class Form : ContainerControl, IWin32Window
         else
         {
             _ownerForm = Application.Instance.GetForms().LastOrDefault(f => f != this && f.Handle != IntPtr.Zero);
+            if (!_zoomSet && _ownerForm != null)
+                _zoom = _ownerForm.Zoom;
         }
 
         if (_ownerForm != null && _ownerForm != this)

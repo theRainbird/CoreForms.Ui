@@ -83,6 +83,11 @@ public class DateTimePicker : Control
     private readonly ScrollBarEngine _hourScrollBar = new();
     private readonly ScrollBarEngine _minuteScrollBar = new();
 
+    // Spinner field navigation (ShowUpDown mode)
+    private enum DateFieldType { Day, Month, Year, Hour, Minute, Second, AmPm }
+    private DateFieldType _activeField = DateFieldType.Day;
+    private readonly List<(DateFieldType type, float x, float width)> _fieldMeasurements = new();
+
     #endregion
 
     #region Properties
@@ -156,7 +161,8 @@ public class DateTimePicker : Control
             if (_format == DateTimePickerFormat.Time && _value == DateTime.MinValue)
                 _value = DateTime.Now;
             else if (_format != DateTimePickerFormat.Time && _value.TimeOfDay == TimeSpan.Zero == false)
-                _value = _value.Date; // Keep date, strip time for date-only modes? Actually don't strip.
+                _value = _value.Date;
+            AdjustActiveFieldForFormat();
             OnPropertyChanged(nameof(Format));
             Invalidate();
         }
@@ -321,6 +327,7 @@ public class DateTimePicker : Control
         TabStop = true;
         _backColor = ThemeManager.CurrentTheme.TextBoxBackground;
         _foreColor = ThemeManager.CurrentTheme.TextBoxText;
+        _activeField = DateFieldType.Day;
 
         _hourScrollBar.Scroll += (s, e) =>
         {
@@ -393,6 +400,21 @@ public class DateTimePicker : Control
         var textColor = Enabled && _checked ? ForeColor : theme.GrayText;
         string displayText = GetFormattedValue();
         g.DrawString(displayText, font, textColor, textX, textY);
+
+        // Draw active field underline in ShowUpDown mode
+        if (_showUpDown && Focused && Enabled && _checked)
+        {
+            MeasureFields(g, textX, textY);
+            foreach (var (ft, fx, fw) in _fieldMeasurements)
+            {
+                if (ft == _activeField)
+                {
+                    float underlineY = textY + font.Size * EffectiveZoom + 2;
+                    g.DrawLine(theme.FocusIndicator, fx, underlineY, fx + fw, underlineY, 2);
+                    break;
+                }
+            }
+        }
 
         g.ResetClip();
 
@@ -856,6 +878,26 @@ public class DateTimePicker : Control
             return;
         }
 
+        // Click on text area in ShowUpDown mode → select field
+        if (_showUpDown && args.X < Width - DropDownButtonWidth)
+        {
+            int textLeft = TextLeftEdge();
+            if (args.X >= textLeft)
+            {
+                float cx = args.X;
+                foreach (var (ft, fx, fw) in _fieldMeasurements)
+                {
+                    if (cx >= fx && cx <= fx + fw)
+                    {
+                        _activeField = ft;
+                        Invalidate();
+                        return;
+                    }
+                }
+            }
+            return;
+        }
+
         // Click on text area - open dropdown if not ShowUpDown
         if (!_showUpDown && !_droppedDown)
         {
@@ -984,40 +1026,34 @@ public class DateTimePicker : Control
     {
         bool hasDate = ShowCalendarInDropdown();
         bool hasTime = ShowTimeInDropdown();
-
         int dropY = Height;
 
         if (hasDate)
         {
-            int ddW = CalcDropdownWidth();
-            int ddH = CalcDropdownHeight();
-            int calW = hasTime ? CalPadding * 2 + 7 * CalCellWidth : ddW;
-
-            // Calendar navigation buttons
-            if (_calPrevBtnRect.Contains(args.X, args.Y - dropY))
+            // Calendar navigation buttons (rects already in control coordinates)
+            if (_calPrevBtnRect.Contains(args.X, args.Y))
             {
                 NavigateMonth(-1);
                 Invalidate();
                 return;
             }
-            if (_calNextBtnRect.Contains(args.X, args.Y - dropY))
+            if (_calNextBtnRect.Contains(args.X, args.Y))
             {
                 NavigateMonth(1);
                 Invalidate();
                 return;
             }
-            if (_calTodayBtnRect.Contains(args.X, args.Y - dropY))
+            if (_calTodayBtnRect.Contains(args.X, args.Y))
             {
                 SelectDate(DateTime.Today);
                 Invalidate();
                 return;
             }
 
-            // Day cells
+            // Day cells (rects already in control coordinates)
             foreach (var (date, rect) in _calCells)
             {
-                var adjustedRect = new Rectangle(rect.X, rect.Y + dropY, rect.Width, rect.Height);
-                if (adjustedRect.Contains(args.X, args.Y))
+                if (rect.Contains(args.X, args.Y))
                 {
                     SelectDate(date);
                     if (!hasTime)
@@ -1111,11 +1147,10 @@ public class DateTimePicker : Control
             DateTime? prevHover = _hoveredDate;
             _hoveredDate = null;
 
-            // Day cells
+            // Day cells (rects already in control coordinates)
             foreach (var (date, rect) in _calCells)
             {
-                var adjustedRect = new Rectangle(rect.X, rect.Y + dropY, rect.Width, rect.Height);
-                if (adjustedRect.Contains(args.X, args.Y))
+                if (rect.Contains(args.X, args.Y))
                 {
                     _hoveredDate = date;
                     break;
@@ -1366,6 +1401,22 @@ public class DateTimePicker : Control
                 e.Handled = true;
                 break;
 
+            case Keys.Left:
+                if (_showUpDown)
+                {
+                    CycleActiveField(-1);
+                    e.Handled = true;
+                }
+                break;
+
+            case Keys.Right:
+                if (_showUpDown)
+                {
+                    CycleActiveField(1);
+                    e.Handled = true;
+                }
+                break;
+
             case Keys.Up:
                 IncrementValue();
                 e.Handled = true;
@@ -1502,8 +1553,161 @@ public class DateTimePicker : Control
         _viewDate = new DateTime(date.Year, date.Month, 1);
     }
 
+    // ── ShowUpDown field navigation ──
+
+    private struct FormatToken
+    {
+        public string Raw;
+        public bool IsField;
+        public string FieldSpec; // e.g. "dd", "MM", "yyyy", "HH", "mm", "ss", "tt"
+    }
+
+    private List<FormatToken> ParseFormat(string format)
+    {
+        var tokens = new List<FormatToken>();
+        int i = 0;
+        while (i < format.Length)
+        {
+            if (format[i] == '\'')
+            {
+                int end = format.IndexOf('\'', i + 1);
+                if (end < 0) end = format.Length - 1;
+                tokens.Add(new FormatToken { Raw = format.Substring(i + 1, end - i - 1), IsField = false });
+                i = end + 1;
+                continue;
+            }
+
+            char c = format[i];
+            if (c == 'd' || c == 'M' || c == 'y' || c == 'h' || c == 'H' || c == 'm' || c == 's' || c == 't')
+            {
+                int start = i;
+                while (i < format.Length && format[i] == c) i++;
+                string spec = format.Substring(start, i - start);
+                tokens.Add(new FormatToken { Raw = spec, IsField = true, FieldSpec = spec });
+            }
+            else
+            {
+                int start = i;
+                while (i < format.Length && format[i] != '\'' && "dMyHhmsft".IndexOf(format[i]) < 0) i++;
+                tokens.Add(new FormatToken { Raw = format.Substring(start, i - start), IsField = false });
+            }
+        }
+        return tokens;
+    }
+
+    private DateFieldType? TokenToFieldType(string spec)
+    {
+        if (string.IsNullOrEmpty(spec)) return null;
+        char c = spec[0];
+        return c switch
+        {
+            'd' => DateFieldType.Day,
+            'M' => DateFieldType.Month,
+            'y' => DateFieldType.Year,
+            'h' or 'H' => DateFieldType.Hour,
+            'm' => DateFieldType.Minute,
+            's' => DateFieldType.Second,
+            't' => DateFieldType.AmPm,
+            _ => null,
+        };
+    }
+
+    private void MeasureFields(Graphics g, float textX, float textY)
+    {
+        _fieldMeasurements.Clear();
+        string fmt = GetFormatString();
+        var tokens = ParseFormat(fmt);
+        var font = EffectiveFont;
+        float x = textX;
+
+        foreach (var token in tokens)
+        {
+            if (token.IsField)
+            {
+                string valueText = _value.ToString(token.FieldSpec, CultureInfo.CurrentCulture);
+                var size = g.MeasureString(valueText, font);
+                var ft = TokenToFieldType(token.FieldSpec);
+                if (ft.HasValue)
+                    _fieldMeasurements.Add((ft.Value, x, size.width));
+                x += size.width;
+            }
+            else
+            {
+                var size = g.MeasureString(token.Raw, font);
+                x += size.width;
+            }
+        }
+    }
+
+    private void AdjustActiveFieldForFormat()
+    {
+        string fmt = GetFormatString();
+        var tokens = ParseFormat(fmt);
+        var fields = tokens.Where(t => t.IsField).Select(t => TokenToFieldType(t.FieldSpec)).OfType<DateFieldType>().Distinct().ToList();
+        if (fields.Count == 0) return;
+
+        // Cycle: if current field doesn't exist in format, pick the first available
+        if (!fields.Contains(_activeField))
+            _activeField = fields[0];
+        // In Date-only formats, never default to Hour/Minute
+        if (_format != DateTimePickerFormat.Time && _format != DateTimePickerFormat.Custom &&
+            (_activeField == DateFieldType.Hour || _activeField == DateFieldType.Minute))
+            _activeField = DateFieldType.Day;
+    }
+
+    private void SetFieldValue(int delta)
+    {
+        AdjustActiveFieldForFormat();
+        var dt = _value;
+        switch (_activeField)
+        {
+            case DateFieldType.Day:
+                dt = dt.AddDays(delta);
+                break;
+            case DateFieldType.Month:
+                dt = dt.AddMonths(delta);
+                break;
+            case DateFieldType.Year:
+                dt = dt.AddYears(delta);
+                break;
+            case DateFieldType.Hour:
+                dt = dt.AddHours(delta);
+                break;
+            case DateFieldType.Minute:
+                dt = dt.AddMinutes(delta);
+                break;
+            case DateFieldType.Second:
+                dt = dt.AddSeconds(delta);
+                break;
+        }
+        dt = ValidateValue(dt);
+        if (dt != _value)
+            Value = dt;
+    }
+
+    private void CycleActiveField(int direction)
+    {
+        AdjustActiveFieldForFormat();
+        string fmt = GetFormatString();
+        var tokens = ParseFormat(fmt);
+        var fields = tokens.Where(t => t.IsField).Select(t => TokenToFieldType(t.FieldSpec)).OfType<DateFieldType>().Distinct().ToList();
+        if (fields.Count == 0) return;
+
+        int idx = fields.IndexOf(_activeField);
+        if (idx < 0) idx = 0;
+        idx = (idx + direction + fields.Count) % fields.Count;
+        _activeField = fields[idx];
+        Invalidate();
+    }
+
     private void IncrementValue()
     {
+        if (_showUpDown)
+        {
+            SetFieldValue(1);
+            return;
+        }
+
         DateTime newVal;
         if (_format == DateTimePickerFormat.Time)
             newVal = _value.AddHours(1);
@@ -1516,6 +1720,12 @@ public class DateTimePicker : Control
 
     private void DecrementValue()
     {
+        if (_showUpDown)
+        {
+            SetFieldValue(-1);
+            return;
+        }
+
         DateTime newVal;
         if (_format == DateTimePickerFormat.Time)
             newVal = _value.AddHours(-1);

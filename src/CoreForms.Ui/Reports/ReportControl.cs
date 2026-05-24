@@ -142,7 +142,8 @@ public abstract class ReportControl
         if (value == null) return string.Empty;
         if (!string.IsNullOrEmpty(Format))
         {
-            try { return string.Format(Format, value); }
+            string fmt = Format.Contains("{0") ? Format : "{0:" + Format + "}";
+            try { return string.Format(fmt, value); }
             catch { return value.ToString() ?? string.Empty; }
         }
         return value.ToString() ?? string.Empty;

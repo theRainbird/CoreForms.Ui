@@ -6,61 +6,104 @@ namespace CoreForms.Ui.Reports;
 /// Defines a printable banded report with sections (ReportHeader, PageHeader,
 /// Detail, PageFooter, ReportFooter), optional grouping, and a data source.
 /// All measurements are in centimeters (<see cref="Cm"/>).
+/// Use <see cref="PageSetup"/> for convenient configuration of paper size,
+/// orientation, and margins with German defaults (A4 portrait, 2.0 cm margins).
 /// </summary>
 public class Report
 {
+    private readonly ReportPageSetup _pageSetup = new();
+
     /// <summary>
     /// Gets or sets the name of this report.
     /// </summary>
     public string Name { get; set; } = "Report";
 
     /// <summary>
-    /// Gets or sets the printable width of the page in cm.
-    /// For A4 portrait: 21.0 cm. For A4 landscape: 29.7 cm.
-    /// The render engine subtracts margins to determine the available content width.
+    /// Gets or sets the <see cref="ReportPageSetup"/> which provides paper size,
+    /// orientation (portrait/landscape), and margin configuration.
+    /// German default: A4 portrait, 2.0 cm margins.
     /// </summary>
-    public Cm PageWidth { get; set; } = 21.0;
+    public ReportPageSetup PageSetup => _pageSetup;
 
     /// <summary>
-    /// Gets or sets the total height of the page in cm.
-    /// For A4 portrait: 29.7 cm.
+    /// Gets or sets the total page width in cm (accounts for <see cref="ReportPageSetup.Landscape"/>).
     /// </summary>
-    public Cm PageHeight { get; set; } = 29.7;
+    public Cm PageWidth
+    {
+        get => _pageSetup.PaperWidth;
+        set
+        {
+            if (_pageSetup.Landscape)
+                _pageSetup.SetPaperSize(_pageSetup.PortraitWidth, value);
+            else
+                _pageSetup.SetPaperSize(value, _pageSetup.PortraitHeight);
+        }
+    }
 
     /// <summary>
-    /// Gets or sets the left margin in cm.
+    /// Gets or sets the total page height in cm (accounts for <see cref="ReportPageSetup.Landscape"/>).
     /// </summary>
-    public Cm LeftMargin { get; set; } = 2.0;
+    public Cm PageHeight
+    {
+        get => _pageSetup.PaperHeight;
+        set
+        {
+            if (_pageSetup.Landscape)
+                _pageSetup.SetPaperSize(value, _pageSetup.PortraitWidth);
+            else
+                _pageSetup.SetPaperSize(_pageSetup.PortraitWidth, value);
+        }
+    }
 
     /// <summary>
-    /// Gets or sets the right margin in cm.
+    /// Gets or sets the left margin in cm (German default: 2.0).
     /// </summary>
-    public Cm RightMargin { get; set; } = 2.0;
+    public Cm LeftMargin
+    {
+        get => _pageSetup.LeftMargin;
+        set => _pageSetup.LeftMargin = value;
+    }
 
     /// <summary>
-    /// Gets or sets the top margin in cm.
+    /// Gets or sets the right margin in cm (German default: 2.0).
     /// </summary>
-    public Cm TopMargin { get; set; } = 1.5;
+    public Cm RightMargin
+    {
+        get => _pageSetup.RightMargin;
+        set => _pageSetup.RightMargin = value;
+    }
 
     /// <summary>
-    /// Gets or sets the bottom margin in cm.
+    /// Gets or sets the top margin in cm (German default: 2.0).
     /// </summary>
-    public Cm BottomMargin { get; set; } = 1.5;
+    public Cm TopMargin
+    {
+        get => _pageSetup.TopMargin;
+        set => _pageSetup.TopMargin = value;
+    }
+
+    /// <summary>
+    /// Gets or sets the bottom margin in cm (German default: 2.0).
+    /// </summary>
+    public Cm BottomMargin
+    {
+        get => _pageSetup.BottomMargin;
+        set => _pageSetup.BottomMargin = value;
+    }
 
     /// <summary>
     /// Gets the printable width (page width minus left and right margins).
     /// </summary>
-    public Cm PrintableWidth => PageWidth - LeftMargin - RightMargin;
+    public Cm PrintableWidth => _pageSetup.PrintableWidth;
 
     /// <summary>
     /// Gets the printable height (page height minus top and bottom margins).
     /// </summary>
-    public Cm PrintableHeight => PageHeight - TopMargin - BottomMargin;
+    public Cm PrintableHeight => _pageSetup.PrintableHeight;
 
     /// <summary>
     /// Gets or sets the PageSettings for this report (paper size, orientation, printer margins).
-    /// Used when printing; the margins from PageSettings override Left/Right/Top/BottomMargin
-    /// if they have been explicitly set.
+    /// Used when printing; the margins from PageSettings can override the report margins.
     /// </summary>
     public PageSettings? PageSettings { get; set; }
 
@@ -102,7 +145,7 @@ public class Report
     public ReportGroupCollection Groups { get; } = new();
 
     /// <summary>
-    /// Initializes a new Report with default A4 page settings.
+    /// Initializes a new Report with German defaults: A4 portrait, 2.0 cm margins.
     /// </summary>
     public Report()
     {

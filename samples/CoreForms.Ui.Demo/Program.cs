@@ -362,13 +362,13 @@ class Program
             Size = new Size(300, 210)
         };
 
-        var nameLabel = new Label { Text = SR.GetString("LabelName") + ":", Location = new Point(10, 25), Size = new Size(70, 20) };
+        var nameLabel = new Label { Text = SR.GetString("LabelName"), Location = new Point(10, 25), Size = new Size(70, 20) };
         var nameTextBox = new TextBox { Location = new Point(90, 25), Size = new Size(180, 25), Text = SR.GetString("DefaultName") };
-        var emailLabel = new Label { Text = SR.GetString("LabelEmail") + ":", Location = new Point(10, 55), Size = new Size(70, 20) };
+        var emailLabel = new Label { Text = SR.GetString("LabelEmail"), Location = new Point(10, 55), Size = new Size(70, 20) };
         var emailTextBox = new TextBox { Location = new Point(90, 55), Size = new Size(180, 25), Text = SR.GetString("DefaultEmail") };
-        var passwordLabel = new Label { Text = SR.GetString("LabelPassword") + ":", Location = new Point(10, 85), Size = new Size(70, 20) };
+        var passwordLabel = new Label { Text = SR.GetString("LabelPassword"), Location = new Point(10, 85), Size = new Size(70, 20) };
         var passwordTextBox = new TextBox { Location = new Point(90, 85), Size = new Size(180, 25), Text = SR.GetString("DefaultPassword"), UseSystemPasswordChar = true };
-        var multiLineLabel = new Label { Text = SR.GetString("LabelMultiLine") + ":", Location = new Point(10, 115), Size = new Size(70, 20) };
+        var multiLineLabel = new Label { Text = SR.GetString("LabelMultiLine"), Location = new Point(10, 115), Size = new Size(70, 20) };
         var multiLineTextBox = new MemoBox { Location = new Point(90, 115), Size = new Size(180, 80), Text = string.Format(SR.GetString("DefaultMultiLine"), "\n") };
 
         groupBox1.Controls.Add(nameLabel);
@@ -387,12 +387,12 @@ class Program
             Size = new Size(250, 160)
         };
 
-        var genderLabel = new Label { Text = SR.GetString("LabelGender") + ":", Location = new Point(10, 25), Size = new Size(100, 20) };
+        var genderLabel = new Label { Text = SR.GetString("LabelGender"), Location = new Point(10, 25), Size = new Size(100, 20) };
         var maleRadio = new RadioButton { Text = SR.GetString("RadioMale"), Location = new Point(10, 50), Size = new Size(100, 20), Checked = true };
         var femaleRadio = new RadioButton { Text = SR.GetString("RadioFemale"), Location = new Point(10, 75), Size = new Size(100, 20) };
         var otherRadio = new RadioButton { Text = SR.GetString("RadioOther"), Location = new Point(10, 100), Size = new Size(100, 20) };
 
-        var roleLabel = new Label { Text = SR.GetString("LabelRole") + ":", Location = new Point(120, 25), Size = new Size(80, 20) };
+        var roleLabel = new Label { Text = SR.GetString("LabelRole"), Location = new Point(120, 25), Size = new Size(80, 20) };
         var adminRadio = new RadioButton { Text = SR.GetString("RadioAdmin"), Location = new Point(120, 50), Size = new Size(80, 20) };
         var userRadio = new RadioButton { Text = SR.GetString("RadioUser"), Location = new Point(120, 75), Size = new Size(80, 20), Checked = true };
         var guestRadio = new RadioButton { Text = SR.GetString("RadioGuest"), Location = new Point(120, 100), Size = new Size(80, 20) };
@@ -413,7 +413,7 @@ class Program
             Size = new Size(280, 310)
         };
 
-        var listBoxLabel = new Label { Text = SR.GetString("LabelListBox") + ":", Location = new Point(10, 25), Size = new Size(70, 20) };
+        var listBoxLabel = new Label { Text = SR.GetString("LabelListBox"), Location = new Point(10, 25), Size = new Size(70, 20) };
         var listBox = new ListBox { Location = new Point(10, 45), Size = new Size(120, 150) };
         listBox.Items.Add(SR.GetString("ListItem1"));
         listBox.Items.Add(SR.GetString("ListItem2"));
@@ -422,7 +422,7 @@ class Program
         listBox.Items.Add(SR.GetString("ListItem5"));
         listBox.SelectedIndexChanged += (s, e) => _statusLabel!.Text = string.Format(SR.GetString("StatusListBoxFormat"), listBox.SelectedItem);
 
-        var comboBoxLabel = new Label { Text = "ComboBox Styles:", Location = new Point(140, 14), Size = new Size(130, 16) };
+        var comboBoxLabel = new Label { Text = "ComboBox Styles", Location = new Point(140, 14), Size = new Size(130, 16) };
 
         var ddlStyleLabel = new Label { Text = "\u2014 DropDownList", Location = new Point(140, 34), Size = new Size(120, 14) };
         var ddlComboBox = new ComboBox { Location = new Point(140, 50), Size = new Size(120, 24) };
@@ -510,7 +510,7 @@ class Program
 
         var disabledButton = new Button { Text = SR.GetString("BtnDisabled"), Location = new Point(140, 95), Size = new Size(120, 30), Enabled = false };
 
-        var spinnerLabel = new Label { Text = SR.GetString("LabelSpinner") + ":", Location = new Point(10, 140), Size = new Size(50, 20) };
+        var spinnerLabel = new Label { Text = SR.GetString("LabelSpinner"), Location = new Point(10, 140), Size = new Size(50, 20) };
         var spinner = new Spinner { Location = new Point(60, 132), Size = new Size(36, 36), Active = true, AutoStart = false };
         var spinnerButton = new Button { Text = SR.GetString("BtnToggle"), Location = new Point(110, 135), Size = new Size(140, 28) };
         spinnerButton.Click += (s, e) => spinner.Active = !spinner.Active;
@@ -524,10 +524,49 @@ class Program
         groupBox4.Controls.Add(spinner);
         groupBox4.Controls.Add(spinnerButton);
 
+        var groupBox5 = new GroupBox
+        {
+            Text = SR.GetString("DtpModes"),
+            Location = new Point(590, 10),
+            Size = new Size(250, 200)
+        };
+
+        int y5 = 25;
+        var dtpLabel1 = new Label { Text = SR.GetString("DtpShort"), Location = new Point(10, y5), Size = new Size(70, 20) };
+        var dtp1 = new DateTimePicker { Location = new Point(85, y5 - 2), Size = new Size(150, 28), Format = DateTimePickerFormat.Short };
+        y5 += 32;
+
+        var dtpLabel2 = new Label { Text = SR.GetString("DtpTime"), Location = new Point(10, y5), Size = new Size(70, 20) };
+        var dtp2 = new DateTimePicker { Location = new Point(85, y5 - 2), Size = new Size(150, 28), Format = DateTimePickerFormat.Time };
+        y5 += 32;
+
+        var dtpLabel3 = new Label { Text = SR.GetString("DtpLong"), Location = new Point(10, y5), Size = new Size(70, 20) };
+        var dtp3 = new DateTimePicker { Location = new Point(85, y5 - 2), Size = new Size(150, 28), Format = DateTimePickerFormat.Long };
+        y5 += 32;
+
+        var dtpLabel4 = new Label { Text = SR.GetString("DtpUpDown"), Location = new Point(10, y5), Size = new Size(70, 20) };
+        var dtp4 = new DateTimePicker { Location = new Point(85, y5 - 2), Size = new Size(150, 28), ShowUpDown = true };
+        y5 += 32;
+
+        var dtpLabel5 = new Label { Text = "Checked", Location = new Point(10, y5), Size = new Size(70, 20) };
+        var dtp5 = new DateTimePicker { Location = new Point(85, y5 - 2), Size = new Size(150, 28), ShowCheckBox = true, Checked = true };
+
+        groupBox5.Controls.Add(dtpLabel1);
+        groupBox5.Controls.Add(dtp1);
+        groupBox5.Controls.Add(dtpLabel2);
+        groupBox5.Controls.Add(dtp2);
+        groupBox5.Controls.Add(dtpLabel3);
+        groupBox5.Controls.Add(dtp3);
+        groupBox5.Controls.Add(dtpLabel4);
+        groupBox5.Controls.Add(dtp4);
+        groupBox5.Controls.Add(dtpLabel5);
+        groupBox5.Controls.Add(dtp5);
+
         page.Controls.Add(groupBox1);
         page.Controls.Add(groupBox2);
         page.Controls.Add(groupBox3);
         page.Controls.Add(groupBox4);
+        page.Controls.Add(groupBox5);
 
         return page;
     }
@@ -697,16 +736,16 @@ class Program
             Size = new Size(350, 350)
         };
 
-        var idLabel = new Label { Text = SR.GetString("LabelId") + ":", Location = new Point(10, 25), Size = new Size(60, 20) };
+        var idLabel = new Label { Text = SR.GetString("LabelId"), Location = new Point(10, 25), Size = new Size(60, 20) };
         var idValue = new Label { Text = "", Location = new Point(80, 25), Size = new Size(60, 20) };
 
-        var nameLabel = new Label { Text = SR.GetString("LabelName") + ":", Location = new Point(10, 55), Size = new Size(60, 20) };
+        var nameLabel = new Label { Text = SR.GetString("LabelName"), Location = new Point(10, 55), Size = new Size(60, 20) };
         var nameTextBox = new TextBox { Location = new Point(80, 55), Size = new Size(250, 25) };
 
-        var emailLabel = new Label { Text = SR.GetString("LabelEmail") + ":", Location = new Point(10, 90), Size = new Size(60, 20) };
+        var emailLabel = new Label { Text = SR.GetString("LabelEmail"), Location = new Point(10, 90), Size = new Size(60, 20) };
         var emailTextBox = new TextBox { Location = new Point(80, 90), Size = new Size(250, 25) };
 
-        var statusLabel_ = new Label { Text = SR.GetString("LabelStatus") + ":", Location = new Point(10, 125), Size = new Size(60, 20) };
+        var statusLabel_ = new Label { Text = SR.GetString("LabelStatus"), Location = new Point(10, 125), Size = new Size(60, 20) };
         var statusComboBox = new ComboBox { Location = new Point(80, 125), Size = new Size(150, 25) };
         statusComboBox.Items.Add(SR.GetString("ComboActive"));
         statusComboBox.Items.Add(SR.GetString("ComboInactive"));
@@ -1942,12 +1981,8 @@ class Program
         var page = new TabPage { Text = "Reports" };
 
         var report = new Report("Employee Report");
-        report.PageWidth = 29.7;
-        report.PageHeight = 21.0;
-        report.LeftMargin = 1.5;
-        report.RightMargin = 1.5;
-        report.TopMargin = 1.0;
-        report.BottomMargin = 1.0;
+        report.PageSetup.SetPaperSize(ReportPaperSize.A4, landscape: true);
+        report.PageSetup.SetMargins(1.5);
 
         var employees = new List<Person>
         {
@@ -2012,7 +2047,7 @@ class Program
         {
             DataField = "Id", Left = 0.3, Top = 0.05,
             Width = 2, Height = 0.45, Font = dataFont,
-            TextAlign = TextAlignment.Right, Format = "D3"
+            TextAlign = TextAlignment.Right, Format = "{0:D3}"
         });
         report.Detail.Controls.Add(new ReportTextBox
         {
@@ -2200,10 +2235,10 @@ public class LoginUserControl : UserControl
         BackColor = ThemeManager.CurrentTheme.ControlBackground;
         BorderStyle = BorderStyle.FixedSingle;
 
-        _usernameLabel = new Label { Text = SR.GetString("LabelUsername") + ":", Location = new Point(10, 15), Size = new Size(80, 20) };
+        _usernameLabel = new Label { Text = SR.GetString("LabelUsername"), Location = new Point(10, 15), Size = new Size(80, 20) };
         _usernameTextBox = new TextBox { Location = new Point(100, 15), Size = new Size(230, 25), Text = SR.GetString("DefaultLoginUsername") };
 
-        _passwordLabel = new Label { Text = SR.GetString("LabelPassword") + ":", Location = new Point(10, 50), Size = new Size(80, 20) };
+        _passwordLabel = new Label { Text = SR.GetString("LabelPassword"), Location = new Point(10, 50), Size = new Size(80, 20) };
         _passwordTextBox = new TextBox { Location = new Point(100, 50), Size = new Size(230, 25), Text = SR.GetString("DefaultLoginPassword"), UseSystemPasswordChar = true };
 
         _rememberCheckBox = new CheckBox { Text = SR.GetString("ChkRememberMe"), Location = new Point(100, 80), Size = new Size(150, 20), Checked = true };

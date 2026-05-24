@@ -118,8 +118,8 @@ public class ReportTests
         Assert.Equal(29.7, report.PageHeight.Value);
         Assert.Equal(2.0, report.LeftMargin.Value);
         Assert.Equal(2.0, report.RightMargin.Value);
-        Assert.Equal(1.5, report.TopMargin.Value);
-        Assert.Equal(1.5, report.BottomMargin.Value);
+        Assert.Equal(2.0, report.TopMargin.Value);
+        Assert.Equal(2.0, report.BottomMargin.Value);
 
         Assert.NotNull(report.ReportHeader);
         Assert.NotNull(report.PageHeader);
@@ -342,7 +342,7 @@ public class ReportTests
         group.Header.Height = 0.5;
         group.Header.Controls.Add(new ReportLabel
         {
-            Text = "Group:",
+            Text = "Group",
             Left = 0, Top = 0, Width = 3, Height = 0.5
         });
         group.Footer.Height = 0.3;

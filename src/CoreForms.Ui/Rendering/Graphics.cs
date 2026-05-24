@@ -358,40 +358,59 @@ namespace CoreForms.Ui.Rendering;
     public List<DrawCommand> GetCommands() => _commands;
 
     /// <summary>
-    /// Imports draw commands from a source list, applying the current zoom and offset transforms.
-    /// Used by ReportViewer to replay pre-rendered report pages at the viewer's zoom level.
-    /// The source coordinates are scaled by <see cref="Zoom"/>, then <paramref name="addOffset"/>
-    /// and the Graphics offset are added — so the page content stays aligned with its background
-    /// regardless of zoom level.
+    /// Imports draw commands from a source list, applying both a source scale factor
+    /// and the Graphics object's current zoom and offset transforms.
+    /// The formula used is: <c>(sourceCoord * sourceScale + addOffset + gfxOffset) * gfxZoom</c>.
+    /// This ensures the imported content stays aligned with Graphics-based fills/lines
+    /// drawn at the same position, regardless of the current Graphics zoom level.
     /// </summary>
-    /// <param name="source">The list of draw commands to import and transform.</param>
-    /// <param name="addOffsetX">Additional horizontal offset added after zoom scaling.</param>
-    /// <param name="addOffsetY">Additional vertical offset added after zoom scaling.</param>
-    public void ImportCommands(List<DrawCommand> source, float addOffsetX = 0, float addOffsetY = 0)
+    /// <param name="source">The list of draw commands to import.</param>
+    /// <param name="sourceScale">Scale factor applied to source coordinates (e.g. report preview zoom).</param>
+    /// <param name="addOffsetX">Additional horizontal offset (e.g. paper corner position).</param>
+    /// <param name="addOffsetY">Additional vertical offset.</param>
+    public void ImportCommands(List<DrawCommand> source, float sourceScale = 1f, float addOffsetX = 0, float addOffsetY = 0)
     {
+        var currentClip = ClipBounds;
         foreach (var cmd in source)
         {
+            Rectangle? finalClip = currentClip;
+            if (cmd.ClipBounds.HasValue && currentClip.HasValue)
+                finalClip = Intersect(cmd.ClipBounds.Value, currentClip.Value);
+            else if (cmd.ClipBounds.HasValue)
+                finalClip = cmd.ClipBounds;
+
             var newCmd = new DrawCommand
             {
                 Type = cmd.Type,
                 Color = cmd.Color,
-                X = cmd.X * _zoom + addOffsetX + _offsetX,
-                Y = cmd.Y * _zoom + addOffsetY + _offsetY,
-                Width = cmd.Width * _zoom,
-                Height = cmd.Height * _zoom,
-                X2 = cmd.X2 * _zoom + addOffsetX + _offsetX,
-                Y2 = cmd.Y2 * _zoom + addOffsetY + _offsetY,
-                X3 = cmd.X3 * _zoom + addOffsetX + _offsetX,
-                Y3 = cmd.Y3 * _zoom + addOffsetY + _offsetY,
-                LineWidth = cmd.LineWidth * _zoom,
+                X = (cmd.X * sourceScale + addOffsetX + _offsetX) * _zoom,
+                Y = (cmd.Y * sourceScale + addOffsetY + _offsetY) * _zoom,
+                Width = cmd.Width * sourceScale * _zoom,
+                Height = cmd.Height * sourceScale * _zoom,
+                X2 = (cmd.X2 * sourceScale + addOffsetX + _offsetX) * _zoom,
+                Y2 = (cmd.Y2 * sourceScale + addOffsetY + _offsetY) * _zoom,
+                X3 = (cmd.X3 * sourceScale + addOffsetX + _offsetX) * _zoom,
+                Y3 = (cmd.Y3 * sourceScale + addOffsetY + _offsetY) * _zoom,
+                LineWidth = cmd.LineWidth * sourceScale * _zoom,
                 Text = cmd.Text,
                 Font = cmd.Font,
                 Image = cmd.Image,
-                Zoom = cmd.Zoom * _zoom,
-                ClipBounds = cmd.ClipBounds
+                Zoom = cmd.Zoom * sourceScale * _zoom,
+                ClipBounds = finalClip
             };
             _commands.Add(newCmd);
         }
+    }
+
+    private static Rectangle Intersect(Rectangle a, Rectangle b)
+    {
+        int x = Math.Max(a.X, b.X);
+        int y = Math.Max(a.Y, b.Y);
+        int right = Math.Min(a.Right, b.Right);
+        int bottom = Math.Min(a.Bottom, b.Bottom);
+        if (right <= x || bottom <= y)
+            return Rectangle.Empty;
+        return new Rectangle(x, y, right - x, bottom - y);
     }
 }
 

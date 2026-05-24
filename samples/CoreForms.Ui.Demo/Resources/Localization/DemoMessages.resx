@@ -46,7 +46,7 @@
   <data name="ToolBold"><value>B</value></data>
   <data name="ToolItalic"><value>I</value></data>
   <data name="ToolSearch"><value>Search</value></data>
-  <data name="ToolZoomLabel"><value>Zoom:</value></data>
+  <data name="ToolZoomLabel"><value>Zoom</value></data>
   <data name="ToolZoom100"><value>100%</value></data>
   <data name="ToolLight"><value>Light</value></data>
   <data name="ToolDark"><value>Dark</value></data>
