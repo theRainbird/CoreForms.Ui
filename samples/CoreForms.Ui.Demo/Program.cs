@@ -9,6 +9,7 @@ using CoreForms.Ui.Controls;
 using CoreForms.Ui.Data;
 using CoreForms.Ui.WebBrowser.Controls;
 using CoreForms.Ui.Theming;
+using CoreForms.Ui.Reports;
 using CoreForms.Ui.Resources;
 using SkiaSharp;
 using System.Collections.Generic;
@@ -344,6 +345,8 @@ class Program
         tabControl.AddTabPage(CreateWebBrowserPage());
         tabControl.AddTabPage(CreateHtmlEditorPage());
         tabControl.AddTabPage(CreateCalendarPage());
+        tabControl.AddTabPage(CreateMultiWindowPage());
+        tabControl.AddTabPage(CreateReportPage());
 
         return tabControl;
     }
@@ -445,6 +448,25 @@ class Program
         simpleComboBox.DropDownStyle = DropDownStyle.Simple;
         simpleComboBox.SelectedIndexChanged += (s, e) => _statusLabel!.Text = "Simple: " + simpleComboBox.SelectedItem;
 
+        var people = new List<Person>
+        {
+            new(1, "Alice", "alice@example.com", "Active")    { Salary = 85000 },
+            new(2, "Bob",   "bob@example.com",   "Inactive")  { Salary = 65000 },
+            new(3, "Charlie", "charlie@example.com", "Active"){ Salary = 72000 },
+        };
+        var multiColLabel = new Label { Text = "\u2014 Multi-Column", Location = new Point(140, 248), Size = new Size(120, 14) };
+        var multiColComboBox = new ComboBox { Location = new Point(140, 264), Size = new Size(120, 24) };
+        multiColComboBox.DataSource = people;
+        multiColComboBox.DropDownStyle = DropDownStyle.DropDown;
+        multiColComboBox.DisplayMember = nameof(Person.Name);
+        multiColComboBox.ColumnHeadersVisible = true;
+        multiColComboBox.DropDownWidth = 0;
+        multiColComboBox.Columns.Add(new ComboBoxColumn { HeaderText = "Name",   Width = 100, DataPropertyName = nameof(Person.Name) });
+        multiColComboBox.Columns.Add(new ComboBoxColumn { HeaderText = "Email",  Width = 120, DataPropertyName = nameof(Person.Email) });
+        multiColComboBox.Columns.Add(new ComboBoxColumn { HeaderText = "Salary", Width = 80,  DataPropertyName = nameof(Person.Salary),
+                                                          TextAlign = DataGridViewContentAlignment.Right, FormatString = "N0" });
+        multiColComboBox.SelectedIndexChanged += (s, e) => _statusLabel!.Text = "Multi: " + multiColComboBox.SelectedItem;
+
         var checkBox1 = new CheckBox { Text = SR.GetString("ChkOptionA"), Location = new Point(10, 210), Size = new Size(100, 25) };
         var checkBox2 = new CheckBox { Text = SR.GetString("ChkOptionB"), Location = new Point(10, 235), Size = new Size(100, 25), Checked = true };
         var checkBox3 = new CheckBox { Text = SR.GetString("ChkOptionC"), Location = new Point(10, 260), Size = new Size(100, 25) };
@@ -461,6 +483,9 @@ class Program
         
         groupBox3.Controls.Add(simpleStyleLabel);
         groupBox3.Controls.Add(simpleComboBox);
+        
+        groupBox3.Controls.Add(multiColLabel);
+        groupBox3.Controls.Add(multiColComboBox);
         groupBox3.Controls.Add(checkBox1);
         groupBox3.Controls.Add(checkBox2);
         groupBox3.Controls.Add(checkBox3);
@@ -1701,6 +1726,360 @@ class Program
         page.Controls.Add(calendar);
         return page;
     }
+
+    static TabPage CreateMultiWindowPage()
+    {
+        var page = new TabPage { Text = SR.GetString("TabMultiWindows") };
+        var modelessGroup = new GroupBox
+        {
+            Text = SR.GetString("GroupModeless"),
+            Location = new Point(10, 10),
+            Size = new Size(280, 120)
+        };
+
+        var btnSimpleWindow = new Button
+        {
+            Text = SR.GetString("BtnOpenSimpleWindow"),
+            Location = new Point(10, 25),
+            Size = new Size(250, 35)
+        };
+        btnSimpleWindow.Click += (s, e) =>
+        {
+            var win = new Form
+            {
+                Title = SR.GetString("SimpleWindowTitle"),
+                Text = SR.GetString("SimpleWindowTitle"),
+                Width = 400,
+                Height = 300
+            };
+            var label = new Label
+            {
+                Text = SR.GetString("SimpleWindowLabel"),
+                Location = new Point(20, 20),
+                Size = new Size(350, 30)
+            };
+            win.Controls.Add(label);
+            win.Show();
+            _statusLabel!.Text = SR.GetString("StatusSimpleWindowOpened");
+        };
+
+        var btnWindowControls = new Button
+        {
+            Text = SR.GetString("BtnOpenWindowWithControls"),
+            Location = new Point(10, 70),
+            Size = new Size(250, 35)
+        };
+        btnWindowControls.Click += (s, e) =>
+        {
+            int clickCount = 0;
+            var win = new Form
+            {
+                Title = SR.GetString("WindowControlsTitle"),
+                Text = SR.GetString("WindowControlsTitle"),
+                Width = 400,
+                Height = 250,
+
+            };
+            var clickLabel = new Label
+            {
+                Text = string.Format(SR.GetString("LabelClickCount"), 0),
+                Location = new Point(20, 20),
+                Size = new Size(350, 30)
+            };
+            var countButton = new Button
+            {
+                Text = SR.GetString("BtnTestButton"),
+                Location = new Point(20, 60),
+                Size = new Size(120, 30)
+            };
+            countButton.Click += (_, _) =>
+            {
+                clickCount++;
+                clickLabel.Text = string.Format(SR.GetString("LabelClickCount"), clickCount);
+            };
+            win.Controls.Add(clickLabel);
+            win.Controls.Add(countButton);
+            win.Show();
+            _statusLabel!.Text = SR.GetString("StatusWindowWithControlsOpened");
+        };
+
+        modelessGroup.Controls.Add(btnSimpleWindow);
+        modelessGroup.Controls.Add(btnWindowControls);
+
+        var modalGroup = new GroupBox
+        {
+            Text = SR.GetString("GroupModal"),
+            Location = new Point(300, 10),
+            Size = new Size(280, 120)
+        };
+
+        var btnModalDialog = new Button
+        {
+            Text = SR.GetString("BtnOpenModalDialog"),
+            Location = new Point(10, 25),
+            Size = new Size(250, 35)
+        };
+        btnModalDialog.Click += (s, e) =>
+        {
+            var dlg = new Form
+            {
+                Title = SR.GetString("ModalWindowTitle"),
+                Text = SR.GetString("ModalWindowTitle"),
+                Width = 350,
+                Height = 200,
+                FormBorderStyle = FormBorderStyle.FixedDialog,
+
+            };
+            var label = new Label
+            {
+                Text = SR.GetString("ModalWindowLabel"),
+                Location = new Point(20, 20),
+                Size = new Size(300, 60)
+            };
+            dlg.Controls.Add(label);
+            _statusLabel!.Text = SR.GetString("StatusModalDialogOpened");
+            var result = dlg.ShowDialog(_mainForm);
+            _statusLabel!.Text = SR.GetString("StatusModalClosed");
+        };
+
+        var btnModalConfirm = new Button
+        {
+            Text = SR.GetString("BtnOpenModalConfirm"),
+            Location = new Point(10, 70),
+            Size = new Size(250, 35)
+        };
+        btnModalConfirm.Click += (s, e) =>
+        {
+            var dlg = new Form
+            {
+                Title = SR.GetString("ConfirmTitle"),
+                Text = SR.GetString("ConfirmTitle"),
+                Width = 300,
+                Height = 180,
+                FormBorderStyle = FormBorderStyle.FixedDialog,
+
+            };
+            var label = new Label
+            {
+                Text = SR.GetString("ModalWindowLabel"),
+                Location = new Point(20, 20),
+                Size = new Size(250, 50)
+            };
+            var btnOK = new Button
+            {
+                Text = SR.GetString("OK"),
+                Location = new Point(60, 90),
+                Size = new Size(80, 30)
+            };
+            btnOK.Click += (_, _) => dlg.DialogResult = DialogResult.OK;
+            var btnCancel = new Button
+            {
+                Text = SR.GetString("Cancel"),
+                Location = new Point(150, 90),
+                Size = new Size(80, 30)
+            };
+            btnCancel.Click += (_, _) => dlg.DialogResult = DialogResult.Cancel;
+            dlg.Controls.Add(label);
+            dlg.Controls.Add(btnOK);
+            dlg.Controls.Add(btnCancel);
+            var result = dlg.ShowDialog(_mainForm);
+            if (result == DialogResult.OK)
+                _statusLabel!.Text = SR.GetString("StatusModalConfirmed");
+            else
+                _statusLabel!.Text = SR.GetString("StatusModalCancelled");
+        };
+
+        modalGroup.Controls.Add(btnModalDialog);
+        modalGroup.Controls.Add(btnModalConfirm);
+
+        var styleGroup = new GroupBox
+        {
+            Text = SR.GetString("GroupWindowStyles"),
+            Location = new Point(10, 140),
+            Size = new Size(570, 80)
+        };
+
+        var btnFixedDialog = new Button
+        {
+            Text = SR.GetString("BtnOpenFixedDialog"),
+            Location = new Point(10, 30),
+            Size = new Size(250, 35)
+        };
+        btnFixedDialog.Click += (s, e) =>
+        {
+            var dlg = new Form
+            {
+                Title = SR.GetString("FixedDialogTitle"),
+                Text = SR.GetString("FixedDialogTitle"),
+                Width = 350,
+                Height = 200,
+                FormBorderStyle = FormBorderStyle.FixedDialog,
+
+            };
+            var label = new Label
+            {
+                Text = SR.GetString("ModalWindowLabel"),
+                Location = new Point(20, 20),
+                Size = new Size(300, 80)
+            };
+            dlg.Controls.Add(label);
+            _statusLabel!.Text = SR.GetString("StatusFixedDialogOpened");
+            dlg.ShowDialog(_mainForm);
+            _statusLabel!.Text = SR.GetString("StatusModalClosed");
+        };
+
+        styleGroup.Controls.Add(btnFixedDialog);
+
+        page.Controls.Add(modelessGroup);
+        page.Controls.Add(modalGroup);
+        page.Controls.Add(styleGroup);
+
+        return page;
+    }
+
+    static TabPage CreateReportPage()
+    {
+        var page = new TabPage { Text = "Reports" };
+
+        var report = new Report("Employee Report");
+        report.PageWidth = 29.7;
+        report.PageHeight = 21.0;
+        report.LeftMargin = 1.5;
+        report.RightMargin = 1.5;
+        report.TopMargin = 1.0;
+        report.BottomMargin = 1.0;
+
+        var employees = new List<Person>
+        {
+            new(1, "Alice Wonder", "alice@example.com", "Active") { Salary = 85000m },
+            new(2, "Bob Builder", "bob@example.com", "Active") { Salary = 72000m },
+            new(3, "Charlie Brown", "charlie@example.com", "Inactive") { Salary = 0m },
+            new(4, "Diana Prince", "diana@example.com", "Active") { Salary = 95000m },
+            new(5, "Eve Adams", "eve@example.com", "Pending") { Salary = 68000m },
+            new(6, "Frank Castle", "frank@example.com", "Active") { Salary = 78000m },
+            new(7, "Grace Hopper", "grace@example.com", "Active") { Salary = 110000m },
+            new(8, "Henry Ford", "henry@example.com", "Inactive") { Salary = 0m },
+            new(9, "Ivy League", "ivy@example.com", "Pending") { Salary = 62000m },
+            new(10, "Jack Sparrow", "jack@example.com", "Active") { Salary = 88000m },
+            new(11, "Kate Bishop", "kate@example.com", "Active") { Salary = 74000m },
+            new(12, "Leo Messi", "leo@example.com", "Active") { Salary = 120000m },
+        };
+        report.DataSource = employees;
+
+        var titleFont = new Font("Arial", 18, FontStyle.Bold);
+        var headerFont = new Font("Arial", 10, FontStyle.Bold);
+        var dataFont = new Font("Arial", 9);
+
+        report.PageHeader.Height = 2.0;
+        report.PageHeader.BackColor = Color.FromArgb(230, 240, 255);
+        report.PageHeader.Controls.Add(new ReportLabel
+        {
+            Text = "Employee Report",
+            Left = 0, Top = 0.2, Width = 26.7, Height = 1.2,
+            Font = titleFont, TextAlign = TextAlignment.Center
+        });
+        report.PageHeader.Controls.Add(new ReportLine
+        {
+            Left = 0, Top = 1.6, X2 = 26.7, Y2 = 1.6,
+            LineWidth = 0.04, LineColor = Color.FromArgb(50, 80, 180)
+        });
+
+        var group = new ReportGroup("Status");
+        group.Header.Height = 0.7;
+        group.Header.BackColor = Color.FromArgb(200, 220, 255);
+        group.Header.RepeatOnNewPage = true;
+        group.Header.Controls.Add(new ReportTextBox
+        {
+            Expression = "Status: {Status}",
+            Left = 0.5, Top = 0.1, Width = 10, Height = 0.5,
+            Font = headerFont, ForeColor = Color.FromArgb(30, 60, 150)
+        });
+        group.Header.Controls.Add(new ReportLine
+        {
+            Left = 0.5, Top = 0.65, X2 = 26.2, Y2 = 0.65,
+            LineWidth = 0.02, LineColor = Color.FromArgb(150, 180, 220)
+        });
+        group.Footer.Height = 0.4;
+        group.Footer.Controls.Add(new ReportLine
+        {
+            Left = 0.5, Top = 0.2, X2 = 26.2, Y2 = 0.2,
+            LineWidth = 0.02, LineColor = Color.FromArgb(150, 180, 220)
+        });
+        report.Groups.Add(group);
+
+        report.Detail.Height = 0.55;
+        report.Detail.Controls.Add(new ReportTextBox
+        {
+            DataField = "Id", Left = 0.3, Top = 0.05,
+            Width = 2, Height = 0.45, Font = dataFont,
+            TextAlign = TextAlignment.Right, Format = "D3"
+        });
+        report.Detail.Controls.Add(new ReportTextBox
+        {
+            DataField = "Name", Left = 3.0, Top = 0.05,
+            Width = 7, Height = 0.45, Font = dataFont
+        });
+        report.Detail.Controls.Add(new ReportTextBox
+        {
+            DataField = "Email", Left = 10.5, Top = 0.05,
+            Width = 8, Height = 0.45, Font = dataFont
+        });
+        report.Detail.Controls.Add(new ReportTextBox
+        {
+            DataField = "Salary", Left = 19.0, Top = 0.05,
+            Width = 3.5, Height = 0.45, Font = dataFont,
+            TextAlign = TextAlignment.Right, Format = "{0:N0} EUR"
+        });
+        report.Detail.Controls.Add(new ReportCheckBox
+        {
+            DataField = "IsActive", Left = 23.0, Top = 0.05,
+            Width = 3, Height = 0.45
+        });
+
+        report.PageFooter.Height = 0.6;
+        report.PageFooter.Controls.Add(new ReportLine
+        {
+            Left = 0, Top = 0.1, X2 = 26.7, Y2 = 0.1,
+            LineWidth = 0.02, LineColor = Color.FromArgb(180, 180, 180)
+        });
+        report.PageFooter.Controls.Add(new ReportLabel
+        {
+            Text = "Confidential",
+            Left = 0, Top = 0.2, Width = 8, Height = 0.35,
+            Font = new Font("Arial", 7), ForeColor = Color.FromArgb(128, 128, 128)
+        });
+        report.PageFooter.Controls.Add(new ReportTextBox
+        {
+            Expression = "Page {PageNumber} / {TotalPages}",
+            Left = 18, Top = 0.2, Width = 8.7, Height = 0.35,
+            Font = new Font("Arial", 7), ForeColor = Color.FromArgb(128, 128, 128),
+            TextAlign = TextAlignment.Right
+        });
+
+        var viewer = new ReportViewer
+        {
+            Dock = DockStyle.Fill,
+            Report = report
+        };
+        viewer.RefreshReport();
+
+        var refreshBtn = new Button
+        {
+            Text = "Refresh Report",
+            Location = new Point(10, 10),
+            Size = new Size(140, 30)
+        };
+        refreshBtn.Click += (_, _) =>
+        {
+            viewer.Report = report;
+            viewer.RefreshReport();
+            _statusLabel!.Text = "Report refreshed";
+        };
+
+        page.Controls.Add(viewer);
+
+        return page;
+    }
 }
 
 public class Person : INotifyPropertyChanged
@@ -1710,6 +2089,8 @@ public class Person : INotifyPropertyChanged
     private string _email;
     private string _status;
     private bool _isActive;
+    private DateTime _birthDate;
+    private DateTime _startTime;
 
     public Person(int id, string name, string email, string status)
     {
@@ -1718,6 +2099,8 @@ public class Person : INotifyPropertyChanged
         _email = email;
         _status = status;
         _isActive = status == "Active";
+        _birthDate = new DateTime(1990, 1, 1);
+        _startTime = new DateTime(DateTime.Now.Year, DateTime.Now.Month, DateTime.Now.Day, 9, 0, 0);
     }
 
     public int Id
@@ -1764,6 +2147,24 @@ public class Person : INotifyPropertyChanged
         set
         {
             if (_isActive != value) { _isActive = value; OnPropertyChanged(nameof(IsActive)); }
+        }
+    }
+
+    public DateTime BirthDate
+    {
+        get => _birthDate;
+        set
+        {
+            if (_birthDate != value) { _birthDate = value; OnPropertyChanged(nameof(BirthDate)); }
+        }
+    }
+
+    public DateTime StartTime
+    {
+        get => _startTime;
+        set
+        {
+            if (_startTime != value) { _startTime = value; OnPropertyChanged(nameof(StartTime)); }
         }
     }
 

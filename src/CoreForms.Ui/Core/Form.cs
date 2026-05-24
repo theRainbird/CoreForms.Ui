@@ -11,6 +11,9 @@ namespace CoreForms.Ui.Core;
 public class Form : ContainerControl, IWin32Window
 {
     private string _title = string.Empty;
+    private bool _modal;
+    private Form? _ownerForm;
+    private DialogResult _dialogResult = DialogResult.None;
 
     private FormWindowState _windowState = FormWindowState.Normal;
     private FormBorderStyle _formBorderStyle = FormBorderStyle.Sizable;
@@ -85,6 +88,26 @@ public class Form : ContainerControl, IWin32Window
     {
         get => _cursor;
         set => _cursor = value;
+    }
+
+    /// <summary>
+    /// Gets whether this form is displayed modally.
+    /// </summary>
+    public bool Modal => _modal;
+
+    /// <summary>
+    /// Gets or sets the dialog result for this form.
+    /// When set to a value other than None on a modal form, the form closes.
+    /// </summary>
+    public DialogResult DialogResult
+    {
+        get => _dialogResult;
+        set
+        {
+            _dialogResult = value;
+            if (_modal && value != DialogResult.None)
+                Close();
+        }
     }
 
     /// <summary>
@@ -188,9 +211,85 @@ public class Form : ContainerControl, IWin32Window
     /// </summary>
     public void Show()
     {
+        if (_handle != IntPtr.Zero)
+        {
+            Console.WriteLine($"[Form.Show] handle already set, skipping. form='{Text}'");
+            return;
+        }
+
         Create();
         Application.Instance.RegisterForm(this);
         OnShown(EventArgs.Empty);
+
+        // Force an initial render so the window appears and is responsive
+        Invalidate();
+    }
+
+    /// <summary>
+    /// Shows the form as a modal dialog with no owner.
+    /// </summary>
+    /// <returns>One of the DialogResult values.</returns>
+    public DialogResult ShowDialog()
+    {
+        return ShowDialog(owner: null);
+    }
+
+    /// <summary>
+    /// Shows the form as a modal dialog with the specified owner.
+    /// Blocks until the dialog is closed, running a nested message loop.
+    /// </summary>
+    /// <param name="owner">The window that owns this dialog, or null.</param>
+    /// <returns>One of the DialogResult values.</returns>
+    public DialogResult ShowDialog(IWin32Window? owner)
+    {
+        if (_handle != IntPtr.Zero)
+            return _dialogResult;
+
+        if (owner != null)
+        {
+            foreach (var f in Application.Instance.GetForms())
+            {
+                if (f is IWin32Window w && w.Handle == owner.Handle)
+                {
+                    _ownerForm = f;
+                    break;
+                }
+            }
+        }
+        else
+        {
+            _ownerForm = Application.Instance.GetForms().LastOrDefault(f => f != this && f.Handle != IntPtr.Zero);
+        }
+
+        if (_ownerForm != null && _ownerForm != this)
+            _ownerForm.Enabled = false;
+
+        _modal = true;
+        _dialogResult = DialogResult.None;
+
+        Create();
+        Application.Instance.RegisterForm(this);
+        OnShown(EventArgs.Empty);
+
+        while (_modal && Application.Running)
+        {
+            Platform.Platform.ProcessEvents(Application.Instance);
+            if (Handle == IntPtr.Zero)
+            {
+                if (_dialogResult == DialogResult.None)
+                    _dialogResult = DialogResult.Cancel;
+                _modal = false;
+            }
+        }
+
+        if (_ownerForm != null && _ownerForm != this && _ownerForm.Handle != IntPtr.Zero)
+        {
+            _ownerForm.Enabled = true;
+            Platform.Platform.BringToFront(_ownerForm.Handle);
+        }
+
+        _ownerForm = null;
+        return _dialogResult;
     }
 
     /// <summary>
@@ -226,6 +325,11 @@ public class Form : ContainerControl, IWin32Window
             Console.WriteLine($"[Form.Close] handle is Zero, skipping. form='{Text}'");
             return;
         }
+
+        if (_modal && _dialogResult == DialogResult.None)
+            _dialogResult = DialogResult.Cancel;
+
+        _modal = false;
         Console.WriteLine($"[Form.Close] form='{Text}' handle={_handle}");
         Platform.Platform.DestroyWindow(_handle);
     }

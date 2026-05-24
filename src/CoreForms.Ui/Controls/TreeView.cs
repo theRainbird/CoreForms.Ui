@@ -304,9 +304,9 @@ public class TreeView : Control
         }
 
         // Draw border after scrollbar to ensure it stays on top
-        g.DrawRectangle(theme.ControlDark, 0, 0, Width, Height, 1);
+        g.DrawRectangle(theme.ControlDark, 0.5f, 0.5f, Width - 1, Height - 1, 1);
         if (Focused)
-            g.DrawRectangle(theme.FocusIndicator, 1, 1, Width - 2, Height - 2);
+            g.DrawRectangle(theme.FocusIndicator, 1.5f, 1.5f, Width - 3, Height - 3);
 
         base.Render(g);
     }

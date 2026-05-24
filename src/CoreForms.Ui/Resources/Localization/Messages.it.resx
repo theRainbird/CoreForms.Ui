@@ -58,4 +58,13 @@
   <data name="GroupBoxDefaultText">
     <value>GroupBox</value>
   </data>
+  <data name="Today">
+    <value>Oggi</value>
+  </data>
+  <data name="Hour">
+    <value>Ora</value>
+  </data>
+  <data name="Minute">
+    <value>Minuto</value>
+  </data>
 </root>

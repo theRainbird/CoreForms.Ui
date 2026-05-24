@@ -124,7 +124,11 @@ public class ToolStrip : ContainerControl
             bool isHovered = item == _hoveredItem;
             bool isPressed = item.IsPressed;
 
-            if (isHovered || isPressed)
+            if (isPressed)
+            {
+                g.FillRectangle(theme.ButtonPressedBackground, xOffset, 2, itemWidth, Height - 4);
+            }
+            else if (isHovered)
             {
                 g.FillRectangle(theme.MenuHover, xOffset, 2, itemWidth, Height - 4);
             }

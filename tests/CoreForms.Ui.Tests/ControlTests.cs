@@ -1105,4 +1105,34 @@ public class ControlTests
         Assert.True(button2.Focused);
         Assert.False(button1.Focused);
     }
+
+    private class TestPerson
+    {
+        public string Name { get; set; } = "";
+        public string Email { get; set; } = "";
+        public int Salary { get; set; }
+    }
+
+    [Fact]
+    public void ComboBox_DataSource_WithDisplayMember_ShowsPropertyValue()
+    {
+        var comboBox = new ComboBox();
+        comboBox.DataSource = new List<TestPerson> { new TestPerson { Name = "Alice", Email = "a@a.com", Salary = 50000 } };
+        comboBox.DisplayMember = nameof(TestPerson.Name);
+        Assert.Equal("Alice", comboBox.Text);
+    }
+
+    [Fact]
+    public void ComboBox_DataSource_WithDisplayMember_AndColumns_DisplaysCorrectly()
+    {
+        var comboBox = new ComboBox();
+        comboBox.DataSource = new List<TestPerson>
+        {
+            new TestPerson { Name = "Alice", Email = "a@a.com", Salary = 50000 },
+        };
+        comboBox.DisplayMember = nameof(TestPerson.Name);
+        comboBox.ColumnHeadersVisible = true;
+        comboBox.Columns.Add(new ComboBoxColumn { HeaderText = "Name", Width = 100, DataPropertyName = nameof(TestPerson.Name) });
+        Assert.Equal("Alice", comboBox.Text);
+    }
 }

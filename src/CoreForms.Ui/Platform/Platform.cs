@@ -114,17 +114,6 @@ public static class Platform
 
         window.Load += () =>
         {
-            try
-            {
-                ctx.InitializeRenderer();
-                Log($"[Platform] Renderer initialized for window id={windowId}");
-            }
-            catch (Exception ex)
-            {
-                Log($"[Platform] Failed to initialize renderer: {ex.Message}");
-                return;
-            }
-
             var input = window.CreateInput();
             var keyboard = input.Keyboards.FirstOrDefault();
             var mouse = input.Mice.FirstOrDefault();
@@ -216,6 +205,7 @@ public static class Platform
                     form.Height = (int)(size.Y / form.Zoom);
                     form.ResumeLayout(true);
                     form.OnResize(EventArgs.Empty);
+                    form.Invalidate();
                 }
             };
 
@@ -246,6 +236,16 @@ public static class Platform
                 form.X = pos.X;
                 form.Y = pos.Y;
             };
+
+            try
+            {
+                ctx.InitializeRenderer();
+                Log($"[Platform] Renderer initialized for window id={windowId}");
+            }
+            catch (Exception ex)
+            {
+                Log($"[Platform] Failed to initialize renderer: {ex.Message}");
+            }
         };
 
         window.Initialize();
@@ -311,7 +311,7 @@ public static class Platform
         else
         {
             // Deferred close (from Closing event): GL context may be invalid, skip GL calls
-            ctx.Renderer?.MarkContextLost();
+            try { ctx.Renderer?.MarkContextLost(); } catch { }
         }
 
         try { ctx.Dispose(); } catch { }
@@ -635,7 +635,11 @@ public static class Platform
         foreach (var ctx in contextsSnapshot)
         {
             if (ctx.IsClosing)
+            {
+                if (_contexts.ContainsKey(ctx.WindowId))
+                    pendingCleanup.Add(ctx);
                 continue;
+            }
 
             try
             {
@@ -643,7 +647,7 @@ public static class Platform
             }
             catch { }
 
-            if (ctx.IsClosing)
+            if (ctx.IsClosing && _contexts.ContainsKey(ctx.WindowId))
                 pendingCleanup.Add(ctx);
         }
 
@@ -651,6 +655,10 @@ public static class Platform
         {
             Log($"[Platform] Deferred cleanup: id={ctx.WindowId} form='{ctx.Form.Text}'");
             CleanupWindowOnClose(ctx.WindowId, ctx, ctx.Form, glCleanup: false);
+            // Actually close and hide the Silk.NET window (CleanupWindowOnClose only removes
+            // from _contexts and disposes renderers, but does not destroy the native window)
+            try { ctx.Window.IsVisible = false; } catch { }
+            try { ctx.Window.Close(); } catch { }
         }
 
         // 30 fps frame pacing: sleep until the next frame is due

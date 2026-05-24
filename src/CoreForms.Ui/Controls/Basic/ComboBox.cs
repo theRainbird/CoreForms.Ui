@@ -1,4 +1,5 @@
 using System.ComponentModel;
+using CoreForms.Ui.Controls.Advanced;
 using CoreForms.Ui.Core;
 using CoreForms.Ui.Data;
 using CoreForms.Ui.Theming;
@@ -34,11 +35,16 @@ public class ComboBox : Control
     private bool _autoCompleting;
     private int _lastAutoCompleteTypedLength = -1;
 
+    private readonly ComboBoxColumnCollection _columns;
+    private int _dropDownWidth;
+    private bool _columnHeadersVisible = true;
+
     /// <summary>
     /// Initializes a new instance of ComboBox.
     /// </summary>
     public ComboBox()
     {
+        _columns = new ComboBoxColumnCollection(Invalidate);
         var theme = ThemeManager.CurrentTheme;
         _backColor = theme.TextBoxBackground;
         Size = new Size(200, 32);
@@ -131,6 +137,7 @@ public class ComboBox : Control
             {
                 _displayMember = value;
                 OnPropertyChanged(nameof(DisplayMember));
+                SyncEngineText();
                 Invalidate();
             }
         }
@@ -255,6 +262,38 @@ public class ComboBox : Control
             }
 
             OnPropertyChanged(nameof(DropDownStyle));
+            Invalidate();
+        }
+    }
+
+    /// <summary>
+    /// Gets the collection of columns for the multi-column drop-down list.
+    /// When non-empty and <see cref="DataSource"/> is set, the drop-down renders
+    /// multiple columns with optional headers.
+    /// </summary>
+    public ComboBoxColumnCollection Columns => _columns;
+
+    /// <summary>
+    /// Gets or sets the width of the drop-down list in pixels.
+    /// When 0 (default), the width is auto-calculated as the maximum of the
+    /// control width and the sum of all column widths (plus borders and scrollbar).
+    /// </summary>
+    public int DropDownWidth
+    {
+        get => _dropDownWidth;
+        set => _dropDownWidth = Math.Max(0, value);
+    }
+
+    /// <summary>
+    /// Gets or sets whether column headers are shown in the multi-column drop-down.
+    /// </summary>
+    public bool ColumnHeadersVisible
+    {
+        get => _columnHeadersVisible;
+        set
+        {
+            if (_columnHeadersVisible == value) return;
+            _columnHeadersVisible = value;
             Invalidate();
         }
     }
@@ -434,6 +473,12 @@ public class ComboBox : Control
         int listHeight = Height - listY;
         if (listHeight <= 0) return;
 
+        if (_columns.Count > 0 && _dataSource != null)
+        {
+            RenderSimpleMultiColumn(g, theme, listY, listHeight);
+            return;
+        }
+
         var font = EffectiveFont;
         var itemHeight = GetItemHeight();
         var totalHeight = _items.Count * itemHeight;
@@ -475,6 +520,105 @@ public class ComboBox : Control
             else
             {
                 g.DrawString(GetItemDisplayText(_items[i]), font, ForeColor, 4, y + 2);
+            }
+        }
+
+        g.ResetClip();
+    }
+
+    private void RenderSimpleMultiColumn(Graphics g, Theme theme, int listY, int listHeight)
+    {
+        var font = EffectiveFont;
+        float zoom = EffectiveZoom;
+        var itemHeight = GetItemHeight();
+        int headerHeight = GetColumnHeaderHeight();
+        int totalHeight = _items.Count * itemHeight;
+        var scrollBarWidth = ScrollBarEngine.DefaultScrollBarSize;
+        var needsScrollbar = totalHeight + headerHeight > listHeight;
+        var listWidth = needsScrollbar ? Width - scrollBarWidth : Width;
+
+        g.FillRectangle(theme.MenuDropdownBackground, 0, listY, listWidth, listHeight);
+        g.DrawRectangle(theme.MenuDropdownBorder, 0, listY, listWidth, listHeight, 1);
+
+        _dropScrollBar.SmallChange = itemHeight;
+        _dropScrollBar.ViewSize = listHeight;
+        _dropScrollBar.ContentSize = totalHeight + headerHeight;
+        if (needsScrollbar)
+        {
+            var scrollBarBounds = new Rectangle(Width - scrollBarWidth, listY, scrollBarWidth, listHeight);
+            _dropScrollBar.Render(g, scrollBarBounds, theme);
+        }
+
+        g.SetClip(new Rectangle(0, listY, listWidth, listHeight));
+
+        // Pre-compute column start positions
+        var colStarts = new int[_columns.Count];
+        int colX = 2;
+        for (int i = 0; i < _columns.Count; i++)
+        {
+            colStarts[i] = colX;
+            colX += _columns[i].Width;
+        }
+
+        int contentTop = listY;
+
+        var headerBottom = contentTop + headerHeight;
+
+        // Column headers
+        if (_columnHeadersVisible)
+        {
+            g.FillRectangle(theme.ControlBackground, 0, contentTop, listWidth, headerHeight);
+            for (int i = 0; i < _columns.Count; i++)
+            {
+                var col = _columns[i];
+                int cx = colStarts[i];
+                g.DrawRectangle(theme.MenuDropdownBorder, cx, contentTop, col.Width, headerHeight, 1);
+                var headerText = col.HeaderText;
+                var hFont = font;
+                headerText = TruncateText(headerText, hFont, zoom, col.TextAlign, col.Width - 8);
+                float hx = GetAlignedX(headerText, hFont, zoom, col.TextAlign, cx, col.Width, 4);
+                float hy = contentTop + CoordinateTransform.CenterVertically(0, headerHeight, hFont, zoom);
+                g.DrawString(headerText, hFont, theme.ControlText, hx, hy);
+
+                if (i < _columns.Count - 1)
+                    g.DrawLine(theme.GridLineVertical, cx + col.Width, contentTop, cx + col.Width, headerBottom);
+            }
+            contentTop += headerHeight;
+        }
+
+        // Items
+        for (int i = 0; i < _items.Count; i++)
+        {
+            var y = contentTop + 2 + i * itemHeight - _scrollOffset;
+            if (y + itemHeight <= contentTop) continue;
+            if (y >= listY + listHeight) break;
+
+            Color textColor;
+            if (i == _selectedIndex)
+            {
+                g.FillRectangle(theme.Highlight, 1, y, listWidth - 2, itemHeight);
+                textColor = theme.HighlightText;
+            }
+            else if (i == _hoveredIndex)
+            {
+                g.FillRectangle(theme.HoverHighlight, 1, y, listWidth - 2, itemHeight);
+                textColor = ForeColor;
+            }
+            else
+            {
+                textColor = ForeColor;
+            }
+
+            for (int c = 0; c < _columns.Count; c++)
+            {
+                var col = _columns[c];
+                var cellText = GetColumnCellText(_items[i], col);
+                cellText = TruncateText(cellText, font, zoom, col.TextAlign, col.Width - 8);
+                float tx = GetAlignedX(cellText, font, zoom, col.TextAlign, colStarts[c], col.Width, 4);
+                g.DrawString(cellText, font, textColor, tx, y + 2);
+
+                if (c < _columns.Count - 1)
+                    g.DrawLine(theme.GridLineVertical, colStarts[c] + col.Width, y, colStarts[c] + col.Width, y + itemHeight);
             }
         }
 
@@ -577,6 +721,12 @@ public class ComboBox : Control
 
         if (!_droppedDown || _dropDownStyle == DropDownStyle.Simple) return;
 
+        if (_columns.Count > 0 && _dataSource != null)
+        {
+            RenderMultiColumnDropDown(g);
+            return;
+        }
+
         var theme = ThemeManager.CurrentTheme;
         var font = EffectiveFont;
         var itemHeight = GetItemHeight();
@@ -641,7 +791,8 @@ public class ComboBox : Control
 
         if (_droppedDown && _dropDownStyle != DropDownStyle.Simple)
         {
-            var dropBounds = new Rectangle(X, Y + Height, Width, _dropDownHeight);
+            int dropWidth = GetDropDownWidth();
+            var dropBounds = new Rectangle(X, Y + Height, dropWidth, _dropDownHeight);
             if (dropBounds.Contains(point))
                 return true;
         }
@@ -725,7 +876,8 @@ public class ComboBox : Control
 
         if (args.Y >= listY && args.Y < listY + listHeight)
         {
-            int localY = args.Y - listY - 2 + _scrollOffset;
+            int listOffset = GetHeaderOffset();
+            int localY = args.Y - listY - listOffset - 2 + _scrollOffset;
             if (localY >= 0)
             {
                 int index = localY / itemHeight;
@@ -743,20 +895,22 @@ public class ComboBox : Control
         {
             var itemHeight = GetItemHeight();
             int dropY = Height;
+            int dropWidth = GetDropDownWidth();
             int totalHeight = _items.Count * itemHeight;
             bool needsScrollbar = _dropScrollBar.NeedsScrollbar;
             int scrollBarWidth = needsScrollbar ? ScrollBarEngine.DefaultScrollBarSize : 0;
 
-            if (args.X >= 0 && args.X < Width && args.Y >= dropY && args.Y < dropY + _dropDownHeight)
+            if (args.X >= 0 && args.X < dropWidth && args.Y >= dropY && args.Y < dropY + _dropDownHeight)
             {
-                if (needsScrollbar && args.X >= Width - scrollBarWidth)
+                if (needsScrollbar && args.X >= dropWidth - scrollBarWidth)
                 {
-                    var scrollBarBounds = new Rectangle(Width - scrollBarWidth, dropY, scrollBarWidth, _dropDownHeight);
+                    var scrollBarBounds = new Rectangle(dropWidth - scrollBarWidth, dropY, scrollBarWidth, _dropDownHeight);
                     _dropScrollBar.HandleMouseDown(new Point(args.X, args.Y), scrollBarBounds, ScrollBarCtx);
                     return;
                 }
 
-                int localY = args.Y - dropY - 2 + _scrollOffset;
+                int headerOffset = GetHeaderOffset();
+                int localY = args.Y - dropY - headerOffset - 2 + _scrollOffset;
                 if (localY >= 0)
                 {
                     int index = localY / itemHeight;
@@ -800,20 +954,22 @@ public class ComboBox : Control
         {
             var itemHeight = GetItemHeight();
             int dropY = Height;
+            int dropWidth = GetDropDownWidth();
             int totalHeight = _items.Count * itemHeight;
             bool needsScrollbar = _dropScrollBar.NeedsScrollbar;
             int scrollBarWidth = needsScrollbar ? ScrollBarEngine.DefaultScrollBarSize : 0;
 
-            if (args.X >= 0 && args.X < Width && args.Y >= dropY && args.Y < dropY + _dropDownHeight)
+            if (args.X >= 0 && args.X < dropWidth && args.Y >= dropY && args.Y < dropY + _dropDownHeight)
             {
-                if (needsScrollbar && args.X >= Width - scrollBarWidth)
+                if (needsScrollbar && args.X >= dropWidth - scrollBarWidth)
                 {
-                    var scrollBarBounds = new Rectangle(Width - scrollBarWidth, dropY, scrollBarWidth, _dropDownHeight);
+                    var scrollBarBounds = new Rectangle(dropWidth - scrollBarWidth, dropY, scrollBarWidth, _dropDownHeight);
                     _dropScrollBar.HandleMouseDown(new Point(args.X, args.Y), scrollBarBounds, ScrollBarCtx);
                     return;
                 }
 
-                int localY = args.Y - dropY - 2 + _scrollOffset;
+                int headerOffset = GetHeaderOffset();
+                int localY = args.Y - dropY - headerOffset - 2 + _scrollOffset;
                 if (localY >= 0)
                 {
                     int index = localY / itemHeight;
@@ -880,7 +1036,7 @@ public class ComboBox : Control
             {
                 var itemHeight = GetItemHeight();
                 _dropScrollBar.SmallChange = itemHeight;
-                _dropScrollBar.ViewSize = _dropDownHeight;
+                _dropScrollBar.ViewSize = _dropDownHeight - GetHeaderOffset();
                 _dropScrollBar.ContentSize = _items.Count * itemHeight;
                 if (_dropScrollBar.NeedsScrollbar)
                 {
@@ -908,22 +1064,24 @@ public class ComboBox : Control
                 var itemHeight = GetItemHeight();
                 int dropY = _dropDownStyle == DropDownStyle.Simple ? GetTextBoxHeight() : Height;
                 int viewHeight = _dropDownStyle == DropDownStyle.Simple ? Height - dropY : _dropDownHeight;
+                int headerOffset = GetHeaderOffset();
                 int totalHeight = _items.Count * itemHeight;
                 _dropScrollBar.SmallChange = itemHeight;
-                _dropScrollBar.ViewSize = viewHeight;
+                _dropScrollBar.ViewSize = viewHeight - headerOffset;
                 _dropScrollBar.ContentSize = totalHeight;
                 bool needsScrollbar = _dropScrollBar.NeedsScrollbar;
                 int scrollBarWidth = needsScrollbar ? ScrollBarEngine.DefaultScrollBarSize : 0;
 
                 if (needsScrollbar)
                 {
-                    var scrollBarBounds = new Rectangle(Width - scrollBarWidth, dropY, scrollBarWidth, viewHeight);
+                    int dropWidth = _dropDownStyle == DropDownStyle.Simple ? Width : GetDropDownWidth();
+                    var scrollBarBounds = new Rectangle(dropWidth - scrollBarWidth, dropY, scrollBarWidth, viewHeight);
                     _dropScrollBar.HandleMouseMove(new Point(args.X, args.Y), scrollBarBounds, ScrollBarCtx);
                 }
 
                 if (args.Y >= dropY && args.Y < dropY + viewHeight)
                 {
-                    int localY = args.Y - dropY - 2 + _scrollOffset;
+                    int localY = args.Y - dropY - headerOffset - 2 + _scrollOffset;
                     if (localY >= 0)
                     {
                         int index = localY / itemHeight;
@@ -1216,6 +1374,242 @@ public class ComboBox : Control
     /// Occurs when the selected index changes.
     /// </summary>
     public event EventHandler? SelectedIndexChanged;
+
+    /// <summary>
+    /// Gets the display text for an item in the given column.
+    /// </summary>
+    private string GetColumnCellText(object item, ComboBoxColumn column)
+    {
+        if (column.DataPropertyName != null)
+        {
+            var prop = item.GetType().GetProperty(column.DataPropertyName);
+            if (prop != null)
+            {
+                var val = prop.GetValue(item);
+                return FormatCellValue(val, column.FormatString);
+            }
+        }
+        return string.Empty;
+    }
+
+    /// <summary>
+    /// Formats a cell value using the specified format string.
+    /// </summary>
+    private static string FormatCellValue(object? value, string? formatString)
+    {
+        if (value == null) return "";
+        if (formatString != null)
+        {
+            try { return string.Format($"{{0:{formatString}}}", value); }
+            catch { }
+        }
+        return value.ToString() ?? "";
+    }
+
+    /// <summary>
+    /// Calculates the X position for text based on alignment within a cell.
+    /// </summary>
+    private static float GetAlignedX(string text, Font font, float zoom, DataGridViewContentAlignment alignment, float cellX, float cellWidth, int padding)
+    {
+        if (alignment == DataGridViewContentAlignment.Left || string.IsNullOrEmpty(text))
+            return cellX + padding;
+
+        float textWidthLogical = CoordinateTransform.MeasureText(text, font, zoom).width / Math.Max(zoom, 0.001f);
+
+        return alignment switch
+        {
+            DataGridViewContentAlignment.Center => cellX + (cellWidth - textWidthLogical) / 2f,
+            DataGridViewContentAlignment.Right => cellX + cellWidth - textWidthLogical - padding,
+            _ => cellX + padding
+        };
+    }
+
+    /// <summary>
+    /// Truncates text with ellipsis to fit within a maximum width, respecting alignment.
+    /// </summary>
+    private static string TruncateText(string text, Font font, float zoom, DataGridViewContentAlignment alignment, float maxWidthLogical)
+    {
+        if (string.IsNullOrEmpty(text) || zoom <= 0f) return text;
+
+        int maxWidthPixels = (int)(maxWidthLogical * zoom);
+        int textWidth = CoordinateTransform.MeasureText(text, font, zoom).width;
+        if (textWidth <= maxWidthPixels) return text;
+
+        const string ellipsis = "...";
+        int ellipsisWidth = CoordinateTransform.MeasureText(ellipsis, font, zoom).width;
+        int availablePixels = maxWidthPixels - ellipsisWidth;
+
+        if (availablePixels <= 0) return ellipsis;
+
+        if (alignment == DataGridViewContentAlignment.Right)
+        {
+            for (int i = text.Length - 1; i >= 0; i--)
+            {
+                var sub = text.Substring(i);
+                if (CoordinateTransform.MeasureText(sub, font, zoom).width <= availablePixels)
+                    return ellipsis + sub;
+            }
+            return ellipsis;
+        }
+        else
+        {
+            for (int i = 1; i <= text.Length; i++)
+            {
+                var sub = text.Substring(0, i);
+                if (CoordinateTransform.MeasureText(sub, font, zoom).width > availablePixels)
+                    return text.Substring(0, i - 1) + ellipsis;
+            }
+            return text + ellipsis;
+        }
+    }
+
+    /// <summary>
+    /// Returns the height of the column header row.
+    /// </summary>
+    private int GetColumnHeaderHeight()
+    {
+        return _columnHeadersVisible ? GetItemHeight() : 0;
+    }
+
+    /// <summary>
+    /// Returns the header offset that item Y positions start after, for multi-column mode.
+    /// </summary>
+    private int GetHeaderOffset()
+    {
+        return _columns.Count > 0 && _dataSource != null ? GetColumnHeaderHeight() : 0;
+    }
+
+    /// <summary>
+    /// Returns the width of the drop-down overlay. When <see cref="DropDownWidth"/> is set (> 0),
+    /// that value is used. Otherwise auto-calculates from column widths or falls back to control width.
+    /// </summary>
+    private int GetDropDownWidth()
+    {
+        if (_dropDownWidth > 0)
+            return _dropDownWidth;
+
+        if (_columns.Count > 0)
+        {
+            int total = 2;
+            for (int i = 0; i < _columns.Count; i++)
+                total += _columns[i].Width;
+            int totalHeight = _items.Count * GetItemHeight();
+            if (totalHeight > _dropDownHeight)
+                total += ScrollBarEngine.DefaultScrollBarSize;
+            return Math.Max(Width, total);
+        }
+
+        return Width;
+    }
+
+    /// <summary>
+    /// Renders the drop-down list with multiple columns (requires <see cref="Columns"/> and <see cref="DataSource"/>).
+    /// </summary>
+    private void RenderMultiColumnDropDown(Graphics g)
+    {
+        var theme = ThemeManager.CurrentTheme;
+        var font = EffectiveFont;
+        float zoom = EffectiveZoom;
+        var itemHeight = GetItemHeight();
+        int headerHeight = GetColumnHeaderHeight();
+        int totalContentHeight = headerHeight + _items.Count * itemHeight;
+        int totalHeight = _items.Count * itemHeight;
+        var scrollBarWidth = ScrollBarEngine.DefaultScrollBarSize;
+        bool needsScrollbar = totalContentHeight > _dropDownHeight;
+        int dropDownWidth = GetDropDownWidth();
+        int viewHeight = Math.Min(_dropDownHeight, totalContentHeight);
+
+        int dropY = Height;
+
+        g.FillRectangle(theme.MenuDropdownBackground, 0, dropY, dropDownWidth, _dropDownHeight);
+        g.DrawRectangle(theme.MenuDropdownBorder, 0, dropY, dropDownWidth, _dropDownHeight, 1);
+
+        _dropScrollBar.SmallChange = itemHeight;
+        _dropScrollBar.ViewSize = _dropDownHeight - headerHeight;
+        _dropScrollBar.ContentSize = totalHeight;
+        if (needsScrollbar)
+        {
+            var scrollBarBounds = new Rectangle(dropDownWidth - scrollBarWidth, dropY, scrollBarWidth, _dropDownHeight);
+            _dropScrollBar.Render(g, scrollBarBounds, theme);
+        }
+
+        int listWidth = needsScrollbar ? dropDownWidth - scrollBarWidth : dropDownWidth;
+
+        // Pre-compute column start positions
+        var colStarts = new int[_columns.Count];
+        int colX = 2;
+        for (int i = 0; i < _columns.Count; i++)
+        {
+            colStarts[i] = colX;
+            colX += _columns[i].Width;
+        }
+
+        var headerBottom = dropY + headerHeight;
+        var itemBottom = dropY + _dropDownHeight;
+
+        // Column headers
+        if (_columnHeadersVisible)
+        {
+            g.SetClip(new Rectangle(0, dropY, listWidth, headerHeight));
+            g.FillRectangle(theme.ControlBackground, 0, dropY, listWidth, headerHeight);
+            for (int i = 0; i < _columns.Count; i++)
+            {
+                var col = _columns[i];
+                int cx = colStarts[i];
+                g.DrawRectangle(theme.MenuDropdownBorder, cx, dropY, col.Width, headerHeight, 1);
+                var headerText = col.HeaderText;
+                var hFont = font;
+                headerText = TruncateText(headerText, hFont, zoom, col.TextAlign, col.Width - 8);
+                float hx = GetAlignedX(headerText, hFont, zoom, col.TextAlign, cx, col.Width, 4);
+                float hy = dropY + CoordinateTransform.CenterVertically(0, headerHeight, hFont, zoom);
+                g.DrawString(headerText, hFont, theme.ControlText, hx, hy);
+
+                // Vertical grid line after each column (except last) in header
+                if (i < _columns.Count - 1)
+                    g.DrawLine(theme.GridLineVertical, cx + col.Width, dropY, cx + col.Width, headerBottom);
+            }
+            g.ResetClip();
+        }
+
+        // Items
+        g.SetClip(new Rectangle(0, headerBottom, listWidth, _dropDownHeight - headerHeight));
+        for (int i = 0; i < _items.Count; i++)
+        {
+            var y = headerBottom + 2 + i * itemHeight - _scrollOffset;
+            if (y + itemHeight <= headerBottom) continue;
+            if (y >= itemBottom) break;
+
+            Color textColor;
+            if (i == _selectedIndex)
+            {
+                g.FillRectangle(theme.Highlight, 1, y, listWidth - 2, itemHeight);
+                textColor = theme.HighlightText;
+            }
+            else if (i == _hoveredIndex)
+            {
+                g.FillRectangle(theme.HoverHighlight, 1, y, listWidth - 2, itemHeight);
+                textColor = ForeColor;
+            }
+            else
+            {
+                textColor = ForeColor;
+            }
+
+            for (int c = 0; c < _columns.Count; c++)
+            {
+                var col = _columns[c];
+                var cellText = GetColumnCellText(_items[i], col);
+                cellText = TruncateText(cellText, font, zoom, col.TextAlign, col.Width - 8);
+                float tx = GetAlignedX(cellText, font, zoom, col.TextAlign, colStarts[c], col.Width, 4);
+                g.DrawString(cellText, font, textColor, tx, y + 2);
+
+                // Vertical grid line after each column (except last)
+                if (c < _columns.Count - 1)
+                    g.DrawLine(theme.GridLineVertical, colStarts[c] + col.Width, y, colStarts[c] + col.Width, y + itemHeight);
+            }
+        }
+        g.ResetClip();
+    }
 
     private sealed class ComboBoxScrollBarContext : IScrollBarContext
     {

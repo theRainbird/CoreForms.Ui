@@ -147,16 +147,12 @@ public class ToolStripButton : ToolStripItem
     {
         if (!Visible) return;
 
-        bool isActive = hovered || pressed || _checked;
-        if (isActive)
-        {
-            Color bgColor = _checked ? Color.FromArgb(180, 200, 230) : Color.FromArgb(200, 200, 200);
-            g.FillRectangle(bgColor, x, y, width, height);
-        }
+        var theme = ThemeManager.CurrentTheme;
 
         if (_checked)
         {
-            g.DrawRectangle(Color.FromArgb(100, 140, 200), x, y, width - 1, height - 1, 1);
+            g.FillRectangle(theme.ButtonPressedBackground, x - 4, y - 2, width + 8, height + 4);
+            g.DrawRectangle(theme.FocusIndicator, x - 4, y - 2, width + 7, height + 3, 1);
         }
 
         bool showImage = DisplayStyle == ToolStripItemDisplayStyle.Image ||
@@ -176,7 +172,6 @@ public class ToolStripButton : ToolStripItem
 
         if (showText && !string.IsNullOrEmpty(DisplayText))
         {
-            var theme = ThemeManager.CurrentTheme;
             int textX = showImage ? contentX + imageWidth + 4 : contentX;
             var textColor = Enabled ? theme.ToolStripItemText : theme.GrayText;
             g.DrawString(DisplayText, font, textColor, textX, y + (height - (int)(font.Size * zoom)) / 2);

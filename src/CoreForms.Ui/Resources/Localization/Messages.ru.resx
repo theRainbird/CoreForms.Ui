@@ -58,4 +58,13 @@
   <data name="GroupBoxDefaultText">
     <value>GroupBox</value>
   </data>
+  <data name="Today">
+    <value>Сегодня</value>
+  </data>
+  <data name="Hour">
+    <value>Час</value>
+  </data>
+  <data name="Minute">
+    <value>Минута</value>
+  </data>
 </root>

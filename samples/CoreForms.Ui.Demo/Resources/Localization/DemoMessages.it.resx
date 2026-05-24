@@ -279,4 +279,16 @@
   <data name="AppointmentSprintPlanning"><value>Pianificazione sprint</value></data>
   <data name="AppointmentRoom204"><value>Stanza 204</value></data>
   <data name="AppointmentConference"><value>Conferenza</value></data>
+  <data name="TabDateTimePicker"><value>Date/Time Picker</value></data>
+  <data name="DtpModes"><value>Format Modes</value></data>
+  <data name="DtpLong"><value>Long Date</value></data>
+  <data name="DtpShort"><value>Short Date</value></data>
+  <data name="DtpTime"><value>Time</value></data>
+  <data name="DtpCustom"><value>Custom</value></data>
+  <data name="DtpOptions"><value>Options</value></data>
+  <data name="DtpUpDown"><value>Up/Down Date</value></data>
+  <data name="DtpUpDownTime"><value>Up/Down Time</value></data>
+  <data name="DtpWithCheckBox"><value>With CheckBox</value></data>
+  <data name="DtpDataBinding"><value>Data Binding</value></data>
+  <data name="DtpSelected"><value>Selected: {0}</value></data>
 </root>

@@ -68,6 +68,19 @@
   <data name="TabWebBrowser"><value>Web Browser</value></data>
   <data name="TabHtmlEditor"><value>HTML Editor</value></data>
   <data name="TabCalendar"><value>Calendar</value></data>
+  <data name="TabMultiWindows"><value>Multiple Windows</value></data>
+  <data name="TabDateTimePicker"><value>Date/Time Picker</value></data>
+  <data name="DtpModes"><value>Format Modes</value></data>
+  <data name="DtpLong"><value>Long Date</value></data>
+  <data name="DtpShort"><value>Short Date</value></data>
+  <data name="DtpTime"><value>Time</value></data>
+  <data name="DtpCustom"><value>Custom</value></data>
+  <data name="DtpOptions"><value>Options</value></data>
+  <data name="DtpUpDown"><value>Up/Down Date</value></data>
+  <data name="DtpUpDownTime"><value>Up/Down Time</value></data>
+  <data name="DtpWithCheckBox"><value>With CheckBox</value></data>
+  <data name="DtpDataBinding"><value>Data Binding</value></data>
+  <data name="DtpSelected"><value>Selected: {0}</value></data>
   <!-- GroupBox titles -->
   <data name="GroupTextInput"><value>Text Input</value></data>
   <data name="GroupSelection"><value>Selection</value></data>
@@ -107,6 +120,8 @@
   <data name="LabelSvgModes"><value>Zoom | Stretch | Center</value></data>
   <data name="LabelRasterModes"><value>Normal | Stretch | Zoom</value></data>
   <!-- Buttons -->
+  <data name="OK"><value>OK</value></data>
+  <data name="Cancel"><value>Cancel</value></data>
   <data name="BtnProgress10"><value>Progress +10</value></data>
   <data name="BtnReset"><value>Reset</value></data>
   <data name="BtnTestButton"><value>Test Button</value></data>
@@ -287,6 +302,30 @@
   <data name="StatusSelectedValueFormat"><value>SelectedValue: {0}</value></data>
   <data name="StatusSelectedDateFormat"><value>Selected: {0}</value></data>
   <data name="StatusViewFormat"><value>View: {0}</value></data>
+  <!-- Multi-Window page -->
+  <data name="GroupModeless"><value>Modeless Windows</value></data>
+  <data name="GroupModal"><value>Modal Dialogs</value></data>
+  <data name="GroupWindowStyles"><value>Window Styles</value></data>
+  <data name="BtnOpenSimpleWindow"><value>Open Simple Window</value></data>
+  <data name="BtnOpenWindowWithControls"><value>Open Window with Controls</value></data>
+  <data name="BtnOpenModalDialog"><value>Open Modal Dialog</value></data>
+  <data name="BtnOpenModalConfirm"><value>Open Modal (OK/Cancel)</value></data>
+  <data name="BtnOpenFixedDialog"><value>Open Fixed Border Dialog</value></data>
+  <data name="SimpleWindowTitle"><value>Simple Window</value></data>
+  <data name="SimpleWindowLabel"><value>This is a simple modeless window.</value></data>
+  <data name="ModalWindowTitle"><value>Modal Dialog</value></data>
+  <data name="ModalWindowLabel"><value>This is a modal dialog. Close it to continue.</value></data>
+  <data name="ConfirmTitle"><value>Confirm</value></data>
+  <data name="WindowControlsTitle"><value>Window with Controls</value></data>
+  <data name="FixedDialogTitle"><value>Fixed Dialog</value></data>
+  <data name="LabelClickCount"><value>Clicks: {0}</value></data>
+  <data name="StatusSimpleWindowOpened"><value>Simple window opened</value></data>
+  <data name="StatusWindowWithControlsOpened"><value>Window with controls opened</value></data>
+  <data name="StatusModalDialogOpened"><value>Modal dialog opened</value></data>
+  <data name="StatusModalClosed"><value>Modal dialog closed</value></data>
+  <data name="StatusModalConfirmed"><value>Modal dialog confirmed (OK)</value></data>
+  <data name="StatusModalCancelled"><value>Modal dialog cancelled</value></data>
+  <data name="StatusFixedDialogOpened"><value>Fixed border dialog opened</value></data>
   <!-- Calendar appointments -->
   <data name="AppointmentTeamMeeting"><value>Team Meeting</value></data>
   <data name="AppointmentRoom101"><value>Room 101</value></data>

@@ -356,6 +356,43 @@ namespace CoreForms.Ui.Rendering;
     /// </summary>
     /// <returns>A list of draw commands.</returns>
     public List<DrawCommand> GetCommands() => _commands;
+
+    /// <summary>
+    /// Imports draw commands from a source list, applying the current zoom and offset transforms.
+    /// Used by ReportViewer to replay pre-rendered report pages at the viewer's zoom level.
+    /// The source coordinates are scaled by <see cref="Zoom"/>, then <paramref name="addOffset"/>
+    /// and the Graphics offset are added — so the page content stays aligned with its background
+    /// regardless of zoom level.
+    /// </summary>
+    /// <param name="source">The list of draw commands to import and transform.</param>
+    /// <param name="addOffsetX">Additional horizontal offset added after zoom scaling.</param>
+    /// <param name="addOffsetY">Additional vertical offset added after zoom scaling.</param>
+    public void ImportCommands(List<DrawCommand> source, float addOffsetX = 0, float addOffsetY = 0)
+    {
+        foreach (var cmd in source)
+        {
+            var newCmd = new DrawCommand
+            {
+                Type = cmd.Type,
+                Color = cmd.Color,
+                X = cmd.X * _zoom + addOffsetX + _offsetX,
+                Y = cmd.Y * _zoom + addOffsetY + _offsetY,
+                Width = cmd.Width * _zoom,
+                Height = cmd.Height * _zoom,
+                X2 = cmd.X2 * _zoom + addOffsetX + _offsetX,
+                Y2 = cmd.Y2 * _zoom + addOffsetY + _offsetY,
+                X3 = cmd.X3 * _zoom + addOffsetX + _offsetX,
+                Y3 = cmd.Y3 * _zoom + addOffsetY + _offsetY,
+                LineWidth = cmd.LineWidth * _zoom,
+                Text = cmd.Text,
+                Font = cmd.Font,
+                Image = cmd.Image,
+                Zoom = cmd.Zoom * _zoom,
+                ClipBounds = cmd.ClipBounds
+            };
+            _commands.Add(newCmd);
+        }
+    }
 }
 
 /// <summary>
