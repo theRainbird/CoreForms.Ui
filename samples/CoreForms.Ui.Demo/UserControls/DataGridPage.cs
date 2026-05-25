@@ -3,39 +3,27 @@ using CoreForms.Ui.Controls.Basic;
 using CoreForms.Ui.Demo.Models;
 using CoreForms.Ui.Controls;
 using CoreForms.Ui.Controls.Advanced;
+using CoreForms.Ui.Controls.Containers;
+using CoreForms.Ui.Theming;
 using Graphics = CoreForms.Ui.Rendering.Graphics;
 using CoreForms.Ui.Core;
 
 namespace CoreForms.Ui.Demo.UserControls;
 
-/// <summary>
-/// Demonstrates the DataGridView control with a BindingList of Person objects.
-/// </summary>
 public class DataGridPage : UserControl
 {
     private BindingList<Person>? _personList;
-
-    /// <summary>
-    /// Occurs when the status text should be updated.
-    /// </summary>
     public event EventHandler<StatusTextChangedEventArgs>? StatusTextChanged;
-
-    /// <summary>
-    /// Gets the DataGridView instance for external access (e.g. PopulateForm lookup).
-    /// </summary>
     public Controls.Advanced.DataGridView DataGrid { get; private set; } = null!;
 
-    /// <summary>
-    /// Initializes a new instance of the <see cref="DataGridPage"/> class.
-    /// </summary>
     public DataGridPage()
     {
         var dataGrid = new Controls.Advanced.DataGridView
         {
-            Location = new Point(10, 10),
-            Size = new Size(550, 250),
+            Dock = DockStyle.Fill,
             ColumnHeadersVisible = true,
             RowHeadersVisible = true,
+            ShowGroupingBar = true,
             Name = "dataGrid"
         };
 
@@ -63,24 +51,76 @@ public class DataGridPage : UserControl
         };
         dataGrid.DataSource = _personList;
 
-        var addButton = new Button { Text = SR.GetString("BtnAddRow"), Location = new Point(10, 270), Size = new Size(130, 30), Name = "addButton" };
+        // Bottom panel for all control buttons
+        var bottomPanel = new Panel
+        {
+            Dock = DockStyle.Bottom,
+            Height = 80
+        };
+
+        int bx = 10;
+        var addButton = new Button { Text = SR.GetString("BtnAddRow"), Location = new Point(bx, 10), Size = new Size(130, 25) };
         addButton.Click += (s, e) =>
         {
             var nextId = (_personList!.Count > 0 ? _personList.Max(p => p.Id) : 0) + 1;
             _personList.Add(new Person(nextId, "New Person", "new@example.com", "Active"));
         };
 
-        var removeButton = new Button { Text = SR.GetString("BtnRemoveLast"), Location = new Point(150, 270), Size = new Size(130, 30) };
+        bx += 140;
+        var removeButton = new Button { Text = SR.GetString("BtnRemoveLast"), Location = new Point(bx, 10), Size = new Size(130, 25) };
         removeButton.Click += (s, e) =>
         {
             if (_personList!.Count > 0)
                 _personList.RemoveAt(_personList.Count - 1);
         };
 
+        bx += 140;
+        var gbCheck = new CheckBox { Text = "Grouping Bar", Location = new Point(bx, 10), Size = new Size(130, 25), Checked = true };
+        gbCheck.CheckedChanged += (s, e) => dataGrid.ShowGroupingBar = gbCheck.Checked;
+
+        bx += 140;
+        var clearBtn = new Button { Text = "Clear Grouping", Location = new Point(bx, 10), Size = new Size(130, 25) };
+        clearBtn.Click += (s, e) => { dataGrid.ClearGrouping(); gbCheck.Checked = false; };
+
+        int by2 = 40;
+        int bx2 = 10;
+        var gNameBtn = new Button { Text = "Group: Name", Location = new Point(bx2, by2), Size = new Size(110, 25) };
+        gNameBtn.Click += (s, e) => { dataGrid.AddGroupColumn(1); dataGrid.ShowGroupingBar = true; gbCheck.Checked = true; };
+
+        bx2 += 120;
+        var gStatusBtn = new Button { Text = "Group: Status", Location = new Point(bx2, by2), Size = new Size(110, 25) };
+        gStatusBtn.Click += (s, e) => { dataGrid.AddGroupColumn(3); dataGrid.ShowGroupingBar = true; gbCheck.Checked = true; };
+
+        bx2 += 120;
+        var gSalaryBtn = new Button { Text = "Group: Salary", Location = new Point(bx2, by2), Size = new Size(110, 25) };
+        gSalaryBtn.Click += (s, e) => { dataGrid.AddGroupColumn(4); dataGrid.ShowGroupingBar = true; gbCheck.Checked = true; };
+
+        bottomPanel.Controls.Add(addButton);
+        bottomPanel.Controls.Add(removeButton);
+        bottomPanel.Controls.Add(gbCheck);
+        bottomPanel.Controls.Add(clearBtn);
+        bottomPanel.Controls.Add(gNameBtn);
+        bottomPanel.Controls.Add(gStatusBtn);
+        bottomPanel.Controls.Add(gSalaryBtn);
+
+        dataGrid.GroupHeaderFormatting += (s, e) =>
+        {
+            bool isDark = ThemeManager.CurrentTheme.Name == "Dark";
+            if (e.Level == 0)
+            {
+                e.BackColor = isDark ? Color.FromArgb(65, 65, 70) : Color.FromArgb(200, 220, 240);
+                e.Font = new Font(e.Font?.Name ?? "Arial", 14f, FontStyle.Bold);
+            }
+            else
+            {
+                e.BackColor = isDark ? Color.FromArgb(55, 55, 60) : Color.FromArgb(220, 235, 250);
+                e.Font = new Font(e.Font?.Name ?? "Arial", 13f, FontStyle.Regular);
+            }
+        };
+
         DataGrid = dataGrid;
 
+        Controls.Add(bottomPanel);
         Controls.Add(dataGrid);
-        Controls.Add(addButton);
-        Controls.Add(removeButton);
     }
 }

@@ -201,8 +201,8 @@ public static class Platform
                 if (size.X > 0 && size.Y > 0)
                 {
                     form.SuspendLayout();
-                    form.Width = (int)(size.X / form.Zoom);
-                    form.Height = (int)(size.Y / form.Zoom);
+                    form.Width = (int)MathF.Ceiling(size.X / form.Zoom);
+                    form.Height = (int)MathF.Ceiling(size.Y / form.Zoom);
                     form.ResumeLayout(true);
                     form.OnResize(EventArgs.Empty);
                     form.Invalidate();

@@ -52,6 +52,8 @@ public class DataGridView : ContainerControl
     private int _dragSourceColumnIndex = -1;
     private int _dragStartX;
     private int _dragStartY;
+    private int _dragCurrentX;
+    private int _dragCurrentY;
     private bool _isDraggingIntoBar;
     private bool _isDraggingPillOut;
     private int _dragRemoveLevelIndex = -1;
@@ -80,7 +82,8 @@ public class DataGridView : ContainerControl
         if (!_foreColorSet) _foreColor = newTheme.ControlText;
         if (!_groupHeaderForeColorSet) _groupHeaderForeColor = newTheme.DataGridViewGroupHeaderText;
         if (!_groupHeaderBackColorSet) _groupHeaderBackColor = newTheme.DataGridViewGroupHeaderBackground;
-        Invalidate();
+        if (_groupedColumnIndices.Count > 0) BuildGroups();
+        else Invalidate();
     }
 
     public DataGridViewColumnCollection Columns => _columns;
@@ -378,7 +381,7 @@ public class DataGridView : ContainerControl
             }
             g.ResetClip();
         }
-        if (grouped) RenderGroupedContent(g, theme, zoom, daY, dH, rhw, dw);
+        if (grouped) { g.SetClip(new Rectangle(0, daY, Width - sbw, dH)); RenderGroupedContent(g, theme, zoom, daY, dH, rhw, dw); }
         else RenderFlatContent(g, theme, zoom, daY, dH, rhw, dw);
         if (_allowUserToAddRows)
         {
@@ -392,6 +395,7 @@ public class DataGridView : ContainerControl
             }
         }
         g.ResetClip();
+        RenderDragIndicator(g, theme, zoom);
         if (needVS) { _vScrollBar.Render(g, new Rectangle(Width - sbw, daY, sbw, dH), theme); }
         if (Focused) g.DrawRectangle(theme.TextBoxFocusBorder, 0, 0, Width, Height, 2);
         base.Render(g);
@@ -425,6 +429,28 @@ public class DataGridView : ContainerControl
             const string hint = "Spalte hierher ziehen zum Gruppieren";
             g.DrawString(hint, _groupHeaderFont, theme.DataGridViewGroupingBarText, 4, (bh - _groupHeaderFont.Size * zoom) / 2f);
         }
+        // Highlight grouping bar when dragging a column over it
+        if (_isDraggingIntoBar && _dragCurrentY >= 0 && _dragCurrentY < bh)
+        {
+            g.FillRectangle(Color.FromArgb(60, 100, 180, 255), 0, 0, Width - sbw, bh);
+        }
+    }
+
+    private void RenderDragIndicator(Graphics g, Theme theme, float zoom)
+    {
+        if (!_isDraggingIntoBar || _dragSourceColumnIndex < 0) return;
+        int ci = _dragSourceColumnIndex;
+        if (ci >= _columns.Count) return;
+        string text = _columns[ci].HeaderText;
+        var font = _groupHeaderFont;
+        int tw = CoordinateTransform.MeasureText(text, font, zoom).width;
+        int pw = tw + 16;
+        int ph = _groupingBarHeight;
+        int px = _dragCurrentX - pw / 2;
+        int py = _dragCurrentY - ph / 2;
+        g.FillRectangle(Color.FromArgb(200, 80, 120, 200), px, py, pw, ph);
+        g.DrawRectangle(theme.DataGridViewBorder, px, py, pw, ph, 1);
+        g.DrawString(text, font, Color.White, px + 4, py + (ph - font.Size * zoom) / 2f);
     }
 
     private void RenderFlatContent(Graphics g, Theme theme, float zoom, int daY, int dH, int rhw, int dw)
@@ -721,10 +747,12 @@ public class DataGridView : ContainerControl
         }
         if (_dragSourceColumnIndex >= 0 && _showGroupingBar)
         {
+            _dragCurrentX = m.X;
+            _dragCurrentY = m.Y;
             if (Math.Abs(m.Y - _dragStartY) > DragThreshold && !_isDraggingIntoBar) { _isDraggingIntoBar = true; var f = FindForm(); if (f != null) f.CaptureControl = this; Invalidate(); return; }
             if (_isDraggingIntoBar) { Invalidate(); return; }
         }
-        if (_isDraggingPillOut) { if (Math.Abs(m.Y - _dragStartY) > DragThreshold) Invalidate(); return; }
+        if (_isDraggingPillOut) { _dragCurrentX = m.X; _dragCurrentY = m.Y; if (Math.Abs(m.Y - _dragStartY) > DragThreshold) Invalidate(); return; }
         var form = FindForm();
         int dc = GetDividerColumnIndex(m.X);
         if (dc >= 0 && _columns[dc].Resizable) { if (form != null) form.Cursor = SystemCursorType.SizeWE; }

@@ -680,6 +680,8 @@ if (_focused != value)
     /// <summary>
     /// Recursively checks whether this control or any of its descendants
     /// has been marked as dirty and needs re-rendering.
+    /// Non-visible subtrees are skipped to prevent hidden controls (e.g. on inactive
+    /// tab pages) from driving continuous full-form re-renders.
     /// </summary>
     /// <returns>true if this control or any child is dirty; otherwise false.</returns>
     public bool HasDirtyDescendant()
@@ -688,7 +690,8 @@ if (_focused != value)
         if (_controls == null) return false;
         for (int i = 0; i < _controls.Count; i++)
         {
-            if (_controls[i].HasDirtyDescendant())
+            var child = _controls[i];
+            if (child.Visible && child.HasDirtyDescendant())
                 return true;
         }
         return false;
