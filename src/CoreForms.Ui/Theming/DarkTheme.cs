@@ -176,6 +176,21 @@ public class DarkTheme : Theme
     public override Color DataGridViewSortArrow => Color.FromArgb(180, 180, 180);
 
     /// <inheritdoc />
+    public override Color DataGridViewGroupHeaderBackground => Color.FromArgb(55, 55, 58);
+
+    /// <inheritdoc />
+    public override Color DataGridViewGroupHeaderText => Color.FromArgb(220, 220, 220);
+
+    /// <inheritdoc />
+    public override Color DataGridViewGroupingBarBackground => Color.FromArgb(50, 50, 53);
+
+    /// <inheritdoc />
+    public override Color DataGridViewGroupingBarText => Color.FromArgb(160, 160, 160);
+
+    /// <inheritdoc />
+    public override Color DataGridViewGroupingBarPillBackground => Color.FromArgb(70, 70, 75);
+
+    /// <inheritdoc />
     public override Color TableLayoutGridLine => Color.FromArgb(70, 70, 73);
 
     /// <inheritdoc />

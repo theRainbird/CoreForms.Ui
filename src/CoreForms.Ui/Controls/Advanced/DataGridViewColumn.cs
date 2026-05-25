@@ -60,10 +60,8 @@ public class DataGridViewColumn
     /// Gets or sets whether the column can be sorted by clicking the column header.
     /// </summary>
     public bool Sortable { get; set; } = true;
+    public bool Groupable { get; set; } = true;
 
-    /// <summary>
-    /// Gets or sets the current sort order of the column.
-    /// </summary>
     public SortOrder SortOrder { get; set; } = SortOrder.None;
 }
 

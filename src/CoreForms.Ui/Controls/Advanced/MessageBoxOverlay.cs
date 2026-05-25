@@ -447,7 +447,7 @@ internal class MessageBoxOverlay : Control
     {
         foreach (var btn in _dialogButtons)
         {
-            if (btn.Text == SR.GetString("Cancel"))
+            if (btn.Text == LangRes.GetString("Cancel"))
                 return btn;
         }
         return _dialogButtons.Count > 0 ? _dialogButtons[^1] : null;
@@ -468,38 +468,38 @@ internal class MessageBoxOverlay : Control
         {
             MessageBoxButtons.OK => new List<(string, DialogResult)>
             {
-                (SR.GetString("OK"), DialogResult.OK)
+                (LangRes.GetString("OK"), DialogResult.OK)
             },
             MessageBoxButtons.OKCancel => new List<(string, DialogResult)>
             {
-                (SR.GetString("OK"), DialogResult.OK),
-                (SR.GetString("Cancel"), DialogResult.Cancel)
+                (LangRes.GetString("OK"), DialogResult.OK),
+                (LangRes.GetString("Cancel"), DialogResult.Cancel)
             },
             MessageBoxButtons.YesNo => new List<(string, DialogResult)>
             {
-                (SR.GetString("Yes"), DialogResult.Yes),
-                (SR.GetString("No"), DialogResult.No)
+                (LangRes.GetString("Yes"), DialogResult.Yes),
+                (LangRes.GetString("No"), DialogResult.No)
             },
             MessageBoxButtons.YesNoCancel => new List<(string, DialogResult)>
             {
-                (SR.GetString("Yes"), DialogResult.Yes),
-                (SR.GetString("No"), DialogResult.No),
-                (SR.GetString("Cancel"), DialogResult.Cancel)
+                (LangRes.GetString("Yes"), DialogResult.Yes),
+                (LangRes.GetString("No"), DialogResult.No),
+                (LangRes.GetString("Cancel"), DialogResult.Cancel)
             },
             MessageBoxButtons.RetryCancel => new List<(string, DialogResult)>
             {
-                (SR.GetString("Retry"), DialogResult.Retry),
-                (SR.GetString("Cancel"), DialogResult.Cancel)
+                (LangRes.GetString("Retry"), DialogResult.Retry),
+                (LangRes.GetString("Cancel"), DialogResult.Cancel)
             },
             MessageBoxButtons.AbortRetryIgnore => new List<(string, DialogResult)>
             {
-                (SR.GetString("Abort"), DialogResult.Abort),
-                (SR.GetString("Retry"), DialogResult.Retry),
-                (SR.GetString("Ignore"), DialogResult.Ignore)
+                (LangRes.GetString("Abort"), DialogResult.Abort),
+                (LangRes.GetString("Retry"), DialogResult.Retry),
+                (LangRes.GetString("Ignore"), DialogResult.Ignore)
             },
             _ => new List<(string, DialogResult)>
             {
-                (SR.GetString("OK"), DialogResult.OK)
+                (LangRes.GetString("OK"), DialogResult.OK)
             }
         };
     }

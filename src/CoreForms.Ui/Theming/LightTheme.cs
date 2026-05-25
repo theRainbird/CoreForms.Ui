@@ -176,6 +176,21 @@ public class LightTheme : Theme
     public override Color DataGridViewSortArrow => Color.FromArgb(100, 100, 100);
 
     /// <inheritdoc />
+    public override Color DataGridViewGroupHeaderBackground => Color.FromArgb(230, 230, 235);
+
+    /// <inheritdoc />
+    public override Color DataGridViewGroupHeaderText => Color.FromArgb(0, 0, 0);
+
+    /// <inheritdoc />
+    public override Color DataGridViewGroupingBarBackground => Color.FromArgb(245, 245, 245);
+
+    /// <inheritdoc />
+    public override Color DataGridViewGroupingBarText => Color.FromArgb(100, 100, 100);
+
+    /// <inheritdoc />
+    public override Color DataGridViewGroupingBarPillBackground => Color.FromArgb(200, 200, 210);
+
+    /// <inheritdoc />
     public override Color TableLayoutGridLine => Color.FromArgb(180, 180, 180);
 
     /// <inheritdoc />

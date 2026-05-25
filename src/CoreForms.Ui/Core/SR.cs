@@ -7,10 +7,10 @@ namespace CoreForms.Ui.Core;
 /// <summary>
 /// Provides localized string resources for the framework.
 /// </summary>
-internal static class SR
+internal static class LangRes
 {
     private static readonly ResourceManager _manager =
-        new("CoreForms.Ui.Resources.Localization.Messages", typeof(SR).Assembly);
+        new("CoreForms.Ui.Resources.Localization.Messages", typeof(LangRes).Assembly);
 
     /// <summary>
     /// Gets the localized string for the specified key using the current UI culture.

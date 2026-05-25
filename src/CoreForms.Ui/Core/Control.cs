@@ -31,6 +31,14 @@ public class Control : Component, IThemeChangeSubscriber, INotifyPropertyChanged
     private bool _tabStop;
     private int _tabIndex;
     private bool _dirty;
+
+    /// <summary>
+    /// Marks this control as needing repaint without propagating to the parent form.
+    /// </summary>
+    protected void SetDirty()
+    {
+        _dirty = true;
+    }
     private bool _capturingMouse;
     private Padding _padding;
     private int _anchorRightDistance;
@@ -668,6 +676,23 @@ if (_focused != value)
     /// Gets whether the control needs to be repainted.
     /// </summary>
     public bool Dirty => _dirty;
+
+    /// <summary>
+    /// Recursively checks whether this control or any of its descendants
+    /// has been marked as dirty and needs re-rendering.
+    /// </summary>
+    /// <returns>true if this control or any child is dirty; otherwise false.</returns>
+    public bool HasDirtyDescendant()
+    {
+        if (_dirty) return true;
+        if (_controls == null) return false;
+        for (int i = 0; i < _controls.Count; i++)
+        {
+            if (_controls[i].HasDirtyDescendant())
+                return true;
+        }
+        return false;
+    }
 
     /// <summary>
     /// Searches for the parent Form of this control.

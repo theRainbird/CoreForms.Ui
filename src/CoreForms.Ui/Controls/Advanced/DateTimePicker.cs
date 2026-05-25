@@ -716,7 +716,7 @@ public class DateTimePicker : Control
         g.DrawLine(theme.Border, x, y, x + w, y, 1);
 
         var font = EffectiveFont;
-        string today = SR.GetString("Today") ?? "Today";
+        string today = LangRes.GetString("Today") ?? "Today";
         float zoom = EffectiveZoom;
         var size = g.MeasureString(today, font);
         float tx = x + (w - size.width) / 2;
@@ -730,8 +730,8 @@ public class DateTimePicker : Control
         float zoom = EffectiveZoom;
 
         int colW = (w - 8 - TimeColPadding) / 2;
-        string hourLabel = SR.GetString("Hour") ?? "Hour";
-        string minLabel = SR.GetString("Minute") ?? "Minute";
+        string hourLabel = LangRes.GetString("Hour") ?? "Hour";
+        string minLabel = LangRes.GetString("Minute") ?? "Minute";
 
         var hSize = g.MeasureString(hourLabel, font);
         var mSize = g.MeasureString(minLabel, font);

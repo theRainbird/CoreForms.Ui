@@ -291,6 +291,11 @@ public abstract class Theme
     /// Gets the color for the DataGridView sort arrow glyph in column headers.
     /// </summary>
     public abstract Color DataGridViewSortArrow { get; }
+    public abstract Color DataGridViewGroupHeaderBackground { get; }
+    public abstract Color DataGridViewGroupHeaderText { get; }
+    public abstract Color DataGridViewGroupingBarBackground { get; }
+    public abstract Color DataGridViewGroupingBarText { get; }
+    public abstract Color DataGridViewGroupingBarPillBackground { get; }
 
     /// <summary>
     /// Gets the TableLayoutPanel grid line color.

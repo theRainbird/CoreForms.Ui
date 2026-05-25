@@ -6,9 +6,6 @@ using Graphics = CoreForms.Ui.Rendering.Graphics;
 
 namespace CoreForms.Ui.Controls.Advanced;
 
-/// <summary>
-/// A control that displays data in a grid format with rows and columns.
-/// </summary>
 public class DataGridView : ContainerControl
 {
     private readonly DataGridViewColumnCollection _columns;
@@ -37,18 +34,39 @@ public class DataGridView : ContainerControl
     private ScrollBarContext? _scrollBarContext;
     private int _sortColumnIndex = -1;
     private bool _sortAscending = true;
+    private readonly List<int> _groupedColumnIndices = new();
+    private readonly List<DataGridViewGroup> _groupRoots = new();
+    private readonly List<DataGridViewGroup> _allGroups = new();
+    private bool _showGroupingBar;
+    private Font _groupHeaderFont = Font.Default;
+    private Color _groupHeaderForeColor = Color.FromArgb(0, 0, 0);
+    private Color _groupHeaderBackColor = Color.FromArgb(230, 230, 235);
+    private bool _groupHeaderForeColorSet;
+    private bool _groupHeaderBackColorSet;
+    private DataGridViewContentAlignment _groupHeaderTextAlign = DataGridViewContentAlignment.Left;
+    private int _groupHeaderHeight = 30;
+    private int _groupHeaderIndent = 20;
+    private int _groupingBarHeight = 30;
+    private int _secondarySortColumnIndex = -1;
+    private bool _secondarySortAscending = true;
+    private int _dragSourceColumnIndex = -1;
+    private int _dragStartX;
+    private int _dragStartY;
+    private bool _isDraggingIntoBar;
+    private bool _isDraggingPillOut;
+    private int _dragRemoveLevelIndex = -1;
+    private const int DragThreshold = 8;
 
     private ScrollBarContext VScrollBarContext => _scrollBarContext ??= new ScrollBarContext(this);
 
-    /// <summary>
-    /// Initializes a new instance of DataGridView.
-    /// </summary>
     public DataGridView()
     {
         _columns = new DataGridViewColumnCollection(Invalidate);
         _rows = new DataGridViewRowCollection(Invalidate);
         var theme = ThemeManager.CurrentTheme;
         _backColor = theme.TextBoxBackground;
+        _groupHeaderForeColor = theme.DataGridViewGroupHeaderText;
+        _groupHeaderBackColor = theme.DataGridViewGroupHeaderBackground;
         Size = new Size(400, 200);
         TabStop = true;
         _vScrollBar.SmallChange = _rowHeight;
@@ -56,32 +74,18 @@ public class DataGridView : ContainerControl
         _vScrollBar.Scroll += (s, e) => Invalidate();
     }
 
-    /// <summary>
-    /// Called when the theme changes. Updates datagridview-specific colors.
-    /// </summary>
-    /// <param name="newTheme">The new theme that was activated.</param>
     public override void OnThemeChanged(Theme newTheme)
     {
-        if (!_backColorSet)
-            _backColor = newTheme.TextBoxBackground;
-        if (!_foreColorSet)
-            _foreColor = newTheme.ControlText;
+        if (!_backColorSet) _backColor = newTheme.TextBoxBackground;
+        if (!_foreColorSet) _foreColor = newTheme.ControlText;
+        if (!_groupHeaderForeColorSet) _groupHeaderForeColor = newTheme.DataGridViewGroupHeaderText;
+        if (!_groupHeaderBackColorSet) _groupHeaderBackColor = newTheme.DataGridViewGroupHeaderBackground;
         Invalidate();
     }
 
-    /// <summary>
-    /// Gets the collection of columns.
-    /// </summary>
     public DataGridViewColumnCollection Columns => _columns;
-
-    /// <summary>
-    /// Gets the collection of rows.
-    /// </summary>
     public DataGridViewRowCollection Rows => _rows;
 
-    /// <summary>
-    /// Gets or sets the index of the selected row.
-    /// </summary>
     public int SelectedRowIndex
     {
         get => _selectedRowIndex;
@@ -96,9 +100,6 @@ public class DataGridView : ContainerControl
         }
     }
 
-    /// <summary>
-    /// Gets or sets the index of the selected column.
-    /// </summary>
     public int SelectedColumnIndex
     {
         get => _selectedColumnIndex;
@@ -113,128 +114,54 @@ public class DataGridView : ContainerControl
         }
     }
 
-    /// <summary>
-    /// Gets or sets whether the user can add rows.
-    /// </summary>
     public bool AllowUserToAddRows
     {
         get => _allowUserToAddRows;
-        set
-        {
-            if (_allowUserToAddRows != value)
-            {
-                _allowUserToAddRows = value;
-                Invalidate();
-            }
-        }
+        set { if (_allowUserToAddRows != value) { _allowUserToAddRows = value; Invalidate(); } }
     }
 
-    /// <summary>
-    /// Gets or sets whether the user can delete rows.
-    /// </summary>
     public bool AllowUserToDeleteRows
     {
         get => _allowUserToDeleteRows;
-        set
-        {
-            if (_allowUserToDeleteRows != value)
-            {
-                _allowUserToDeleteRows = value;
-                Invalidate();
-            }
-        }
+        set { if (_allowUserToDeleteRows != value) { _allowUserToDeleteRows = value; Invalidate(); } }
     }
 
-    /// <summary>
-    /// Gets or sets whether the grid is read-only.
-    /// </summary>
     public bool ReadOnly
     {
         get => _readOnly;
-        set
-        {
-            if (_readOnly != value)
-            {
-                _readOnly = value;
-                Invalidate();
-            }
-        }
+        set { if (_readOnly != value) { _readOnly = value; Invalidate(); } }
     }
 
-    /// <summary>
-    /// Gets or sets whether multiple rows can be selected.
-    /// </summary>
     public bool MultiSelect
     {
         get => _multiSelect;
-        set
-        {
-            if (_multiSelect != value)
-            {
-                _multiSelect = value;
-                Invalidate();
-            }
-        }
+        set { if (_multiSelect != value) { _multiSelect = value; Invalidate(); } }
     }
 
-    /// <summary>
-    /// Gets or sets whether column headers are visible.
-    /// </summary>
     public bool ColumnHeadersVisible
     {
         get => _columnHeadersVisible;
-        set
-        {
-            _columnHeadersVisible = value;
-            Invalidate();
-        }
+        set { _columnHeadersVisible = value; Invalidate(); }
     }
 
-    /// <summary>
-    /// Gets or sets whether row headers are visible.
-    /// </summary>
     public bool RowHeadersVisible
     {
         get => _rowHeadersVisible;
-        set
-        {
-            _rowHeadersVisible = value;
-            Invalidate();
-        }
+        set { _rowHeadersVisible = value; Invalidate(); }
     }
 
-    /// <summary>
-    /// Gets or sets whether grid lines are shown.
-    /// </summary>
     public bool ShowGridLines
     {
         get => _showGridLines;
-        set
-        {
-            _showGridLines = value;
-            Invalidate();
-        }
+        set { _showGridLines = value; Invalidate(); }
     }
 
-    /// <summary>
-    /// Gets or sets the selection mode.
-    /// </summary>
     public DataGridViewSelectionMode SelectionMode
     {
         get => _selectionMode;
-        set
-        {
-            if (_selectionMode != value)
-            {
-                _selectionMode = value;
-                Invalidate();
-            }
-        }
+        set { if (_selectionMode != value) { _selectionMode = value; Invalidate(); } }
     }
 
-    /// <summary>
-    /// Gets or sets the data source for this DataGridView.
-    /// </summary>
     public object? DataSource
     {
         get => _dataSource;
@@ -249,9 +176,6 @@ public class DataGridView : ContainerControl
         }
     }
 
-    /// <summary>
-    /// Gets or sets the data member (property path) for nested list data sources.
-    /// </summary>
     public string DataMember
     {
         get => _dataMember;
@@ -266,70 +190,103 @@ public class DataGridView : ContainerControl
         }
     }
 
-    /// <summary>
-    /// Gets the selected row.
-    /// </summary>
     public DataGridViewRow? SelectedRow => _selectedRowIndex >= 0 && _selectedRowIndex < _rows.Count
-        ? _rows[_selectedRowIndex]
-        : null;
+        ? _rows[_selectedRowIndex] : null;
 
-    /// <summary>
-    /// Gets the value of the selected cell.
-    /// </summary>
     public object? SelectedValue => SelectedRow != null && _selectedColumnIndex >= 0 && _selectedColumnIndex < _columns.Count
-        ? SelectedRow.Cells[_selectedColumnIndex]?.Value
-        : null;
+        ? SelectedRow.Cells[_selectedColumnIndex]?.Value : null;
 
-    /// <summary>
-    /// Gets the value of this control to copy to the clipboard.
-    /// Returns the selected cell's value as string.
-    /// </summary>
-    /// <returns>The selected cell value as string, or null if no selection.</returns>
-    protected string? GetClipboardValue() => SelectedValue?.ToString();
+    public IReadOnlyList<int> GroupedColumnIndices => _groupedColumnIndices;
+    public IReadOnlyList<DataGridViewGroup> GroupRoots => _groupRoots;
 
-    /// <summary>
-    /// Copies the selected cell's value to the clipboard.
-    /// </summary>
-    public void Copy()
+    public void AddGroupColumn(int columnIndex)
     {
-        var value = GetClipboardValue();
-        if (!string.IsNullOrEmpty(value))
-        {
-            Core.Clipboard.SetText(value);
-        }
+        if (columnIndex < 0 || columnIndex >= _columns.Count) return;
+        if (!_columns[columnIndex].Groupable) return;
+        if (_groupedColumnIndices.Contains(columnIndex)) return;
+        _groupedColumnIndices.Add(columnIndex);
+        BuildGroups();
+        Invalidate();
     }
 
-    /// <summary>
-    /// Occurs when the selection changes.
-    /// </summary>
+    public void RemoveGroupColumn(int levelIndex)
+    {
+        if (levelIndex < 0 || levelIndex >= _groupedColumnIndices.Count) return;
+        _groupedColumnIndices.RemoveAt(levelIndex);
+        BuildGroups();
+        Invalidate();
+    }
+
+    public void ClearGrouping()
+    {
+        if (_groupedColumnIndices.Count == 0) return;
+        _groupedColumnIndices.Clear();
+        _groupRoots.Clear();
+        _allGroups.Clear();
+        _secondarySortColumnIndex = -1;
+        ClearSortColumns();
+        Invalidate();
+    }
+
+    public bool ShowGroupingBar
+    {
+        get => _showGroupingBar;
+        set { if (_showGroupingBar != value) { _showGroupingBar = value; Invalidate(); } }
+    }
+
+    public int GroupingBarHeight
+    {
+        get => _groupingBarHeight;
+        set { if (_groupingBarHeight != value && value > 0) { _groupingBarHeight = value; Invalidate(); } }
+    }
+
+    public Font GroupHeaderFont
+    {
+        get => _groupHeaderFont;
+        set { if (_groupHeaderFont != value) { _groupHeaderFont = value ?? Font.Default; Invalidate(); } }
+    }
+
+    public Color GroupHeaderForeColor
+    {
+        get => _groupHeaderForeColor;
+        set { _groupHeaderForeColor = value; _groupHeaderForeColorSet = true; Invalidate(); }
+    }
+
+    public Color GroupHeaderBackColor
+    {
+        get => _groupHeaderBackColor;
+        set { _groupHeaderBackColor = value; _groupHeaderBackColorSet = true; Invalidate(); }
+    }
+
+    public DataGridViewContentAlignment GroupHeaderTextAlign
+    {
+        get => _groupHeaderTextAlign;
+        set { if (_groupHeaderTextAlign != value) { _groupHeaderTextAlign = value; Invalidate(); } }
+    }
+
+    public int GroupHeaderHeight
+    {
+        get => _groupHeaderHeight;
+        set { if (_groupHeaderHeight != value && value > 0) { _groupHeaderHeight = value; Invalidate(); } }
+    }
+
+    public int GroupHeaderIndent
+    {
+        get => _groupHeaderIndent;
+        set { if (_groupHeaderIndent != value && value >= 0) { _groupHeaderIndent = value; Invalidate(); } }
+    }
+
     public event EventHandler? SelectionChanged;
-
-    /// <summary>
-    /// Occurs when a cell is clicked.
-    /// </summary>
     public event EventHandler? CellClick;
-
-    /// <summary>
-    /// Occurs when a cell value changes.
-    /// </summary>
     public event EventHandler<DataGridViewCellEventArgs>? CellValueChanged;
-
-    /// <summary>
-    /// Occurs when a column header is clicked.
-    /// </summary>
     public event EventHandler<DataGridViewCellEventArgs>? ColumnHeaderMouseClick;
+    public event EventHandler<DataGridViewGroupHeaderFormattingEventArgs>? GroupHeaderFormatting;
 
-    /// <summary>
-    /// Raises the SelectionChanged event and syncs the BindingSource/CurrencyManager position.
-    /// </summary>
     protected virtual void OnSelectionChanged()
     {
         if (!_dataSourceUpdating && _dataSource != null && _selectedRowIndex >= 0)
         {
-            if (_dataSource is BindingSource bs)
-            {
-                bs.Position = _selectedRowIndex;
-            }
+            if (_dataSource is BindingSource bs) { bs.Position = _selectedRowIndex; }
             else
             {
                 var form = FindForm();
@@ -338,699 +295,546 @@ public class DataGridView : ContainerControl
                     try
                     {
                         var mgr = form.BindingContext[_dataSource] as CurrencyManager;
-                        if (mgr != null)
-                            mgr.Position = _selectedRowIndex;
+                        if (mgr != null) mgr.Position = _selectedRowIndex;
                     }
-                    catch
-                    {
-                        // Ignore binding context errors
-                    }
+                    catch { }
                 }
             }
         }
         SelectionChanged?.Invoke(this, EventArgs.Empty);
     }
 
-    /// <summary>
-    /// Raises the CellClick event.
-    /// </summary>
-    /// <param name="e">The event arguments.</param>
-    protected virtual void OnCellClick(DataGridViewCellEventArgs e)
+    protected virtual void OnCellClick(DataGridViewCellEventArgs e) => CellClick?.Invoke(this, e);
+    protected virtual void OnCellValueChanged(DataGridViewCellEventArgs e) => CellValueChanged?.Invoke(this, e);
+    protected virtual void OnColumnHeaderMouseClick(DataGridViewCellEventArgs e) => ColumnHeaderMouseClick?.Invoke(this, e);
+    protected virtual void OnGroupHeaderFormatting(DataGridViewGroupHeaderFormattingEventArgs e) => GroupHeaderFormatting?.Invoke(this, e);
+
+    private int GetDataAreaY() => (_showGroupingBar ? _groupingBarHeight : 0) + (_columnHeadersVisible ? _rowHeight : 0);
+
+    private int GetTotalContentHeight()
     {
-        CellClick?.Invoke(this, e);
+        if (_groupedColumnIndices.Count > 0)
+            return CalculateTreeContentHeight(_groupRoots) + (_allowUserToAddRows ? _rowHeight : 0);
+        return _rows.Count * _rowHeight + (_allowUserToAddRows ? _rowHeight : 0);
     }
 
-    /// <summary>
-    /// Raises the CellValueChanged event.
-    /// </summary>
-    /// <param name="e">The event arguments.</param>
-    protected virtual void OnCellValueChanged(DataGridViewCellEventArgs e)
-    {
-        CellValueChanged?.Invoke(this, e);
-    }
-
-    /// <summary>
-    /// Raises the ColumnHeaderMouseClick event.
-    /// </summary>
-    /// <param name="e">The event arguments.</param>
-    protected virtual void OnColumnHeaderMouseClick(DataGridViewCellEventArgs e)
-    {
-        ColumnHeaderMouseClick?.Invoke(this, e);
-    }
-
-    /// <summary>
-    /// Renders the DataGridView with all its elements.
-    /// </summary>
-    /// <param name="g">The Graphics object to use for rendering.</param>
     public override void Render(Graphics g)
     {
         if (!Visible) return;
-
         var theme = ThemeManager.CurrentTheme;
         float zoom = EffectiveZoom;
-        int headerHeight = _columnHeadersVisible ? _rowHeight : 0;
-        int rowHeaderWidth = _rowHeadersVisible ? 40 : 0;
-        int totalContentHeight = _rows.Count * _rowHeight + (_allowUserToAddRows ? _rowHeight : 0);
-        int dataHeight = Height - headerHeight;
-        bool needVScroll = totalContentHeight > dataHeight;
-        int scrollBarWidth = needVScroll ? 16 : 0;
-        int dataWidth = Width - rowHeaderWidth - scrollBarWidth;
-
-        _vScrollBar.ViewSize = dataHeight;
-        _vScrollBar.ContentSize = totalContentHeight;
-
-        int rowStart = Math.Max(0, _vScrollBar.Value / _rowHeight);
-        int rowEnd = Math.Min(_rows.Count, rowStart + (dataHeight / _rowHeight) + 2);
-
+        int gbH = _showGroupingBar ? _groupingBarHeight : 0;
+        int hH = _columnHeadersVisible ? _rowHeight : 0;
+        int daY = gbH + hH;
+        int rhw = _rowHeadersVisible ? 40 : 0;
+        bool grouped = _groupedColumnIndices.Count > 0;
+        int tch = GetTotalContentHeight();
+        int dH = Height - daY;
+        bool needVS = tch > dH;
+        int sbw = needVS ? 16 : 0;
+        int dw = Width - rhw - sbw;
+        _vScrollBar.ViewSize = dH;
+        _vScrollBar.ContentSize = tch;
         g.FillRectangle(BackColor, 0, 0, Width, Height);
         g.DrawRectangle(theme.DataGridViewBorder, 0, 0, Width, Height, 1);
-
+        if (_showGroupingBar) RenderGroupingBar(g, theme, zoom, gbH, sbw);
         if (_columnHeadersVisible)
         {
-            g.FillRectangle(theme.ControlBackground, 0, 0, Width - scrollBarWidth, headerHeight);
-            g.DrawLine(theme.DataGridViewHeaderSeparator, 0, headerHeight, Width - scrollBarWidth, headerHeight);
-
-            g.SetClip(new Rectangle(rowHeaderWidth, 0, dataWidth, headerHeight));
-            int x = rowHeaderWidth - _horizontalScrollOffset;
-            for (int col = 0; col < _columns.Count; col++)
+            g.FillRectangle(theme.ControlBackground, 0, gbH, Width - sbw, hH);
+            g.DrawLine(theme.DataGridViewHeaderSeparator, 0, daY, Width - sbw, daY);
+            g.SetClip(new Rectangle(rhw, gbH, dw, hH));
+            int cx = rhw - _horizontalScrollOffset;
+            for (int c = 0; c < _columns.Count; c++)
             {
-                var colWidth = _columns[col].Width;
-                if (x + colWidth > rowHeaderWidth && x < rowHeaderWidth + dataWidth)
+                int cw = _columns[c].Width;
+                if (cx + cw > rhw && cx < rhw + dw)
                 {
-                    int drawX = Math.Max(x, rowHeaderWidth);
-                    int drawWidth = Math.Min(x + colWidth, rowHeaderWidth + dataWidth) - drawX;
-                    if (drawWidth > 0)
+                    int dx = Math.Max(cx, rhw);
+                    int dw2 = Math.Min(cx + cw, rhw + dw) - dx;
+                    if (dw2 > 0)
                     {
-                        g.DrawRectangle(theme.DataGridViewBorder, drawX, 0, drawWidth, headerHeight, 1);
-                        g.SetClip(new Rectangle(drawX, 0, drawWidth, headerHeight));
-                        var font = _columns[col].HeaderCell?.Font ?? EffectiveFont;
-                        var headerText = _columns[col].HeaderText;
-                        bool showArrow = _columns[col].SortOrder != SortOrder.None;
-                        float arrowGx = 0, arrowMidY = 0, arrowHalfH = 0, arrowHalfW = 0;
-                        int sortGlyphWidth = 0;
-                        if (showArrow)
+                        g.DrawRectangle(theme.DataGridViewBorder, dx, gbH, dw2, hH, 1);
+                        g.SetClip(new Rectangle(dx, gbH, dw2, hH));
+                        var f = _columns[c].HeaderCell?.Font ?? EffectiveFont;
+                        var ht = _columns[c].HeaderText;
+                        bool arrow = _columns[c].SortOrder != SortOrder.None;
+                        float agx = 0, amy = 0, ahh = 0, ahw = 0;
+                        int sgw = 0;
+                        if (arrow) { ahh = 3.5f; ahw = 4.5f; sgw = (int)(ahw * 2) + 6; agx = dx + dw2 - sgw + 3; amy = gbH + hH / 2f; }
+                        ht = TruncateText(ht, f, zoom, _columns[c].TextAlign, dw2 - 8 - sgw);
+                        float htx = GetAlignedX(ht, f, zoom, _columns[c].TextAlign, dx, dw2 - sgw, 4);
+                        g.DrawString(ht, f, theme.DataGridViewHeaderText, htx, gbH + CoordinateTransform.CenterVertically(0, hH, f, zoom));
+                        if (arrow)
                         {
-                            arrowHalfH = 3.5f;
-                            arrowHalfW = 4.5f;
-                            sortGlyphWidth = (int)(arrowHalfW * 2) + 6;
-                            arrowGx = drawX + drawWidth - sortGlyphWidth + 3;
-                            arrowMidY = headerHeight / 2f;
-                        }
-                        headerText = TruncateText(headerText, font, zoom, _columns[col].TextAlign, drawWidth - 8 - sortGlyphWidth);
-                        float headerTextX = GetAlignedX(headerText, font, zoom, _columns[col].TextAlign, drawX, drawWidth - sortGlyphWidth, 4);
-                        g.DrawString(headerText, font, theme.DataGridViewHeaderText, headerTextX, CoordinateTransform.CenterVertically(0, headerHeight, font, zoom));
-
-                        if (showArrow)
-                        {
-                            if (_columns[col].SortOrder == SortOrder.Ascending)
-                                g.FillTriangle(theme.DataGridViewSortArrow,
-                                    arrowGx, arrowMidY + arrowHalfH,
-                                    arrowGx + arrowHalfW * 2, arrowMidY + arrowHalfH,
-                                    arrowGx + arrowHalfW, arrowMidY - arrowHalfH);
+                            if (_columns[c].SortOrder == SortOrder.Ascending)
+                                g.FillTriangle(theme.DataGridViewSortArrow, agx, amy + ahh, agx + ahw * 2, amy + ahh, agx + ahw, amy - ahh);
                             else
-                                g.FillTriangle(theme.DataGridViewSortArrow,
-                                    arrowGx, arrowMidY - arrowHalfH,
-                                    arrowGx + arrowHalfW * 2, arrowMidY - arrowHalfH,
-                                    arrowGx + arrowHalfW, arrowMidY + arrowHalfH);
+                                g.FillTriangle(theme.DataGridViewSortArrow, agx, amy - ahh, agx + ahw * 2, amy - ahh, agx + ahw, amy + ahh);
                         }
                         g.ResetClip();
                     }
                 }
-                x += colWidth;
+                cx += cw;
             }
             g.ResetClip();
         }
-
-        if (_rowHeadersVisible)
-        {
-            g.SetClip(new Rectangle(0, headerHeight, rowHeaderWidth, dataHeight));
-            g.FillRectangle(theme.ControlBackground, 0, headerHeight, rowHeaderWidth, dataHeight);
-
-            for (int rowIdx = rowStart; rowIdx < rowEnd; rowIdx++)
-            {
-                int y = headerHeight + (rowIdx * _rowHeight) - _vScrollBar.Value;
-                bool isSelected = rowIdx == _selectedRowIndex;
-                var headerBg = isSelected ? theme.Highlight : theme.ControlBackground;
-
-                g.FillRectangle(headerBg, 0, y, rowHeaderWidth, _rowHeight);
-                g.DrawRectangle(theme.DataGridViewBorder, 0, y, rowHeaderWidth, _rowHeight, 1);
-                var font = EffectiveFont;
-                g.DrawString((rowIdx + 1).ToString(), font, isSelected ? theme.HighlightText : theme.DataGridViewRowHeaderText, 4, y + (int)CoordinateTransform.CenterVertically(0, _rowHeight, font, zoom));
-            }
-
-            if (_allowUserToAddRows)
-            {
-                int y = headerHeight + (_rows.Count * _rowHeight) - _vScrollBar.Value;
-                g.FillRectangle(theme.ControlBackground, 0, y, rowHeaderWidth, _rowHeight);
-                g.DrawRectangle(theme.DataGridViewBorder, 0, y, rowHeaderWidth, _rowHeight, 1);
-            }
-
-            g.ResetClip();
-        }
-
-        g.SetClip(new Rectangle(rowHeaderWidth, headerHeight, dataWidth, dataHeight));
-
-        for (int rowIdx = rowStart; rowIdx < rowEnd; rowIdx++)
-        {
-            int y = headerHeight + (rowIdx * _rowHeight) - _vScrollBar.Value;
-
-            bool isSelected = rowIdx == _selectedRowIndex;
-            bool isAlternate = rowIdx % 2 == 1;
-
-            if (isSelected)
-                g.FillRectangle(theme.Highlight, rowHeaderWidth, y, dataWidth, _rowHeight);
-            else if (isAlternate)
-                g.FillRectangle(theme.AlternateRow, rowHeaderWidth, y, dataWidth, _rowHeight);
-        }
-
-        if (_showGridLines)
-        {
-            for (int rowIdx = rowStart; rowIdx < rowEnd; rowIdx++)
-            {
-                int y = headerHeight + (rowIdx * _rowHeight) - _vScrollBar.Value;
-
-                g.DrawLine(theme.GridLine, rowHeaderWidth, y + _rowHeight, rowHeaderWidth + dataWidth, y + _rowHeight);
-
-                int x = rowHeaderWidth - _horizontalScrollOffset;
-                for (int col = 0; col < _columns.Count; col++)
-                {
-                    var colWidth = _columns[col].Width;
-                    if (x + colWidth > rowHeaderWidth && x < rowHeaderWidth + dataWidth)
-                    {
-                        int drawX = Math.Max(x, rowHeaderWidth);
-                        g.DrawLine(theme.GridLineVertical, drawX, y, drawX, y + _rowHeight);
-                    }
-                    x += colWidth;
-                }
-            }
-        }
-
-        for (int rowIdx = rowStart; rowIdx < rowEnd; rowIdx++)
-        {
-            int y = headerHeight + (rowIdx * _rowHeight) - _vScrollBar.Value;
-            bool isSelected = rowIdx == _selectedRowIndex;
-            var textColor = isSelected ? theme.HighlightText : theme.DataGridViewCellText;
-
-            int x = rowHeaderWidth - _horizontalScrollOffset;
-            for (int col = 0; col < _columns.Count; col++)
-            {
-                var colWidth = _columns[col].Width;
-                if (x + colWidth > rowHeaderWidth && x < rowHeaderWidth + dataWidth)
-                {
-                    int drawX = Math.Max(x, rowHeaderWidth);
-                    int drawWidth = Math.Min(x + colWidth, rowHeaderWidth + dataWidth) - drawX;
-                    if (drawWidth > 0)
-                    {
-                        var cell = _rows[rowIdx].Cells.Count > col ? _rows[rowIdx].Cells[col] : null;
-                        var colDef = _columns[col];
-                        var text = FormatCellValue(cell?.Value, colDef.FormatString);
-                        var font = EffectiveFont;
-                        int available = drawWidth - 8;
-                        text = TruncateText(text, font, zoom, colDef.TextAlign, available > 0 ? available : 0);
-                        float textX = GetAlignedX(text, font, zoom, colDef.TextAlign, drawX, drawWidth, 4);
-                        g.DrawString(text, font, textColor, textX, y + (int)CoordinateTransform.CenterVertically(0, _rowHeight, font, zoom));
-                    }
-                }
-                x += colWidth;
-            }
-        }
-
+        if (grouped) RenderGroupedContent(g, theme, zoom, daY, dH, rhw, dw);
+        else RenderFlatContent(g, theme, zoom, daY, dH, rhw, dw);
         if (_allowUserToAddRows)
         {
-            int y = headerHeight + (_rows.Count * _rowHeight) - _vScrollBar.Value;
-            g.FillRectangle(theme.DataGridViewAddNewRowBackground, rowHeaderWidth, y, dataWidth, _rowHeight);
-            g.DrawLine(theme.DataGridViewAddNewRowSeparator, rowHeaderWidth, y, rowHeaderWidth + dataWidth, y);
-            var addRowFont = EffectiveFont;
-            float scaledAddRowSize = 12 * zoom;
-            g.DrawString("*", addRowFont, theme.DataGridViewAddNewRowAsterisk, rowHeaderWidth + 4, y + (_rowHeight - scaledAddRowSize) / 2);
+            int ny = daY + tch - _vScrollBar.Value - _rowHeight;
+            if (ny + _rowHeight > daY && ny < daY + dH)
+            {
+                g.FillRectangle(theme.DataGridViewAddNewRowBackground, rhw, ny, dw, _rowHeight);
+                g.DrawLine(theme.DataGridViewAddNewRowSeparator, rhw, ny, rhw + dw, ny);
+                g.DrawString("*", EffectiveFont, theme.DataGridViewAddNewRowAsterisk, rhw + 4, ny + (_rowHeight - 12 * zoom) / 2f);
+                if (_rowHeadersVisible) { g.FillRectangle(theme.ControlBackground, 0, ny, rhw, _rowHeight); g.DrawRectangle(theme.DataGridViewBorder, 0, ny, rhw, _rowHeight, 1); }
+            }
         }
-
         g.ResetClip();
-
-        if (needVScroll)
-        {
-            var scrollBarBounds = new Rectangle(Width - scrollBarWidth, headerHeight, scrollBarWidth, dataHeight);
-            _vScrollBar.Render(g, scrollBarBounds, theme);
-        }
-
-        if (Focused)
-            g.DrawRectangle(theme.TextBoxFocusBorder, 0, 0, Width, Height, 2);
-
+        if (needVS) { _vScrollBar.Render(g, new Rectangle(Width - sbw, daY, sbw, dH), theme); }
+        if (Focused) g.DrawRectangle(theme.TextBoxFocusBorder, 0, 0, Width, Height, 2);
         base.Render(g);
     }
 
-    /// <summary>
-    /// Raises the MouseDown event and selects a cell or starts column resize.
-    /// </summary>
-    /// <param name="e">The event arguments.</param>
-    protected internal override void OnMouseDown(EventArgs e)
+    private void RenderGroupingBar(Graphics g, Theme theme, float zoom, int bh, int sbw)
     {
-        var mouseArgs = e as MouseEventArgs;
-        if (mouseArgs != null)
+        g.FillRectangle(theme.DataGridViewGroupingBarBackground, 0, 0, Width - sbw, bh);
+        g.DrawLine(theme.DataGridViewHeaderSeparator, 0, bh, Width - sbw, bh);
+        if (_groupedColumnIndices.Count > 0)
         {
-            int headerHeight = _columnHeadersVisible ? _rowHeight : 0;
-            int rowHeaderWidth = _rowHeadersVisible ? 40 : 0;
-            int totalContentHeight = _rows.Count * _rowHeight + (_allowUserToAddRows ? _rowHeight : 0);
-            int dataHeight = Height - headerHeight;
-            bool needVScroll = totalContentHeight > dataHeight;
-            int scrollBarWidth = needVScroll ? ScrollBarEngine.DefaultScrollBarSize : 0;
-
-            // Check if click is in scrollbar area
-            if (needVScroll && mouseArgs.X >= Width - scrollBarWidth)
+            int px = 4;
+            for (int i = 0; i < _groupedColumnIndices.Count; i++)
             {
-                var scrollBarBounds = new Rectangle(Width - scrollBarWidth, headerHeight, scrollBarWidth, dataHeight);
-                _vScrollBar.HandleMouseDown(new Point(mouseArgs.X, mouseArgs.Y), scrollBarBounds, VScrollBarContext);
-                return;
-            }
-
-            // Check if clicking on a column divider to start resize
-            int dividerCol = GetDividerColumnIndex(mouseArgs.X);
-            if (dividerCol >= 0 && _columns[dividerCol].Resizable)
-            {
-                _resizingColumnIndex = dividerCol;
-                _resizeStartMouseX = mouseArgs.X;
-                _resizeStartWidth = _columns[dividerCol].Width;
-                var form = FindForm();
-                if (form != null)
-                    form.CaptureControl = this;
-                return;
-            }
-
-            int col = GetColumnIndexAtX(mouseArgs.X);
-            int row = (mouseArgs.Y - headerHeight + _vScrollBar.Value) / _rowHeight;
-
-            // Click on column header -> sort
-            if (mouseArgs.Y < headerHeight && col >= 0 && col < _columns.Count)
-            {
-                OnColumnHeaderMouseClick(new DataGridViewCellEventArgs(col, -1));
-                if (_columns[col].Sortable)
-                {
-                    if (col == _sortColumnIndex)
-                    {
-                        _sortAscending = !_sortAscending;
-                    }
-                    else
-                    {
-                        ClearSortColumns();
-                        _sortColumnIndex = col;
-                        _sortAscending = true;
-                    }
-                    _columns[col].SortOrder = _sortAscending ? SortOrder.Ascending : SortOrder.Descending;
-                    SortRows();
-                    Invalidate();
-                }
-                return;
-            }
-
-            if (row >= 0 && row < _rows.Count && col >= 0 && col < _columns.Count)
-            {
-                _selectedRowIndex = row;
-                _selectedColumnIndex = col;
-                OnCellClick(new DataGridViewCellEventArgs(col, row));
-                OnSelectionChanged();
-                Invalidate();
-            }
-            else if (row >= _rows.Count && _allowUserToAddRows)
-            {
-                AddRow();
+                int ci = _groupedColumnIndices[i];
+                string pt = _columns[ci].HeaderText;
+                int tw = CoordinateTransform.MeasureText(pt, _groupHeaderFont, zoom).width;
+                int pw = tw + 24;
+                int ph = bh - 6;
+                int py = (bh - ph) / 2;
+                var pbg = (i == _dragRemoveLevelIndex && _isDraggingPillOut) ? Color.FromArgb(255, 100, 100) : theme.DataGridViewGroupingBarPillBackground;
+                g.FillRectangle(pbg, px, py, pw, ph);
+                g.DrawRectangle(theme.DataGridViewBorder, px, py, pw, ph, 1);
+                g.DrawString(pt, _groupHeaderFont, theme.DataGridViewGroupingBarText, px + 4, py + (ph - _groupHeaderFont.Size * zoom) / 2f);
+                g.DrawString("\u00D7", _groupHeaderFont, theme.DataGridViewGroupingBarText, px + pw - 16, py + (ph - _groupHeaderFont.Size * zoom) / 2f);
+                px += pw + 4;
             }
         }
+        else
+        {
+            const string hint = "Spalte hierher ziehen zum Gruppieren";
+            g.DrawString(hint, _groupHeaderFont, theme.DataGridViewGroupingBarText, 4, (bh - _groupHeaderFont.Size * zoom) / 2f);
+        }
+    }
 
+    private void RenderFlatContent(Graphics g, Theme theme, float zoom, int daY, int dH, int rhw, int dw)
+    {
+        int so = _vScrollBar.Value;
+        int rs = Math.Max(0, so / _rowHeight);
+        int re = Math.Min(_rows.Count, rs + (dH / _rowHeight) + 2);
+        if (_rowHeadersVisible)
+        {
+            g.SetClip(new Rectangle(0, daY, rhw, dH));
+            for (int i = rs; i < re; i++)
+            {
+                int y = daY + i * _rowHeight - so;
+                bool sel = i == _selectedRowIndex;
+                var bg = sel ? theme.Highlight : theme.ControlBackground;
+                g.FillRectangle(bg, 0, y, rhw, _rowHeight);
+                g.DrawRectangle(theme.DataGridViewBorder, 0, y, rhw, _rowHeight, 1);
+                g.DrawString((i + 1).ToString(), EffectiveFont, sel ? theme.HighlightText : theme.DataGridViewRowHeaderText, 4, y + (int)CoordinateTransform.CenterVertically(0, _rowHeight, EffectiveFont, zoom));
+            }
+            g.ResetClip();
+        }
+        g.SetClip(new Rectangle(rhw, daY, dw, dH));
+        for (int i = rs; i < re; i++)
+        {
+            int y = daY + i * _rowHeight - so;
+            bool sel = i == _selectedRowIndex;
+            if (sel) g.FillRectangle(theme.Highlight, rhw, y, dw, _rowHeight);
+            else if (i % 2 == 1) g.FillRectangle(theme.AlternateRow, rhw, y, dw, _rowHeight);
+        }
+        if (_showGridLines)
+        {
+            for (int i = rs; i < re; i++)
+            {
+                int y = daY + i * _rowHeight - so;
+                g.DrawLine(theme.GridLine, rhw, y + _rowHeight, rhw + dw, y + _rowHeight);
+                int x = rhw - _horizontalScrollOffset;
+                for (int c = 0; c < _columns.Count; c++)
+                {
+                    int cw = _columns[c].Width;
+                    if (x + cw > rhw && x < rhw + dw) { int dx = Math.Max(x, rhw); g.DrawLine(theme.GridLineVertical, dx, y, dx, y + _rowHeight); }
+                    x += cw;
+                }
+            }
+        }
+        for (int i = rs; i < re; i++)
+        {
+            int y = daY + i * _rowHeight - so;
+            bool sel = i == _selectedRowIndex;
+            var tc = sel ? theme.HighlightText : theme.DataGridViewCellText;
+            int x = rhw - _horizontalScrollOffset;
+            for (int c = 0; c < _columns.Count; c++)
+            {
+                int cw = _columns[c].Width;
+                if (x + cw > rhw && x < rhw + dw)
+                {
+                    int dx = Math.Max(x, rhw);
+                    int dw2 = Math.Min(x + cw, rhw + dw) - dx;
+                    if (dw2 > 0)
+                    {
+                        var cell = _rows[i].Cells.Count > c ? _rows[i].Cells[c] : null;
+                        var cd = _columns[c];
+                        var t = FormatCellValue(cell?.Value, cd.FormatString);
+                        var f = EffectiveFont;
+                        int av = dw2 - 8;
+                        t = TruncateText(t, f, zoom, cd.TextAlign, av > 0 ? av : 0);
+                        float tx = GetAlignedX(t, f, zoom, cd.TextAlign, dx, dw2, 4);
+                        g.DrawString(t, f, tc, tx, y + (int)CoordinateTransform.CenterVertically(0, _rowHeight, f, zoom));
+                    }
+                }
+                x += cw;
+            }
+        }
+        g.ResetClip();
+    }
+
+    private void RenderGroupedContent(Graphics g, Theme theme, float zoom, int daY, int dH, int rhw, int dw)
+    {
+        int so = _vScrollBar.Value;
+        int ve = so + dH;
+        int cp = 0;
+        int gr = 0;
+        foreach (var group in _groupRoots)
+            RenderGroupRecursive(g, theme, zoom, group, daY, so, ve, rhw, dw, dH, ref cp, ref gr);
+    }
+
+    private void RenderGroupRecursive(Graphics g, Theme theme, float zoom, DataGridViewGroup group, int daY, int so, int ve, int rhw, int dw, int dH, ref int cp, ref int gr)
+    {
+        int hy = daY + cp - so;
+        if (cp + _groupHeaderHeight > so && cp < ve)
+        {
+            var bg = group.CustomBackColor ?? _groupHeaderBackColor;
+            var fg = group.CustomForeColor ?? _groupHeaderForeColor;
+            var f = group.CustomFont ?? _groupHeaderFont;
+            int indent = group.Level * _groupHeaderIndent;
+            string txt = group.CustomHeaderText ?? "";
+            g.FillRectangle(bg, 0, hy, Width, _groupHeaderHeight);
+            g.DrawLine(theme.DataGridViewHeaderSeparator, 0, hy + _groupHeaderHeight - 1, Width, hy + _groupHeaderHeight - 1);
+            string ind = group.IsCollapsed ? "\u25B6 " : "\u25BC ";
+            int iw = CoordinateTransform.MeasureText(ind, f, zoom).width;
+            g.DrawString(ind, f, fg, indent + 4, hy + CoordinateTransform.CenterVertically(0, _groupHeaderHeight, f, zoom));
+            int tx = indent + 4 + iw;
+            float ty = hy + CoordinateTransform.CenterVertically(0, _groupHeaderHeight, f, zoom);
+            int mw = Width - tx - 8;
+            string disp = TruncateText(txt, f, zoom, DataGridViewContentAlignment.Left, mw);
+            g.DrawString(disp, f, fg, tx, ty);
+            if (group.IsCollapsed)
+            {
+                string cnt = $" [{group.TotalRowCount}]";
+                g.DrawString(cnt, f, fg, tx + CoordinateTransform.MeasureText(txt, f, zoom).width + 4, ty);
+            }
+        }
+        cp += _groupHeaderHeight;
+        if (!group.IsCollapsed && cp < ve)
+        {
+            if (group.ChildGroups.Count > 0)
+            {
+                foreach (var child in group.ChildGroups)
+                {
+                    RenderGroupRecursive(g, theme, zoom, child, daY, so, ve, rhw, dw, dH, ref cp, ref gr);
+                    if (cp >= ve + _rowHeight) break;
+                }
+            }
+            else
+            {
+                foreach (int ri in group.RowIndices)
+                {
+                    int ry = daY + cp - so;
+                    if (cp + _rowHeight > so && cp < ve)
+                    {
+                        bool sel = ri == _selectedRowIndex;
+                        bool alt = gr % 2 == 1;
+                        if (_rowHeadersVisible)
+                        {
+                            g.SetClip(new Rectangle(0, daY, rhw, dH));
+                            var hbg = sel ? theme.Highlight : theme.ControlBackground;
+                            g.FillRectangle(hbg, 0, ry, rhw, _rowHeight);
+                            g.DrawRectangle(theme.DataGridViewBorder, 0, ry, rhw, _rowHeight, 1);
+                            g.DrawString((gr + 1).ToString(), EffectiveFont, sel ? theme.HighlightText : theme.DataGridViewRowHeaderText, 4, ry + (int)CoordinateTransform.CenterVertically(0, _rowHeight, EffectiveFont, zoom));
+                            g.ResetClip();
+                        }
+                        g.SetClip(new Rectangle(rhw, daY, dw, dH));
+                        if (sel) g.FillRectangle(theme.Highlight, rhw, ry, dw, _rowHeight);
+                        else if (alt) g.FillRectangle(theme.AlternateRow, rhw, ry, dw, _rowHeight);
+                        if (_showGridLines) g.DrawLine(theme.GridLine, rhw, ry + _rowHeight, rhw + dw, ry + _rowHeight);
+                        int x = rhw - _horizontalScrollOffset;
+                        for (int c = 0; c < _columns.Count; c++)
+                        {
+                            int cw = _columns[c].Width;
+                            if (x + cw > rhw && x < rhw + dw)
+                            {
+                                int dx = Math.Max(x, rhw);
+                                int dw2 = Math.Min(x + cw, rhw + dw) - dx;
+                                if (dw2 > 0 && _showGridLines) g.DrawLine(theme.GridLineVertical, dx, ry, dx, ry + _rowHeight);
+                                if (dw2 > 0)
+                                {
+                                    var cell = _rows[ri].Cells.Count > c ? _rows[ri].Cells[c] : null;
+                                    var cd = _columns[c];
+                                    var t = FormatCellValue(cell?.Value, cd.FormatString);
+                                    var f = EffectiveFont;
+                                    var tc = sel ? theme.HighlightText : theme.DataGridViewCellText;
+                                    int av = dw2 - 8;
+                                    t = TruncateText(t, f, zoom, cd.TextAlign, av > 0 ? av : 0);
+                                    float tx = GetAlignedX(t, f, zoom, cd.TextAlign, dx, dw2, 4);
+                                    g.DrawString(t, f, tc, tx, ry + (int)CoordinateTransform.CenterVertically(0, _rowHeight, f, zoom));
+                                }
+                            }
+                            x += cw;
+                        }
+                        g.ResetClip();
+                    }
+                    cp += _rowHeight;
+                    gr++;
+                    if (cp >= ve + _rowHeight) break;
+                }
+            }
+        }
+        else if (group.IsCollapsed) { cp += GroupSubtreeHeight(group) - _groupHeaderHeight; gr += group.TotalRowCount; }
+    }
+
+    protected internal override void OnMouseDown(EventArgs e)
+    {
+        var m = e as MouseEventArgs;
+        if (m == null) { base.OnMouseDown(e); return; }
+        int gbH = _showGroupingBar ? _groupingBarHeight : 0;
+        int hH = _columnHeadersVisible ? _rowHeight : 0;
+        int daY = gbH + hH;
+        int rhw = _rowHeadersVisible ? 40 : 0;
+        int tch = GetTotalContentHeight();
+        int dH = Height - daY;
+        bool needVS = tch > dH;
+        int sbw = needVS ? 16 : 0;
+        if (needVS && m.X >= Width - sbw) { _vScrollBar.HandleMouseDown(new Point(m.X, m.Y), new Rectangle(Width - sbw, daY, sbw, dH), VScrollBarContext); return; }
+        int dc = GetDividerColumnIndex(m.X);
+        if (dc >= 0 && _columns[dc].Resizable) { _resizingColumnIndex = dc; _resizeStartMouseX = m.X; _resizeStartWidth = _columns[dc].Width; var f = FindForm(); if (f != null) f.CaptureControl = this; return; }
+        if (_showGroupingBar && m.Y < gbH) { HandleGroupingBarClick(m); return; }
+        int col = GetColumnIndexAtX(m.X);
+        bool grouped = _groupedColumnIndices.Count > 0;
+        if (m.Y >= gbH && m.Y < daY && col >= 0 && col < _columns.Count)
+        {
+            if (_showGroupingBar && col >= 0) { _dragSourceColumnIndex = col; _dragStartX = m.X; _dragStartY = m.Y; }
+            OnColumnHeaderMouseClick(new DataGridViewCellEventArgs(col, -1));
+            if (_columns[col].Sortable)
+            {
+                if (grouped)
+                {
+                    if (!_groupedColumnIndices.Contains(col))
+                    {
+                        if (col == _secondarySortColumnIndex) _secondarySortAscending = !_secondarySortAscending;
+                        else { _secondarySortColumnIndex = col; _secondarySortAscending = true; }
+                        ClearSortColumns(); _columns[col].SortOrder = _secondarySortAscending ? SortOrder.Ascending : SortOrder.Descending; SortRowsWithinGroups(); Invalidate();
+                    }
+                }
+                else
+                {
+                    if (col == _sortColumnIndex) _sortAscending = !_sortAscending;
+                    else { ClearSortColumns(); _sortColumnIndex = col; _sortAscending = true; }
+                    _columns[col].SortOrder = _sortAscending ? SortOrder.Ascending : SortOrder.Descending; SortRows(); Invalidate();
+                }
+            }
+            return;
+        }
+        if (m.Y >= daY)
+        {
+            if (grouped)
+            {
+                var hit = HitTestGroupTree(_groupRoots, m.Y - daY + _vScrollBar.Value);
+                if (hit.group != null)
+                {
+                    if (hit.rowIndex < 0) { hit.group.IsCollapsed = !hit.group.IsCollapsed; Invalidate(); }
+                    else if (hit.rowIndex < hit.group.RowIndices.Count)
+                    {
+                        int actual = hit.group.RowIndices[hit.rowIndex];
+                        if (actual >= 0 && actual < _rows.Count && col >= 0 && col < _columns.Count) { _selectedRowIndex = actual; _selectedColumnIndex = col; OnCellClick(new DataGridViewCellEventArgs(col, actual)); OnSelectionChanged(); Invalidate(); }
+                    }
+                }
+            }
+            else
+            {
+                int row = (m.Y - daY + _vScrollBar.Value) / _rowHeight;
+                if (row >= 0 && row < _rows.Count && col >= 0 && col < _columns.Count) { _selectedRowIndex = row; _selectedColumnIndex = col; OnCellClick(new DataGridViewCellEventArgs(col, row)); OnSelectionChanged(); Invalidate(); }
+                else if (row >= _rows.Count && _allowUserToAddRows) AddRow();
+            }
+        }
         base.OnMouseDown(e);
     }
 
-    /// <summary>
-    /// Raises the KeyDown event to handle navigation.
-    /// </summary>
-    /// <param name="e">A KeyEventArgs that contains the event data.</param>
+    private void HandleGroupingBarClick(MouseEventArgs m)
+    {
+        int px = 4;
+        for (int i = 0; i < _groupedColumnIndices.Count; i++)
+        {
+            int ci = _groupedColumnIndices[i];
+            string pt = _columns[ci].HeaderText;
+            int tw = CoordinateTransform.MeasureText(pt, _groupHeaderFont, EffectiveZoom).width;
+            int pw = tw + 24;
+            int ph = _groupingBarHeight - 6;
+            int py = (_groupingBarHeight - ph) / 2;
+            int cx = px + pw - 16;
+            if (m.X >= cx && m.X <= cx + 14 && m.Y >= py && m.Y <= py + ph) { RemoveGroupColumn(i); return; }
+            if (m.X >= px && m.X <= px + pw && m.Y >= py && m.Y <= py + ph) { _isDraggingPillOut = true; _dragRemoveLevelIndex = i; _dragStartY = m.Y; var f = FindForm(); if (f != null) f.CaptureControl = this; return; }
+            px += pw + 4;
+        }
+    }
+
+    protected internal override void OnMouseUp(EventArgs e)
+    {
+        var m = e as MouseEventArgs;
+        if (_isDraggingIntoBar)
+        {
+            _isDraggingIntoBar = false; var f = FindForm(); if (f != null) f.CaptureControl = null;
+            if (m != null && _showGroupingBar && m.Y >= 0 && m.Y < _groupingBarHeight) AddGroupColumn(_dragSourceColumnIndex);
+            _dragSourceColumnIndex = -1; Invalidate(); return;
+        }
+        if (_isDraggingPillOut)
+        {
+            _isDraggingPillOut = false; var f = FindForm(); if (f != null) f.CaptureControl = null;
+            if (m != null) { int bh = _showGroupingBar ? _groupingBarHeight : 0; if (m.Y >= bh || m.Y < 0) RemoveGroupColumn(_dragRemoveLevelIndex); }
+            _dragRemoveLevelIndex = -1; Invalidate(); return;
+        }
+        if (_resizingColumnIndex >= 0) { _resizingColumnIndex = -1; var f = FindForm(); if (f != null) f.CaptureControl = null; return; }
+        if (_vScrollBar.IsDragging || _vScrollBar.IsUpButtonPressed || _vScrollBar.IsDownButtonPressed) _vScrollBar.HandleMouseUp(VScrollBarContext);
+        base.OnMouseUp(e);
+    }
+
+    protected internal override void OnMouseMove(EventArgs e)
+    {
+        var m = e as MouseEventArgs;
+        if (m == null) { base.OnMouseMove(e); return; }
+        if (_resizingColumnIndex >= 0) { _columns[_resizingColumnIndex].Width = Math.Max(MinColumnWidth, _resizeStartWidth + m.X - _resizeStartMouseX); Invalidate(); return; }
+        if (_vScrollBar.IsDragging)
+        {
+            int daY = GetDataAreaY(); int tch = GetTotalContentHeight(); int dH = Height - daY; bool needVS = tch > dH; int sbw = needVS ? 16 : 0;
+            _vScrollBar.HandleMouseMove(new Point(m.X, m.Y), new Rectangle(Width - sbw, daY, sbw, dH), VScrollBarContext); return;
+        }
+        if (_dragSourceColumnIndex >= 0 && _showGroupingBar)
+        {
+            if (Math.Abs(m.Y - _dragStartY) > DragThreshold && !_isDraggingIntoBar) { _isDraggingIntoBar = true; var f = FindForm(); if (f != null) f.CaptureControl = this; Invalidate(); return; }
+            if (_isDraggingIntoBar) { Invalidate(); return; }
+        }
+        if (_isDraggingPillOut) { if (Math.Abs(m.Y - _dragStartY) > DragThreshold) Invalidate(); return; }
+        var form = FindForm();
+        int dc = GetDividerColumnIndex(m.X);
+        if (dc >= 0 && _columns[dc].Resizable) { if (form != null) form.Cursor = SystemCursorType.SizeWE; }
+        else { if (form != null && form.Cursor == SystemCursorType.SizeWE) form.Cursor = null; }
+        base.OnMouseMove(e);
+    }
+
+    protected internal override void OnMouseWheel(EventArgs e)
+    {
+        if (_vScrollBar.IsDragging) return;
+        var m = e as MouseEventArgs;
+        if (m != null) { int daY = GetDataAreaY(); _vScrollBar.ViewSize = Height - daY; _vScrollBar.ContentSize = GetTotalContentHeight(); if (_vScrollBar.NeedsScrollbar) _vScrollBar.HandleMouseWheel(m.Delta, VScrollBarContext); }
+        base.OnMouseWheel(e);
+    }
+
     protected internal override void OnKeyDown(KeyEventArgs e)
     {
         switch (e.KeyCode)
         {
-            case Keys.Up:
-                if (_selectedRowIndex > 0)
-                {
-                    _selectedRowIndex--;
-                    EnsureRowVisible(_selectedRowIndex);
-                    OnSelectionChanged();
-                    Invalidate();
-                    e.Handled = true;
-                }
-                break;
-            case Keys.Down:
-                if (_selectedRowIndex < _rows.Count - 1)
-                {
-                    _selectedRowIndex++;
-                    EnsureRowVisible(_selectedRowIndex);
-                    OnSelectionChanged();
-                    Invalidate();
-                    e.Handled = true;
-                }
-                break;
-            case Keys.Left:
-                if (_selectedColumnIndex > 0)
-                {
-                    _selectedColumnIndex--;
-                    OnSelectionChanged();
-                    Invalidate();
-                    e.Handled = true;
-                }
-                break;
-            case Keys.Right:
-                if (_selectedColumnIndex < _columns.Count - 1)
-                {
-                    _selectedColumnIndex++;
-                    OnSelectionChanged();
-                    Invalidate();
-                    e.Handled = true;
-                }
-                break;
-            case Keys.Home:
-                if (_rows.Count > 0)
-                {
-                    _selectedRowIndex = 0;
-                    _selectedColumnIndex = 0;
-                    _vScrollBar.Value = 0;
-                    _horizontalScrollOffset = 0;
-                    OnSelectionChanged();
-                    Invalidate();
-                    e.Handled = true;
-                }
-                break;
-            case Keys.End:
-                if (_rows.Count > 0)
-                {
-                    _selectedRowIndex = _rows.Count - 1;
-                    _selectedColumnIndex = _columns.Count > 0 ? _columns.Count - 1 : 0;
-                    EnsureRowVisible(_selectedRowIndex);
-                    OnSelectionChanged();
-                    Invalidate();
-                    e.Handled = true;
-                }
-                break;
-            case Keys.PageUp:
-                if (_rows.Count > 0 && _selectedRowIndex > 0)
-                {
-                    int headerHeight = _columnHeadersVisible ? _rowHeight : 0;
-                    int visibleRows = (Height - headerHeight) / _rowHeight;
-                    _selectedRowIndex = Math.Max(0, _selectedRowIndex - visibleRows);
-                    EnsureRowVisible(_selectedRowIndex);
-                    OnSelectionChanged();
-                    Invalidate();
-                    e.Handled = true;
-                }
-                break;
-            case Keys.PageDown:
-                if (_rows.Count > 0 && _selectedRowIndex < _rows.Count - 1)
-                {
-                    int headerHeight = _columnHeadersVisible ? _rowHeight : 0;
-                    int visibleRows = (Height - headerHeight) / _rowHeight;
-                    _selectedRowIndex = Math.Min(_rows.Count - 1, _selectedRowIndex + visibleRows);
-                    EnsureRowVisible(_selectedRowIndex);
-                    OnSelectionChanged();
-                    Invalidate();
-                    e.Handled = true;
-                }
-                break;
+            case Keys.Up: if (_selectedRowIndex > 0) { _selectedRowIndex--; EnsureRowVisible(_selectedRowIndex); OnSelectionChanged(); Invalidate(); e.Handled = true; } break;
+            case Keys.Down: if (_selectedRowIndex < _rows.Count - 1) { _selectedRowIndex++; EnsureRowVisible(_selectedRowIndex); OnSelectionChanged(); Invalidate(); e.Handled = true; } break;
+            case Keys.Left: if (_selectedColumnIndex > 0) { _selectedColumnIndex--; OnSelectionChanged(); Invalidate(); e.Handled = true; } break;
+            case Keys.Right: if (_selectedColumnIndex < _columns.Count - 1) { _selectedColumnIndex++; OnSelectionChanged(); Invalidate(); e.Handled = true; } break;
+            case Keys.Home: if (_rows.Count > 0) { _selectedRowIndex = 0; _selectedColumnIndex = 0; _vScrollBar.Value = 0; _horizontalScrollOffset = 0; OnSelectionChanged(); Invalidate(); e.Handled = true; } break;
+            case Keys.End: if (_rows.Count > 0) { _selectedRowIndex = _rows.Count - 1; _selectedColumnIndex = _columns.Count > 0 ? _columns.Count - 1 : 0; EnsureRowVisible(_selectedRowIndex); OnSelectionChanged(); Invalidate(); e.Handled = true; } break;
+            case Keys.PageUp: if (_rows.Count > 0 && _selectedRowIndex > 0) { int vis = (Height - GetDataAreaY()) / _rowHeight; _selectedRowIndex = Math.Max(0, _selectedRowIndex - vis); EnsureRowVisible(_selectedRowIndex); OnSelectionChanged(); Invalidate(); e.Handled = true; } break;
+            case Keys.PageDown: if (_rows.Count > 0 && _selectedRowIndex < _rows.Count - 1) { int vis = (Height - GetDataAreaY()) / _rowHeight; _selectedRowIndex = Math.Min(_rows.Count - 1, _selectedRowIndex + vis); EnsureRowVisible(_selectedRowIndex); OnSelectionChanged(); Invalidate(); e.Handled = true; } break;
         }
-
-        if (e.Modifiers.HasFlag(ModifierKeys.Control) && e.KeyCode == Keys.C)
-        {
-            Copy();
-            e.Handled = true;
-            return;
-        }
-
+        if (e.Modifiers.HasFlag(ModifierKeys.Control) && e.KeyCode == Keys.C) { Copy(); e.Handled = true; }
         base.OnKeyDown(e);
     }
 
     private void EnsureRowVisible(int rowIndex)
     {
-        int headerHeight = _columnHeadersVisible ? _rowHeight : 0;
-        int dataHeight = Height - headerHeight;
-        int rowTop = rowIndex * _rowHeight;
-        int rowBottom = rowTop + _rowHeight;
-
-        if (rowTop < _vScrollBar.Value)
-            _vScrollBar.Value = rowTop;
-        else if (rowBottom > _vScrollBar.Value + dataHeight)
-            _vScrollBar.Value = rowBottom - dataHeight;
+        int daY = GetDataAreaY(); int dH = Height - daY; int rt = rowIndex * _rowHeight; int rb = rt + _rowHeight;
+        if (rt < _vScrollBar.Value) _vScrollBar.Value = rt;
+        else if (rb > _vScrollBar.Value + dH) _vScrollBar.Value = rb - dH;
     }
 
-    /// <summary>
-    /// Raises the MouseWheel event to handle vertical scrolling.
-    /// </summary>
-    /// <param name="e">The event arguments.</param>
-    protected internal override void OnMouseWheel(EventArgs e)
-    {
-        if (_vScrollBar.IsDragging) return;
-
-        var mouseArgs = e as MouseEventArgs;
-        if (mouseArgs != null)
-        {
-            int headerHeight = _columnHeadersVisible ? _rowHeight : 0;
-            int totalContentHeight = _rows.Count * _rowHeight + (_allowUserToAddRows ? _rowHeight : 0);
-            int dataHeight = Height - headerHeight;
-            _vScrollBar.ViewSize = dataHeight;
-            _vScrollBar.ContentSize = totalContentHeight;
-
-            if (_vScrollBar.NeedsScrollbar)
-            {
-                _vScrollBar.HandleMouseWheel(mouseArgs.Delta, VScrollBarContext);
-            }
-        }
-        base.OnMouseWheel(e);
-    }
-
-    /// <summary>
-    /// Raises the MouseUp event to handle scrollbar interaction and column resize end.
-    /// </summary>
-    /// <param name="e">The event arguments.</param>
-    protected internal override void OnMouseUp(EventArgs e)
-    {
-        if (_resizingColumnIndex >= 0)
-        {
-            _resizingColumnIndex = -1;
-            var form = FindForm();
-            if (form != null)
-                form.CaptureControl = null;
-            return;
-        }
-        if (_vScrollBar.IsDragging || _vScrollBar.IsUpButtonPressed || _vScrollBar.IsDownButtonPressed)
-        {
-            _vScrollBar.HandleMouseUp(VScrollBarContext);
-        }
-        base.OnMouseUp(e);
-    }
-
-    /// <summary>
-    /// Raises the MouseMove event to handle scrollbar hover/drag and column resize.
-    /// </summary>
-    /// <param name="e">The event arguments.</param>
-    protected internal override void OnMouseMove(EventArgs e)
-    {
-        var mouseArgs = e as MouseEventArgs;
-        if (mouseArgs == null)
-        {
-            base.OnMouseMove(e);
-            return;
-        }
-
-        // Handle column resize
-        if (_resizingColumnIndex >= 0)
-        {
-            int delta = mouseArgs.X - _resizeStartMouseX;
-            int newWidth = Math.Max(MinColumnWidth, _resizeStartWidth + delta);
-            _columns[_resizingColumnIndex].Width = newWidth;
-            Invalidate();
-            return;
-        }
-
-        // Handle scrollbar drag
-        if (_vScrollBar.IsDragging)
-        {
-            int headerHeight = _columnHeadersVisible ? _rowHeight : 0;
-            int totalContentHeight = _rows.Count * _rowHeight + (_allowUserToAddRows ? _rowHeight : 0);
-            int dataHeight = Height - headerHeight;
-            bool needVScroll = totalContentHeight > dataHeight;
-            int scrollBarWidth = needVScroll ? ScrollBarEngine.DefaultScrollBarSize : 0;
-            var scrollBarBounds = new Rectangle(Width - scrollBarWidth, headerHeight, scrollBarWidth, dataHeight);
-            _vScrollBar.HandleMouseMove(new Point(mouseArgs.X, mouseArgs.Y), scrollBarBounds, VScrollBarContext);
-            return;
-        }
-
-        // Update cursor when hovering over a column divider
-        var form = FindForm();
-        int dividerCol = GetDividerColumnIndex(mouseArgs.X);
-        if (dividerCol >= 0 && _columns[dividerCol].Resizable)
-        {
-            if (form != null)
-                form.Cursor = SystemCursorType.SizeWE;
-        }
-        else
-        {
-            if (form != null && form.Cursor == SystemCursorType.SizeWE)
-                form.Cursor = null;
-        }
-
-        base.OnMouseMove(e);
-    }
-
-    /// <summary>
-    /// Called when the DataSource property changes. Populates rows from the data source.
-    /// </summary>
     protected virtual void OnDataSourceChanged()
     {
         if (_dataSourceUpdating) return;
         _dataSourceUpdating = true;
         try
         {
-            _rows.Clear();
-            ClearSort();
-            _selectedRowIndex = -1;
-            _selectedColumnIndex = -1;
-
-            if (_dataSource is System.Collections.IEnumerable enumerable && _dataSource is not string)
-            {
-                foreach (var item in enumerable)
-                {
-                    var row = CreateRowFromDataItem(item);
-                    _rows.Add(row);
-                }
-            }
-
-            if (_dataSource is IBindingList bindingList)
-            {
-                bindingList.ListChanged += OnDataSourceListChanged;
-            }
-
+            _rows.Clear(); ClearSort(); _selectedRowIndex = -1; _selectedColumnIndex = -1;
+            if (_dataSource is System.Collections.IEnumerable enumerable && _dataSource is not string) { foreach (var item in enumerable) _rows.Add(CreateRowFromDataItem(item)); }
+            if (_dataSource is IBindingList bindingList) bindingList.ListChanged += OnDataSourceListChanged;
+            if (_groupedColumnIndices.Count > 0) BuildGroups();
             Invalidate();
         }
-        finally
-        {
-            _dataSourceUpdating = false;
-        }
+        finally { _dataSourceUpdating = false; }
     }
 
-    /// <summary>
-    /// Creates a DataGridViewRow from a data source item, populating cells via DataPropertyName.
-    /// </summary>
-    /// <param name="item">The data source item.</param>
-    /// <returns>The populated row.</returns>
     protected DataGridViewRow CreateRowFromDataItem(object? item)
     {
         var row = new DataGridViewRow { DataBoundItem = item };
-        for (int col = 0; col < _columns.Count; col++)
+        for (int c = 0; c < _columns.Count; c++)
         {
-            var colDef = _columns[col];
-            object? value = null;
-
-            if (item != null && !string.IsNullOrEmpty(colDef.DataPropertyName))
-            {
-                var prop = item.GetType().GetProperty(colDef.DataPropertyName);
-                if (prop != null)
-                {
-                    value = prop.GetValue(item);
-                }
-            }
-
-            row.Cells.Add(CreateCell(value));
+            object? v = null;
+            if (item != null && !string.IsNullOrEmpty(_columns[c].DataPropertyName)) { var p = item.GetType().GetProperty(_columns[c].DataPropertyName); if (p != null) v = p.GetValue(item); }
+            row.Cells.Add(CreateCell(v));
         }
         return row;
     }
 
-    /// <summary>
-    /// Handles ListChanged events from the data source to keep rows in sync.
-    /// </summary>
     protected virtual void OnDataSourceListChanged(object? sender, ListChangedEventArgs e)
     {
-        if (_dataSource is not IBindingList bindingList)
-            return;
-
+        if (_dataSource is not IBindingList bl) return;
+        bool g = _groupedColumnIndices.Count > 0;
         switch (e.ListChangedType)
         {
             case ListChangedType.ItemAdded:
                 if (e.NewIndex >= 0 && e.NewIndex <= _rows.Count)
                 {
-                    var item = bindingList[e.NewIndex];
-                    var newRow = CreateRowFromDataItem(item);
+                    var item = bl[e.NewIndex]; var nr = CreateRowFromDataItem(item);
                     if (e.NewIndex < _rows.Count)
                     {
-                        var tempRows = new List<DataGridViewRow>();
-                        while (_rows.Count > e.NewIndex)
-                        {
-                            tempRows.Add(_rows[_rows.Count - 1]);
-                            _rows.Remove(_rows[_rows.Count - 1]);
-                        }
-                        _rows.Add(newRow);
-                        while (tempRows.Count > 0)
-                        {
-                            var idx = _rows.Count;
-                            var r = tempRows[tempRows.Count - 1];
-                            tempRows.RemoveAt(tempRows.Count - 1);
-                            // re-wrap existing item
-                            _rows.Add(r);
-                        }
+                        var tmp = new List<DataGridViewRow>(); while (_rows.Count > e.NewIndex) { tmp.Add(_rows[_rows.Count - 1]); _rows.Remove(_rows[_rows.Count - 1]); }
+                        _rows.Add(nr); while (tmp.Count > 0) { var r = tmp[tmp.Count - 1]; tmp.RemoveAt(tmp.Count - 1); _rows.Add(r); }
                     }
-                    else
-                    {
-                        _rows.Add(newRow);
-                    }
-                    if (_sortColumnIndex >= 0)
-                        SortRows();
-                    Invalidate();
+                    else _rows.Add(nr);
+                    if (g) BuildGroups(); else if (_sortColumnIndex >= 0) SortRows(); Invalidate();
                 }
                 break;
-
             case ListChangedType.ItemDeleted:
                 if (e.NewIndex >= 0 && e.NewIndex < _rows.Count)
                 {
-                    // remove actual row data
-                    var tempRows = new List<DataGridViewRow>();
-                    for (int i = 0; i < _rows.Count; i++)
-                    {
-                        if (i != e.NewIndex)
-                            tempRows.Add(_rows[i]);
-                    }
-                    _rows.Clear();
-                    foreach (var r in tempRows)
-                        _rows.Add(r);
-                    if (_selectedRowIndex >= _rows.Count)
-                        _selectedRowIndex = Math.Max(0, _rows.Count - 1);
-                    if (_sortColumnIndex >= 0)
-                        SortRows();
-                    Invalidate();
+                    var rows = new List<DataGridViewRow>(); for (int i = 0; i < _rows.Count; i++) if (i != e.NewIndex) rows.Add(_rows[i]);
+                    _rows.Clear(); foreach (var r in rows) _rows.Add(r);
+                    if (_selectedRowIndex >= _rows.Count) _selectedRowIndex = Math.Max(0, _rows.Count - 1);
+                    if (g) BuildGroups(); else if (_sortColumnIndex >= 0) SortRows(); Invalidate();
                 }
                 break;
-
             case ListChangedType.ItemChanged:
-                if (e.NewIndex >= 0 && e.NewIndex < _rows.Count && e.NewIndex < bindingList.Count)
+                if (e.NewIndex >= 0 && e.NewIndex < _rows.Count && e.NewIndex < bl.Count)
                 {
-                    var item = bindingList[e.NewIndex];
-                    _rows[e.NewIndex].DataBoundItem = item;
+                    var item = bl[e.NewIndex]; _rows[e.NewIndex].DataBoundItem = item;
                     if (!string.IsNullOrEmpty(_columns[0].DataPropertyName))
                     {
-                        var updatedRow = CreateRowFromDataItem(item);
-                        _rows[e.NewIndex].Cells.Clear();
-                        foreach (var cell in updatedRow.Cells)
-                            _rows[e.NewIndex].Cells.Add(cell);
+                        var ur = CreateRowFromDataItem(item); _rows[e.NewIndex].Cells.Clear();
+                        foreach (var c in ur.Cells) _rows[e.NewIndex].Cells.Add(c);
                     }
-                    if (_sortColumnIndex >= 0)
-                        SortRows();
-                    Invalidate();
+                    if (g) BuildGroups(); else if (_sortColumnIndex >= 0) SortRows(); Invalidate();
                 }
                 break;
-
             case ListChangedType.Reset:
-                _rows.Clear();
-                foreach (var item in bindingList)
-                {
-                    _rows.Add(CreateRowFromDataItem(item));
-                }
-                if (_sortColumnIndex >= 0)
-                    SortRows();
-                _selectedRowIndex = _rows.Count > 0 ? 0 : -1;
-                Invalidate();
+                _rows.Clear(); foreach (var item in bl) _rows.Add(CreateRowFromDataItem(item));
+                if (g) BuildGroups(); else if (_sortColumnIndex >= 0) SortRows();
+                _selectedRowIndex = _rows.Count > 0 ? 0 : -1; Invalidate();
                 break;
         }
     }
@@ -1038,274 +842,192 @@ public class DataGridView : ContainerControl
     internal void NotifyCellValueChanged(int columnIndex, int rowIndex, object? newValue)
     {
         if (_dataSourceUpdating) return;
-
         if (_dataSource is IBindingList && rowIndex >= 0 && rowIndex < _rows.Count)
         {
-            var row = _rows[rowIndex];
-            var dataItem = row.DataBoundItem;
-            if (dataItem != null && columnIndex >= 0 && columnIndex < _columns.Count)
+            var row = _rows[rowIndex]; var di = row.DataBoundItem;
+            if (di != null && columnIndex >= 0 && columnIndex < _columns.Count)
             {
-                var colDef = _columns[columnIndex];
-                if (!string.IsNullOrEmpty(colDef.DataPropertyName))
-                {
-                    var prop = dataItem.GetType().GetProperty(colDef.DataPropertyName);
-                    if (prop != null && prop.CanWrite)
-                    {
-                        prop.SetValue(dataItem, newValue);
-                    }
-                }
+                var cd = _columns[columnIndex];
+                if (!string.IsNullOrEmpty(cd.DataPropertyName)) { var p = di.GetType().GetProperty(cd.DataPropertyName); if (p != null && p.CanWrite) p.SetValue(di, newValue); }
             }
         }
     }
 
-    private DataGridViewCell CreateCell(object? value)
-    {
-        var cell = new DataGridViewCell { Value = value };
-        cell.OnValueChanged = Invalidate;
-        return cell;
-    }
+    private DataGridViewCell CreateCell(object? value) { var cell = new DataGridViewCell { Value = value }; cell.OnValueChanged = Invalidate; return cell; }
 
-    /// <summary>
-    /// Adds a new row with the specified values.
-    /// </summary>
-    /// <param name="values">The values for the new row.</param>
     public void AddRow(params object[] values)
     {
         var row = new DataGridViewRow();
-        for (int i = 0; i < _columns.Count; i++)
-        {
-            var value = i < values.Length ? values[i] : "";
-            row.Cells.Add(CreateCell(value));
-        }
+        for (int i = 0; i < _columns.Count; i++) row.Cells.Add(CreateCell(i < values.Length ? values[i] : ""));
         _rows.Add(row);
+        if (_groupedColumnIndices.Count > 0) BuildGroups();
         Invalidate();
     }
 
-    /// <summary>
-    /// Clears all rows from the grid.
-    /// </summary>
-    public void Clear()
-    {
-        _rows.Clear();
-        ClearSort();
-        _selectedRowIndex = -1;
-        _selectedColumnIndex = -1;
-        Invalidate();
-    }
+    public void Clear() { _rows.Clear(); ClearSort(); _groupRoots.Clear(); _allGroups.Clear(); _selectedRowIndex = -1; _selectedColumnIndex = -1; Invalidate(); }
 
-    /// <summary>
-    /// Clears the current sort, restoring the original row order.
-    /// </summary>
-    public void ClearSort()
-    {
-        _sortColumnIndex = -1;
-        for (int i = 0; i < _columns.Count; i++)
-            _columns[i].SortOrder = SortOrder.None;
-    }
+    public void ClearSort() { _sortColumnIndex = -1; _secondarySortColumnIndex = -1; for (int i = 0; i < _columns.Count; i++) _columns[i].SortOrder = SortOrder.None; }
 
-    private void ClearSortColumns()
-    {
-        for (int i = 0; i < _columns.Count; i++)
-            _columns[i].SortOrder = SortOrder.None;
-    }
+    private void ClearSortColumns() { for (int i = 0; i < _columns.Count; i++) _columns[i].SortOrder = SortOrder.None; }
 
-    /// <summary>
-    /// Sorts the rows by the current sort column using raw cell values.
-    /// </summary>
     private void SortRows()
     {
-        if (_sortColumnIndex < 0 || _sortColumnIndex >= _columns.Count)
-            return;
-
-        int colIdx = _sortColumnIndex;
-        bool ascending = _sortAscending;
-
-        _rows.Sort((a, b) =>
-        {
-            var valA = colIdx < a.Cells.Count ? a.Cells[colIdx]?.Value : null;
-            var valB = colIdx < b.Cells.Count ? b.Cells[colIdx]?.Value : null;
-            int result = CompareCellValues(valA, valB);
-            return ascending ? result : -result;
-        });
+        if (_sortColumnIndex < 0 || _sortColumnIndex >= _columns.Count) return;
+        int ci = _sortColumnIndex; bool asc = _sortAscending;
+        _rows.Sort((a, b) => { var va = ci < a.Cells.Count ? a.Cells[ci]?.Value : null; var vb = ci < b.Cells.Count ? b.Cells[ci]?.Value : null; int r = CompareCellValues(va, vb); return asc ? r : -r; });
     }
 
     private static int CompareCellValues(object? a, object? b)
     {
-        if (a == null && b == null) return 0;
-        if (a == null) return -1;
-        if (b == null) return 1;
-
-        if (a is IComparable comparableA && b is IComparable comparableB)
-        {
-            try { return comparableA.CompareTo(comparableB); }
-            catch { }
-        }
-
+        if (a == null && b == null) return 0; if (a == null) return -1; if (b == null) return 1;
+        if (a is IComparable ca && b is IComparable cb) { try { return ca.CompareTo(cb); } catch { } }
         return string.Compare(a.ToString(), b.ToString(), StringComparison.OrdinalIgnoreCase);
     }
 
-    /// <summary>
-    /// Gets the column index at the given x-coordinate (in form-relative coordinates).
-    /// </summary>
+    protected string? GetClipboardValue() => SelectedValue?.ToString();
+    public void Copy() { var v = GetClipboardValue(); if (!string.IsNullOrEmpty(v)) Core.Clipboard.SetText(v); }
+
+    protected void BuildGroups()
+    {
+        _groupRoots.Clear(); _allGroups.Clear();
+        if (_groupedColumnIndices.Count == 0 || _rows.Count == 0) return;
+        _rows.Sort((a, b) =>
+        {
+            for (int i = 0; i < _groupedColumnIndices.Count; i++)
+            {
+                int ci = _groupedColumnIndices[i];
+                var va = ci < a.Cells.Count ? a.Cells[ci]?.Value : null;
+                var vb = ci < b.Cells.Count ? b.Cells[ci]?.Value : null;
+                int r = CompareCellValues(va, vb); if (r != 0) return r;
+            }
+            return 0;
+        });
+        int ri = 0;
+        while (ri < _rows.Count)
+        {
+            DataGridViewGroup? cur = null;
+            List<DataGridViewGroup> level = _groupRoots;
+            for (int lv = 0; lv < _groupedColumnIndices.Count; lv++)
+            {
+                int ci = _groupedColumnIndices[lv];
+                var cv = ci < _rows[ri].Cells.Count ? _rows[ri].Cells[ci]?.Value : null;
+                DataGridViewGroup? match = null;
+                foreach (var g in level) { if (g.ColumnIndex == ci && CompareCellValues(g.Key, cv) == 0) { match = g; break; } }
+                if (match == null) { match = new DataGridViewGroup(ci, lv, cv, cur); _allGroups.Add(match); level.Add(match); }
+                cur = match;
+                level = (List<DataGridViewGroup>)match.ChildGroups;
+            }
+            while (ri < _rows.Count)
+            {
+                bool ok = true; var tg = cur; int tr = ri;
+                for (int lv = _groupedColumnIndices.Count - 1; lv >= 0; lv--)
+                {
+                    if (tg == null) break;
+                    int ci = _groupedColumnIndices[lv]; var cv = ci < _rows[tr].Cells.Count ? _rows[tr].Cells[ci]?.Value : null;
+                    if (CompareCellValues(tg.Key, cv) != 0) { ok = false; break; }
+                    tg = tg.Parent;
+                }
+                if (!ok) break;
+                cur?.AddRowIndex(ri);
+                ri++;
+            }
+        }
+        foreach (var g in _allGroups)
+        {
+            int ci = g.ColumnIndex; string fv = FormatCellValue(g.Key, _columns[ci].FormatString);
+            string def = $"{_columns[ci].HeaderText} : {fv}";
+            var args = new DataGridViewGroupHeaderFormattingEventArgs(ci, g.Level, g.Key, g.TotalRowCount, def);
+            OnGroupHeaderFormatting(args);
+            g.CustomHeaderText = args.HeaderText; g.CustomFont = args.Font; g.CustomForeColor = args.ForeColor; g.CustomBackColor = args.BackColor; g.CustomTextAlign = args.TextAlign;
+        }
+        if (_secondarySortColumnIndex >= 0) SortRowsWithinGroups();
+    }
+
+    protected void SortRowsWithinGroups()
+    {
+        if (_secondarySortColumnIndex < 0) return;
+        int sc = _secondarySortColumnIndex; bool asc = _secondarySortAscending;
+        foreach (var g in _allGroups) { if (g.RowIndices.Count > 0) g.SortRowIndices((a, b) => { var va = _rows[a].Cells.Count > sc ? _rows[a].Cells[sc]?.Value : null; var vb = _rows[b].Cells.Count > sc ? _rows[b].Cells[sc]?.Value : null; int r = CompareCellValues(va, vb); return asc ? r : -r; }); }
+    }
+
+    private int CalculateTreeContentHeight(IReadOnlyList<DataGridViewGroup> groups) { int h = 0; foreach (var g in groups) h += GroupSubtreeHeight(g); return h; }
+
+    private int GroupSubtreeHeight(DataGridViewGroup group)
+    {
+        int h = _groupHeaderHeight;
+        if (!group.IsCollapsed) { if (group.ChildGroups.Count > 0) { foreach (var c in group.ChildGroups) h += GroupSubtreeHeight(c); } else h += group.RowIndices.Count * _rowHeight; }
+        return h;
+    }
+
+    private (DataGridViewGroup? group, int rowIndex) HitTestGroupTree(IReadOnlyList<DataGridViewGroup> groups, int cy)
+    {
+        foreach (var g in groups)
+        {
+            if (cy < _groupHeaderHeight) return (g, -1);
+            cy -= _groupHeaderHeight;
+            if (!g.IsCollapsed)
+            {
+                if (g.ChildGroups.Count > 0) { var r = HitTestGroupTree(g.ChildGroups, cy); if (r.group != null) return r; }
+                else { int ri = cy / _rowHeight; if (ri < g.RowIndices.Count) return (g, ri); cy -= g.RowIndices.Count * _rowHeight; }
+            }
+            else cy -= GroupSubtreeHeight(g) - _groupHeaderHeight;
+        }
+        return (null, -1);
+    }
+
     private int GetColumnIndexAtX(int x)
     {
-        int rowHeaderWidth = _rowHeadersVisible ? 40 : 0;
-        int cx = rowHeaderWidth - _horizontalScrollOffset;
-        for (int i = 0; i < _columns.Count; i++)
-        {
-            int colWidth = _columns[i].Width;
-            if (x >= cx && x < cx + colWidth)
-                return i;
-            cx += colWidth;
-        }
+        int rhw = _rowHeadersVisible ? 40 : 0; int cx = rhw - _horizontalScrollOffset;
+        for (int i = 0; i < _columns.Count; i++) { int cw = _columns[i].Width; if (x >= cx && x < cx + cw) return i; cx += cw; }
         return -1;
     }
 
-    /// <summary>
-    /// Gets the index of the column whose right edge divider the x-coordinate is near,
-    /// or -1 if not near any divider.
-    /// </summary>
     private int GetDividerColumnIndex(int x)
     {
-        int rowHeaderWidth = _rowHeadersVisible ? 40 : 0;
-        int cx = rowHeaderWidth - _horizontalScrollOffset;
-        for (int i = 0; i < _columns.Count; i++)
-        {
-            cx += _columns[i].Width;
-            if (Math.Abs(x - cx) <= DividerThreshold)
-                return i;
-        }
+        int rhw = _rowHeadersVisible ? 40 : 0; int cx = rhw - _horizontalScrollOffset;
+        for (int i = 0; i < _columns.Count; i++) { cx += _columns[i].Width; if (Math.Abs(x - cx) <= DividerThreshold) return i; }
         return -1;
     }
 
-    /// <summary>
-    /// Truncates text to fit within the specified logical width, adding ellipsis ("...") when truncated.
-    /// For right-aligned text the right portion is kept; for left/center the left portion is kept.
-    /// </summary>
-    private static string TruncateText(string text, Font font, float zoom, DataGridViewContentAlignment alignment, float maxWidthLogical)
+    private static string TruncateText(string text, Font font, float zoom, DataGridViewContentAlignment alignment, float maxW)
     {
         if (string.IsNullOrEmpty(text) || zoom <= 0f) return text;
-
-        int maxWidthPixels = (int)(maxWidthLogical * zoom);
-        int textWidth = CoordinateTransform.MeasureText(text, font, zoom).width;
-        if (textWidth <= maxWidthPixels) return text;
-
-        const string ellipsis = "...";
-        int ellipsisWidth = CoordinateTransform.MeasureText(ellipsis, font, zoom).width;
-        int availablePixels = maxWidthPixels - ellipsisWidth;
-
-        if (availablePixels <= 0) return ellipsis;
-
-        if (alignment == DataGridViewContentAlignment.Right)
-        {
-            for (int i = text.Length - 1; i >= 0; i--)
-            {
-                var sub = text.Substring(i);
-                if (CoordinateTransform.MeasureText(sub, font, zoom).width <= availablePixels)
-                    return ellipsis + sub;
-            }
-            return ellipsis;
-        }
-        else
-        {
-            for (int i = 1; i <= text.Length; i++)
-            {
-                var sub = text.Substring(0, i);
-                if (CoordinateTransform.MeasureText(sub, font, zoom).width > availablePixels)
-                    return text.Substring(0, i - 1) + ellipsis;
-            }
-            return text + ellipsis;
-        }
+        int mp = (int)(maxW * zoom);
+        int tw = CoordinateTransform.MeasureText(text, font, zoom).width;
+        if (tw <= mp) return text;
+        const string dots = "...";
+        int dw = CoordinateTransform.MeasureText(dots, font, zoom).width;
+        int av = mp - dw;
+        if (av <= 0) return dots;
+        if (alignment == DataGridViewContentAlignment.Right) { for (int i = text.Length - 1; i >= 0; i--) { var sub = text.Substring(i); if (CoordinateTransform.MeasureText(sub, font, zoom).width <= av) return dots + sub; } return dots; }
+        else { for (int i = 1; i <= text.Length; i++) { var sub = text.Substring(0, i); if (CoordinateTransform.MeasureText(sub, font, zoom).width > av) return text.Substring(0, i - 1) + dots; } return text + dots; }
     }
 
-    /// <summary>
-    /// Formats a cell value using the specified format string.
-    /// </summary>
-    /// <param name="value">The cell value.</param>
-    /// <param name="formatString">The format string (e.g. "N2", "d"), or null to use ToString().</param>
-    /// <returns>The formatted text.</returns>
     private static string FormatCellValue(object? value, string? formatString)
     {
         if (value == null) return "";
-        if (formatString != null)
-        {
-            try { return string.Format($"{{0:{formatString}}}", value); }
-            catch { }
-        }
+        if (formatString != null) { try { return string.Format($"{{0:{formatString}}}", value); } catch { } }
         return value.ToString() ?? "";
     }
 
-    /// <summary>
-    /// Calculates the X position for text based on alignment within a cell.
-    /// All parameters are in logical coordinates; textWidth from MeasureText is in pixels
-    /// and is divided by zoom to convert to logical.
-    /// </summary>
-    private static float GetAlignedX(string text, Font font, float zoom, DataGridViewContentAlignment alignment, float cellX, float cellWidth, int padding)
+    private static float GetAlignedX(string text, Font font, float zoom, DataGridViewContentAlignment alignment, float cx, float cw, int pad)
     {
-        if (alignment == DataGridViewContentAlignment.Left || string.IsNullOrEmpty(text))
-            return cellX + padding;
-
-        float textWidthLogical = CoordinateTransform.MeasureText(text, font, zoom).width / Math.Max(zoom, 0.001f);
-
-        return alignment switch
-        {
-            DataGridViewContentAlignment.Center => cellX + (cellWidth - textWidthLogical) / 2f,
-            DataGridViewContentAlignment.Right => cellX + cellWidth - textWidthLogical - padding,
-            _ => cellX + padding
-        };
+        if (alignment == DataGridViewContentAlignment.Left || string.IsNullOrEmpty(text)) return cx + pad;
+        float tw = CoordinateTransform.MeasureText(text, font, zoom).width / Math.Max(zoom, 0.001f);
+        return alignment switch { DataGridViewContentAlignment.Center => cx + (cw - tw) / 2f, DataGridViewContentAlignment.Right => cx + cw - tw - pad, _ => cx + pad };
     }
 }
 
-    /// <summary>
-    /// Provides scrollbar context for the DataGridView.
-    /// </summary>
 internal sealed class ScrollBarContext : IScrollBarContext
 {
     private readonly DataGridView _owner;
-
-    /// <summary>
-    /// Initializes a new instance of ScrollBarContext.
-    /// </summary>
-    /// <param name="owner">The owning DataGridView.</param>
     public ScrollBarContext(DataGridView owner) => _owner = owner;
-
-    /// <inheritdoc/>
     public float Zoom => _owner.EffectiveZoom;
-
-    /// <inheritdoc/>
     public void Invalidate() => _owner.Invalidate();
-
-    /// <inheritdoc/>
     public void CaptureMouse(bool capture) => _owner.CapturingMouse = capture;
 }
 
-/// <summary>
-/// Specifies the selection mode of a DataGridView.
-/// </summary>
 public enum DataGridViewSelectionMode
 {
-    /// <summary>
-    /// Selection by clicking the row header.
-    /// </summary>
-    RowHeaderSelect,
-
-    /// <summary>
-    /// Selection by clicking the column header.
-    /// </summary>
-    ColumnHeaderSelect,
-
-    /// <summary>
-    /// Full row selection.
-    /// </summary>
-    FullRowSelect,
-
-    /// <summary>
-    /// Full column selection.
-    /// </summary>
-    FullColumnSelect,
-
-    /// <summary>
-    /// Cell selection only.
-    /// </summary>
-    CellSelect
+    RowHeaderSelect, ColumnHeaderSelect, FullRowSelect, FullColumnSelect, CellSelect
 }

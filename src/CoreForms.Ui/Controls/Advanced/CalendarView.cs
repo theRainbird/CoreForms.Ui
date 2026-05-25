@@ -2117,7 +2117,7 @@ internal class AppointmentDialogOverlay : ContainerControl
         int margin = 16;
 
         // Subject
-        AddLabel(SR.GetString("AppointmentSubject") + ":", margin, y + 4, col1, ctrlH);
+        AddLabel(LangRes.GetString("AppointmentSubject") + ":", margin, y + 4, col1, ctrlH);
         _subjectBox = new TextBox
         {
             Text = appointment.Subject,
@@ -2128,7 +2128,7 @@ internal class AppointmentDialogOverlay : ContainerControl
         y += ctrlH + gap;
 
         // Location
-        AddLabel(SR.GetString("AppointmentLocation") + ":", margin, y + 4, col1, ctrlH);
+        AddLabel(LangRes.GetString("AppointmentLocation") + ":", margin, y + 4, col1, ctrlH);
         _locationBox = new TextBox
         {
             Text = appointment.Location ?? string.Empty,
@@ -2139,7 +2139,7 @@ internal class AppointmentDialogOverlay : ContainerControl
         y += ctrlH + gap;
 
         // Start date
-        AddLabel(SR.GetString("AppointmentStart") + ":", margin, y + 4, col1, ctrlH);
+        AddLabel(LangRes.GetString("AppointmentStart") + ":", margin, y + 4, col1, ctrlH);
         _startDateBox = new TextBox
         {
             Text = appointment.StartTime.ToString("yyyy-MM-dd"),
@@ -2164,7 +2164,7 @@ internal class AppointmentDialogOverlay : ContainerControl
         y += ctrlH + gap;
 
         // End date
-        AddLabel(SR.GetString("AppointmentEnd") + ":", margin, y + 4, col1, ctrlH);
+        AddLabel(LangRes.GetString("AppointmentEnd") + ":", margin, y + 4, col1, ctrlH);
         _endDateBox = new TextBox
         {
             Text = appointment.EndTime.ToString("yyyy-MM-dd"),
@@ -2191,7 +2191,7 @@ internal class AppointmentDialogOverlay : ContainerControl
         // All-day
         _allDayCheck = new CheckBox
         {
-            Text = SR.GetString("AppointmentAllDay"),
+            Text = LangRes.GetString("AppointmentAllDay"),
             Checked = appointment.IsAllDay,
             Bounds = new Rectangle(margin + col1, y, 140, ctrlH),
             TabStop = true
@@ -2200,7 +2200,7 @@ internal class AppointmentDialogOverlay : ContainerControl
         y += ctrlH + gap + 4;
 
         // Color selection
-        AddLabel(SR.GetString("AppointmentColor") + ":", margin, y + 4, col1, ctrlH);
+        AddLabel(LangRes.GetString("AppointmentColor") + ":", margin, y + 4, col1, ctrlH);
         int colorBtnSize = 22;
         int colorGap = 4;
         var colors = CalendarView.CategoryColors;
@@ -2235,7 +2235,7 @@ internal class AppointmentDialogOverlay : ContainerControl
 
         _okButton = new Button
         {
-            Text = SR.GetString("OK"),
+            Text = LangRes.GetString("OK"),
             Bounds = new Rectangle(margin + col1 + col2 - 2 * btnW - btnGap, btnY, btnW, 28),
             TabStop = true
         };
@@ -2244,7 +2244,7 @@ internal class AppointmentDialogOverlay : ContainerControl
 
         _cancelButton = new Button
         {
-            Text = SR.GetString("Cancel"),
+            Text = LangRes.GetString("Cancel"),
             Bounds = new Rectangle(margin + col1 + col2 - btnW, btnY, btnW, 28),
             TabStop = true
         };

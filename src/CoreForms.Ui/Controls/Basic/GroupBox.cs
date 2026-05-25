@@ -18,7 +18,7 @@ public class GroupBox : ContainerControl
         _backColor = Color.Transparent;
         _backColorSet = true;
         Size = new Size(200, 150);
-        Text = SR.GetString("GroupBoxDefaultText");
+        Text = LangRes.GetString("GroupBoxDefaultText");
     }
 
     /// <summary>

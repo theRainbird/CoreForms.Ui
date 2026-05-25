@@ -310,7 +310,7 @@ public class Form : ContainerControl, IWin32Window
     /// Gets whether the form needs to be re-rendered.
     /// Returns true if any control on the form has been invalidated since the last render.
     /// </summary>
-    internal bool RequiresRender => _requiresRender;
+    internal bool RequiresRender => _requiresRender || HasDirtyDescendant();
 
     /// <summary>
     /// Invalidates the entire form, forcing a full re-render on the next frame.

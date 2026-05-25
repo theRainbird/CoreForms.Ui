@@ -13,6 +13,17 @@ public class Spinner : Control
 {
     private bool _active;
     private bool _autoStart = true;
+
+    /// <summary>
+    /// Invalidates only the spinner control without propagating to the parent form,
+    /// avoiding a full form re-render on each animation frame.
+    /// The form-level dirty check (<see cref="Control.HasDirtyDescendant"/>)
+    /// picks up this flag to trigger a targeted re-render.
+    /// </summary>
+    public override void Invalidate()
+    {
+        SetDirty();
+    }
     private int _dotCount = 8;
     private int _dotRadius = 4;
     private int _spinnerRadius = 12;
