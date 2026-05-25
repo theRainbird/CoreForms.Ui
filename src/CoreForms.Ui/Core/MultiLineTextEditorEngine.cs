@@ -229,7 +229,7 @@ public class MultiLineTextEditorEngine : TextEditorEngine
     /// <inheritdoc />
     public override void HandleTextInput(string text, ITextEditorContext context)
     {
-        // Convert \r to \n (SDL sends \r for Enter)
+        // Convert \r to \n
         text = text.Replace("\r", "\n");
         base.HandleTextInput(text, context);
         RebuildLines();

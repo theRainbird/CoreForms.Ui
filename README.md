@@ -34,15 +34,9 @@ A cross-platform .NET UI framework for Linux and Windows. Provides a Windows For
 ## Requirements
 
 - .NET 10.0 SDK or later
-- Linux: `libsdl2-dev` and `libsdl2-ttf-dev` (for Silk.NET)
-- Windows: SDL2.dll and SDL2_ttf.dll (or via SDL2-CS NuGet package)
+- Linux: OpenGL 3.3 drivers (typically pre-installed on desktop systems)
+- Windows: No additional system dependencies
 - Optional for WebView: `webkit2gtk-4.1` (Linux) / Chromium (Windows)
-
-### Linux (Ubuntu/Debian)
-
-```bash
-sudo apt install libsdl2-dev libsdl2-ttf-dev
-```
 
 ## Build & Run
 
@@ -217,21 +211,15 @@ form.Controls.Add(menuStrip);
 
 ## Troubleshooting
 
-### "Unable to load shared library 'libSDL2.so.0'"
+### "Unable to create OpenGL context" or rendering issues
 
-SDL2 is not installed:
-
-```bash
-sudo apt install libsdl2-dev
-```
-
-### "Unable to load shared library 'libSDL2_ttf.so.0'"
-
-SDL2_ttf is not installed:
+Ensure your system supports OpenGL 3.3. On Linux, install Mesa drivers:
 
 ```bash
-sudo apt install libsdl2-ttf-dev
+sudo apt install mesa-utils
 ```
+
+On virtual machines or headless systems, use software rendering or `xvfb-run`.
 
 ### Demo doesn't show a window
 

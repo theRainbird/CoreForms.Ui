@@ -195,6 +195,7 @@ public class CefPlatformHandler : IWebViewPlatformHandler
     public bool CanGoBack => _browser?.CanGoBack ?? false;
     public bool CanGoForward => _browser?.CanGoForward ?? false;
     public bool IsInitialized => _browser != null;
+    public string? InitializationError => null;
 
     /// <summary>
     /// Gets the last cursor type reported by CEF, or null for the default arrow cursor.
@@ -247,7 +248,7 @@ public class CefPlatformHandler : IWebViewPlatformHandler
         return Directory.Exists(cefDir) ? cefDir : baseDir;
     }
 
-    public void Initialize(uint parentWindowId)
+    public void Initialize(uint parentWindowId, IntPtr nativeWindowHandle)
     {
         InitializeCef();
         CoreForms.Ui.Platform.Platform.OnFrame += CefRuntime.DoMessageLoopWork;

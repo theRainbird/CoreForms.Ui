@@ -242,15 +242,25 @@ public class WebView : Control
             }
         }
 
+        // For HWND-based handlers (WebView2 on Windows), the child HWND renders
+        // itself on top of the parent's client area. Do NOT paint over it.
         if (_initFailed)
         {
             g.FillRectangle(Color.White, 0, 0, Width, Height);
             g.DrawRectangle(Color.FromArgb(180, 180, 180), 0, 0, Width, Height, 1);
             g.DrawString($"Error: {_initError}", Font.Default, Color.FromArgb(200, 60, 60), 10, 10);
         }
-        else if (_platformHandler == null)
+        else
         {
-            g.FillRectangle(Color.White, 0, 0, Width, Height);
+            var handlerError = _platformHandler?.InitializationError;
+            if (handlerError != null)
+            {
+                g.FillRectangle(Color.White, 0, 0, Width, Height);
+                g.DrawRectangle(Color.FromArgb(180, 180, 180), 0, 0, Width, Height, 1);
+                g.DrawString(handlerError, Font.Default, Color.FromArgb(200, 60, 60), 10, 10);
+            }
+            // Successful HWND-based handlers (WebView2): draw nothing.
+            // The child HWND is rendered by the OS on top of the parent surface.
         }
     }
 
@@ -385,7 +395,8 @@ public class WebView : Control
             _platformHandler.Navigated += OnPlatformNavigated;
 
             var form = FindForm();
-            _platformHandler.Initialize(form?.WindowId ?? 0);
+            IntPtr nativeHandle = form != null ? CoreForms.Ui.Platform.Platform.GetNativeWindowHandle(form) : IntPtr.Zero;
+            _platformHandler.Initialize(form?.WindowId ?? 0, nativeHandle);
 
             _isLoaded = true;
         }

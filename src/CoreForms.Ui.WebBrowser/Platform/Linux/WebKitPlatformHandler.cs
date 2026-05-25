@@ -18,6 +18,7 @@ public class WebKitPlatformHandler : IWebViewPlatformHandler
     public bool CanGoBack => false;
     public bool CanGoForward => false;
     public bool IsInitialized => _isInitialized;
+    public string? InitializationError => null;
 
     public event EventHandler<WebNavigatingEventArgs>? Navigating;
     public event EventHandler<WebNavigatedEventArgs>? Navigated;
@@ -27,7 +28,7 @@ public class WebKitPlatformHandler : IWebViewPlatformHandler
         _webView = webView;
     }
 
-    public void Initialize(uint parentWindowId)
+    public void Initialize(uint parentWindowId, IntPtr nativeWindowHandle)
     {
         try
         {

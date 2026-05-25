@@ -8,7 +8,7 @@
   </PropertyGroup>
 
   <!-- Compile the native C WebKit helper -->
-  <Target Name="CompileNativeHelper" BeforeTargets="Build">
+  <Target Name="CompileNativeHelper" BeforeTargets="Build" Condition="$([MSBuild]::IsOSPlatform('Linux'))">
     <Exec Command="/bin/bash -c 'gcc -o &quot;$(TargetDir)WebBrowserHelper&quot; &quot;$(MSBuildProjectDirectory)/helper.c&quot; `pkg-config --cflags --libs gtk+-3.0 webkit2gtk-4.1`'" />
   </Target>
 

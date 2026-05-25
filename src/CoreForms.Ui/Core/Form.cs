@@ -64,7 +64,7 @@ public class Form : ContainerControl, IWin32Window
     internal void SetHandle(IntPtr handle) => _handle = handle;
 
     /// <summary>
-    /// Gets or sets the SDL window ID.
+    /// Gets or sets the native window ID.
     /// </summary>
     public uint WindowId { get; internal set; }
 

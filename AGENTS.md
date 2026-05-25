@@ -9,7 +9,6 @@ dotnet run --project samples/CoreForms.Ui.Demo  # Run demo (requires X11/display
 
 ## Project Structure
 - `src/CoreForms.Ui/` - Main framework (net10.0)
-- `src/CoreForms.Ui.Sdl/` - SDL2 backend
 - `samples/CoreForms.Ui.Demo/` - Demo app
 - `tests/CoreForms.Ui.Tests/` - Unit tests
 
@@ -32,8 +31,8 @@ dotnet run --project samples/CoreForms.Ui.Demo  # Run demo (requires X11/display
 
 **Rendering:**
 - Graphics (command-list pattern)
-- SdlRenderer (SDL2-based, alpha blending, image/ellipse/triangle drawing)
-- FontRenderer (SDL_ttf-based)
+- SkiaRenderer (SkiaSharp-based, GPU-accelerated via OpenGL 3.3, alpha blending, software fallback)
+- SkiaFontRenderer (SkiaSharp-based)
 - SVG icon support via Svg.Skia (resolution-independent, alpha transparency)
 
 **Window Management:**
@@ -50,15 +49,14 @@ dotnet run --project samples/CoreForms.Ui.Demo  # Run demo (requires X11/display
 
 ## Important Context
 
-**Platform layer uses SDL2 via P/Invoke** - Works on Linux/Windows with SDL2 installed:
-- Linux: `sudo apt install libsdl2-dev libsdl2-ttf-2.0-0`
-- Windows: SDL2.dll in app directory
-- No native build step required — SVG rendering uses managed Svg.Skia library
+**Platform layer uses Silk.NET** - Windowing, input, and OpenGL context are managed via Silk.NET:
+- No manual native library installation required (Silk.NET bundles native dependencies via NuGet)
+- SVG rendering uses managed Svg.Skia library
 
 **Custom type dependencies** - Avoids System.Drawing conflicts:
 - Custom `Color`, `Font`, `Point`, `Size`, `Rectangle` in `Core/SystemTypes.cs`
 - Custom `Graphics` in `Rendering/Graphics.cs` (use alias: `using Graphics = CoreForms.Ui.Rendering.Graphics`)
-- Custom `SdlRenderer` in `Rendering/SdlRenderer.cs`
+- Custom `SkiaRenderer` in `Rendering/SkiaRenderer.cs`
 
 **Headless limitation** - Demo won't show window without X11/display server.
 
@@ -71,8 +69,8 @@ dotnet run --project samples/CoreForms.Ui.Demo  # Run demo (requires X11/display
 ## Architecture
 - Controls inherit from `CoreForms.Ui.Core.Control`
 - Graphics uses command-list pattern for platform-independent rendering
-- Platform abstraction with SDL2 via direct P/Invoke
-- SVG icons: embedded resources → Svg.Skia parse/rasterize → RGBA pixels → SDL_CreateTexture + SDL_UpdateTexture
+- Platform abstraction with Silk.NET (windowing, input, OpenGL context)
+- SVG icons: embedded resources → Svg.Skia parse/rasterize → RGBA pixels → SkiaSharp textures
 
 ## Code Conventions
 

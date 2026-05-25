@@ -36,10 +36,16 @@ public interface IWebViewPlatformHandler : IDisposable
     bool IsInitialized { get; }
 
     /// <summary>
-    /// Initializes the platform handler with the parent window ID.
+    /// Gets the initialization error message, or null if initialization succeeded or is still in progress.
+    /// </summary>
+    string? InitializationError { get; }
+
+    /// <summary>
+    /// Initializes the platform handler with the parent window ID and native window handle.
     /// </summary>
     /// <param name="parentWindowId">The parent window identifier.</param>
-    void Initialize(uint parentWindowId);
+    /// <param name="nativeWindowHandle">The native platform window handle (HWND on Windows).</param>
+    void Initialize(uint parentWindowId, IntPtr nativeWindowHandle);
 
     /// <summary>
     /// Navigates to the specified URL.

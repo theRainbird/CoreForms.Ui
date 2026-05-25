@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.Reflection;
+using System.Runtime.InteropServices;
 using CoreForms.Ui.Core;
 using CoreForms.Ui.Rendering;
 using CoreForms.Ui.Resources;
@@ -28,6 +29,15 @@ public static class Platform
     private static readonly TimeSpan FrameInterval = TimeSpan.FromTicks(TimeSpan.TicksPerSecond / 30);
     private static long _lastRenderTicks;
     private static IKeyboard? _keyboard;
+
+    [DllImport("kernel32.dll", SetLastError = true, CharSet = CharSet.Auto)]
+    private static extern IntPtr GetModuleHandle(string lpModuleName);
+
+    [DllImport("kernel32.dll", SetLastError = true)]
+    private static extern IntPtr GetProcAddress(IntPtr hModule, string lpProcName);
+
+    [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+    private delegate IntPtr GlfwGetWin32WindowDelegate(IntPtr window);
 
     /// <summary>
     /// Called every frame before event processing. External components can hook here.
@@ -65,6 +75,37 @@ public static class Platform
         var ctx = GetWindowContext(form);
         if (ctx == null)
             return nint.Zero;
+
+        // On Windows, IView.Handle returns the GLFW window pointer, not the Win32 HWND.
+        // WebView2 requires a real HWND. glfw3.dll is already loaded by Silk.NET into the
+        // process; retrieve its module handle and resolve glfwGetWin32Window via GetProcAddress.
+        // Direct DllImport("glfw3") fails because Silk.NET's native resolver only handles
+        // calls from Silk.NET assemblies, not from CoreForms.Ui.
+        if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+        {
+            try
+            {
+                var glfwModule = GetModuleHandle("glfw3.dll");
+                if (glfwModule != IntPtr.Zero)
+                {
+                    var pFunc = GetProcAddress(glfwModule, "glfwGetWin32Window");
+                    if (pFunc != IntPtr.Zero)
+                    {
+                        var func = Marshal.GetDelegateForFunctionPointer<GlfwGetWin32WindowDelegate>(pFunc);
+                        var hwnd = func(ctx.Window.Handle);
+                        if (hwnd != IntPtr.Zero)
+                            return hwnd;
+                    }
+                }
+            }
+            catch
+            {
+                // Fall through to fallback
+            }
+        }
+
+        // On non-Windows platforms (X11, Wayland), the GLFW pointer is sufficient
+        // for most purposes since CEF and WebKit don't use this handle directly.
         return ctx.Window.Handle;
     }
 

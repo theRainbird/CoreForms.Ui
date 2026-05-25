@@ -1,15 +1,70 @@
-#pragma warning disable CA1416 // COM APIs are Windows-only, guarded by RuntimeInformation check
+#pragma warning disable CA1416 // Windows-only, guarded by RuntimeInformation check
 using System.Runtime.InteropServices;
+using System.Text;
 using CoreForms.Ui.Core;
 
 namespace CoreForms.Ui.Platform.Windows;
 
 /// <summary>
-/// Windows implementation of file dialogs using the native COM IFileDialog API (Vista+).
+/// Windows implementation of file dialogs using the Win32 GetOpenFileName/GetSaveFileName API.
 /// </summary>
 internal static class FileDialogWindows
 {
-    private static Guid GetShellItemGuid() => new("43826d1e-e718-42ee-bc55-a1e261c37bfe");
+    [Flags]
+    private enum OFN_FLAGS : uint
+    {
+        OFN_READONLY = 0x00000001,
+        OFN_OVERWRITEPROMPT = 0x00000002,
+        OFN_HIDEREADONLY = 0x00000004,
+        OFN_NOCHANGEDIR = 0x00000008,
+        OFN_ALLOWMULTISELECT = 0x00000200,
+        OFN_PATHMUSTEXIST = 0x00000800,
+        OFN_FILEMUSTEXIST = 0x00001000,
+        OFN_CREATEPROMPT = 0x00002000,
+        OFN_NOREADONLYRETURN = 0x00008000,
+        OFN_NODEREFERENCELINKS = 0x00100000,
+        OFN_EXPLORER = 0x00080000,
+        OFN_DONTADDTORECENT = 0x02000000,
+        OFN_FORCESHOWHIDDEN = 0x10000000,
+        OFN_ENABLESIZING = 0x00800000,
+    }
+
+    [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
+    private struct OPENFILENAME
+    {
+        public uint lStructSize;
+        public IntPtr hwndOwner;
+        public IntPtr hInstance;
+        public IntPtr lpstrFilter;
+        public IntPtr lpstrCustomFilter;
+        public uint nMaxCustFilter;
+        public uint nFilterIndex;
+        public IntPtr lpstrFile;
+        public uint nMaxFile;
+        public IntPtr lpstrFileTitle;
+        public uint nMaxFileTitle;
+        public IntPtr lpstrInitialDir;
+        public IntPtr lpstrTitle;
+        public OFN_FLAGS Flags;
+        public ushort nFileOffset;
+        public ushort nFileExtension;
+        public IntPtr lpstrDefExt;
+        public IntPtr lCustData;
+        public IntPtr lpfnHook;
+        public IntPtr lpTemplateName;
+        public IntPtr pvReserved;
+        public uint dwReserved;
+        public uint FlagsEx;
+    }
+
+    [DllImport("comdlg32.dll", SetLastError = true, CharSet = CharSet.Unicode)]
+    private static extern bool GetOpenFileName(ref OPENFILENAME ofn);
+
+    [DllImport("comdlg32.dll", SetLastError = true, CharSet = CharSet.Unicode)]
+    private static extern bool GetSaveFileName(ref OPENFILENAME ofn);
+
+    private const uint CDERR_DIALOGFAILURE = 0xFFFF;
+    private const int FileBufferSize = 65536;
 
     public static DialogResult ShowOpenFile(
         nint parentHwnd, string title,
@@ -21,61 +76,61 @@ internal static class FileDialogWindows
     {
         selectedFiles = [];
 
+        IntPtr filterPtr = IntPtr.Zero;
+        IntPtr fileBuffer = IntPtr.Zero;
+        IntPtr titlePtr = IntPtr.Zero;
+        IntPtr initialDirPtr = IntPtr.Zero;
+        IntPtr defExtPtr = IntPtr.Zero;
+
         try
         {
-            var dialog = Shell32.CreateFileDialog<IFileOpenDialog>(CLSID.FileOpenDialog);
+            var ofn = new OPENFILENAME();
+            ofn.lStructSize = (uint)Marshal.SizeOf<OPENFILENAME>();
+            ofn.hwndOwner = parentHwnd;
 
-            var options = FILEOPENDIALOGOPTIONS.FOS_FORCEFILESYSTEM;
-            if (multiSelect) options |= FILEOPENDIALOGOPTIONS.FOS_ALLOWMULTISELECT;
-            if (checkFileExists) options |= FILEOPENDIALOGOPTIONS.FOS_FILEMUSTEXIST;
-            if (!dereferenceLinks) options |= FILEOPENDIALOGOPTIONS.FOS_NODEREFERENCELINKS;
-            dialog.SetOptions(options);
+            var flags = OFN_FLAGS.OFN_EXPLORER | OFN_FLAGS.OFN_HIDEREADONLY
+                      | OFN_FLAGS.OFN_NOREADONLYRETURN | OFN_FLAGS.OFN_ENABLESIZING;
+            if (multiSelect) flags |= OFN_FLAGS.OFN_ALLOWMULTISELECT;
+            if (checkFileExists) flags |= OFN_FLAGS.OFN_FILEMUSTEXIST | OFN_FLAGS.OFN_PATHMUSTEXIST;
+            if (!dereferenceLinks) flags |= OFN_FLAGS.OFN_NODEREFERENCELINKS;
 
-            if (!string.IsNullOrEmpty(title))
-                dialog.SetTitle(title);
-
-            var filterSpecs = ParseFilter(filter);
-            if (filterSpecs.Length > 0)
+            if (!string.IsNullOrEmpty(filter))
             {
-                dialog.SetFileTypes((uint)filterSpecs.Length, filterSpecs);
-                if (filterIndex > 0 && filterIndex <= filterSpecs.Length)
-                    dialog.SetFileTypeIndex((uint)filterIndex);
+                filterPtr = Marshal.StringToHGlobalUni(ConvertFilter(filter));
+                ofn.lpstrFilter = filterPtr;
+                ofn.nFilterIndex = (uint)Math.Max(1, filterIndex);
             }
 
             if (!string.IsNullOrEmpty(initialDirectory))
-                SetFolder((IFileDialog)dialog, initialDirectory);
-
-            if (!string.IsNullOrEmpty(fileName))
-                dialog.SetFileName(fileName);
-
-            dialog.Show(parentHwnd);
-
-            if (multiSelect)
             {
-                var results = new List<string>();
-                dialog.GetResults(out IntPtr shellItemArrayPtr);
-                if (shellItemArrayPtr != IntPtr.Zero)
-                {
-                    var shellItemArray = MarshalShellItemArray(shellItemArrayPtr);
-                    if (shellItemArray != null)
-                        results.AddRange(shellItemArray);
-                }
+                initialDirPtr = Marshal.StringToHGlobalUni(initialDirectory);
+                ofn.lpstrInitialDir = initialDirPtr;
+            }
 
-                if (results.Count == 0)
-                {
-                    dialog.GetResult(out IShellItem item);
-                    string? path = GetDisplayPath(item);
-                    if (path != null)
-                        results.Add(path);
-                }
+            fileBuffer = Marshal.AllocHGlobal(FileBufferSize * 2);
+            Marshal.Copy(Encoding.Unicode.GetBytes(fileName + "\0"), 0, fileBuffer, (fileName.Length + 1) * 2);
+            ofn.lpstrFile = fileBuffer;
+            ofn.nMaxFile = FileBufferSize;
 
-                selectedFiles = results.ToArray();
+            if (!string.IsNullOrEmpty(title))
+            {
+                titlePtr = Marshal.StringToHGlobalUni(title);
+                ofn.lpstrTitle = titlePtr;
+            }
+
+            ofn.Flags = flags;
+
+            if (!GetOpenFileName(ref ofn))
+                return DialogResult.Cancel;
+
+            if (!multiSelect)
+            {
+                string path = Marshal.PtrToStringUni(fileBuffer) ?? string.Empty;
+                selectedFiles = !string.IsNullOrEmpty(path) ? [path] : [];
             }
             else
             {
-                dialog.GetResult(out IShellItem item);
-                string? path = GetDisplayPath(item);
-                selectedFiles = path != null ? [path] : [];
+                selectedFiles = ParseMultiSelect(fileBuffer);
             }
 
             return selectedFiles.Length > 0 ? DialogResult.OK : DialogResult.Cancel;
@@ -84,6 +139,14 @@ internal static class FileDialogWindows
         {
             Console.WriteLine($"[FileDialogWindows] OpenFile error: {ex.Message}");
             return DialogResult.Cancel;
+        }
+        finally
+        {
+            if (filterPtr != IntPtr.Zero) Marshal.FreeHGlobal(filterPtr);
+            if (fileBuffer != IntPtr.Zero) Marshal.FreeHGlobal(fileBuffer);
+            if (titlePtr != IntPtr.Zero) Marshal.FreeHGlobal(titlePtr);
+            if (initialDirPtr != IntPtr.Zero) Marshal.FreeHGlobal(initialDirPtr);
+            if (defExtPtr != IntPtr.Zero) Marshal.FreeHGlobal(defExtPtr);
         }
     }
 
@@ -97,40 +160,60 @@ internal static class FileDialogWindows
     {
         selectedFile = string.Empty;
 
+        IntPtr filterPtr = IntPtr.Zero;
+        IntPtr fileBuffer = IntPtr.Zero;
+        IntPtr titlePtr = IntPtr.Zero;
+        IntPtr initialDirPtr = IntPtr.Zero;
+        IntPtr defExtPtr = IntPtr.Zero;
+
         try
         {
-            var dialog = Shell32.CreateFileDialog<IFileSaveDialog>(CLSID.FileSaveDialog);
+            var ofn = new OPENFILENAME();
+            ofn.lStructSize = (uint)Marshal.SizeOf<OPENFILENAME>();
+            ofn.hwndOwner = parentHwnd;
 
-            var options = FILEOPENDIALOGOPTIONS.FOS_FORCEFILESYSTEM
-                        | FILEOPENDIALOGOPTIONS.FOS_PATHMUSTEXIST;
-            if (overwritePrompt) options |= FILEOPENDIALOGOPTIONS.FOS_OVERWRITEPROMPT;
-            if (!string.IsNullOrEmpty(defaultExt))
-                dialog.SetDefaultExtension(defaultExt);
-            dialog.SetOptions(options);
+            var flags = OFN_FLAGS.OFN_EXPLORER | OFN_FLAGS.OFN_HIDEREADONLY
+                      | OFN_FLAGS.OFN_NOREADONLYRETURN | OFN_FLAGS.OFN_ENABLESIZING
+                      | OFN_FLAGS.OFN_PATHMUSTEXIST;
+            if (overwritePrompt) flags |= OFN_FLAGS.OFN_OVERWRITEPROMPT;
+            if (createPrompt) flags |= OFN_FLAGS.OFN_CREATEPROMPT;
 
-            if (!string.IsNullOrEmpty(title))
-                dialog.SetTitle(title);
-
-            var filterSpecs = ParseFilter(filter);
-            if (filterSpecs.Length > 0)
+            if (!string.IsNullOrEmpty(filter))
             {
-                dialog.SetFileTypes((uint)filterSpecs.Length, filterSpecs);
-                if (filterIndex > 0 && filterIndex <= filterSpecs.Length)
-                    dialog.SetFileTypeIndex((uint)filterIndex);
+                filterPtr = Marshal.StringToHGlobalUni(ConvertFilter(filter));
+                ofn.lpstrFilter = filterPtr;
+                ofn.nFilterIndex = (uint)Math.Max(1, filterIndex);
             }
 
             if (!string.IsNullOrEmpty(initialDirectory))
-                SetFolder((IFileDialog)dialog, initialDirectory);
+            {
+                initialDirPtr = Marshal.StringToHGlobalUni(initialDirectory);
+                ofn.lpstrInitialDir = initialDirPtr;
+            }
 
-            if (!string.IsNullOrEmpty(fileName))
-                dialog.SetFileName(fileName);
+            fileBuffer = Marshal.AllocHGlobal(FileBufferSize * 2);
+            Marshal.Copy(Encoding.Unicode.GetBytes(fileName + "\0"), 0, fileBuffer, (fileName.Length + 1) * 2);
+            ofn.lpstrFile = fileBuffer;
+            ofn.nMaxFile = FileBufferSize;
 
-            dialog.Show(parentHwnd);
+            if (!string.IsNullOrEmpty(title))
+            {
+                titlePtr = Marshal.StringToHGlobalUni(title);
+                ofn.lpstrTitle = titlePtr;
+            }
 
-            dialog.GetResult(out IShellItem item);
-            string? path = GetDisplayPath(item);
-            selectedFile = path ?? string.Empty;
+            if (!string.IsNullOrEmpty(defaultExt))
+            {
+                defExtPtr = Marshal.StringToHGlobalUni(defaultExt);
+                ofn.lpstrDefExt = defExtPtr;
+            }
 
+            ofn.Flags = flags;
+
+            if (!GetSaveFileName(ref ofn))
+                return DialogResult.Cancel;
+
+            selectedFile = Marshal.PtrToStringUni(fileBuffer) ?? string.Empty;
             return !string.IsNullOrEmpty(selectedFile) ? DialogResult.OK : DialogResult.Cancel;
         }
         catch (Exception ex)
@@ -138,83 +221,81 @@ internal static class FileDialogWindows
             Console.WriteLine($"[FileDialogWindows] SaveFile error: {ex.Message}");
             return DialogResult.Cancel;
         }
+        finally
+        {
+            if (filterPtr != IntPtr.Zero) Marshal.FreeHGlobal(filterPtr);
+            if (fileBuffer != IntPtr.Zero) Marshal.FreeHGlobal(fileBuffer);
+            if (titlePtr != IntPtr.Zero) Marshal.FreeHGlobal(titlePtr);
+            if (initialDirPtr != IntPtr.Zero) Marshal.FreeHGlobal(initialDirPtr);
+            if (defExtPtr != IntPtr.Zero) Marshal.FreeHGlobal(defExtPtr);
+        }
     }
 
-    private static COMDLG_FILTERSPEC[] ParseFilter(string filter)
+    /// <summary>
+    /// Converts our "Description|*.ext1;*.ext2" filter format to the Win32
+    /// double-null-terminated format: "Description\0*.ext1;*.ext2\0\0".
+    /// </summary>
+    private static string ConvertFilter(string filter)
     {
         if (string.IsNullOrEmpty(filter))
-            return [];
+            return "\0\0";
 
         string[] parts = filter.Split('|');
-        var result = new List<COMDLG_FILTERSPEC>();
+        var sb = new StringBuilder();
 
         for (int i = 0; i + 1 < parts.Length; i += 2)
         {
-            result.Add(new COMDLG_FILTERSPEC
-            {
-                pszName = parts[i],
-                pszSpec = parts[i + 1]
-            });
+            sb.Append(parts[i]);
+            sb.Append('\0');
+            sb.Append(parts[i + 1]);
+            sb.Append('\0');
         }
 
-        return result.ToArray();
+        // If odd number of parts, add unnamed filter for the last part
+        if (parts.Length % 2 == 1)
+        {
+            sb.Append('\0');
+            sb.Append(parts[^1]);
+            sb.Append('\0');
+        }
+
+        sb.Append('\0'); // Final null terminator
+        return sb.ToString();
     }
 
-    private static string? GetDisplayPath(IShellItem item)
+    /// <summary>
+    /// Parses the multi-select file buffer format.
+    /// Directory is the first string, followed by file names.
+    /// If single file selected, the buffer just contains the file path.
+    /// </summary>
+    private static string[] ParseMultiSelect(IntPtr buffer)
     {
-        try
+        // Read the first string - could be a directory or the full path
+        string first = Marshal.PtrToStringUni(buffer) ?? string.Empty;
+        if (string.IsNullOrEmpty(first))
+            return [];
+
+        // Read the second string - if it's empty, it's a single file selection
+        int offset = (first.Length + 1) * 2;
+        string second = Marshal.PtrToStringUni(buffer + offset) ?? string.Empty;
+
+        if (string.IsNullOrEmpty(second))
         {
-            item.GetDisplayName(SIGDN.FILESYSPATH, out string path);
-            return path;
+            // Single file selected, first is the full path
+            return [first];
         }
-        catch { return null; }
+
+        // Multi-file selected: first is the directory, followed by file names
+        var files = new List<string>();
+        string directory = first;
+
+        while (!string.IsNullOrEmpty(second))
+        {
+            files.Add(Path.Combine(directory, second));
+            offset += (second.Length + 1) * 2;
+            second = Marshal.PtrToStringUni(buffer + offset) ?? string.Empty;
+        }
+
+        return files.ToArray();
     }
-
-    private static void SetFolder(IFileDialog dialog, string path)
-    {
-        try
-        {
-            var shellItemGuid = GetShellItemGuid();
-            Shell32.SHCreateItemFromParsingName(path, IntPtr.Zero, ref shellItemGuid, out IShellItem folder);
-            dialog.SetFolder(folder);
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"[FileDialogWindows] SetFolder error: {ex.Message}");
-        }
-    }
-
-    private static List<string>? MarshalShellItemArray(IntPtr ptr)
-    {
-        try
-        {
-            var shellItemArray = (IShellItemArray?)Marshal.GetObjectForIUnknown(ptr);
-            if (shellItemArray == null) return null;
-
-            shellItemArray.GetCount(out uint count);
-            var results = new List<string>();
-            for (uint i = 0; i < count; i++)
-            {
-                shellItemArray.GetItemAt(i, out IShellItem item);
-                string? path = GetDisplayPath(item);
-                if (path != null) results.Add(path);
-            }
-            return results;
-        }
-        catch { return null; }
-    }
-}
-
-[ComImport]
-[Guid("b63ea76d-1f85-456f-a19c-48159efa858b")]
-[InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
-internal interface IShellItemArray
-{
-    void BindToHandler(IntPtr pbc, [In] ref Guid bhid, [In] ref Guid riid, out IntPtr ppv);
-    void GetPropertyStore(uint flags, [In] ref Guid riid, out IntPtr ppv);
-    void GetPropertyDescriptionList(IntPtr keyType, [In] ref Guid riid, out IntPtr ppv);
-    void GetAttributes(uint attribFlags, uint sfgaoMask, out uint psfgaoAttribs);
-    void GetCount(out uint pdwNumItems);
-    void GetItemAt(uint dwIndex, [MarshalAs(UnmanagedType.Interface)] out IShellItem ppsi);
-    void EnumItems(out IntPtr ppenumShellItems);
 }

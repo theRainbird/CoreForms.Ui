@@ -823,7 +823,7 @@ public class DockAndAnchorTests
         };
         mainPanel.Controls.Add(headerLabel);
 
-        // Simulate platform resize: set Width first, then Height (like SDL does)
+        // Simulate platform resize: set Width first, then Height
         form.Width = 1200;
         form.Height = 800;
 
