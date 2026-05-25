@@ -383,6 +383,8 @@ public class TabControl : ContainerControl
             _overflowScrollBar.Render(g, scrollBarBounds, theme);
         }
 
+        _overflowScrollOffset = _overflowScrollBar.Value;
+
         g.SetClip(new Rectangle(dropX, dropY, contentListWidth, _overflowDropDownHeight));
 
         for (int i = 0; i < overflowItems.Count; i++)

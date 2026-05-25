@@ -165,7 +165,14 @@ public class Form : ContainerControl, IWin32Window
             _zoom = Dpi.ClampZoom(value);
             if (Math.Abs(oldZoom - _zoom) > 0.001f)
             {
-                PerformLayout();
+                var pixelWidth = (int)(Width * oldZoom);
+                var pixelHeight = (int)(Height * oldZoom);
+                SuspendLayout();
+                Width = (int)MathF.Ceiling(pixelWidth / _zoom);
+                Height = (int)MathF.Ceiling(pixelHeight / _zoom);
+                ResumeLayout(true);
+                OnResize(EventArgs.Empty);
+                Invalidate();
             }
         }
     }
