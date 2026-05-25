@@ -4,7 +4,6 @@ using CoreForms.Ui.Controls.Basic;
 using CoreForms.Ui.Controls.Containers;
 using CoreForms.Ui.Core;
 using CoreForms.Ui.Platform;
-using CoreForms.Ui.Rendering;
 using CoreForms.Ui.Resources;
 
 namespace CoreForms.Ui.Reports;
@@ -17,28 +16,13 @@ namespace CoreForms.Ui.Reports;
 /// </summary>
 public class ReportViewer : UserControl
 {
-    private readonly ToolStrip _toolStrip = new() { GripStyle = ToolStripGripStyle.Hidden };
+    private readonly ToolStrip _toolStrip = new() { GripStyle = ToolStripGripStyle.Visible };
     private readonly ReportPreviewControl _preview = new();
     private readonly StatusStrip _statusStrip = new() { BackColor = Color.FromArgb(240, 240, 240) };
     private readonly Label _statusLabel = new() { Text = "Ready", Location = new Point(8, 3), Size = new Size(300, 18) };
 
     private readonly ToolStripLabel _lblPage = new() { Text = "1 / ?" };
     private readonly ToolStripTextBox _txtZoom = new() { Text = "100%", TextBoxWidth = 55 };
-
-    private static readonly SvgImage? IconFirst = SvgImage.FromSvgString(
-        "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20'><path d='M14 4l-6 6 6 6M9 4l-6 6 6 6' stroke='currentColor' stroke-width='2' fill='none' stroke-linecap='round' stroke-linejoin='round'/></svg>", 20);
-    private static readonly SvgImage? IconPrev = SvgImage.FromSvgString(
-        "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20'><path d='M13 4l-6 6 6 6' stroke='currentColor' stroke-width='2' fill='none' stroke-linecap='round' stroke-linejoin='round'/></svg>", 20);
-    private static readonly SvgImage? IconNext = SvgImage.FromSvgString(
-        "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20'><path d='M7 4l6 6-6 6' stroke='currentColor' stroke-width='2' fill='none' stroke-linecap='round' stroke-linejoin='round'/></svg>", 20);
-    private static readonly SvgImage? IconLast = SvgImage.FromSvgString(
-        "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20'><path d='M6 4l6 6-6 6M11 4l6 6-6 6' stroke='currentColor' stroke-width='2' fill='none' stroke-linecap='round' stroke-linejoin='round'/></svg>", 20);
-    private static readonly SvgImage? IconPrint = SvgImage.FromSvgString(
-        "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20'>" +
-        "<path d='M5 7V3h10v4' stroke='#2563eb' stroke-width='1.5' fill='none' stroke-linecap='round' stroke-linejoin='round'/>" +
-        "<rect x='3' y='7' width='14' height='5' rx='1' fill='#3b82f6'/>" +
-        "<rect x='5' y='12' width='10' height='5' rx='1' fill='#dbeafe' stroke='#2563eb' stroke-width='1'/>" +
-        "<path d='M8 7v3h4V7' fill='#e5e7eb' stroke='#2563eb' stroke-width='0.8'/></svg>", 20);
 
     /// <summary>
     /// Raised when the current page or total page count changes.
@@ -130,17 +114,17 @@ public class ReportViewer : UserControl
     {
         Size = new Size(800, 600);
 
-        var btnFirst = new ToolStripButton(IconFirst) { DisplayStyle = ToolStripItemDisplayStyle.Image };
-        var btnPrev = new ToolStripButton(IconPrev) { DisplayStyle = ToolStripItemDisplayStyle.Image };
-        var btnNext = new ToolStripButton(IconNext) { DisplayStyle = ToolStripItemDisplayStyle.Image };
-        var btnLast = new ToolStripButton(IconLast) { DisplayStyle = ToolStripItemDisplayStyle.Image };
+        var btnFirst = new ToolStripButton(Icons.Previous) { DisplayStyle = ToolStripItemDisplayStyle.Image };
+        var btnPrev = new ToolStripButton(Icons.Left) { DisplayStyle = ToolStripItemDisplayStyle.Image };
+        var btnNext = new ToolStripButton(Icons.Right) { DisplayStyle = ToolStripItemDisplayStyle.Image };
+        var btnLast = new ToolStripButton(Icons.Next) { DisplayStyle = ToolStripItemDisplayStyle.Image };
 
         btnFirst.Click += (_, _) => _preview.FirstPage();
         btnPrev.Click += (_, _) => _preview.PreviousPage();
         btnNext.Click += (_, _) => _preview.NextPage();
         btnLast.Click += (_, _) => _preview.LastPage();
 
-        var btnPrint = new ToolStripButton("Print", IconPrint) { DisplayStyle = ToolStripItemDisplayStyle.ImageAndText };
+        var btnPrint = new ToolStripButton("Print", Icons.Print) { DisplayStyle = ToolStripItemDisplayStyle.ImageAndText };
         btnPrint.Click += (_, _) => PrintReport();
 
         var btnExport = new ToolStripButton("PDF", Icons.DocumentText24) { DisplayStyle = ToolStripItemDisplayStyle.ImageAndText };

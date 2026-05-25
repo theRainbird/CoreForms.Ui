@@ -2678,4 +2678,463 @@ public static class Icons
     /// <summary>Gets the Fluent UI Color icon: wrench_screwdriver_32</summary>
     public static SvgImage? WrenchScrewdriver32 => SvgImage.FromSvgResource("CoreForms.Ui.Resources.Icons.FluentColor.ic_fluent_wrench_screwdriver_32_color.svg", 24);
 
+    /// <summary>Gets the SvgRepo icon: about</summary>
+    public static SvgImage? About => SvgImage.FromSvgResource("CoreForms.Ui.Resources.Icons.SvgRepo.about.svg", 24);
+
+    /// <summary>Gets the SvgRepo icon: address-book</summary>
+    public static SvgImage? AddressBook => SvgImage.FromSvgResource("CoreForms.Ui.Resources.Icons.SvgRepo.address-book.svg", 24);
+
+    /// <summary>Gets the SvgRepo icon: advance</summary>
+    public static SvgImage? Advance => SvgImage.FromSvgResource("CoreForms.Ui.Resources.Icons.SvgRepo.advance.svg", 24);
+
+    /// <summary>Gets the SvgRepo icon: advertising</summary>
+    public static SvgImage? Advertising => SvgImage.FromSvgResource("CoreForms.Ui.Resources.Icons.SvgRepo.advertising.svg", 24);
+
+    /// <summary>Gets the SvgRepo icon: alarm-clock</summary>
+    public static SvgImage? AlarmClock => SvgImage.FromSvgResource("CoreForms.Ui.Resources.Icons.SvgRepo.alarm-clock.svg", 24);
+
+    /// <summary>Gets the SvgRepo icon: alphabetical-sorting-az</summary>
+    public static SvgImage? AlphabeticalSortingAz => SvgImage.FromSvgResource("CoreForms.Ui.Resources.Icons.SvgRepo.alphabetical-sorting-az.svg", 24);
+
+    /// <summary>Gets the SvgRepo icon: alphabetical-sorting-za</summary>
+    public static SvgImage? AlphabeticalSortingZa => SvgImage.FromSvgResource("CoreForms.Ui.Resources.Icons.SvgRepo.alphabetical-sorting-za.svg", 24);
+
+    /// <summary>Gets the SvgRepo icon: answers</summary>
+    public static SvgImage? Answers => SvgImage.FromSvgResource("CoreForms.Ui.Resources.Icons.SvgRepo.answers.svg", 24);
+
+    /// <summary>Gets the SvgRepo icon: approval</summary>
+    public static SvgImage? Approval => SvgImage.FromSvgResource("CoreForms.Ui.Resources.Icons.SvgRepo.approval.svg", 24);
+
+    /// <summary>Gets the SvgRepo icon: approve</summary>
+    public static SvgImage? Approve => SvgImage.FromSvgResource("CoreForms.Ui.Resources.Icons.SvgRepo.approve.svg", 24);
+
+    /// <summary>Gets the SvgRepo icon: area-chart</summary>
+    public static SvgImage? AreaChart => SvgImage.FromSvgResource("CoreForms.Ui.Resources.Icons.SvgRepo.area-chart.svg", 24);
+
+    /// <summary>Gets the SvgRepo icon: bar-chart</summary>
+    public static SvgImage? BarChart => SvgImage.FromSvgResource("CoreForms.Ui.Resources.Icons.SvgRepo.bar-chart.svg", 24);
+
+    /// <summary>Gets the SvgRepo icon: briefcase</summary>
+    public static SvgImage? Briefcase => SvgImage.FromSvgResource("CoreForms.Ui.Resources.Icons.SvgRepo.briefcase.svg", 24);
+
+    /// <summary>Gets the SvgRepo icon: business-contact</summary>
+    public static SvgImage? BusinessContact => SvgImage.FromSvgResource("CoreForms.Ui.Resources.Icons.SvgRepo.business-contact.svg", 24);
+
+    /// <summary>Gets the SvgRepo icon: businessman</summary>
+    public static SvgImage? Businessman => SvgImage.FromSvgResource("CoreForms.Ui.Resources.Icons.SvgRepo.businessman.svg", 24);
+
+    /// <summary>Gets the SvgRepo icon: calculator</summary>
+    public static SvgImage? Calculator => SvgImage.FromSvgResource("CoreForms.Ui.Resources.Icons.SvgRepo.calculator.svg", 24);
+
+    /// <summary>Gets the SvgRepo icon: calendar</summary>
+    public static SvgImage? Calendar => SvgImage.FromSvgResource("CoreForms.Ui.Resources.Icons.SvgRepo.calendar.svg", 24);
+
+    /// <summary>Gets the SvgRepo icon: checkmark</summary>
+    public static SvgImage? Checkmark => SvgImage.FromSvgResource("CoreForms.Ui.Resources.Icons.SvgRepo.checkmark.svg", 24);
+
+    /// <summary>Gets the SvgRepo icon: clear-filters</summary>
+    public static SvgImage? ClearFilters => SvgImage.FromSvgResource("CoreForms.Ui.Resources.Icons.SvgRepo.clear-filters.svg", 24);
+
+    /// <summary>Gets the SvgRepo icon: clock</summary>
+    public static SvgImage? Clock => SvgImage.FromSvgResource("CoreForms.Ui.Resources.Icons.SvgRepo.clock.svg", 24);
+
+    /// <summary>Gets the SvgRepo icon: collapse</summary>
+    public static SvgImage? Collapse => SvgImage.FromSvgResource("CoreForms.Ui.Resources.Icons.SvgRepo.collapse.svg", 24);
+
+    /// <summary>Gets the SvgRepo icon: combo-chart</summary>
+    public static SvgImage? ComboChart => SvgImage.FromSvgResource("CoreForms.Ui.Resources.Icons.SvgRepo.combo-chart.svg", 24);
+
+    /// <summary>Gets the SvgRepo icon: comments</summary>
+    public static SvgImage? Comments => SvgImage.FromSvgResource("CoreForms.Ui.Resources.Icons.SvgRepo.comments.svg", 24);
+
+    /// <summary>Gets the SvgRepo icon: conference-call</summary>
+    public static SvgImage? ConferenceCall => SvgImage.FromSvgResource("CoreForms.Ui.Resources.Icons.SvgRepo.conference-call.svg", 24);
+
+    /// <summary>Gets the SvgRepo icon: contacts</summary>
+    public static SvgImage? Contacts => SvgImage.FromSvgResource("CoreForms.Ui.Resources.Icons.SvgRepo.contacts.svg", 24);
+
+    /// <summary>Gets the SvgRepo icon: currency-exchange</summary>
+    public static SvgImage? CurrencyExchange => SvgImage.FromSvgResource("CoreForms.Ui.Resources.Icons.SvgRepo.currency-exchange.svg", 24);
+
+    /// <summary>Gets the SvgRepo icon: cursor</summary>
+    public static SvgImage? Cursor => SvgImage.FromSvgResource("CoreForms.Ui.Resources.Icons.SvgRepo.cursor.svg", 24);
+
+    /// <summary>Gets the SvgRepo icon: customer-support</summary>
+    public static SvgImage? CustomerSupport => SvgImage.FromSvgResource("CoreForms.Ui.Resources.Icons.SvgRepo.customer-support.svg", 24);
+
+    /// <summary>Gets the SvgRepo icon: data-sheet</summary>
+    public static SvgImage? DataSheet => SvgImage.FromSvgResource("CoreForms.Ui.Resources.Icons.SvgRepo.data-sheet.svg", 24);
+
+    /// <summary>Gets the SvgRepo icon: deployment</summary>
+    public static SvgImage? Deployment => SvgImage.FromSvgResource("CoreForms.Ui.Resources.Icons.SvgRepo.deployment.svg", 24);
+
+    /// <summary>Gets the SvgRepo icon: down</summary>
+    public static SvgImage? Down => SvgImage.FromSvgResource("CoreForms.Ui.Resources.Icons.SvgRepo.down.svg", 24);
+
+    /// <summary>Gets the SvgRepo icon: down-left</summary>
+    public static SvgImage? DownLeft => SvgImage.FromSvgResource("CoreForms.Ui.Resources.Icons.SvgRepo.down-left.svg", 24);
+
+    /// <summary>Gets the SvgRepo icon: down-right</summary>
+    public static SvgImage? DownRight => SvgImage.FromSvgResource("CoreForms.Ui.Resources.Icons.SvgRepo.down-right.svg", 24);
+
+    /// <summary>Gets the SvgRepo icon: download</summary>
+    public static SvgImage? Download => SvgImage.FromSvgResource("CoreForms.Ui.Resources.Icons.SvgRepo.download.svg", 24);
+
+    /// <summary>Gets the SvgRepo icon: edit-image</summary>
+    public static SvgImage? EditImage => SvgImage.FromSvgResource("CoreForms.Ui.Resources.Icons.SvgRepo.edit-image.svg", 24);
+
+    /// <summary>Gets the SvgRepo icon: electronics</summary>
+    public static SvgImage? Electronics => SvgImage.FromSvgResource("CoreForms.Ui.Resources.Icons.SvgRepo.electronics.svg", 24);
+
+    /// <summary>Gets the SvgRepo icon: empty-filter</summary>
+    public static SvgImage? EmptyFilter => SvgImage.FromSvgResource("CoreForms.Ui.Resources.Icons.SvgRepo.empty-filter.svg", 24);
+
+    /// <summary>Gets the SvgRepo icon: end-call</summary>
+    public static SvgImage? EndCall => SvgImage.FromSvgResource("CoreForms.Ui.Resources.Icons.SvgRepo.end-call.svg", 24);
+
+    /// <summary>Gets the SvgRepo icon: expand</summary>
+    public static SvgImage? Expand => SvgImage.FromSvgResource("CoreForms.Ui.Resources.Icons.SvgRepo.expand.svg", 24);
+
+    /// <summary>Gets the SvgRepo icon: expired</summary>
+    public static SvgImage? Expired => SvgImage.FromSvgResource("CoreForms.Ui.Resources.Icons.SvgRepo.expired.svg", 24);
+
+    /// <summary>Gets the SvgRepo icon: factory</summary>
+    public static SvgImage? Factory => SvgImage.FromSvgResource("CoreForms.Ui.Resources.Icons.SvgRepo.factory.svg", 24);
+
+    /// <summary>Gets the SvgRepo icon: faq</summary>
+    public static SvgImage? Faq => SvgImage.FromSvgResource("CoreForms.Ui.Resources.Icons.SvgRepo.faq.svg", 24);
+
+    /// <summary>Gets the SvgRepo icon: feedback</summary>
+    public static SvgImage? Feedback => SvgImage.FromSvgResource("CoreForms.Ui.Resources.Icons.SvgRepo.feedback.svg", 24);
+
+    /// <summary>Gets the SvgRepo icon: filing-cabinet</summary>
+    public static SvgImage? FilingCabinet => SvgImage.FromSvgResource("CoreForms.Ui.Resources.Icons.SvgRepo.filing-cabinet.svg", 24);
+
+    /// <summary>Gets the SvgRepo icon: filled-filter</summary>
+    public static SvgImage? FilledFilter => SvgImage.FromSvgResource("CoreForms.Ui.Resources.Icons.SvgRepo.filled-filter.svg", 24);
+
+    /// <summary>Gets the SvgRepo icon: flash-on</summary>
+    public static SvgImage? FlashOn => SvgImage.FromSvgResource("CoreForms.Ui.Resources.Icons.SvgRepo.flash-on.svg", 24);
+
+    /// <summary>Gets the SvgRepo icon: flow-chart</summary>
+    public static SvgImage? FlowChart => SvgImage.FromSvgResource("CoreForms.Ui.Resources.Icons.SvgRepo.flow-chart.svg", 24);
+
+    /// <summary>Gets the SvgRepo icon: folder</summary>
+    public static SvgImage? Folder => SvgImage.FromSvgResource("CoreForms.Ui.Resources.Icons.SvgRepo.folder.svg", 24);
+
+    /// <summary>Gets the SvgRepo icon: gallery</summary>
+    public static SvgImage? Gallery => SvgImage.FromSvgResource("CoreForms.Ui.Resources.Icons.SvgRepo.gallery.svg", 24);
+
+    /// <summary>Gets the SvgRepo icon: globe</summary>
+    public static SvgImage? Globe => SvgImage.FromSvgResource("CoreForms.Ui.Resources.Icons.SvgRepo.globe.svg", 24);
+
+    /// <summary>Gets the SvgRepo icon: high-priority</summary>
+    public static SvgImage? HighPriority => SvgImage.FromSvgResource("CoreForms.Ui.Resources.Icons.SvgRepo.high-priority.svg", 24);
+
+    /// <summary>Gets the SvgRepo icon: home</summary>
+    public static SvgImage? Home => SvgImage.FromSvgResource("CoreForms.Ui.Resources.Icons.SvgRepo.home.svg", 24);
+
+    /// <summary>Gets the SvgRepo icon: idea</summary>
+    public static SvgImage? Idea => SvgImage.FromSvgResource("CoreForms.Ui.Resources.Icons.SvgRepo.idea.svg", 24);
+
+    /// <summary>Gets the SvgRepo icon: image-file</summary>
+    public static SvgImage? ImageFile => SvgImage.FromSvgResource("CoreForms.Ui.Resources.Icons.SvgRepo.image-file.svg", 24);
+
+    /// <summary>Gets the SvgRepo icon: in-transit</summary>
+    public static SvgImage? InTransit => SvgImage.FromSvgResource("CoreForms.Ui.Resources.Icons.SvgRepo.in-transit.svg", 24);
+
+    /// <summary>Gets the SvgRepo icon: info</summary>
+    public static SvgImage? Info => SvgImage.FromSvgResource("CoreForms.Ui.Resources.Icons.SvgRepo.info.svg", 24);
+
+    /// <summary>Gets the SvgRepo icon: inspection</summary>
+    public static SvgImage? Inspection => SvgImage.FromSvgResource("CoreForms.Ui.Resources.Icons.SvgRepo.inspection.svg", 24);
+
+    /// <summary>Gets the SvgRepo icon: internal</summary>
+    public static SvgImage? Internal => SvgImage.FromSvgResource("CoreForms.Ui.Resources.Icons.SvgRepo.internal.svg", 24);
+
+    /// <summary>Gets the SvgRepo icon: invite</summary>
+    public static SvgImage? Invite => SvgImage.FromSvgResource("CoreForms.Ui.Resources.Icons.SvgRepo.invite.svg", 24);
+
+    /// <summary>Gets the SvgRepo icon: key</summary>
+    public static SvgImage? Key => SvgImage.FromSvgResource("CoreForms.Ui.Resources.Icons.SvgRepo.key.svg", 24);
+
+    /// <summary>Gets the SvgRepo icon: landscape</summary>
+    public static SvgImage? Landscape => SvgImage.FromSvgResource("CoreForms.Ui.Resources.Icons.SvgRepo.landscape.svg", 24);
+
+    /// <summary>Gets the SvgRepo icon: leave</summary>
+    public static SvgImage? Leave => SvgImage.FromSvgResource("CoreForms.Ui.Resources.Icons.SvgRepo.leave.svg", 24);
+
+    /// <summary>Gets the SvgRepo icon: left-down</summary>
+    public static SvgImage? LeftDown => SvgImage.FromSvgResource("CoreForms.Ui.Resources.Icons.SvgRepo.left-down.svg", 24);
+
+    /// <summary>Gets the SvgRepo icon: left-down2</summary>
+    public static SvgImage? LeftDown2 => SvgImage.FromSvgResource("CoreForms.Ui.Resources.Icons.SvgRepo.left-down2.svg", 24);
+
+    /// <summary>Gets the SvgRepo icon: left-up</summary>
+    public static SvgImage? LeftUp => SvgImage.FromSvgResource("CoreForms.Ui.Resources.Icons.SvgRepo.left-up.svg", 24);
+
+    /// <summary>Gets the SvgRepo icon: left-up2</summary>
+    public static SvgImage? LeftUp2 => SvgImage.FromSvgResource("CoreForms.Ui.Resources.Icons.SvgRepo.left-up2.svg", 24);
+
+    /// <summary>Gets the SvgRepo icon: left</summary>
+    public static SvgImage? Left => SvgImage.FromSvgResource("CoreForms.Ui.Resources.Icons.SvgRepo.left.svg", 24);
+
+    /// <summary>Gets the SvgRepo icon: library</summary>
+    public static SvgImage? Library => SvgImage.FromSvgResource("CoreForms.Ui.Resources.Icons.SvgRepo.library.svg", 24);
+
+    /// <summary>Gets the SvgRepo icon: like</summary>
+    public static SvgImage? Like => SvgImage.FromSvgResource("CoreForms.Ui.Resources.Icons.SvgRepo.like.svg", 24);
+
+    /// <summary>Gets the SvgRepo icon: line-chart</summary>
+    public static SvgImage? LineChart => SvgImage.FromSvgResource("CoreForms.Ui.Resources.Icons.SvgRepo.line-chart.svg", 24);
+
+    /// <summary>Gets the SvgRepo icon: list</summary>
+    public static SvgImage? List => SvgImage.FromSvgResource("CoreForms.Ui.Resources.Icons.SvgRepo.list.svg", 24);
+
+    /// <summary>Gets the SvgRepo icon: lock</summary>
+    public static SvgImage? Lock => SvgImage.FromSvgResource("CoreForms.Ui.Resources.Icons.SvgRepo.lock.svg", 24);
+
+    /// <summary>Gets the SvgRepo icon: low-priority</summary>
+    public static SvgImage? LowPriority => SvgImage.FromSvgResource("CoreForms.Ui.Resources.Icons.SvgRepo.low-priority.svg", 24);
+
+    /// <summary>Gets the SvgRepo icon: manager</summary>
+    public static SvgImage? Manager => SvgImage.FromSvgResource("CoreForms.Ui.Resources.Icons.SvgRepo.manager.svg", 24);
+
+    /// <summary>Gets the SvgRepo icon: medium-priority</summary>
+    public static SvgImage? MediumPriority => SvgImage.FromSvgResource("CoreForms.Ui.Resources.Icons.SvgRepo.medium-priority.svg", 24);
+
+    /// <summary>Gets the SvgRepo icon: menu</summary>
+    public static SvgImage? Menu => SvgImage.FromSvgResource("CoreForms.Ui.Resources.Icons.SvgRepo.menu.svg", 24);
+
+    /// <summary>Gets the SvgRepo icon: minus</summary>
+    public static SvgImage? Minus => SvgImage.FromSvgResource("CoreForms.Ui.Resources.Icons.SvgRepo.minus.svg", 24);
+
+    /// <summary>Gets the SvgRepo icon: missed-call</summary>
+    public static SvgImage? MissedCall => SvgImage.FromSvgResource("CoreForms.Ui.Resources.Icons.SvgRepo.missed-call.svg", 24);
+
+    /// <summary>Gets the SvgRepo icon: mms</summary>
+    public static SvgImage? Mms => SvgImage.FromSvgResource("CoreForms.Ui.Resources.Icons.SvgRepo.mms.svg", 24);
+
+    /// <summary>Gets the SvgRepo icon: money-transfer</summary>
+    public static SvgImage? MoneyTransfer => SvgImage.FromSvgResource("CoreForms.Ui.Resources.Icons.SvgRepo.money-transfer.svg", 24);
+
+    /// <summary>Gets the SvgRepo icon: multiple-inputs</summary>
+    public static SvgImage? MultipleInputs => SvgImage.FromSvgResource("CoreForms.Ui.Resources.Icons.SvgRepo.multiple-inputs.svg", 24);
+
+    /// <summary>Gets the SvgRepo icon: neutral-decision</summary>
+    public static SvgImage? NeutralDecision => SvgImage.FromSvgResource("CoreForms.Ui.Resources.Icons.SvgRepo.neutral-decision.svg", 24);
+
+    /// <summary>Gets the SvgRepo icon: neutral-trading</summary>
+    public static SvgImage? NeutralTrading => SvgImage.FromSvgResource("CoreForms.Ui.Resources.Icons.SvgRepo.neutral-trading.svg", 24);
+
+    /// <summary>Gets the SvgRepo icon: news</summary>
+    public static SvgImage? News => SvgImage.FromSvgResource("CoreForms.Ui.Resources.Icons.SvgRepo.news.svg", 24);
+
+    /// <summary>Gets the SvgRepo icon: next</summary>
+    public static SvgImage? Next => SvgImage.FromSvgResource("CoreForms.Ui.Resources.Icons.SvgRepo.next.svg", 24);
+
+    /// <summary>Gets the SvgRepo icon: night-portrait</summary>
+    public static SvgImage? NightPortrait => SvgImage.FromSvgResource("CoreForms.Ui.Resources.Icons.SvgRepo.night-portrait.svg", 24);
+
+    /// <summary>Gets the SvgRepo icon: no-idea</summary>
+    public static SvgImage? NoIdea => SvgImage.FromSvgResource("CoreForms.Ui.Resources.Icons.SvgRepo.no-idea.svg", 24);
+
+    /// <summary>Gets the SvgRepo icon: ok</summary>
+    public static SvgImage? Ok => SvgImage.FromSvgResource("CoreForms.Ui.Resources.Icons.SvgRepo.ok.svg", 24);
+
+    /// <summary>Gets the SvgRepo icon: online-support</summary>
+    public static SvgImage? OnlineSupport => SvgImage.FromSvgResource("CoreForms.Ui.Resources.Icons.SvgRepo.online-support.svg", 24);
+
+    /// <summary>Gets the SvgRepo icon: overtime</summary>
+    public static SvgImage? Overtime => SvgImage.FromSvgResource("CoreForms.Ui.Resources.Icons.SvgRepo.overtime.svg", 24);
+
+    /// <summary>Gets the SvgRepo icon: package</summary>
+    public static SvgImage? Package => SvgImage.FromSvgResource("CoreForms.Ui.Resources.Icons.SvgRepo.package.svg", 24);
+
+    /// <summary>Gets the SvgRepo icon: paid</summary>
+    public static SvgImage? Paid => SvgImage.FromSvgResource("CoreForms.Ui.Resources.Icons.SvgRepo.paid.svg", 24);
+
+    /// <summary>Gets the SvgRepo icon: parallel-tasks</summary>
+    public static SvgImage? ParallelTasks => SvgImage.FromSvgResource("CoreForms.Ui.Resources.Icons.SvgRepo.parallel-tasks.svg", 24);
+
+    /// <summary>Gets the SvgRepo icon: phone</summary>
+    public static SvgImage? Phone => SvgImage.FromSvgResource("CoreForms.Ui.Resources.Icons.SvgRepo.phone.svg", 24);
+
+    /// <summary>Gets the SvgRepo icon: picture</summary>
+    public static SvgImage? Picture => SvgImage.FromSvgResource("CoreForms.Ui.Resources.Icons.SvgRepo.picture.svg", 24);
+
+    /// <summary>Gets the SvgRepo icon: planner</summary>
+    public static SvgImage? Planner => SvgImage.FromSvgResource("CoreForms.Ui.Resources.Icons.SvgRepo.planner.svg", 24);
+
+    /// <summary>Gets the SvgRepo icon: plus</summary>
+    public static SvgImage? Plus => SvgImage.FromSvgResource("CoreForms.Ui.Resources.Icons.SvgRepo.plus.svg", 24);
+
+    /// <summary>Gets the SvgRepo icon: previous</summary>
+    public static SvgImage? Previous => SvgImage.FromSvgResource("CoreForms.Ui.Resources.Icons.SvgRepo.previous.svg", 24);
+
+    /// <summary>Gets the SvgRepo icon: print</summary>
+    public static SvgImage? Print => SvgImage.FromSvgResource("CoreForms.Ui.Resources.Icons.SvgRepo.print.svg", 24);
+
+    /// <summary>Gets the SvgRepo icon: process</summary>
+    public static SvgImage? Process => SvgImage.FromSvgResource("CoreForms.Ui.Resources.Icons.SvgRepo.process.svg", 24);
+
+    /// <summary>Gets the SvgRepo icon: puzzle</summary>
+    public static SvgImage? Puzzle => SvgImage.FromSvgResource("CoreForms.Ui.Resources.Icons.SvgRepo.puzzle.svg", 24);
+
+    /// <summary>Gets the SvgRepo icon: questions</summary>
+    public static SvgImage? Questions => SvgImage.FromSvgResource("CoreForms.Ui.Resources.Icons.SvgRepo.questions.svg", 24);
+
+    /// <summary>Gets the SvgRepo icon: rating</summary>
+    public static SvgImage? Rating => SvgImage.FromSvgResource("CoreForms.Ui.Resources.Icons.SvgRepo.rating.svg", 24);
+
+    /// <summary>Gets the SvgRepo icon: ratings</summary>
+    public static SvgImage? Ratings => SvgImage.FromSvgResource("CoreForms.Ui.Resources.Icons.SvgRepo.ratings.svg", 24);
+
+    /// <summary>Gets the SvgRepo icon: reading-ebook</summary>
+    public static SvgImage? ReadingEbook => SvgImage.FromSvgResource("CoreForms.Ui.Resources.Icons.SvgRepo.reading-ebook.svg", 24);
+
+    /// <summary>Gets the SvgRepo icon: reading</summary>
+    public static SvgImage? Reading => SvgImage.FromSvgResource("CoreForms.Ui.Resources.Icons.SvgRepo.reading.svg", 24);
+
+    /// <summary>Gets the SvgRepo icon: redo</summary>
+    public static SvgImage? Redo => SvgImage.FromSvgResource("CoreForms.Ui.Resources.Icons.SvgRepo.redo.svg", 24);
+
+    /// <summary>Gets the SvgRepo icon: refresh</summary>
+    public static SvgImage? Refresh => SvgImage.FromSvgResource("CoreForms.Ui.Resources.Icons.SvgRepo.refresh.svg", 24);
+
+    /// <summary>Gets the SvgRepo icon: remove-image</summary>
+    public static SvgImage? RemoveImage => SvgImage.FromSvgResource("CoreForms.Ui.Resources.Icons.SvgRepo.remove-image.svg", 24);
+
+    /// <summary>Gets the SvgRepo icon: reuse</summary>
+    public static SvgImage? Reuse => SvgImage.FromSvgResource("CoreForms.Ui.Resources.Icons.SvgRepo.reuse.svg", 24);
+
+    /// <summary>Gets the SvgRepo icon: right-down</summary>
+    public static SvgImage? RightDown => SvgImage.FromSvgResource("CoreForms.Ui.Resources.Icons.SvgRepo.right-down.svg", 24);
+
+    /// <summary>Gets the SvgRepo icon: right-down2</summary>
+    public static SvgImage? RightDown2 => SvgImage.FromSvgResource("CoreForms.Ui.Resources.Icons.SvgRepo.right-down2.svg", 24);
+
+    /// <summary>Gets the SvgRepo icon: right-up</summary>
+    public static SvgImage? RightUp => SvgImage.FromSvgResource("CoreForms.Ui.Resources.Icons.SvgRepo.right-up.svg", 24);
+
+    /// <summary>Gets the SvgRepo icon: right-up2</summary>
+    public static SvgImage? RightUp2 => SvgImage.FromSvgResource("CoreForms.Ui.Resources.Icons.SvgRepo.right-up2.svg", 24);
+
+    /// <summary>Gets the SvgRepo icon: right</summary>
+    public static SvgImage? Right => SvgImage.FromSvgResource("CoreForms.Ui.Resources.Icons.SvgRepo.right.svg", 24);
+
+    /// <summary>Gets the SvgRepo icon: ruler</summary>
+    public static SvgImage? Ruler => SvgImage.FromSvgResource("CoreForms.Ui.Resources.Icons.SvgRepo.ruler.svg", 24);
+
+    /// <summary>Gets the SvgRepo icon: rules</summary>
+    public static SvgImage? Rules => SvgImage.FromSvgResource("CoreForms.Ui.Resources.Icons.SvgRepo.rules.svg", 24);
+
+    /// <summary>Gets the SvgRepo icon: safe</summary>
+    public static SvgImage? Safe => SvgImage.FromSvgResource("CoreForms.Ui.Resources.Icons.SvgRepo.safe.svg", 24);
+
+    /// <summary>Gets the SvgRepo icon: sales-performance</summary>
+    public static SvgImage? SalesPerformance => SvgImage.FromSvgResource("CoreForms.Ui.Resources.Icons.SvgRepo.sales-performance.svg", 24);
+
+    /// <summary>Gets the SvgRepo icon: scatter-plot</summary>
+    public static SvgImage? ScatterPlot => SvgImage.FromSvgResource("CoreForms.Ui.Resources.Icons.SvgRepo.scatter-plot.svg", 24);
+
+    /// <summary>Gets the SvgRepo icon: search</summary>
+    public static SvgImage? Search => SvgImage.FromSvgResource("CoreForms.Ui.Resources.Icons.SvgRepo.search.svg", 24);
+
+    /// <summary>Gets the SvgRepo icon: serial-tasks</summary>
+    public static SvgImage? SerialTasks => SvgImage.FromSvgResource("CoreForms.Ui.Resources.Icons.SvgRepo.serial-tasks.svg", 24);
+
+    /// <summary>Gets the SvgRepo icon: services</summary>
+    public static SvgImage? Services => SvgImage.FromSvgResource("CoreForms.Ui.Resources.Icons.SvgRepo.services.svg", 24);
+
+    /// <summary>Gets the SvgRepo icon: settings</summary>
+    public static SvgImage? Settings => SvgImage.FromSvgResource("CoreForms.Ui.Resources.Icons.SvgRepo.settings.svg", 24);
+
+    /// <summary>Gets the SvgRepo icon: share</summary>
+    public static SvgImage? Share => SvgImage.FromSvgResource("CoreForms.Ui.Resources.Icons.SvgRepo.share.svg", 24);
+
+    /// <summary>Gets the SvgRepo icon: shipped</summary>
+    public static SvgImage? Shipped => SvgImage.FromSvgResource("CoreForms.Ui.Resources.Icons.SvgRepo.shipped.svg", 24);
+
+    /// <summary>Gets the SvgRepo icon: shop</summary>
+    public static SvgImage? Shop => SvgImage.FromSvgResource("CoreForms.Ui.Resources.Icons.SvgRepo.shop.svg", 24);
+
+    /// <summary>Gets the SvgRepo icon: sim-card-chip</summary>
+    public static SvgImage? SimCardChip => SvgImage.FromSvgResource("CoreForms.Ui.Resources.Icons.SvgRepo.sim-card-chip.svg", 24);
+
+    /// <summary>Gets the SvgRepo icon: sim-card</summary>
+    public static SvgImage? SimCard => SvgImage.FromSvgResource("CoreForms.Ui.Resources.Icons.SvgRepo.sim-card.svg", 24);
+
+    /// <summary>Gets the SvgRepo icon: sms</summary>
+    public static SvgImage? Sms => SvgImage.FromSvgResource("CoreForms.Ui.Resources.Icons.SvgRepo.sms.svg", 24);
+
+    /// <summary>Gets the SvgRepo icon: speaker</summary>
+    public static SvgImage? Speaker => SvgImage.FromSvgResource("CoreForms.Ui.Resources.Icons.SvgRepo.speaker.svg", 24);
+
+    /// <summary>Gets the SvgRepo icon: stack-of-photos</summary>
+    public static SvgImage? StackOfPhotos => SvgImage.FromSvgResource("CoreForms.Ui.Resources.Icons.SvgRepo.stack-of-photos.svg", 24);
+
+    /// <summary>Gets the SvgRepo icon: start</summary>
+    public static SvgImage? Start => SvgImage.FromSvgResource("CoreForms.Ui.Resources.Icons.SvgRepo.start.svg", 24);
+
+    /// <summary>Gets the SvgRepo icon: statistics</summary>
+    public static SvgImage? Statistics => SvgImage.FromSvgResource("CoreForms.Ui.Resources.Icons.SvgRepo.statistics.svg", 24);
+
+    /// <summary>Gets the SvgRepo icon: support</summary>
+    public static SvgImage? Support => SvgImage.FromSvgResource("CoreForms.Ui.Resources.Icons.SvgRepo.support.svg", 24);
+
+    /// <summary>Gets the SvgRepo icon: survey</summary>
+    public static SvgImage? Survey => SvgImage.FromSvgResource("CoreForms.Ui.Resources.Icons.SvgRepo.survey.svg", 24);
+
+    /// <summary>Gets the SvgRepo icon: synchronize</summary>
+    public static SvgImage? Synchronize => SvgImage.FromSvgResource("CoreForms.Ui.Resources.Icons.SvgRepo.synchronize.svg", 24);
+
+    /// <summary>Gets the SvgRepo icon: template</summary>
+    public static SvgImage? Template => SvgImage.FromSvgResource("CoreForms.Ui.Resources.Icons.SvgRepo.template.svg", 24);
+
+    /// <summary>Gets the SvgRepo icon: timeline</summary>
+    public static SvgImage? Timeline => SvgImage.FromSvgResource("CoreForms.Ui.Resources.Icons.SvgRepo.timeline.svg", 24);
+
+    /// <summary>Gets the SvgRepo icon: todo-list</summary>
+    public static SvgImage? TodoList => SvgImage.FromSvgResource("CoreForms.Ui.Resources.Icons.SvgRepo.todo-list.svg", 24);
+
+    /// <summary>Gets the SvgRepo icon: tree-structure</summary>
+    public static SvgImage? TreeStructure => SvgImage.FromSvgResource("CoreForms.Ui.Resources.Icons.SvgRepo.tree-structure.svg", 24);
+
+    /// <summary>Gets the SvgRepo icon: undo</summary>
+    public static SvgImage? Undo => SvgImage.FromSvgResource("CoreForms.Ui.Resources.Icons.SvgRepo.undo.svg", 24);
+
+    /// <summary>Gets the SvgRepo icon: unlock</summary>
+    public static SvgImage? Unlock => SvgImage.FromSvgResource("CoreForms.Ui.Resources.Icons.SvgRepo.unlock.svg", 24);
+
+    /// <summary>Gets the SvgRepo icon: up-left</summary>
+    public static SvgImage? UpLeft => SvgImage.FromSvgResource("CoreForms.Ui.Resources.Icons.SvgRepo.up-left.svg", 24);
+
+    /// <summary>Gets the SvgRepo icon: up-right</summary>
+    public static SvgImage? UpRight => SvgImage.FromSvgResource("CoreForms.Ui.Resources.Icons.SvgRepo.up-right.svg", 24);
+
+    /// <summary>Gets the SvgRepo icon: up</summary>
+    public static SvgImage? Up => SvgImage.FromSvgResource("CoreForms.Ui.Resources.Icons.SvgRepo.up.svg", 24);
+
+    /// <summary>Gets the SvgRepo icon: upload</summary>
+    public static SvgImage? Upload => SvgImage.FromSvgResource("CoreForms.Ui.Resources.Icons.SvgRepo.upload.svg", 24);
+
+    /// <summary>Gets the SvgRepo icon: video-call</summary>
+    public static SvgImage? VideoCall => SvgImage.FromSvgResource("CoreForms.Ui.Resources.Icons.SvgRepo.video-call.svg", 24);
+
+    /// <summary>Gets the SvgRepo icon: video-file</summary>
+    public static SvgImage? VideoFile => SvgImage.FromSvgResource("CoreForms.Ui.Resources.Icons.SvgRepo.video-file.svg", 24);
+
+    /// <summary>Gets the SvgRepo icon: view-details</summary>
+    public static SvgImage? ViewDetails => SvgImage.FromSvgResource("CoreForms.Ui.Resources.Icons.SvgRepo.view-details.svg", 24);
+
+    /// <summary>Gets the SvgRepo icon: vip</summary>
+    public static SvgImage? Vip => SvgImage.FromSvgResource("CoreForms.Ui.Resources.Icons.SvgRepo.vip.svg", 24);
+
+    /// <summary>Gets the SvgRepo icon: voice-presentation</summary>
+    public static SvgImage? VoicePresentation => SvgImage.FromSvgResource("CoreForms.Ui.Resources.Icons.SvgRepo.voice-presentation.svg", 24);
+
+    /// <summary>Gets the SvgRepo icon: workflow</summary>
+    public static SvgImage? Workflow => SvgImage.FromSvgResource("CoreForms.Ui.Resources.Icons.SvgRepo.workflow.svg", 24);
+
 }

@@ -591,7 +591,7 @@ public static class Platform
     {
         return icon switch
         {
-            MessageBoxIcon.Information => "CoreForms.Ui.Resources.Icons.FluentColor.ic_fluent_chat_48_color.svg",
+            MessageBoxIcon.Information => "CoreForms.Ui.Resources.Icons.SvgRepo.info.svg",
             MessageBoxIcon.Warning => "CoreForms.Ui.Resources.Icons.FluentColor.ic_fluent_warning_48_color.svg",
             MessageBoxIcon.Error => "CoreForms.Ui.Resources.Icons.FluentColor.ic_fluent_error_circle_48_color.svg",
             MessageBoxIcon.Question => "CoreForms.Ui.Resources.Icons.FluentColor.ic_fluent_question_circle_48_color.svg",

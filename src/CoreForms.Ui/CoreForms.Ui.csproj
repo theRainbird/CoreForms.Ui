@@ -12,6 +12,7 @@
   <ItemGroup>
     <EmbeddedResource Include="Resources\Icons\*.svg" />
     <EmbeddedResource Include="Resources\Icons\FluentColor\*.svg" />
+    <EmbeddedResource Include="Resources\Icons\SvgRepo\*.svg" />
   </ItemGroup>
 
   <ItemGroup>
