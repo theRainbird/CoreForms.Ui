@@ -275,14 +275,14 @@ public class LightTheme : Theme
 
     private static readonly Color[] _diagramPalette = new[]
     {
-        Color.FromArgb(174, 198, 207),  // Pastell Blau
-        Color.FromArgb(225, 190, 185),  // Pastell Rosa
-        Color.FromArgb(195, 215, 185),  // Pastell Grün
-        Color.FromArgb(225, 210, 175),  // Pastell Gelb
-        Color.FromArgb(200, 185, 210),  // Pastell Lila
-        Color.FromArgb(180, 210, 215),  // Pastell Türkis
-        Color.FromArgb(215, 195, 175),  // Pastell Beige
-        Color.FromArgb(190, 200, 215)   // Pastell Graublau
+        Color.FromArgb(91, 155, 213),   // Excel Blau
+        Color.FromArgb(237, 125, 49),   // Excel Orange
+        Color.FromArgb(112, 173, 71),   // Excel Grün
+        Color.FromArgb(241, 90, 96),    // Excel Rot
+        Color.FromArgb(165, 105, 189),  // Excel Lila
+        Color.FromArgb(68, 194, 194),   // Excel Türkis
+        Color.FromArgb(237, 176, 32),   // Excel Gelb
+        Color.FromArgb(158, 112, 76)    // Excel Braun
     };
 
     /// <inheritdoc />

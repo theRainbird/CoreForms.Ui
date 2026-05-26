@@ -254,6 +254,26 @@ public class DiagramViewTests
         Assert.NotNull(c1);
     }
 
+    [Fact]
+    public void DiagramView_StackedBar_SeriesColorsShouldResolve()
+    {
+        var view = new DiagramView();
+        view.ChartType = DiagramType.StackedBar;
+
+        var s1 = new DiagramViewSeries { Name = "A", Color = Core.Color.Red };
+        s1.Add("Q1", 10);
+        view.Series.Add(s1);
+
+        var s2 = new DiagramViewSeries { Name = "B", Color = Core.Color.Blue };
+        s2.Add("Q1", 20);
+        view.Series.Add(s2);
+
+        Assert.Equal(2, view.Series.Count);
+        Assert.Equal(Core.Color.Red, view.Series[0].Color);
+        Assert.Equal(Core.Color.Blue, view.Series[1].Color);
+        Assert.Equal(2, view.Series[0].Points.Count + view.Series[1].Points.Count);
+    }
+
     private sealed class TestDataItem
     {
         public string? Name { get; set; }

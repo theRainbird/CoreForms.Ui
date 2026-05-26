@@ -42,6 +42,8 @@ public class DiagramView : ContainerControl
 
     private Rectangle _chartAreaCached;
     private Rectangle _legendAreaCached;
+    private float _titleHeight;
+    private bool _layoutDirty = true;
 
     /// <summary>
     /// Initializes a new instance of DiagramView.
@@ -52,10 +54,16 @@ public class DiagramView : ContainerControl
         TabStop = true;
         LoadThemeColors();
 
-        _series.CollectionChanged += (s, e) => Invalidate();
+        _series.CollectionChanged += (s, e) => InvalidateLayout();
 
         _hScrollBar.Scroll += (s, e) => { _panX = -_hScrollBar.Value; Invalidate(); };
         _vScrollBar.Scroll += (s, e) => { _panY = -_vScrollBar.Value; Invalidate(); };
+    }
+
+    private void InvalidateLayout()
+    {
+        _layoutDirty = true;
+        Invalidate();
     }
 
     private void LoadThemeColors()
@@ -76,6 +84,8 @@ public class DiagramView : ContainerControl
     private Color _diagramAxisLabelColor;
     private Color _diagramLegendBackColor;
     private Color[] _palette = Array.Empty<Color>();
+    private Padding _diagramPadding = new(28, 25, 20, 20);
+    private string _title = string.Empty;
 
     /// <summary>
     /// Gets or sets the type of diagram to render.
@@ -89,7 +99,7 @@ public class DiagramView : ContainerControl
             {
                 _chartType = value;
                 OnPropertyChanged(nameof(ChartType));
-                Invalidate();
+                InvalidateLayout();
             }
         }
     }
@@ -98,6 +108,23 @@ public class DiagramView : ContainerControl
     /// Gets the collection of data series in this diagram.
     /// </summary>
     public DiagramViewSeriesCollection Series => _series;
+
+    /// <summary>
+    /// Gets or sets the optional diagram title displayed at the top.
+    /// </summary>
+    public string Title
+    {
+        get => _title;
+        set
+        {
+            if (_title != value)
+            {
+                _title = value ?? string.Empty;
+                OnPropertyChanged(nameof(Title));
+                InvalidateLayout();
+            }
+        }
+    }
 
     /// <summary>
     /// Gets the X-axis configuration.
@@ -121,7 +148,7 @@ public class DiagramView : ContainerControl
             {
                 _legendPosition = value;
                 OnPropertyChanged(nameof(LegendPosition));
-                Invalidate();
+                InvalidateLayout();
             }
         }
     }
@@ -138,7 +165,7 @@ public class DiagramView : ContainerControl
             {
                 _showLegend = value;
                 OnPropertyChanged(nameof(ShowLegend));
-                Invalidate();
+                InvalidateLayout();
             }
         }
     }
@@ -161,9 +188,42 @@ public class DiagramView : ContainerControl
     }
 
     /// <summary>
+    /// Gets or sets the padding around the chart area (left, top, right, bottom).
+    /// Default is 10 pixels on all sides. Set to add space so chart lines
+    /// do not touch the control border.
+    /// </summary>
+    public Padding DiagramPadding
+    {
+        get => _diagramPadding;
+        set
+        {
+            if (_diagramPadding.Left != value.Left || _diagramPadding.Top != value.Top ||
+                _diagramPadding.Right != value.Right || _diagramPadding.Bottom != value.Bottom)
+            {
+                _diagramPadding = value;
+                OnPropertyChanged(nameof(DiagramPadding));
+                InvalidateLayout();
+            }
+        }
+    }
+
+    /// <summary>
     /// Gets the trend line configuration.
     /// </summary>
     public DiagramViewTrendLine TrendLine => _trendLine;
+
+    /// <summary>
+    /// Gets or sets the red zone upper threshold as a fraction (0-1).
+    /// Values below this threshold are in the red zone. Default 0.25.
+    /// </summary>
+    public double GaugeRedThreshold { get; set; } = 0.25;
+
+    /// <summary>
+    /// Gets or sets the yellow zone upper threshold as a fraction (0-1).
+    /// Values between red and yellow threshold are in the yellow zone.
+    /// Values above the yellow threshold are in the green zone. Default 0.50.
+    /// </summary>
+    public double GaugeYellowThreshold { get; set; } = 0.50;
 
     /// <summary>
     /// Gets or sets the current zoom level. 1.0 = 100%.
@@ -275,10 +335,18 @@ public class DiagramView : ContainerControl
     protected Rectangle ChartArea => _chartAreaCached;
 
     /// <inheritdoc />
+    protected override void OnBoundsChanged()
+    {
+        _layoutDirty = true;
+        base.OnBoundsChanged();
+    }
+
+    /// <inheritdoc />
     public override void OnThemeChanged(Theme newTheme)
     {
         LoadThemeColors();
-        Invalidate();
+        base.OnThemeChanged(newTheme);
+        InvalidateLayout();
     }
 
     /// <inheritdoc />
@@ -293,15 +361,32 @@ public class DiagramView : ContainerControl
 
         g.FillRectangle(BackColor, 0, 0, Width, Height);
 
+        // Clip to control bounds so zoomed content cannot overdraw neighboring controls
+        g.SetClip(new Rectangle(0, 0, Width, Height));
+
         g.Save();
-        g.TranslateTransform(_panX, _panY);
+
+        float cx = Width / 2f;
+        float cy = Height / 2f;
+        float invZ = 1f / _zoomLevel;
+        float zoomOffsetX = _panX + cx * (invZ - 1f);
+        float zoomOffsetY = _panY + cy * (invZ - 1f);
+        g.TranslateTransform(zoomOffsetX, zoomOffsetY);
         g.Zoom = _zoomLevel;
 
-        ComputeChartLayout(g, theme);
+        if (_layoutDirty)
+        {
+            float savedZoom = g.Zoom;
+            g.Zoom = 1;
+            ComputeChartLayout(g, theme);
+            g.Zoom = savedZoom;
+            _layoutDirty = false;
+        }
 
         if (_chartAreaCached.Width <= 0 || _chartAreaCached.Height <= 0)
         {
             g.Restore();
+            g.ResetClip();
             base.Render(g);
             return;
         }
@@ -309,22 +394,59 @@ public class DiagramView : ContainerControl
         g.FillRectangle(_diagramBackColor, _chartAreaCached.X, _chartAreaCached.Y,
             _chartAreaCached.Width, _chartAreaCached.Height);
 
+        // Draw diagram title inside the chart area, then render data below it
+        Rectangle chartBeforeTitle = _chartAreaCached;
+        if (!string.IsNullOrEmpty(_title))
+        {
+            var titleFont = new Font(ThemeManager.CurrentTheme.DefaultFont.Name,
+                ThemeManager.CurrentTheme.DefaultFont.Size * 1.5f, FontStyle.Bold);
+            var (tw, th) = CoordinateTransform.MeasureText(_title, titleFont, g.Zoom);
+            float tx = _chartAreaCached.X + _chartAreaCached.Width / 2f - tw / 2f;
+            float ty = _chartAreaCached.Y + (_titleHeight - th) / 2f;
+            g.DrawString(_title, titleFont, _diagramAxisLabelColor, tx, ty);
+            // Use data area below title for all rendering (non-destructive — chartBeforeTitle is restored below)
+            _chartAreaCached = new Rectangle(_chartAreaCached.X, _chartAreaCached.Y + (int)_titleHeight,
+                _chartAreaCached.Width, _chartAreaCached.Height - (int)_titleHeight);
+        }
+
+        g.SetClip(_chartAreaCached);
+
         RenderGridLines(g);
         RenderData(g);
+
+        g.ResetClip();
+
         RenderAxes(g);
         RenderLegend(g);
 
+        // Restore original chart area for border (includes title space)
+        g.DrawRectangle(_diagramAxisLineColor, chartBeforeTitle.X, chartBeforeTitle.Y,
+            chartBeforeTitle.Width, chartBeforeTitle.Height, 0.5f);
+        _chartAreaCached = chartBeforeTitle;
+
         g.Restore();
+        // Remove the control-bounds clip (added before Save)
+        g.ResetClip();
         base.Render(g);
     }
 
     private void ComputeChartLayout(Graphics g, Theme theme)
     {
-        int pad = 10;
-        int left = pad;
-        int top = pad;
-        int right = Width - pad;
-        int bottom = Height - pad;
+        int left = _diagramPadding.Left;
+        int top = _diagramPadding.Top;
+        int right = Width - _diagramPadding.Right;
+        int bottom = Height - _diagramPadding.Bottom;
+
+        // Measure title height (title is drawn at the top of the chart area,
+        // data area is shifted down in Render — no space reservation needed here)
+        _titleHeight = 0;
+        if (!string.IsNullOrEmpty(_title))
+        {
+            var titleFont = new Font(ThemeManager.CurrentTheme.DefaultFont.Name,
+                ThemeManager.CurrentTheme.DefaultFont.Size * 1.5f, FontStyle.Bold);
+            var (_, th) = CoordinateTransform.MeasureText(_title, titleFont, g.Zoom);
+            _titleHeight = th + 8;
+        }
 
         if (_showLegend && _series.Count > 0)
         {
@@ -332,20 +454,24 @@ public class DiagramView : ContainerControl
             switch (_legendPosition)
             {
                 case LegendPosition.Right:
-                    right -= legendSize.Width + pad;
-                    _legendAreaCached = new Rectangle(right + pad, top, legendSize.Width, bottom - top);
+                    right -= legendSize.Width + _diagramPadding.Left;
+                    int lhR = Math.Min(legendSize.Height, bottom - top);
+                    int lyR = top + ((bottom - top) - lhR) / 2;
+                    _legendAreaCached = new Rectangle(right + _diagramPadding.Left, lyR, legendSize.Width, lhR);
                     break;
                 case LegendPosition.Left:
-                    left += legendSize.Width + pad;
-                    _legendAreaCached = new Rectangle(pad, top, legendSize.Width, bottom - top);
+                    left += legendSize.Width + _diagramPadding.Left;
+                    int lhL = Math.Min(legendSize.Height, bottom - top);
+                    int lyL = top + ((bottom - top) - lhL) / 2;
+                    _legendAreaCached = new Rectangle(_diagramPadding.Left, lyL, legendSize.Width, lhL);
                     break;
                 case LegendPosition.Top:
-                    top += legendSize.Height + pad;
-                    _legendAreaCached = new Rectangle(left, pad, right - left, legendSize.Height);
+                    top += legendSize.Height + _diagramPadding.Top;
+                    _legendAreaCached = new Rectangle(left, _diagramPadding.Top, right - left, legendSize.Height);
                     break;
                 case LegendPosition.Bottom:
-                    bottom -= legendSize.Height + pad;
-                    _legendAreaCached = new Rectangle(left, bottom + pad, right - left, legendSize.Height);
+                    bottom -= legendSize.Height + _diagramPadding.Top;
+                    _legendAreaCached = new Rectangle(left, bottom + _diagramPadding.Top, right - left, legendSize.Height);
                     break;
             }
         }
@@ -367,7 +493,7 @@ public class DiagramView : ContainerControl
                 var (w, _) = CoordinateTransform.MeasureText(label, font, g.Zoom);
                 if (w > maxLabelWidth) maxLabelWidth = w;
             }
-            yAxisWidth = maxLabelWidth + 15;
+            yAxisWidth = maxLabelWidth + 50;
 
             if (!string.IsNullOrEmpty(_yAxis.Title))
             {
@@ -404,10 +530,7 @@ public class DiagramView : ContainerControl
         left += yAxisWidth;
         bottom -= xAxisHeight;
 
-        _chartAreaCached = new Rectangle(
-            (int)(left / g.Zoom), (int)(top / g.Zoom),
-            (int)((right - left) / g.Zoom),
-            (int)((bottom - top) / g.Zoom));
+        _chartAreaCached = new Rectangle(left, top, right - left, bottom - top);
     }
 
     private (double MinValue, double MaxValue) GetDataBounds()
@@ -416,13 +539,38 @@ public class DiagramView : ContainerControl
         double min = double.MaxValue;
         double max = double.MinValue;
 
-        foreach (var series in _series)
+        bool isStacked = _chartType == DiagramType.StackedBar;
+
+        if (isStacked)
         {
-            foreach (var pt in series.Points)
+            // For stacked bars, find the cumulative max per category
+            int maxPoints = 0;
+            foreach (var s in _series) maxPoints = Math.Max(maxPoints, s.Points.Count);
+            for (int j = 0; j < maxPoints; j++)
             {
-                hasData = true;
-                if (pt.Value < min) min = pt.Value;
-                if (pt.Value > max) max = pt.Value;
+                double sum = 0;
+                foreach (var s in _series)
+                {
+                    if (j < s.Points.Count)
+                    {
+                        sum += Math.Max(s.Points[j].Value, 0);
+                        hasData = true;
+                    }
+                }
+                if (sum > max) max = sum;
+            }
+            min = 0;
+        }
+        else
+        {
+            foreach (var series in _series)
+            {
+                foreach (var pt in series.Points)
+                {
+                    hasData = true;
+                    if (pt.Value < min) min = pt.Value;
+                    if (pt.Value > max) max = pt.Value;
+                }
             }
         }
 
@@ -433,10 +581,18 @@ public class DiagramView : ContainerControl
 
         if (Math.Abs(max - min) < 0.001) max = min + 100;
 
+        // Add margin, then snap to nice round numbers so axis labels
+        // fall on clean values and the top/bottom labels are visible
         double margin = (max - min) * 0.1;
-        if (min >= 0) min = 0;
-        else min -= margin;
-        max += margin;
+        if (!_yAxis.MinValue.HasValue && min >= 0) min = 0;
+        else if (!_yAxis.MinValue.HasValue) min -= margin;
+        if (!_yAxis.MaxValue.HasValue) max += margin;
+
+        double interval = ComputeNiceInterval(max - min);
+        if (interval > 0 && !_yAxis.MaxValue.HasValue)
+            max = Math.Ceiling(max / interval) * interval;
+        if (interval > 0 && !_yAxis.MinValue.HasValue && min < 0)
+            min = Math.Floor(min / interval) * interval;
 
         return (min, max);
     }
@@ -462,10 +618,9 @@ public class DiagramView : ContainerControl
 
     private static string FormatValue(double value)
     {
-        if (Math.Abs(value) >= 1_000_000) return $"{value / 1_000_000:F1}M";
-        if (Math.Abs(value) >= 1_000) return $"{value / 1_000:F1}K";
-        if (value == (long)value) return value.ToString("F0");
-        return value.ToString("F1");
+        if (Math.Abs(value) >= 1_000_000) return $"{value / 1_000_000:F2}M";
+        if (Math.Abs(value) >= 1_000) return $"{value / 1_000:F2}K";
+        return value.ToString("#,##0.#");
     }
 
     private double MapValueToPixel(double value, double minValue, double maxValue, int pixelMin, int pixelMax, AxisType axisType)
@@ -510,8 +665,9 @@ public class DiagramView : ContainerControl
         var bounds = GetDataBounds();
         var smallFont = theme.SmallFont;
 
-        // Y-axis
-        if (_yAxis.Visible)
+        // Y-axis (skip for pie, doughnut, gauge — no meaningful scale)
+        bool noAxes = _chartType == DiagramType.Pie || _chartType == DiagramType.Doughnut || _chartType == DiagramType.Gauge;
+        if (_yAxis.Visible && !noAxes)
         {
             if (_yAxis.ShowAxisLine)
             {
@@ -519,14 +675,13 @@ public class DiagramView : ContainerControl
             }
 
             double interval = _yAxis.TickInterval > 0 ? _yAxis.TickInterval : ComputeNiceInterval(bounds.MaxValue - bounds.MinValue);
-            double start = Math.Ceiling(bounds.MinValue / interval) * interval;
+            double tickStart = Math.Ceiling(bounds.MinValue / interval) * interval;
 
             float maxLabelWidth = 0;
-            for (double v = start; v <= bounds.MaxValue; v += interval)
+            for (double v = tickStart; v <= bounds.MaxValue + 0.001; v += interval)
             {
                 int y = (int)MapValueToPixel(v, bounds.MinValue, bounds.MaxValue,
                     r.Y + r.Height, r.Y, _yAxis.Type);
-                if (y < r.Y || y > r.Y + r.Height) continue;
 
                 var label = FormatValue(v);
                 var (lw, lh) = CoordinateTransform.MeasureText(label, smallFont, g.Zoom);
@@ -534,8 +689,9 @@ public class DiagramView : ContainerControl
 
                 if (_yAxis.ShowLabels)
                 {
-                    float lx = r.X - lw - 5;
+                    float lx = r.X - lw - 6;
                     float ly = y - lh / 2f;
+                    ly = Math.Clamp(ly, r.Y, r.Y + r.Height - lh);
                     if (_yAxis.Type == AxisType.Logarithmic && v <= 0) { }
                     else
                     {
@@ -543,7 +699,7 @@ public class DiagramView : ContainerControl
                     }
                 }
 
-                if (_xAxis.ShowGridLines)
+                if (_xAxis.ShowGridLines && y >= r.Y && y <= r.Y + r.Height)
                 {
                     g.DrawLine(_diagramGridLineColor, r.X, y, r.X + r.Width, y, 0.5f);
                 }
@@ -559,8 +715,8 @@ public class DiagramView : ContainerControl
             }
         }
 
-        // X-axis
-        if (_xAxis.Visible)
+        // X-axis (skip category labels for pie/doughnut/gauge — shown per slice or not applicable)
+        if (_xAxis.Visible && !noAxes)
         {
             int maxPoints = 0;
             foreach (var s in _series) maxPoints = Math.Max(maxPoints, s.Points.Count);
@@ -648,16 +804,16 @@ public class DiagramView : ContainerControl
         if (maxPoints == 0) return;
 
         float slotWidth = r.Width / (float)maxPoints;
-        float groupWidth = slotWidth * 0.8f;
+        float groupWidth = slotWidth * 0.7f;
         float barWidth;
 
         if (stacked)
         {
-            barWidth = groupWidth * 0.9f;
+            barWidth = groupWidth * 0.85f;
         }
         else
         {
-            barWidth = groupWidth / Math.Max(_series.Count, 1) * 0.9f;
+            barWidth = groupWidth / Math.Max(_series.Count, 1) * 0.85f;
         }
 
         float baselineY = r.Y + r.Height;
@@ -720,15 +876,16 @@ public class DiagramView : ContainerControl
                 if (pixelTop >= r.Y && pixelBottom <= r.Y + r.Height)
                 {
                     g.FillRectangle(barColor, barX, pixelTop, barWidth, pixelBottom - pixelTop);
-                    g.DrawRectangle(_diagramAxisLineColor, barX, pixelTop, barWidth, pixelBottom - pixelTop, 0.5f);
+                    g.DrawRectangle(Color.White, barX, pixelTop, barWidth, pixelBottom - pixelTop, 1f);
 
                     if (_dataLabelStyle == LabelStyle.Value)
                     {
                         var label = FormatValue(val);
                         var font = ThemeManager.CurrentTheme.SmallFont;
                         var (lw, lh) = CoordinateTransform.MeasureText(label, font, g.Zoom);
+                        float centerY = pixelTop + (pixelBottom - pixelTop) / 2f - lh / 2f;
                         g.DrawString(label, font, _diagramAxisLabelColor,
-                            barX + barWidth / 2f - lw / 2f, pixelTop - lh - 2);
+                            barX + barWidth / 2f - lw / 2f, centerY);
                     }
                 }
             }
@@ -757,6 +914,7 @@ public class DiagramView : ContainerControl
         float px = cx - diameter / 2f;
         float py = cy - diameter / 2f;
 
+        float sliceGap = 2f;
         float currentAngle = -90f;
         int pointIndex = 0;
 
@@ -769,29 +927,60 @@ public class DiagramView : ContainerControl
                 float sweep = (float)(pt.Value / totalValue * 360f);
                 Color color = pt.Color ?? s.Color ?? GetPaletteColor(pointIndex);
 
-                g.FillPie(color, px, py, diameter, diameter, currentAngle, sweep);
-                g.DrawArc(_diagramAxisLineColor, px, py, diameter, diameter, currentAngle, sweep, 0.5f);
+                g.FillPie(color, px, py, diameter, diameter, currentAngle, sweep - sliceGap);
 
                 if (_dataLabelStyle != LabelStyle.None)
                 {
-                    float midAngle = currentAngle + sweep / 2f;
-                    float labelRadius = diameter / 2f * 0.65f;
-                    float lx = cx + labelRadius * (float)Math.Cos(midAngle * Math.PI / 180f);
-                    float ly = cy + labelRadius * (float)Math.Sin(midAngle * Math.PI / 180f);
+                    float midAngle = currentAngle + (sweep - sliceGap) / 2f;
+                    float pieRadius = diameter / 2f;
+                    float midRad = midAngle * (float)Math.PI / 180f;
 
-                    string label = _dataLabelStyle switch
+                    string labelText = _dataLabelStyle switch
                     {
-                        LabelStyle.Value => FormatValue(pt.Value),
-                        LabelStyle.Percentage => $"{pt.Value / totalValue * 100:F1}%",
+                        LabelStyle.Value => pt.Label != null ? $"{pt.Label}: {FormatValue(pt.Value)}" : FormatValue(pt.Value),
+                        LabelStyle.Percentage => pt.Label != null ? $"{pt.Label}: {pt.Value / totalValue * 100:F1}%" : $"{pt.Value / totalValue * 100:F1}%",
                         LabelStyle.Category => pt.Label ?? "",
-                        _ => ""
+                        _ => pt.Label ?? ""
                     };
 
-                    if (!string.IsNullOrEmpty(label))
+                    if (!string.IsNullOrEmpty(labelText))
                     {
                         var font = ThemeManager.CurrentTheme.SmallFont;
-                        var (lw, lh) = CoordinateTransform.MeasureText(label, font, g.Zoom);
-                        g.DrawString(label, font, _diagramAxisLabelColor, lx - lw / 2f, ly - lh / 2f);
+                        var (lw, lh) = CoordinateTransform.MeasureText(labelText, font, g.Zoom);
+
+                        // Chord width at 70% of pie radius (clear doughnut hole at 50%)
+                        float labelRadius = pieRadius * 0.70f;
+                        float sweepRad = (sweep - sliceGap) * (float)Math.PI / 180f;
+                        float chordWidth = 2f * labelRadius * (float)Math.Sin(sweepRad / 2f);
+                        float labelPadding = 6f;
+
+                        // Decide inside vs outside label
+                        if (lw + labelPadding < chordWidth)
+                        {
+                            // Inside label — centered in slice, no leader line
+                            float lx = cx + labelRadius * (float)Math.Cos(midRad);
+                            float ly = cy + labelRadius * (float)Math.Sin(midRad);
+                            g.DrawString(labelText, font, _diagramAxisLabelColor,
+                                lx - lw / 2f, ly - lh / 2f);
+                        }
+                        else
+                        {
+                            // Outside label — leader line from slice edge
+                            float edgeRadius = pieRadius * 0.52f;
+                            float startX = cx + edgeRadius * (float)Math.Cos(midRad);
+                            float startY = cy + edgeRadius * (float)Math.Sin(midRad);
+
+                            float leaderLen = pieRadius * 0.18f;
+                            float endX = startX + leaderLen * (float)Math.Cos(midRad);
+                            float endY = startY + leaderLen * (float)Math.Sin(midRad);
+
+                            bool isLeft = midAngle > 90 && midAngle < 270;
+                            float textX = isLeft ? endX - lw - 4 : endX + 4;
+
+                            g.DrawLine(_diagramAxisLabelColor, startX, startY, endX, endY, 0.5f);
+                            g.DrawString(labelText, font, _diagramAxisLabelColor,
+                                textX, endY - lh / 2f);
+                        }
                     }
                 }
 
@@ -802,10 +991,7 @@ public class DiagramView : ContainerControl
 
         if (doughnut)
         {
-            float holeDiameter = diameter * 0.45f;
-            g.FillRectangle(_diagramBackColor,
-                cx - holeDiameter / 2f, cy - holeDiameter / 2f,
-                holeDiameter, holeDiameter);
+            float holeDiameter = diameter * 0.50f;
             g.FillEllipse(_diagramBackColor,
                 cx - holeDiameter / 2f, cy - holeDiameter / 2f,
                 holeDiameter, holeDiameter);
@@ -849,15 +1035,15 @@ public class DiagramView : ContainerControl
             // Draw point markers
             foreach (var (pxX, pyY) in points)
             {
-                g.FillEllipse(color, pxX - 3f, pyY - 3f, 6f, 6f);
-                g.DrawEllipse(_diagramAxisLineColor, pxX - 3f, pyY - 3f, 6f, 6f, 1f);
+                g.FillEllipse(Color.White, pxX - 4f, pyY - 4f, 8f, 8f);
+                g.DrawEllipse(color, pxX - 4f, pyY - 4f, 8f, 8f, 2f);
             }
 
             // Fill area under line
             if (area)
             {
                 int baselineY = r.Y + r.Height;
-                var polygonPoints = new float[points.Count * 2 + 4];
+                var polygonPoints = new float[points.Count * 4];
                 int idx = 0;
                 foreach (var (pxX, pyY) in points)
                 {
@@ -870,7 +1056,10 @@ public class DiagramView : ContainerControl
                     polygonPoints[idx++] = baselineY;
                 }
 
-                var fillColor = Color.FromArgb(color.A / 3, color.R, color.G, color.B);
+                var fillColor = Color.FromArgb(
+                    color.R + (255 - color.R) * 3 / 5,
+                    color.G + (255 - color.G) * 3 / 5,
+                    color.B + (255 - color.B) * 3 / 5);
                 g.FillPolygon(fillColor, polygonPoints);
             }
 
@@ -886,7 +1075,7 @@ public class DiagramView : ContainerControl
                     float cx = r.X + j * slotWidth + slotWidth / 2f;
                     int y = (int)MapValueToPixel(pt.Value, bounds.MinValue, bounds.MaxValue,
                         r.Y + r.Height, r.Y, _yAxis.Type);
-                    g.DrawString(label, font, _diagramAxisLabelColor, cx - lw / 2f, y - lh - 4);
+                    g.DrawString(label, font, _diagramAxisLabelColor, cx - lw / 2f, y - lh - 8);
                 }
             }
         }
@@ -904,50 +1093,139 @@ public class DiagramView : ContainerControl
 
         value = Math.Clamp(value, minVal, maxVal);
 
-        float cx = r.X + r.Width / 2f;
-        float cy = r.Y + r.Height * 0.85f;
-        float diameter = Math.Min(r.Width, r.Height) * 1.4f;
-        float px = cx - diameter / 2f;
-        float py = cy - diameter / 2f;
-
-        float startAngle = 180f;
-        float sweepAngle = 180f;
-
-        // Background arc (full gauge)
-        g.DrawArc(Color.FromArgb(60, 60, 60), px, py, diameter, diameter, startAngle, sweepAngle, 8f);
-
-        // Value arc
         float fraction = (float)((value - minVal) / (maxVal - minVal));
-        float valueSweep = sweepAngle * fraction;
-        Color gaugeColor = GetPaletteColor(0);
-        g.DrawArc(gaugeColor, px, py, diameter, diameter, startAngle, valueSweep, 8f);
+        double redThresh = Math.Clamp(GaugeRedThreshold, 0, 1);
+        double yellowThresh = Math.Clamp(GaugeYellowThreshold, redThresh, 1);
 
-        // Needle
-        float needleAngle = startAngle + valueSweep;
-        float needleLen = diameter / 2f * 0.8f;
-        float nx = cx + needleLen * (float)Math.Cos(needleAngle * Math.PI / 180f);
-        float ny = cy + needleLen * (float)Math.Sin(needleAngle * Math.PI / 180f);
-        g.DrawLine(_diagramAxisLineColor, cx, cy, nx, ny, 3f);
+        float cx = r.X + r.Width / 2f;
+        float cy = r.Y + r.Height / 2f;
+        float diameter = Math.Min(r.Width, r.Height) * 0.88f;
+        float radius = diameter / 2f;
+        float px = cx - radius;
+        float py = cy - radius;
 
-        // Center dot
-        g.FillEllipse(_diagramAxisLineColor, cx - 5f, cy - 5f, 10f, 10f);
-        g.FillEllipse(Color.White, cx - 3f, cy - 3f, 6f, 6f);
+        // Gauge arc: starts at 6:00 (90° = bottom — 0 position),
+        // sweeps 300° clockwise to 4:00 (30° = bottom-right — max position)
+        // Gap of 60° at the bottom (4:00 to 6:00)
+        float startAngle = 90f;
+        float sweepAngle = 300f;
 
-        // Labels
-        var font = ThemeManager.CurrentTheme.SmallFont;
-        var minLabel = FormatValue(minVal);
-        var maxLabel = FormatValue(maxVal);
+        // Outer bezel (full circle housing)
+        float bezelWidth = 8f;
+        g.DrawArc(Color.FromArgb(45, 45, 50), px - bezelWidth, py - bezelWidth,
+            diameter + bezelWidth * 2, diameter + bezelWidth * 2, 0, 360, bezelWidth);
+        g.DrawArc(Color.FromArgb(80, 80, 85), px - bezelWidth + 2f, py - bezelWidth + 2f,
+            diameter + bezelWidth * 2 - 4f, diameter + bezelWidth * 2 - 4f, 0, 360, 1f);
+
+        // Gauge face (full circle)
+        float faceInset = 5f;
+        g.FillEllipse(Color.FromArgb(248, 248, 252), px + faceInset, py + faceInset,
+            diameter - faceInset * 2, diameter - faceInset * 2);
+
+        // Color zones as thick arcs
+        float arcInset = radius * 0.14f;
+        float zoneThick = radius * 0.18f;
+        float zoneOuterR = radius - arcInset;
+        float zoneMidR = zoneOuterR - zoneThick / 2f;
+
+        float greenStart = (float)(startAngle + sweepAngle * yellowThresh);
+        float yellowStart = (float)(startAngle + sweepAngle * redThresh);
+        float yellowSweep = (float)(sweepAngle * (yellowThresh - redThresh));
+        float greenSweep = (float)(sweepAngle * (1.0 - yellowThresh));
+        float redSweep = (float)(sweepAngle * redThresh);
+
+        void DrawZoneArc(Color zoneColor, float aStart, float aSweep)
+        {
+            if (aSweep <= 0) return;
+            g.DrawArc(zoneColor, cx - zoneMidR, cy - zoneMidR, zoneMidR * 2, zoneMidR * 2, aStart, aSweep, zoneThick);
+        }
+
+        DrawZoneArc(Color.FromArgb(241, 90, 96), startAngle, redSweep);
+        DrawZoneArc(Color.FromArgb(237, 176, 32), yellowStart, yellowSweep);
+        DrawZoneArc(Color.FromArgb(112, 173, 71), greenStart, greenSweep);
+
+        // Tick marks and labels (only within the arc range)
+        int majorTicks = 8;
+        int minorTicks = 4;
+        var tickFont = new Font(ThemeManager.CurrentTheme.DefaultFont.Name,
+            ThemeManager.CurrentTheme.DefaultFont.Size, FontStyle.Bold);
+        float tickOuterR = zoneOuterR - zoneThick - 6f;
+        float majorTickLen = radius * 0.10f;
+        float minorTickLen = radius * 0.05f;
+        float labelR = tickOuterR - majorTickLen - 18f;
+
+        for (int i = 0; i <= majorTicks; i++)
+        {
+            float fracT = (float)i / majorTicks;
+            float angle = startAngle + sweepAngle * fracT;
+            float rad = angle * (float)Math.PI / 180f;
+            float cosA = (float)Math.Cos(rad);
+            float sinA = (float)Math.Sin(rad);
+
+            float outerX = cx + tickOuterR * cosA;
+            float outerY = cy + tickOuterR * sinA;
+            float innerX = cx + (tickOuterR - majorTickLen) * cosA;
+            float innerY = cy + (tickOuterR - majorTickLen) * sinA;
+            g.DrawLine(Color.FromArgb(50, 50, 55), outerX, outerY, innerX, innerY, 3f);
+
+            double tickVal = minVal + (maxVal - minVal) * fracT;
+            string tickLabel = FormatValue(tickVal);
+            var (tlw, tlh) = CoordinateTransform.MeasureText(tickLabel, tickFont, g.Zoom);
+            float lx = cx + labelR * cosA;
+            float ly = cy + labelR * sinA;
+            g.DrawString(tickLabel, tickFont, Color.FromArgb(40, 40, 45), lx - tlw / 2f, ly - tlh / 2f);
+
+            if (i < majorTicks)
+            {
+                for (int j = 1; j < minorTicks; j++)
+                {
+                    float mFrac = fracT + (float)j / (majorTicks * minorTicks);
+                    float mAngle = startAngle + sweepAngle * mFrac;
+                    float mRad = mAngle * (float)Math.PI / 180f;
+                    float mCos = (float)Math.Cos(mRad);
+                    float mSin = (float)Math.Sin(mRad);
+                    g.DrawLine(Color.FromArgb(110, 110, 115),
+                        cx + tickOuterR * mCos, cy + tickOuterR * mSin,
+                        cx + (tickOuterR - minorTickLen) * mCos, cy + (tickOuterR - minorTickLen) * mSin, 1.5f);
+                }
+            }
+        }
+
+        // Needle (pointed triangle)
+        float valueAngle = startAngle + sweepAngle * fraction;
+        float valRad = valueAngle * (float)Math.PI / 180f;
+        float needleLen = tickOuterR - majorTickLen - 4f;
+        float needleBaseBack = needleLen * 0.18f;
+        float needleWidth = radius * 0.035f;
+        float cosV = (float)Math.Cos(valRad);
+        float sinV = (float)Math.Sin(valRad);
+
+        g.FillTriangle(Color.FromArgb(210, 45, 45),
+            cx + needleBaseBack * -cosV + -needleWidth * sinV,
+            cy + needleBaseBack * -sinV + needleWidth * cosV,
+            cx + needleBaseBack * -cosV - -needleWidth * sinV,
+            cy + needleBaseBack * -sinV - needleWidth * cosV,
+            cx + needleLen * cosV, cy + needleLen * sinV);
+
+        // Center hub
+        float hubR1 = radius * 0.055f;
+        float hubR2 = radius * 0.035f;
+        g.FillEllipse(Color.FromArgb(50, 50, 55), cx - hubR1, cy - hubR1, hubR1 * 2, hubR1 * 2);
+        g.FillEllipse(Color.FromArgb(190, 190, 195), cx - hubR2, cy - hubR2, hubR2 * 2, hubR2 * 2);
+        g.FillEllipse(Color.FromArgb(70, 70, 75), cx - hubR2 * 0.5f, cy - hubR2 * 0.5f, hubR2, hubR2);
+
+        // Value readout (positioned within the 60° gap at the bottom, below the needle tip)
+        var valFont = new Font(ThemeManager.CurrentTheme.DefaultFont.Name,
+            ThemeManager.CurrentTheme.DefaultFont.Size * 1.5f, FontStyle.Bold);
         var valLabel = FormatValue(value);
-
-        var (mlw, mlh) = CoordinateTransform.MeasureText(minLabel, font, g.Zoom);
-        g.DrawString(minLabel, font, _diagramAxisLabelColor, px - mlw / 2f, cy + 5);
-
-        var (mxw, _) = CoordinateTransform.MeasureText(maxLabel, font, g.Zoom);
-        g.DrawString(maxLabel, font, _diagramAxisLabelColor, px + diameter - mxw / 2f, cy + 5);
-
-        var (vw, _) = CoordinateTransform.MeasureText(valLabel, ThemeManager.CurrentTheme.HeadingFont, g.Zoom);
-        g.DrawString(valLabel, ThemeManager.CurrentTheme.HeadingFont, gaugeColor,
-            cx - vw / 2f, cy - diameter * 0.55f);
+        var (vvw, vvh) = CoordinateTransform.MeasureText(valLabel, valFont, g.Zoom);
+        float readoutY = cy + needleLen + 20f;
+        float pillPad = 14f;
+        float pillW = vvw + pillPad * 2;
+        float pillH = vvh + pillPad;
+        g.FillRectangle(Color.FromArgb(248, 248, 252), cx - pillW / 2f, readoutY - pillH / 2f, pillW, pillH);
+        g.DrawRectangle(Color.FromArgb(180, 180, 185), cx - pillW / 2f, readoutY - pillH / 2f, pillW, pillH, 0.5f);
+        g.DrawString(valLabel, valFont, Color.FromArgb(210, 45, 45), cx - vvw / 2f, readoutY - vvh / 2f);
     }
 
     private void RenderTrendLine(Graphics g)
@@ -955,53 +1233,56 @@ public class DiagramView : ContainerControl
         var r = _chartAreaCached;
         var bounds = GetDataBounds();
 
-        // Combine all points from all series into one dataset
-        var allPoints = new List<(double X, double Y)>();
-        int pointIndex = 0;
-        foreach (var s in _series)
-        {
-            foreach (var pt in s.Points)
-            {
-                allPoints.Add((pointIndex, pt.Value));
-                pointIndex++;
-            }
-        }
-
-        if (allPoints.Count < 2) return;
-
-        double[] trendY;
-        if (_trendLine.Type == TrendLineType.LinearRegression)
-        {
-            trendY = CalculateLinearRegression(allPoints);
-        }
-        else if (_trendLine.Type == TrendLineType.MovingAverage)
-        {
-            trendY = CalculateMovingAverage(allPoints, _trendLine.MovingAveragePeriod);
-        }
-        else
-        {
-            return;
-        }
-
         int maxPoints = 0;
         foreach (var s in _series) maxPoints = Math.Max(maxPoints, s.Points.Count);
         if (maxPoints == 0) return;
 
         float slotWidth = r.Width / (float)maxPoints;
 
-        var linePoints = new List<(float X, float Y)>();
-        for (int i = 0; i < trendY.Length; i++)
+        for (int si = 0; si < _series.Count; si++)
         {
-            float cx = r.X + i * slotWidth + slotWidth / 2f;
-            int y = (int)MapValueToPixel(trendY[i], bounds.MinValue, bounds.MaxValue,
-                r.Y + r.Height, r.Y, _yAxis.Type);
-            linePoints.Add((cx, y));
-        }
+            var s = _series[si];
+            if (s.Points.Count < 2) continue;
 
-        for (int i = 1; i < linePoints.Count; i++)
-        {
-            g.DrawLine(_trendLine.Color, linePoints[i - 1].X, linePoints[i - 1].Y,
-                linePoints[i].X, linePoints[i].Y, _trendLine.LineWidth);
+            Color trendColor = s.Color ?? GetPaletteColor(si);
+
+            var seriesPoints = new List<(double X, double Y)>();
+            for (int i = 0; i < s.Points.Count; i++)
+                seriesPoints.Add((i, s.Points[i].Value));
+
+            double[] trendY;
+            if (_trendLine.Type == TrendLineType.LinearRegression)
+                trendY = CalculateLinearRegression(seriesPoints);
+            else if (_trendLine.Type == TrendLineType.MovingAverage)
+                trendY = CalculateMovingAverage(seriesPoints, _trendLine.MovingAveragePeriod);
+            else
+                continue;
+
+            var linePoints = new List<(float X, float Y)>();
+            for (int i = 0; i < trendY.Length; i++)
+            {
+                float cx = r.X + i * slotWidth + slotWidth / 2f;
+                int y = (int)MapValueToPixel(trendY[i], bounds.MinValue, bounds.MaxValue,
+                    r.Y + r.Height, r.Y, _yAxis.Type);
+                linePoints.Add((cx, y));
+            }
+
+            float shadowOffset = 2.5f;
+            Color shadowColor = Color.FromArgb(0, 0, 0, 80);
+            Color outlineColor = Color.FromArgb(0, 0, 0, 160);
+
+            for (int i = 1; i < linePoints.Count; i++)
+            {
+                float x1 = linePoints[i - 1].X;
+                float y1 = linePoints[i - 1].Y;
+                float x2 = linePoints[i].X;
+                float y2 = linePoints[i].Y;
+
+                g.DrawLine(shadowColor, x1 + shadowOffset, y1 + shadowOffset,
+                    x2 + shadowOffset, y2 + shadowOffset, _trendLine.LineWidth + 2f);
+                g.DrawLine(outlineColor, x1, y1, x2, y2, _trendLine.LineWidth + 4f);
+                g.DrawLine(trendColor, x1, y1, x2, y2, _trendLine.LineWidth);
+            }
         }
     }
 
@@ -1054,9 +1335,9 @@ public class DiagramView : ContainerControl
         g.FillRectangle(_diagramLegendBackColor, r.X, r.Y, r.Width, r.Height);
         g.DrawRectangle(_diagramAxisLineColor, r.X, r.Y, r.Width, r.Height, 0.5f);
 
-        int itemHeight = 20;
-        int swatchSize = 12;
-        int startY = r.Y + 5;
+        int itemHeight = 22;
+        int swatchSize = 14;
+        int startY = r.Y + 4;
 
         for (int i = 0; i < _series.Count; i++)
         {
@@ -1078,7 +1359,7 @@ public class DiagramView : ContainerControl
     {
         var font = ThemeManager.CurrentTheme.SmallFont;
         int maxWidth = 0;
-        int totalHeight = 0;
+        int itemHeight = 22;
 
         for (int i = 0; i < _series.Count; i++)
         {
@@ -1086,11 +1367,11 @@ public class DiagramView : ContainerControl
             var (tw, _) = CoordinateTransform.MeasureText(name, font, g.Zoom);
             int itemWidth = tw + 25;
             if (itemWidth > maxWidth) maxWidth = itemWidth;
-            totalHeight += 20;
         }
 
-        int pad = 12;
-        return (maxWidth + pad, totalHeight + pad);
+        int pad = 10;
+        int totalHeight = pad + _series.Count * itemHeight + pad;
+        return (maxWidth + pad, totalHeight);
     }
 
     private Color GetPaletteColor(int index)

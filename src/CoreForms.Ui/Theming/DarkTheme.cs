@@ -275,14 +275,14 @@ public class DarkTheme : Theme
 
     private static readonly Color[] _diagramPalette = new[]
     {
-        Color.FromArgb(120, 170, 190),  // Gedämpft Blau
-        Color.FromArgb(190, 140, 135),  // Gedämpft Rosa
-        Color.FromArgb(140, 180, 130),  // Gedämpft Grün
-        Color.FromArgb(190, 175, 120),  // Gedämpft Gelb
-        Color.FromArgb(160, 135, 185),  // Gedämpft Lila
-        Color.FromArgb(125, 180, 185),  // Gedämpft Türkis
-        Color.FromArgb(180, 150, 125),  // Gedämpft Beige
-        Color.FromArgb(140, 155, 180)   // Gedämpft Graublau
+        Color.FromArgb(98, 168, 226),   // Hell Blau
+        Color.FromArgb(250, 138, 62),   // Hell Orange
+        Color.FromArgb(125, 186, 84),   // Hell Grün
+        Color.FromArgb(254, 103, 109),  // Hell Rot
+        Color.FromArgb(178, 118, 202),  // Hell Lila
+        Color.FromArgb(81, 207, 207),   // Hell Türkis
+        Color.FromArgb(250, 189, 45),   // Hell Gelb
+        Color.FromArgb(171, 125, 89)    // Hell Braun
     };
 
     /// <inheritdoc />

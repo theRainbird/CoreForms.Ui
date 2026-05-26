@@ -38,6 +38,7 @@ public class DiagramPage : UserControl
         };
 
         PopulateSampleData();
+        _diagramView.Title = "Quarterly Sales Performance";
 
         var controlPanel = new GroupBox
         {
@@ -189,9 +190,9 @@ public class DiagramPage : UserControl
     {
         var products = new[]
         {
-            new { Name = SR.GetString("DgProductA"), Color = Core.Color.FromArgb(174, 198, 207) },
-            new { Name = SR.GetString("DgProductB"), Color = Core.Color.FromArgb(225, 190, 185) },
-            new { Name = SR.GetString("DgProductC"), Color = Core.Color.FromArgb(195, 215, 185) }
+            new { Name = SR.GetString("DgProductA"), Color = Core.Color.FromArgb(91, 155, 213) },
+            new { Name = SR.GetString("DgProductB"), Color = Core.Color.FromArgb(237, 125, 49) },
+            new { Name = SR.GetString("DgProductC"), Color = Core.Color.FromArgb(112, 173, 71) }
         };
 
         var quarterLabels = new[]
@@ -228,7 +229,7 @@ public class DiagramPage : UserControl
 
     private void OnChartTypeChanged(object? sender, EventArgs e)
     {
-        _diagramView.ChartType = _chartTypeCombo.SelectedIndex switch
+        var newType = _chartTypeCombo.SelectedIndex switch
         {
             0 => DiagramType.Bar,
             1 => DiagramType.StackedBar,
@@ -239,6 +240,29 @@ public class DiagramPage : UserControl
             6 => DiagramType.Gauge,
             _ => DiagramType.Bar
         };
+
+        _diagramView.ChartType = newType;
+
+        if (newType == DiagramType.Gauge)
+        {
+            // Gauge needs a single value on a 0-100 scale
+            _diagramView.Series.Clear();
+            var gaugeSeries = new DiagramViewSeries
+            {
+                Name = SR.GetString("DgProductA"),
+                Color = Core.Color.FromArgb(91, 155, 213)
+            };
+            gaugeSeries.Add(SR.GetString("DgQ1"), 78);
+            _diagramView.Series.Add(gaugeSeries);
+            _diagramView.YAxis.MaxValue = 100;
+        }
+        else if (_diagramView.Series.Count == 0 || _diagramView.YAxis.MaxValue == 100)
+        {
+            // Restore quarterly data when switching away from gauge
+            _diagramView.YAxis.MaxValue = null;
+            _diagramView.Series.Clear();
+            PopulateSampleData();
+        }
 
         OnStatusTextChanged(string.Format(SR.GetString("DgStatusChartType"), _chartTypeCombo.SelectedItem));
     }
