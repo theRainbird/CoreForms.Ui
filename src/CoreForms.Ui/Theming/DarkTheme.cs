@@ -257,6 +257,37 @@ public class DarkTheme : Theme
     /// <inheritdoc />
     public override Color CalendarDayHeaderBackground => Color.FromArgb(50, 50, 53);
 
+    // Diagram colors
+    /// <inheritdoc />
+    public override Color DiagramBackground => Color.FromArgb(42, 42, 45);
+
+    /// <inheritdoc />
+    public override Color DiagramGridLine => Color.FromArgb(65, 65, 68);
+
+    /// <inheritdoc />
+    public override Color DiagramAxisLine => Color.FromArgb(90, 90, 93);
+
+    /// <inheritdoc />
+    public override Color DiagramAxisLabel => Color.FromArgb(160, 160, 160);
+
+    /// <inheritdoc />
+    public override Color DiagramLegendBackground => Color.FromArgb(50, 50, 53);
+
+    private static readonly Color[] _diagramPalette = new[]
+    {
+        Color.FromArgb(120, 170, 190),  // Gedämpft Blau
+        Color.FromArgb(190, 140, 135),  // Gedämpft Rosa
+        Color.FromArgb(140, 180, 130),  // Gedämpft Grün
+        Color.FromArgb(190, 175, 120),  // Gedämpft Gelb
+        Color.FromArgb(160, 135, 185),  // Gedämpft Lila
+        Color.FromArgb(125, 180, 185),  // Gedämpft Türkis
+        Color.FromArgb(180, 150, 125),  // Gedämpft Beige
+        Color.FromArgb(140, 155, 180)   // Gedämpft Graublau
+    };
+
+    /// <inheritdoc />
+    public override Color[] DiagramPalette => _diagramPalette;
+
     // Fonts
     /// <inheritdoc />
     public override Font DefaultFont => ResolveFont(new[] { "Segoe UI", "Liberation Sans", "DejaVu Sans", "FreeSans", "Arial" }, 14f);

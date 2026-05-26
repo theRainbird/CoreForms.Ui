@@ -308,6 +308,7 @@ public class MainForm : Form
         tabControl.AddTabPage(CreateTabPage(SR.GetString("TabWebBrowser"), CreateWebBrowserPage()));
         tabControl.AddTabPage(CreateTabPage(SR.GetString("TabHtmlEditor"), CreateHtmlEditorPage()));
         tabControl.AddTabPage(CreateTabPage(SR.GetString("TabCalendar"), CreateCalendarPage()));
+        tabControl.AddTabPage(CreateTabPage(SR.GetString("TabDiagram"), CreateDiagramPage()));
         tabControl.AddTabPage(CreateTabPage(SR.GetString("TabMultiWindows"), CreateMultiWindowPage()));
         tabControl.AddTabPage(CreateTabPage("Reports", CreateReportPage()));
 
@@ -407,6 +408,13 @@ public class MainForm : Form
     private CalendarPage CreateCalendarPage()
     {
         var page = new CalendarPage();
+        page.StatusTextChanged += (s, e) => _statusLabel!.Text = e.Text;
+        return page;
+    }
+
+    private DiagramPage CreateDiagramPage()
+    {
+        var page = new DiagramPage();
         page.StatusTextChanged += (s, e) => _statusLabel!.Text = e.Text;
         return page;
     }

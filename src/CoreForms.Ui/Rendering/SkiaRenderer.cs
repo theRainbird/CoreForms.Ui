@@ -350,6 +350,65 @@ public class SkiaRenderer : IDisposable
     }
 
     /// <summary>
+    /// Draws a filled pie wedge.
+    /// </summary>
+    public void FillPie(Core.Color color, float x, float y, float w, float h, float startAngle, float sweepAngle)
+    {
+        using var paint = new SKPaint { Color = new SKColor(color.R, color.G, color.B, color.A), IsAntialias = true };
+        _surface.Canvas.DrawArc(new SKRect(x, y, x + w, y + h), startAngle, sweepAngle, true, paint);
+    }
+
+    /// <summary>
+    /// Draws an arc outline.
+    /// </summary>
+    public void DrawArc(Core.Color color, float x, float y, float w, float h, float startAngle, float sweepAngle, float lineWidth)
+    {
+        using var paint = new SKPaint
+        {
+            Color = new SKColor(color.R, color.G, color.B, color.A),
+            IsAntialias = true,
+            StrokeWidth = lineWidth,
+            Style = SKPaintStyle.Stroke
+        };
+        _surface.Canvas.DrawArc(new SKRect(x, y, x + w, y + h), startAngle, sweepAngle, false, paint);
+    }
+
+    /// <summary>
+    /// Draws a filled polygon from a flat vertex array [x1,y1,x2,y2,...].
+    /// </summary>
+    public void FillPolygon(Core.Color color, float[] points)
+    {
+        using var paint = new SKPaint { Color = new SKColor(color.R, color.G, color.B, color.A), IsAntialias = true };
+        using var path = new SKPath();
+        if (points.Length < 2) return;
+        path.MoveTo(points[0], points[1]);
+        for (int i = 2; i < points.Length; i += 2)
+            path.LineTo(points[i], points[i + 1]);
+        path.Close();
+        _surface.Canvas.DrawPath(path, paint);
+    }
+
+    /// <summary>
+    /// Draws a polygon outline from a flat vertex array [x1,y1,x2,y2,...].
+    /// </summary>
+    public void DrawPolygon(Core.Color color, float[] points, float lineWidth)
+    {
+        using var paint = new SKPaint
+        {
+            Color = new SKColor(color.R, color.G, color.B, color.A),
+            IsAntialias = true,
+            StrokeWidth = lineWidth,
+            Style = SKPaintStyle.Stroke
+        };
+        using var path = new SKPath();
+        if (points.Length < 2) return;
+        path.MoveTo(points[0], points[1]);
+        for (int i = 2; i < points.Length; i += 2)
+            path.LineTo(points[i], points[i + 1]);
+        _surface.Canvas.DrawPath(path, paint);
+    }
+
+    /// <summary>
     /// Cleans up OpenGL resources while the GL context is still valid.
     /// Called before the window is closed to prevent resource leaks.
     /// </summary>

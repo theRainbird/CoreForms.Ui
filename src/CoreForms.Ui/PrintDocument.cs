@@ -165,6 +165,41 @@ public class PrintDocument : Component
                     canvas.DrawPath(path, paint);
                 }
                 break;
+            case DrawCommandType.FillPie:
+                using (var piePaint = new SKPaint { Color = ToSkColor(cmd.Color), IsAntialias = true, Style = SKPaintStyle.Fill })
+                {
+                    canvas.DrawArc(new SKRect(cmd.X, cmd.Y, cmd.X + cmd.Width, cmd.Y + cmd.Height), cmd.StartAngle, cmd.SweepAngle, true, piePaint);
+                }
+                break;
+            case DrawCommandType.DrawArc:
+                using (var arcPaint = new SKPaint { Color = ToSkColor(cmd.Color), IsAntialias = true, Style = SKPaintStyle.Stroke, StrokeWidth = cmd.LineWidth > 0 ? cmd.LineWidth : 1 })
+                {
+                    canvas.DrawArc(new SKRect(cmd.X, cmd.Y, cmd.X + cmd.Width, cmd.Y + cmd.Height), cmd.StartAngle, cmd.SweepAngle, false, arcPaint);
+                }
+                break;
+            case DrawCommandType.FillPolygon:
+                if (cmd.Points != null && cmd.Points.Length >= 2)
+                {
+                    using var fillPath = new SKPath();
+                    fillPath.MoveTo(cmd.Points[0], cmd.Points[1]);
+                    for (int i = 2; i < cmd.Points.Length; i += 2)
+                        fillPath.LineTo(cmd.Points[i], cmd.Points[i + 1]);
+                    fillPath.Close();
+                    using var paint = new SKPaint { Color = ToSkColor(cmd.Color), Style = SKPaintStyle.Fill };
+                    canvas.DrawPath(fillPath, paint);
+                }
+                break;
+            case DrawCommandType.DrawPolygon:
+                if (cmd.Points != null && cmd.Points.Length >= 2)
+                {
+                    using var drawPath = new SKPath();
+                    drawPath.MoveTo(cmd.Points[0], cmd.Points[1]);
+                    for (int i = 2; i < cmd.Points.Length; i += 2)
+                        drawPath.LineTo(cmd.Points[i], cmd.Points[i + 1]);
+                    using var paint = new SKPaint { Color = ToSkColor(cmd.Color), Style = SKPaintStyle.Stroke, StrokeWidth = cmd.LineWidth > 0 ? cmd.LineWidth : 1 };
+                    canvas.DrawPath(drawPath, paint);
+                }
+                break;
             case DrawCommandType.FillEllipse:
                 using (var paint = new SKPaint { Color = ToSkColor(cmd.Color), Style = SKPaintStyle.Fill })
                     canvas.DrawOval(cmd.X + cmd.Width / 2f, cmd.Y + cmd.Height / 2f, cmd.Width / 2f, cmd.Height / 2f, paint);

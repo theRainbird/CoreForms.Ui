@@ -197,6 +197,45 @@ public class ReportExportPdf
                 }
                 break;
 
+            case DrawCommandType.FillPie:
+                using (var piePaint = new SKPaint { Color = ToSkColor(cmd.Color), IsAntialias = true, Style = SKPaintStyle.Fill })
+                {
+                    canvas.DrawArc(new SKRect(cmd.X, cmd.Y, cmd.X + cmd.Width, cmd.Y + cmd.Height), cmd.StartAngle, cmd.SweepAngle, true, piePaint);
+                }
+                break;
+
+            case DrawCommandType.DrawArc:
+                using (var arcPaint = new SKPaint { Color = ToSkColor(cmd.Color), IsAntialias = true, Style = SKPaintStyle.Stroke, StrokeWidth = cmd.LineWidth > 0 ? cmd.LineWidth : 1 })
+                {
+                    canvas.DrawArc(new SKRect(cmd.X, cmd.Y, cmd.X + cmd.Width, cmd.Y + cmd.Height), cmd.StartAngle, cmd.SweepAngle, false, arcPaint);
+                }
+                break;
+
+            case DrawCommandType.FillPolygon:
+                if (cmd.Points != null && cmd.Points.Length >= 2)
+                {
+                    using var polyPath = new SKPath();
+                    polyPath.MoveTo(cmd.Points[0], cmd.Points[1]);
+                    for (int i = 2; i < cmd.Points.Length; i += 2)
+                        polyPath.LineTo(cmd.Points[i], cmd.Points[i + 1]);
+                    polyPath.Close();
+                    using var fillP = new SKPaint { Color = ToSkColor(cmd.Color), IsAntialias = true, Style = SKPaintStyle.Fill };
+                    canvas.DrawPath(polyPath, fillP);
+                }
+                break;
+
+            case DrawCommandType.DrawPolygon:
+                if (cmd.Points != null && cmd.Points.Length >= 2)
+                {
+                    using var polyPath = new SKPath();
+                    polyPath.MoveTo(cmd.Points[0], cmd.Points[1]);
+                    for (int i = 2; i < cmd.Points.Length; i += 2)
+                        polyPath.LineTo(cmd.Points[i], cmd.Points[i + 1]);
+                    using var drawP = new SKPaint { Color = ToSkColor(cmd.Color), IsAntialias = true, Style = SKPaintStyle.Stroke, StrokeWidth = cmd.LineWidth > 0 ? cmd.LineWidth : 1 };
+                    canvas.DrawPath(polyPath, drawP);
+                }
+                break;
+
             case DrawCommandType.DrawImage:
                 if (cmd.Image?.NativeImage != null)
                 {

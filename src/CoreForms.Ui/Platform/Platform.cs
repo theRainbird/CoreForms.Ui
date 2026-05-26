@@ -795,6 +795,20 @@ public static class Platform
             case DrawCommandType.FillTriangle:
                 renderer.FillTriangle(cmd.Color, cmd.X, cmd.Y, cmd.X2, cmd.Y2, cmd.X3, cmd.Y3);
                 break;
+            case DrawCommandType.FillPie:
+                renderer.FillPie(cmd.Color, cmd.X, cmd.Y, cmd.Width, cmd.Height, cmd.StartAngle, cmd.SweepAngle);
+                break;
+            case DrawCommandType.DrawArc:
+                renderer.DrawArc(cmd.Color, cmd.X, cmd.Y, cmd.Width, cmd.Height, cmd.StartAngle, cmd.SweepAngle, cmd.LineWidth);
+                break;
+            case DrawCommandType.FillPolygon:
+                if (cmd.Points != null)
+                    renderer.FillPolygon(cmd.Color, cmd.Points);
+                break;
+            case DrawCommandType.DrawPolygon:
+                if (cmd.Points != null)
+                    renderer.DrawPolygon(cmd.Color, cmd.Points, cmd.LineWidth);
+                break;
             case DrawCommandType.FillEllipse:
                 renderer.FillEllipse(cmd.Color, cmd.X, cmd.Y, cmd.Width, cmd.Height);
                 break;

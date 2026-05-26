@@ -341,6 +341,106 @@ namespace CoreForms.Ui.Rendering;
     }
 
     /// <summary>
+    /// Draws a filled pie wedge.
+    /// </summary>
+    /// <param name="color">The fill color.</param>
+    /// <param name="x">The x-coordinate of the bounding rectangle.</param>
+    /// <param name="y">The y-coordinate of the bounding rectangle.</param>
+    /// <param name="width">The width of the bounding rectangle.</param>
+    /// <param name="height">The height of the bounding rectangle.</param>
+    /// <param name="startAngle">The start angle in degrees from the x-axis.</param>
+    /// <param name="sweepAngle">The sweep angle in degrees (positive clockwise).</param>
+    public void FillPie(Color color, float x, float y, float width, float height, float startAngle, float sweepAngle)
+    {
+        _commands.Add(new DrawCommand
+        {
+            Type = DrawCommandType.FillPie,
+            Color = color,
+            X = (x + _offsetX) * _zoom,
+            Y = (y + _offsetY) * _zoom,
+            Width = width * _zoom,
+            Height = height * _zoom,
+            StartAngle = startAngle,
+            SweepAngle = sweepAngle,
+            ClipBounds = ClipBounds
+        });
+    }
+
+    /// <summary>
+    /// Draws an arc outline.
+    /// </summary>
+    /// <param name="color">The outline color.</param>
+    /// <param name="x">The x-coordinate of the bounding rectangle.</param>
+    /// <param name="y">The y-coordinate of the bounding rectangle.</param>
+    /// <param name="width">The width of the bounding rectangle.</param>
+    /// <param name="height">The height of the bounding rectangle.</param>
+    /// <param name="startAngle">The start angle in degrees from the x-axis.</param>
+    /// <param name="sweepAngle">The sweep angle in degrees (positive clockwise).</param>
+    /// <param name="lineWidth">The line width.</param>
+    public void DrawArc(Color color, float x, float y, float width, float height, float startAngle, float sweepAngle, float lineWidth = 1f)
+    {
+        _commands.Add(new DrawCommand
+        {
+            Type = DrawCommandType.DrawArc,
+            Color = color,
+            X = (x + _offsetX) * _zoom,
+            Y = (y + _offsetY) * _zoom,
+            Width = width * _zoom,
+            Height = height * _zoom,
+            StartAngle = startAngle,
+            SweepAngle = sweepAngle,
+            LineWidth = lineWidth * _zoom,
+            ClipBounds = ClipBounds
+        });
+    }
+
+    /// <summary>
+    /// Draws a filled polygon from a flat vertex array.
+    /// </summary>
+    /// <param name="color">The fill color.</param>
+    /// <param name="points">Flat float array [x1,y1,x2,y2,...] of vertex coordinates.</param>
+    public void FillPolygon(Color color, float[] points)
+    {
+        var transformed = new float[points.Length];
+        for (int i = 0; i < points.Length; i += 2)
+        {
+            transformed[i] = (points[i] + _offsetX) * _zoom;
+            transformed[i + 1] = (points[i + 1] + _offsetY) * _zoom;
+        }
+        _commands.Add(new DrawCommand
+        {
+            Type = DrawCommandType.FillPolygon,
+            Color = color,
+            Points = transformed,
+            ClipBounds = ClipBounds
+        });
+    }
+
+    /// <summary>
+    /// Draws a polygon outline from a flat vertex array.
+    /// </summary>
+    /// <param name="color">The outline color.</param>
+    /// <param name="points">Flat float array [x1,y1,x2,y2,...] of vertex coordinates.</param>
+    /// <param name="lineWidth">The line width.</param>
+    public void DrawPolygon(Color color, float[] points, float lineWidth = 1f)
+    {
+        var transformed = new float[points.Length];
+        for (int i = 0; i < points.Length; i += 2)
+        {
+            transformed[i] = (points[i] + _offsetX) * _zoom;
+            transformed[i + 1] = (points[i + 1] + _offsetY) * _zoom;
+        }
+        _commands.Add(new DrawCommand
+        {
+            Type = DrawCommandType.DrawPolygon,
+            Color = color,
+            Points = transformed,
+            LineWidth = lineWidth * _zoom,
+            ClipBounds = ClipBounds
+        });
+    }
+
+    /// <summary>
     /// Releases all resources used by this Graphics object.
     /// </summary>
     public void Dispose()
@@ -379,6 +479,17 @@ namespace CoreForms.Ui.Rendering;
             else if (cmd.ClipBounds.HasValue)
                 finalClip = cmd.ClipBounds;
 
+            float[]? transformedPoints = null;
+            if (cmd.Points != null)
+            {
+                transformedPoints = new float[cmd.Points.Length];
+                for (int i = 0; i < cmd.Points.Length; i += 2)
+                {
+                    transformedPoints[i] = (cmd.Points[i] * sourceScale + addOffsetX + _offsetX) * _zoom;
+                    transformedPoints[i + 1] = (cmd.Points[i + 1] * sourceScale + addOffsetY + _offsetY) * _zoom;
+                }
+            }
+
             var newCmd = new DrawCommand
             {
                 Type = cmd.Type,
@@ -396,6 +507,9 @@ namespace CoreForms.Ui.Rendering;
                 Font = cmd.Font,
                 Image = cmd.Image,
                 Zoom = cmd.Zoom * sourceScale * _zoom,
+                StartAngle = cmd.StartAngle,
+                SweepAngle = cmd.SweepAngle,
+                Points = transformedPoints,
                 ClipBounds = finalClip
             };
             _commands.Add(newCmd);
@@ -489,7 +603,27 @@ public enum DrawCommandType
     /// <summary>
     /// Draw a filled triangle.
     /// </summary>
-    FillTriangle
+    FillTriangle,
+
+    /// <summary>
+    /// Draw a filled pie wedge.
+    /// </summary>
+    FillPie,
+
+    /// <summary>
+    /// Draw an arc.
+    /// </summary>
+    DrawArc,
+
+    /// <summary>
+    /// Draw a filled polygon.
+    /// </summary>
+    FillPolygon,
+
+    /// <summary>
+    /// Draw a polygon outline.
+    /// </summary>
+    DrawPolygon
 }
 
 /// <summary>
@@ -576,4 +710,21 @@ public class DrawCommand
     /// Gets or sets the zoom factor for this command (used for font scaling).
     /// </summary>
     public float Zoom { get; set; } = 1.0f;
+
+    /// <summary>
+    /// Gets or sets the start angle in degrees (for pie and arc commands).
+    /// </summary>
+    public float StartAngle { get; set; }
+
+    /// <summary>
+    /// Gets or sets the sweep angle in degrees (for pie and arc commands).
+    /// Positive values sweep clockwise.
+    /// </summary>
+    public float SweepAngle { get; set; }
+
+    /// <summary>
+    /// Gets or sets the polygon vertex data as a flat float array [x1,y1,x2,y2,...].
+    /// Used by FillPolygon and DrawPolygon commands.
+    /// </summary>
+    public float[]? Points { get; set; }
 }

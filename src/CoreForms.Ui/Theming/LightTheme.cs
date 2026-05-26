@@ -257,6 +257,37 @@ public class LightTheme : Theme
     /// <inheritdoc />
     public override Color CalendarDayHeaderBackground => Color.FromArgb(242, 242, 242);
 
+    // Diagram colors
+    /// <inheritdoc />
+    public override Color DiagramBackground => Color.FromArgb(255, 255, 255);
+
+    /// <inheritdoc />
+    public override Color DiagramGridLine => Color.FromArgb(220, 220, 220);
+
+    /// <inheritdoc />
+    public override Color DiagramAxisLine => Color.FromArgb(160, 160, 160);
+
+    /// <inheritdoc />
+    public override Color DiagramAxisLabel => Color.FromArgb(80, 80, 80);
+
+    /// <inheritdoc />
+    public override Color DiagramLegendBackground => Color.FromArgb(250, 250, 250);
+
+    private static readonly Color[] _diagramPalette = new[]
+    {
+        Color.FromArgb(174, 198, 207),  // Pastell Blau
+        Color.FromArgb(225, 190, 185),  // Pastell Rosa
+        Color.FromArgb(195, 215, 185),  // Pastell Grün
+        Color.FromArgb(225, 210, 175),  // Pastell Gelb
+        Color.FromArgb(200, 185, 210),  // Pastell Lila
+        Color.FromArgb(180, 210, 215),  // Pastell Türkis
+        Color.FromArgb(215, 195, 175),  // Pastell Beige
+        Color.FromArgb(190, 200, 215)   // Pastell Graublau
+    };
+
+    /// <inheritdoc />
+    public override Color[] DiagramPalette => _diagramPalette;
+
     // Fonts
     /// <inheritdoc />
     public override Font DefaultFont => ResolveFont(new[] { "Segoe UI", "Liberation Sans", "DejaVu Sans", "FreeSans", "Arial" }, 14f);

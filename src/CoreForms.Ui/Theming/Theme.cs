@@ -408,6 +408,37 @@ public abstract class Theme
     /// </summary>
     public abstract Color CalendarDayHeaderBackground { get; }
 
+    // Diagram colors
+    /// <summary>
+    /// Gets the diagram chart area background color.
+    /// </summary>
+    public abstract Color DiagramBackground { get; }
+
+    /// <summary>
+    /// Gets the diagram grid line color.
+    /// </summary>
+    public abstract Color DiagramGridLine { get; }
+
+    /// <summary>
+    /// Gets the diagram axis line color.
+    /// </summary>
+    public abstract Color DiagramAxisLine { get; }
+
+    /// <summary>
+    /// Gets the diagram axis label text color.
+    /// </summary>
+    public abstract Color DiagramAxisLabel { get; }
+
+    /// <summary>
+    /// Gets the diagram legend background color.
+    /// </summary>
+    public abstract Color DiagramLegendBackground { get; }
+
+    /// <summary>
+    /// Gets the default color palette for diagram series fills (pastel/muted colors).
+    /// </summary>
+    public abstract Color[] DiagramPalette { get; }
+
     // Fonts
     /// <summary>
     /// Gets the default font for controls.
