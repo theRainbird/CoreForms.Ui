@@ -22,7 +22,7 @@ public class TextBox : Control
         _foreColor = theme.TextBoxText;
         Size = new Size(200, 32);
         TabStop = true;
-        _engine.TextChanged += (s, e) => { OnTextChanged(); Invalidate(); };
+        _engine.TextChanged += (s, e) => { OnTextChanged(); OnPropertyChanged(nameof(Text)); Invalidate(); };
     }
 
     private TextEditorContext Context => _context ??= new TextEditorContext(this);

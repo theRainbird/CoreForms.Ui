@@ -29,7 +29,7 @@ public class MemoBox : Control
         _foreColor = theme.TextBoxText;
         Size = new Size(200, 120);
         TabStop = true;
-        _engine.TextChanged += (s, e) => { OnTextChanged(); Invalidate(); };
+        _engine.TextChanged += (s, e) => { OnTextChanged(); OnPropertyChanged(nameof(Text)); Invalidate(); };
         _engine.ScrollOffsetYChanged += (s, e) => Invalidate();
 
         _vScrollBar.Scroll += (s, e) =>
