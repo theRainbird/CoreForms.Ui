@@ -36,6 +36,7 @@ public class DiagramView : ContainerControl
     private string _categoryMember = string.Empty;
     private bool _dataSourceUpdating;
     private BindingSource? _boundBindingSource;
+    private IBindingList? _previousBindingList;
 
     private readonly ScrollBarEngine _hScrollBar = new();
     private readonly ScrollBarEngine _vScrollBar = new();
@@ -1487,6 +1488,10 @@ public class DiagramView : ContainerControl
         _dataSourceUpdating = true;
         try
         {
+            if (_previousBindingList != null)
+                _previousBindingList.ListChanged -= OnDataSourceListChanged;
+            _previousBindingList = null;
+
             if (_boundBindingSource != null)
             {
                 _boundBindingSource.CurrentChanged -= OnBoundBindingSourceCurrentChanged;
@@ -1502,6 +1507,7 @@ public class DiagramView : ContainerControl
                 if (list != null)
                 {
                     list.ListChanged += OnDataSourceListChanged;
+                    _previousBindingList = list;
                 }
                 bs.CurrentChanged += OnBoundBindingSourceCurrentChanged;
                 PopulateFromDataSource();

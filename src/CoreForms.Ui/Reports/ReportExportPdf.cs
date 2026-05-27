@@ -99,7 +99,7 @@ public class ReportExportPdf
                 if (!string.IsNullOrEmpty(cmd.Text) && cmd.Font != null)
                 {
                     float fontSize = cmd.Font.Size * (cmd.Zoom > 0 ? cmd.Zoom : 1);
-                    var typeface = ResolveTypeface(cmd.Font.Name, cmd.Font.Style);
+                    using var typeface = ResolveTypeface(cmd.Font.Name, cmd.Font.Style);
 
                     using var paint = new SKPaint
                     {

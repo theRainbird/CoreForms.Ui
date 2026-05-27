@@ -138,6 +138,7 @@ internal class DBusConnection : IDisposable
                     msg.ParseBody();
                     return msg;
                 }
+                msg.Dispose();
                 dbus_message_unref(msgPtr);
                 msgPtr = dbus_connection_pop_message(_connection);
             }

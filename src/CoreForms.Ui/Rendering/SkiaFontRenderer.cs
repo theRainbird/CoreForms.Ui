@@ -12,7 +12,6 @@ namespace CoreForms.Ui.Rendering;
     public class SkiaFontRenderer : IDisposable
     {
         private readonly Dictionary<string, SKTypeface> _typefaceCache = new();
-        private readonly Dictionary<string, SKFont> _fontCache = new();
         private float _zoom = 1.0f;
         private bool _disposed;
 
@@ -157,20 +156,6 @@ namespace CoreForms.Ui.Rendering;
         return ((int)MathF.Round(width), (int)MathF.Round(fontMetrics.Descent - fontMetrics.Ascent));
     }
 
-    private SKFont? GetOrCreateFont(Core.Font font, float zoom = 1.0f)
-    {
-        var key = $"{font.Name}:{font.Size}:{font.Style}:{zoom:F2}";
-        if (_fontCache.TryGetValue(key, out var cached))
-            return cached;
-
-        var typeface = GetOrLoadTypeface(font.Name, font.Style);
-        if (typeface == null) return null;
-
-        var skFont = new SKFont(typeface, font.Size * zoom);
-        _fontCache[key] = skFont;
-        return skFont;
-    }
-
     private SKTypeface? GetOrLoadTypeface(string fontName, FontStyle style)
     {
         var styleKey = $"{fontName}:{style}";
@@ -303,11 +288,8 @@ namespace CoreForms.Ui.Rendering;
     {
         if (!_disposed)
         {
-            foreach (var font in _fontCache.Values)
-                font.Dispose();
             foreach (var typeface in _typefaceCache.Values)
                 typeface.Dispose();
-            _fontCache.Clear();
             _typefaceCache.Clear();
             _disposed = true;
         }

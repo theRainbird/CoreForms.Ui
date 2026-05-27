@@ -15,6 +15,7 @@ public class DataGridView : ContainerControl
     private int _selectedColumnIndex = -1;
     private int _rowHeight = 30;
     private object? _dataSource;
+    private IBindingList? _previousBindingList;
     private string _dataMember = string.Empty;
     private bool _dataSourceUpdating;
     private bool _allowUserToAddRows = true;
@@ -1615,9 +1616,13 @@ public class DataGridView : ContainerControl
         _dataSourceUpdating = true;
         try
         {
+            if (_previousBindingList != null)
+                _previousBindingList.ListChanged -= OnDataSourceListChanged;
+            _previousBindingList = null;
+
             _rows.Clear(); ClearSort(); _selectedRowIndex = -1; _selectedColumnIndex = -1;
             if (_dataSource is System.Collections.IEnumerable enumerable && _dataSource is not string) { foreach (var item in enumerable) _rows.Add(CreateRowFromDataItem(item)); }
-            if (_dataSource is IBindingList bindingList) bindingList.ListChanged += OnDataSourceListChanged;
+            if (_dataSource is IBindingList bindingList) { bindingList.ListChanged += OnDataSourceListChanged; _previousBindingList = bindingList; }
             if (_groupedColumnIndices.Count > 0) BuildGroups();
             if (_rows.Count > 0 && _columns.Count > 0) { _selectedRowIndex = 0; _selectedColumnIndex = 0; }
             Invalidate();

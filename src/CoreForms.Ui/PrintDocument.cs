@@ -54,7 +54,7 @@ public class PrintDocument : Component
             PrinterSettings.PrinterName = printers[0];
         }
 
-        var pdfStream = new MemoryStream();
+        using var pdfStream = new MemoryStream();
         using var pdfDoc = SKDocument.CreatePdf(pdfStream);
 
         var pageSettings = DefaultPageSettings.Clone();

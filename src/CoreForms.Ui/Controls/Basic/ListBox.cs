@@ -18,6 +18,7 @@ public class ListBox : Control
     private string _valueMember = string.Empty;
     private bool _dataSourceUpdating;
     private BindingSource? _boundBindingSource;
+    private IBindingList? _previousBindingList;
     private int _scrollOffset;
     private readonly ScrollBarEngine _vScrollBar = new();
     private ListBoxScrollBarContext? _scrollBarContext;
@@ -448,6 +449,10 @@ public class ListBox : Control
         _dataSourceUpdating = true;
         try
         {
+            if (_previousBindingList != null)
+                _previousBindingList.ListChanged -= OnDataSourceListChanged;
+            _previousBindingList = null;
+
             if (_boundBindingSource != null)
             {
                 _boundBindingSource.CurrentChanged -= OnBoundBindingSourceCurrentChanged;
@@ -465,6 +470,7 @@ public class ListBox : Control
                     foreach (var item in list)
                         _items.Add(item!);
                     list.ListChanged += OnDataSourceListChanged;
+                    _previousBindingList = list;
                 }
                 bs.CurrentChanged += OnBoundBindingSourceCurrentChanged;
             }
@@ -473,6 +479,7 @@ public class ListBox : Control
                 foreach (var item in bindingList)
                     _items.Add(item!);
                 bindingList.ListChanged += OnDataSourceListChanged;
+                _previousBindingList = bindingList;
             }
             else if (_dataSource is System.Collections.IEnumerable enumerable && _dataSource is not string)
             {

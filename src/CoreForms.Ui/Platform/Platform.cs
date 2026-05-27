@@ -30,6 +30,8 @@ public static class Platform
     private static long _lastRenderTicks;
     private static IKeyboard? _keyboard;
 
+    private static readonly Dictionary<uint, List<Action>> _windowCleanupActions = new();
+
     [DllImport("kernel32.dll", SetLastError = true, CharSet = CharSet.Auto)]
     private static extern IntPtr GetModuleHandle(string lpModuleName);
 
@@ -160,9 +162,12 @@ public static class Platform
             var mouse = input.Mice.FirstOrDefault();
             _keyboard = keyboard;
 
+            var cleanup = new List<Action>();
+            _windowCleanupActions[windowId] = cleanup;
+
             if (keyboard != null)
             {
-                keyboard.KeyDown += (kb, key, keyCode) =>
+                Action<IKeyboard, Key, int> keyDown = (kb, key, keyCode) =>
                 {
                     Log($"[Platform] KeyDown: key={key} focusedWindow='{_focusedWindow?.Text}' windowId={windowId}");
                     if (_focusedWindow == null) return;
@@ -173,8 +178,10 @@ public static class Platform
                     };
                     _focusedWindow.OnKeyDown(args);
                 };
+                keyboard.KeyDown += keyDown;
+                cleanup.Add(() => keyboard.KeyDown -= keyDown);
 
-                keyboard.KeyUp += (kb, key, keyCode) =>
+                Action<IKeyboard, Key, int> keyUp = (kb, key, keyCode) =>
                 {
                     if (_focusedWindow == null) return;
                     var args = new KeyEventArgs
@@ -184,12 +191,16 @@ public static class Platform
                     };
                     _focusedWindow.OnKeyUp(args);
                 };
+                keyboard.KeyUp += keyUp;
+                cleanup.Add(() => keyboard.KeyUp -= keyUp);
 
-                keyboard.KeyChar += (kb, ch) =>
+                Action<IKeyboard, char> keyChar = (kb, ch) =>
                 {
                     if (_focusedWindow == null) return;
                     _focusedWindow.OnTextInput(ch.ToString());
                 };
+                keyboard.KeyChar += keyChar;
+                cleanup.Add(() => keyboard.KeyChar -= keyChar);
             }
             else
             {
@@ -198,7 +209,7 @@ public static class Platform
 
             if (mouse != null)
             {
-                mouse.MouseDown += (m, button) =>
+                Action<IMouse, MouseButton> mouseDown = (m, button) =>
                 {
                     var pos = mouse.Position;
                     float zoom = form.Zoom;
@@ -207,8 +218,10 @@ public static class Platform
                     var args = new MouseEventArgs(btn, 1, point.X, point.Y, 0);
                     form.OnMouseDown(args);
                 };
+                mouse.MouseDown += mouseDown;
+                cleanup.Add(() => mouse.MouseDown -= mouseDown);
 
-                mouse.MouseUp += (m, button) =>
+                Action<IMouse, MouseButton> mouseUp = (m, button) =>
                 {
                     var pos = mouse.Position;
                     float zoom = form.Zoom;
@@ -217,8 +230,10 @@ public static class Platform
                     var args = new MouseEventArgs(btn, 1, point.X, point.Y, 0);
                     form.OnMouseUp(args);
                 };
+                mouse.MouseUp += mouseUp;
+                cleanup.Add(() => mouse.MouseUp -= mouseUp);
 
-                mouse.MouseMove += (m, pos) =>
+                Action<IMouse, System.Numerics.Vector2> mouseMove = (m, pos) =>
                 {
                     float zoom = form.Zoom;
                     var point = new Point((int)(pos.X / zoom), (int)(pos.Y / zoom));
@@ -228,16 +243,20 @@ public static class Platform
                     form.OnMouseMove(args);
                     ApplyFormCursor(form, m);
                 };
+                mouse.MouseMove += mouseMove;
+                cleanup.Add(() => mouse.MouseMove -= mouseMove);
 
-                mouse.Scroll += (m, wheel) =>
+                Action<IMouse, ScrollWheel> scroll = (m, wheel) =>
                 {
                     var point = _lastMousePosition;
                     var args = new MouseEventArgs(MouseButtons.None, 0, point.X, point.Y, wheel.Y);
                     form.OnMouseWheel(args);
                 };
+                mouse.Scroll += scroll;
+                cleanup.Add(() => mouse.Scroll -= scroll);
             }
 
-            window.Resize += size =>
+            Action<Vector2D<int>> resize = size =>
             {
                 if (size.X > 0 && size.Y > 0)
                 {
@@ -249,14 +268,18 @@ public static class Platform
                     form.Invalidate();
                 }
             };
+            window.Resize += resize;
+            cleanup.Add(() => window.Resize -= resize);
 
-            window.Closing += () =>
+            Action closing = () =>
             {
                 Log($"[Platform] Closing event for window id={windowId} form='{form.Text}'");
                 ctx.IsClosing = true;
             };
+            window.Closing += closing;
+            cleanup.Add(() => window.Closing -= closing);
 
-            window.FocusChanged += focused =>
+            Action<bool> focusChanged = focused =>
             {
                 Log($"[Platform] FocusChanged: focused={focused} windowId={windowId} form='{form.Text}'");
                 if (focused)
@@ -271,12 +294,16 @@ public static class Platform
                     form.OnLostFocus(EventArgs.Empty);
                 }
             };
+            window.FocusChanged += focusChanged;
+            cleanup.Add(() => window.FocusChanged -= focusChanged);
 
-            window.Move += pos =>
+            Action<Vector2D<int>> move = pos =>
             {
                 form.X = pos.X;
                 form.Y = pos.Y;
             };
+            window.Move += move;
+            cleanup.Add(() => window.Move -= move);
 
             try
             {
@@ -330,6 +357,13 @@ public static class Platform
     /// </summary>
     private static void CleanupWindowOnClose(uint windowId, WindowContext ctx, Form form, bool glCleanup)
     {
+        if (_windowCleanupActions.TryGetValue(windowId, out var cleanup))
+        {
+            foreach (var action in cleanup)
+                action();
+            _windowCleanupActions.Remove(windowId);
+        }
+
         ctx.IsClosing = true;
         _contexts.Remove(windowId);
 
