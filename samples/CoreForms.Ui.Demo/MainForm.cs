@@ -274,16 +274,20 @@ public class MainForm : Form
 
     private Panel CreateStatusStrip()
     {
-        _statusLabel = new Label { Text = SR.GetString("StatusReady") };
+        _statusLabel = new Label
+        {
+            Text = SR.GetString("StatusReady"),
+            Dock = DockStyle.Fill,
+            BackColor = Color.Transparent
+        };
 
         var statusStrip = new Panel
         {
+            BackColor = ThemeManager.CurrentTheme.ControlBackground,
             Size = new Size(900, 24)
         };
         statusStrip.Dock = DockStyle.Bottom;
-        statusStrip.Padding = new Padding(5, 2, 5, 2);
-        _statusLabel.Location = new Point(5, 2);
-        _statusLabel.Anchor = AnchorStyles.Left | AnchorStyles.Right;
+        statusStrip.Padding = new Padding(8, 0, 8, 0);
         statusStrip.Controls.Add(_statusLabel);
 
         return statusStrip;

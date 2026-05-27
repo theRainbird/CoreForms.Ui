@@ -935,6 +935,22 @@ public class StatusStrip : ContainerControl
             _foreColor = newTheme.ControlText;
         Invalidate();
     }
+
+    /// <summary>
+    /// Renders the StatusStrip with its background and top border line.
+    /// </summary>
+    /// <param name="g">The Graphics object to use for rendering.</param>
+    public override void Render(Graphics g)
+    {
+        if (!Visible) return;
+
+        var theme = ThemeManager.CurrentTheme;
+
+        g.FillRectangle(BackColor, 0, 0, Width, Height);
+        g.DrawLine(theme.StatusStripTopLine, 0, 0, Width, 0, 1);
+
+        base.Render(g);
+    }
 }
 
 /// <summary>
