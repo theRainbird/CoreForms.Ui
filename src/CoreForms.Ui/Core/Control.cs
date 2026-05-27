@@ -1300,6 +1300,7 @@ public class ControlCollection : IEnumerable<Control>
 {
     private readonly Control _owner;
     private readonly List<Control> _controls = new();
+    private int _updateSuspendCount;
 
     /// <summary>
     /// Initializes a new instance of ControlCollection for the specified owner.
@@ -1323,6 +1324,30 @@ public class ControlCollection : IEnumerable<Control>
     public Control this[int index] => _controls[index];
 
     /// <summary>
+    /// Suspends invalidation and layout until <see cref="EndUpdate"/> is called.
+    /// Use when adding or removing multiple controls to avoid redundant layout passes.
+    /// </summary>
+    public void BeginUpdate()
+    {
+        _updateSuspendCount++;
+    }
+
+    /// <summary>
+    /// Resumes invalidation and layout suspended by <see cref="BeginUpdate"/>.
+    /// Triggers a single invalidate and layout pass if any changes were made.
+    /// </summary>
+    public void EndUpdate()
+    {
+        if (_updateSuspendCount > 0)
+            _updateSuspendCount--;
+        if (_updateSuspendCount == 0)
+        {
+            _owner.Invalidate();
+            _owner.PerformLayout();
+        }
+    }
+
+    /// <summary>
     /// Adds a control to the collection.
     /// </summary>
     /// <param name="control">The control to add.</param>
@@ -1333,8 +1358,37 @@ public class ControlCollection : IEnumerable<Control>
             _controls.Add(control);
             control.Parent = _owner;
             control.UpdateAnchorDistances();
-            _owner.Invalidate();
-            _owner.PerformLayout();
+            if (_updateSuspendCount == 0)
+            {
+                _owner.Invalidate();
+                _owner.PerformLayout();
+            }
+        }
+    }
+
+    /// <summary>
+    /// Adds multiple controls to the collection in a single operation.
+    /// Triggers only one invalidate and layout pass for all controls.
+    /// </summary>
+    /// <param name="controls">The controls to add.</param>
+    public void AddRange(IEnumerable<Control> controls)
+    {
+        BeginUpdate();
+        try
+        {
+            foreach (var control in controls)
+            {
+                if (!_controls.Contains(control))
+                {
+                    _controls.Add(control);
+                    control.Parent = _owner;
+                    control.UpdateAnchorDistances();
+                }
+            }
+        }
+        finally
+        {
+            EndUpdate();
         }
     }
 
@@ -1346,8 +1400,11 @@ public class ControlCollection : IEnumerable<Control>
     {
         if (_controls.Remove(control))
         {
-            _owner.Invalidate();
-            _owner.PerformLayout();
+            if (_updateSuspendCount == 0)
+            {
+                _owner.Invalidate();
+                _owner.PerformLayout();
+            }
         }
     }
 
@@ -1357,8 +1414,11 @@ public class ControlCollection : IEnumerable<Control>
     public void Clear()
     {
         _controls.Clear();
-        _owner.Invalidate();
-        _owner.PerformLayout();
+        if (_updateSuspendCount == 0)
+        {
+            _owner.Invalidate();
+            _owner.PerformLayout();
+        }
     }
 
     /// <summary>

@@ -704,14 +704,13 @@ public static class Platform
 
         // 30 fps frame pacing: sleep until the next frame is due
         long elapsed = _frameTimer.Elapsed.Ticks - _lastRenderTicks;
-        long remaining = FrameInterval.Ticks - elapsed;
-        if (remaining > 0)
+        if (elapsed < FrameInterval.Ticks)
         {
             // Sleep for the remaining time (max 33ms at 30fps), clamped to a minimum of 1ms
+            long remaining = FrameInterval.Ticks - elapsed;
             int sleepMs = (int)(remaining / TimeSpan.TicksPerMillisecond);
             if (sleepMs > 0)
                 Thread.Sleep(sleepMs);
-            return;
         }
 
         foreach (var ctx in _contexts.Values.ToList())
