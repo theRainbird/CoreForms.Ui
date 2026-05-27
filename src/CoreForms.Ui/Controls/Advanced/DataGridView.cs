@@ -1,4 +1,5 @@
 using System.ComponentModel;
+using CoreForms.Ui.Controls.Basic;
 using CoreForms.Ui.Core;
 using CoreForms.Ui.Data;
 using CoreForms.Ui.Theming;
@@ -58,6 +59,13 @@ public class DataGridView : ContainerControl
     private bool _isDraggingPillOut;
     private int _dragRemoveLevelIndex = -1;
     private const int DragThreshold = 8;
+
+    // Cell editing
+    private Control? _editingControl;
+    private int _editingRowIndex = -1;
+    private int _editingColumnIndex = -1;
+    private object? _originalCellValue;
+    private bool _suppressEndEdit;
 
     private ScrollBarContext VScrollBarContext => _scrollBarContext ??= new ScrollBarContext(this);
 
@@ -279,11 +287,50 @@ public class DataGridView : ContainerControl
         set { if (_groupHeaderIndent != value && value >= 0) { _groupHeaderIndent = value; Invalidate(); } }
     }
 
+    /// <summary>
+    /// Gets whether a cell is currently being edited.
+    /// </summary>
+    public bool IsCurrentCellInEditMode => _editingControl != null;
+
+    /// <summary>
+    /// Gets or sets how cell editing is triggered.
+    /// Default is <see cref="DataGridViewEditMode.EditOnF2"/>.
+    /// </summary>
+    public DataGridViewEditMode EditMode { get; set; } = DataGridViewEditMode.EditOnEnter;
+
     public event EventHandler? SelectionChanged;
     public event EventHandler? CellClick;
     public event EventHandler<DataGridViewCellEventArgs>? CellValueChanged;
     public event EventHandler<DataGridViewCellEventArgs>? ColumnHeaderMouseClick;
     public event EventHandler<DataGridViewGroupHeaderFormattingEventArgs>? GroupHeaderFormatting;
+
+    /// <summary>
+    /// Occurs when a cell enters edit mode.
+    /// </summary>
+    public event EventHandler<DataGridViewCellEventArgs>? CellBeginEdit;
+
+    /// <summary>
+    /// Occurs when a cell exits edit mode.
+    /// </summary>
+    public event EventHandler<DataGridViewCellEventArgs>? CellEndEdit;
+
+    /// <summary>
+    /// Occurs when a cell value needs to be formatted for display.
+    /// Handle this event to customize the displayed value.
+    /// </summary>
+    public event EventHandler<DataGridViewCellFormattingEventArgs>? CellFormatting;
+
+    /// <summary>
+    /// Occurs when a cell value needs to be parsed from the editing control back to the data source.
+    /// Handle this event to customize how editor values are converted.
+    /// </summary>
+    public event EventHandler<DataGridViewCellParsingEventArgs>? CellParsing;
+
+    /// <summary>
+    /// Occurs when a data operation error occurs during cell editing (e.g., invalid value conversion).
+    /// If unhandled, a message box is shown and the original cell value is restored.
+    /// </summary>
+    public event EventHandler<DataGridViewDataErrorEventArgs>? DataError;
 
     protected virtual void OnSelectionChanged()
     {
@@ -310,6 +357,11 @@ public class DataGridView : ContainerControl
     protected virtual void OnCellClick(DataGridViewCellEventArgs e) => CellClick?.Invoke(this, e);
     protected virtual void OnCellValueChanged(DataGridViewCellEventArgs e) => CellValueChanged?.Invoke(this, e);
     protected virtual void OnColumnHeaderMouseClick(DataGridViewCellEventArgs e) => ColumnHeaderMouseClick?.Invoke(this, e);
+    protected virtual void OnCellBeginEdit(DataGridViewCellEventArgs e) => CellBeginEdit?.Invoke(this, e);
+    protected virtual void OnCellEndEdit(DataGridViewCellEventArgs e) => CellEndEdit?.Invoke(this, e);
+    protected virtual void OnCellFormatting(DataGridViewCellFormattingEventArgs e) => CellFormatting?.Invoke(this, e);
+    protected virtual void OnCellParsing(DataGridViewCellParsingEventArgs e) => CellParsing?.Invoke(this, e);
+    protected virtual void OnDataError(DataGridViewDataErrorEventArgs e) => DataError?.Invoke(this, e);
     protected virtual void OnGroupHeaderFormatting(DataGridViewGroupHeaderFormattingEventArgs e) => GroupHeaderFormatting?.Invoke(this, e);
 
     private int GetDataAreaY() => (_showGroupingBar ? _groupingBarHeight : 0) + (_columnHeadersVisible ? _rowHeight : 0);
@@ -397,7 +449,11 @@ public class DataGridView : ContainerControl
         g.ResetClip();
         RenderDragIndicator(g, theme, zoom);
         if (needVS) { _vScrollBar.Render(g, new Rectangle(Width - sbw, daY, sbw, dH), theme); }
-        if (Focused) g.DrawRectangle(theme.TextBoxFocusBorder, 0, 0, Width, Height, 2);
+        if (Focused)
+        {
+            g.DrawRectangle(theme.TextBoxFocusBorder, 0, 0, Width, Height, 2);
+            RenderCurrentCellFocus(g, theme, daY, rhw, dw);
+        }
         base.Render(g);
     }
 
@@ -510,14 +566,37 @@ public class DataGridView : ContainerControl
                     int dw2 = Math.Min(x + cw, rhw + dw) - dx;
                     if (dw2 > 0)
                     {
-                        var cell = _rows[i].Cells.Count > c ? _rows[i].Cells[c] : null;
-                        var cd = _columns[c];
-                        var t = FormatCellValue(cell?.Value, cd.FormatString);
-                        var f = EffectiveFont;
-                        int av = dw2 - 8;
-                        t = TruncateText(t, f, zoom, cd.TextAlign, av > 0 ? av : 0);
-                        float tx = GetAlignedX(t, f, zoom, cd.TextAlign, dx, dw2, 4);
-                        g.DrawString(t, f, tc, tx, y + (int)CoordinateTransform.CenterVertically(0, _rowHeight, f, zoom));
+                        // Skip rendering text for the cell currently being edited (editing control overlays it)
+                        if (!(i == _editingRowIndex && c == _editingColumnIndex))
+                        {
+                            var cell = _rows[i].Cells.Count > c ? _rows[i].Cells[c] : null;
+                            var cd = _columns[c];
+                            if (cd.CellEditType == DataGridViewColumnEditType.CheckBox || cell?.Value is bool)
+                            {
+                                bool isChecked = cell?.Value is bool bv && bv;
+                                RenderCheckBoxCell(g, theme, isChecked, dx, y, dw2, _rowHeight);
+                            }
+                            else
+                            {
+                                var fmtVal = cell?.Value;
+                                var fmtStr = cd.FormatString;
+                                var fmtArgs = new DataGridViewCellFormattingEventArgs(c, i, cell?.Value, fmtStr);
+                                OnCellFormatting(fmtArgs);
+                                if (!fmtArgs.FormattingApplied)
+                                {
+                                    fmtVal = FormatCellValue(fmtArgs.Value, fmtStr ?? fmtArgs.FormatString);
+                                }
+                                else
+                                {
+                                    fmtVal = fmtArgs.Value;
+                                }
+                                var f = EffectiveFont;
+                                int av = dw2 - 8;
+                                string display = TruncateText(fmtVal?.ToString() ?? "", f, zoom, cd.TextAlign, av > 0 ? av : 0);
+                                float tx = GetAlignedX(display, f, zoom, cd.TextAlign, dx, dw2, 4);
+                                g.DrawString(display, f, tc, tx, y + (int)CoordinateTransform.CenterVertically(0, _rowHeight, f, zoom));
+                            }
+                        }
                     }
                 }
                 x += cw;
@@ -606,15 +685,38 @@ public class DataGridView : ContainerControl
                                 if (dw2 > 0 && _showGridLines) g.DrawLine(theme.GridLineVertical, dx, ry, dx, ry + _rowHeight);
                                 if (dw2 > 0)
                                 {
-                                    var cell = _rows[ri].Cells.Count > c ? _rows[ri].Cells[c] : null;
-                                    var cd = _columns[c];
-                                    var t = FormatCellValue(cell?.Value, cd.FormatString);
-                                    var f = EffectiveFont;
-                                    var tc = sel ? theme.HighlightText : theme.DataGridViewCellText;
-                                    int av = dw2 - 8;
-                                    t = TruncateText(t, f, zoom, cd.TextAlign, av > 0 ? av : 0);
-                                    float tx = GetAlignedX(t, f, zoom, cd.TextAlign, dx, dw2, 4);
-                                    g.DrawString(t, f, tc, tx, ry + (int)CoordinateTransform.CenterVertically(0, _rowHeight, f, zoom));
+                                    // Skip rendering text for the cell currently being edited
+                                    if (!(ri == _editingRowIndex && c == _editingColumnIndex))
+                                    {
+                                        var cell = _rows[ri].Cells.Count > c ? _rows[ri].Cells[c] : null;
+                                        var cd = _columns[c];
+                                        if (cd.CellEditType == DataGridViewColumnEditType.CheckBox || cell?.Value is bool)
+                                        {
+                                            bool isChecked = cell?.Value is bool bv && bv;
+                                            RenderCheckBoxCell(g, theme, isChecked, dx, ry, dw2, _rowHeight);
+                                        }
+                                        else
+                                        {
+                                            var fmtVal = cell?.Value;
+                                            var fmtStr = cd.FormatString;
+                                            var fmtArgs = new DataGridViewCellFormattingEventArgs(c, ri, cell?.Value, fmtStr);
+                                            OnCellFormatting(fmtArgs);
+                                            if (!fmtArgs.FormattingApplied)
+                                            {
+                                                fmtVal = FormatCellValue(fmtArgs.Value, fmtStr ?? fmtArgs.FormatString);
+                                            }
+                                            else
+                                            {
+                                                fmtVal = fmtArgs.Value;
+                                            }
+                                            var f = EffectiveFont;
+                                            var tc = sel ? theme.HighlightText : theme.DataGridViewCellText;
+                                            int av = dw2 - 8;
+                                            string display = TruncateText(fmtVal?.ToString() ?? "", f, zoom, cd.TextAlign, av > 0 ? av : 0);
+                                            float tx = GetAlignedX(display, f, zoom, cd.TextAlign, dx, dw2, 4);
+                                            g.DrawString(display, f, tc, tx, ry + (int)CoordinateTransform.CenterVertically(0, _rowHeight, f, zoom));
+                                        }
+                                    }
                                 }
                             }
                             x += cw;
@@ -634,6 +736,22 @@ public class DataGridView : ContainerControl
     {
         var m = e as MouseEventArgs;
         if (m == null) { base.OnMouseDown(e); return; }
+
+        // If editing, check if click is outside the editing control → commit
+        if (IsCurrentCellInEditMode && _editingControl != null)
+        {
+            if (!_editingControl.Bounds.Contains(m.X, m.Y))
+            {
+                EndEdit(true);
+            }
+            else
+            {
+                // Click is inside editing control — let container routing handle it
+                base.OnMouseDown(e);
+                return;
+            }
+        }
+
         int gbH = _showGroupingBar ? _groupingBarHeight : 0;
         int hH = _columnHeadersVisible ? _rowHeight : 0;
         int daY = gbH + hH;
@@ -695,6 +813,17 @@ public class DataGridView : ContainerControl
             }
         }
         base.OnMouseDown(e);
+
+        // After selection change, start editing if the clicked cell is editable
+        bool justSelectedCell = _selectedRowIndex >= 0 && _selectedColumnIndex >= 0 && col >= 0;
+        if (justSelectedCell && !IsCurrentCellInEditMode && CanEditCurrentCell())
+        {
+            if (EditMode == DataGridViewEditMode.EditOnEnter ||
+                _columns[_selectedColumnIndex].CellEditType == DataGridViewColumnEditType.CheckBox)
+            {
+                BeginEdit();
+            }
+        }
     }
 
     private void HandleGroupingBarClick(MouseEventArgs m)
@@ -762,27 +891,611 @@ public class DataGridView : ContainerControl
 
     protected internal override void OnMouseWheel(EventArgs e)
     {
+        // Forward to editing control when active (needed for dropdown scroll)
+        if (IsCurrentCellInEditMode && _editingControl != null)
+        {
+            var m = e as MouseEventArgs;
+            if (m != null && _editingControl.Bounds.Contains(m.X, m.Y))
+            {
+                var local = new Point(m.X - _editingControl.X, m.Y - _editingControl.Y);
+                var localArgs = new MouseEventArgs(m.Button, m.Clicks, local.X, local.Y, m.Delta);
+                _editingControl.OnMouseWheel(localArgs);
+                return;
+            }
+        }
         if (_vScrollBar.IsDragging) return;
-        var m = e as MouseEventArgs;
-        if (m != null) { int daY = GetDataAreaY(); _vScrollBar.ViewSize = Height - daY; _vScrollBar.ContentSize = GetTotalContentHeight(); if (_vScrollBar.NeedsScrollbar) _vScrollBar.HandleMouseWheel(m.Delta, VScrollBarContext); }
+        var me = e as MouseEventArgs;
+        if (me != null) { int daY = GetDataAreaY(); _vScrollBar.ViewSize = Height - daY; _vScrollBar.ContentSize = GetTotalContentHeight(); if (_vScrollBar.NeedsScrollbar) _vScrollBar.HandleMouseWheel(me.Delta, VScrollBarContext); }
         base.OnMouseWheel(e);
     }
 
     protected internal override void OnKeyDown(KeyEventArgs e)
     {
+        // When editing: handle commit/cancel/navigation, forward other keys to editing control
+        if (IsCurrentCellInEditMode)
+        {
+            // Commit and navigate on Tab
+            if (e.KeyCode == Keys.Tab)
+            {
+                e.Handled = true;
+                EndEdit(true);
+                int dir = e.Modifiers.HasFlag(ModifierKeys.Shift) ? -1 : 1;
+                int nextCol = _selectedColumnIndex + dir;
+                if (nextCol >= 0 && nextCol < _columns.Count)
+                {
+                    _selectedColumnIndex = nextCol;
+                    OnSelectionChanged();
+                    Invalidate();
+                }
+                else if (dir > 0 && _selectedRowIndex < _rows.Count - 1)
+                {
+                    _selectedRowIndex++;
+                    _selectedColumnIndex = 0;
+                    EnsureRowVisible(_selectedRowIndex);
+                    OnSelectionChanged();
+                    Invalidate();
+                }
+                else if (dir < 0 && _selectedRowIndex > 0)
+                {
+                    _selectedRowIndex--;
+                    _selectedColumnIndex = _columns.Count - 1;
+                    EnsureRowVisible(_selectedRowIndex);
+                    OnSelectionChanged();
+                    Invalidate();
+                }
+                return;
+            }
+
+            // EndEdit on Enter, move to next row
+            if (e.KeyCode == Keys.Enter)
+            {
+                e.Handled = true;
+                EndEdit(true);
+                int nextRow = _selectedRowIndex + 1;
+                if (nextRow < _rows.Count)
+                {
+                    _selectedRowIndex = nextRow;
+                    EnsureRowVisible(_selectedRowIndex);
+                    OnSelectionChanged();
+                    Invalidate();
+                }
+                return;
+            }
+
+            // Cancel on Escape
+            if (e.KeyCode == Keys.Escape)
+            {
+                e.Handled = true;
+                EndEdit(false);
+                return;
+            }
+
+            // Forward all other keys to the editing control via the normal ContainerControl routing
+            base.OnKeyDown(e);
+            return;
+        }
+
+        // Not editing — handle navigation
         switch (e.KeyCode)
         {
-            case Keys.Up: if (_selectedRowIndex > 0) { _selectedRowIndex--; EnsureRowVisible(_selectedRowIndex); OnSelectionChanged(); Invalidate(); e.Handled = true; } break;
-            case Keys.Down: if (_selectedRowIndex < _rows.Count - 1) { _selectedRowIndex++; EnsureRowVisible(_selectedRowIndex); OnSelectionChanged(); Invalidate(); e.Handled = true; } break;
-            case Keys.Left: if (_selectedColumnIndex > 0) { _selectedColumnIndex--; OnSelectionChanged(); Invalidate(); e.Handled = true; } break;
-            case Keys.Right: if (_selectedColumnIndex < _columns.Count - 1) { _selectedColumnIndex++; OnSelectionChanged(); Invalidate(); e.Handled = true; } break;
+            case Keys.Tab:
+            {
+                e.Handled = true;
+                int dir = e.Modifiers.HasFlag(ModifierKeys.Shift) ? -1 : 1;
+                int nextCol = _selectedColumnIndex + dir;
+                if (nextCol >= 0 && nextCol < _columns.Count)
+                {
+                    _selectedColumnIndex = nextCol;
+                    OnSelectionChanged();
+                    Invalidate();
+                }
+                else if (dir > 0 && _selectedRowIndex < _rows.Count - 1)
+                {
+                    _selectedRowIndex++;
+                    _selectedColumnIndex = 0;
+                    EnsureRowVisible(_selectedRowIndex);
+                    OnSelectionChanged();
+                    Invalidate();
+                }
+                else if (dir < 0 && _selectedRowIndex > 0)
+                {
+                    _selectedRowIndex--;
+                    _selectedColumnIndex = _columns.Count - 1;
+                    EnsureRowVisible(_selectedRowIndex);
+                    OnSelectionChanged();
+                    Invalidate();
+                }
+                break;
+            }
+            case Keys.Up:
+                if (_rows.Count > 0)
+                {
+                    if (_selectedRowIndex > 0) { _selectedRowIndex--; }
+                    else if (_selectedRowIndex < 0) { _selectedRowIndex = 0; _selectedColumnIndex = Math.Max(0, _selectedColumnIndex); }
+                    EnsureRowVisible(_selectedRowIndex);
+                    OnSelectionChanged(); Invalidate(); e.Handled = true;
+                }
+                break;
+            case Keys.Down:
+                if (_rows.Count > 0)
+                {
+                    if (_selectedRowIndex < _rows.Count - 1) { _selectedRowIndex++; }
+                    else if (_selectedRowIndex < 0) { _selectedRowIndex = 0; _selectedColumnIndex = Math.Max(0, _selectedColumnIndex); }
+                    EnsureRowVisible(_selectedRowIndex);
+                    OnSelectionChanged(); Invalidate(); e.Handled = true;
+                }
+                break;
+            case Keys.Left: if (_selectedColumnIndex >= 0) { if (_selectedColumnIndex > 0) { _selectedColumnIndex--; } else if (_selectedRowIndex > 0) { _selectedRowIndex--; _selectedColumnIndex = _columns.Count - 1; EnsureRowVisible(_selectedRowIndex); } OnSelectionChanged(); Invalidate(); e.Handled = true; } break;
+            case Keys.Right: if (_selectedColumnIndex < _columns.Count) { if (_selectedColumnIndex < _columns.Count - 1) { _selectedColumnIndex++; } else if (_selectedRowIndex < _rows.Count - 1) { _selectedRowIndex++; _selectedColumnIndex = 0; EnsureRowVisible(_selectedRowIndex); } OnSelectionChanged(); Invalidate(); e.Handled = true; } break;
             case Keys.Home: if (_rows.Count > 0) { _selectedRowIndex = 0; _selectedColumnIndex = 0; _vScrollBar.Value = 0; _horizontalScrollOffset = 0; OnSelectionChanged(); Invalidate(); e.Handled = true; } break;
             case Keys.End: if (_rows.Count > 0) { _selectedRowIndex = _rows.Count - 1; _selectedColumnIndex = _columns.Count > 0 ? _columns.Count - 1 : 0; EnsureRowVisible(_selectedRowIndex); OnSelectionChanged(); Invalidate(); e.Handled = true; } break;
             case Keys.PageUp: if (_rows.Count > 0 && _selectedRowIndex > 0) { int vis = (Height - GetDataAreaY()) / _rowHeight; _selectedRowIndex = Math.Max(0, _selectedRowIndex - vis); EnsureRowVisible(_selectedRowIndex); OnSelectionChanged(); Invalidate(); e.Handled = true; } break;
             case Keys.PageDown: if (_rows.Count > 0 && _selectedRowIndex < _rows.Count - 1) { int vis = (Height - GetDataAreaY()) / _rowHeight; _selectedRowIndex = Math.Min(_rows.Count - 1, _selectedRowIndex + vis); EnsureRowVisible(_selectedRowIndex); OnSelectionChanged(); Invalidate(); e.Handled = true; } break;
+
+            // F2 starts editing the current cell
+            case Keys.F2:
+                if (CanEditCurrentCell() && EditMode != DataGridViewEditMode.EditProgrammatically)
+                {
+                    BeginEdit();
+                    e.Handled = true;
+                }
+                break;
+
+            // Space toggles check box cell immediately
+            case Keys.Space:
+                if (CanEditCurrentCell() && _columns[_selectedColumnIndex].CellEditType == DataGridViewColumnEditType.CheckBox)
+                {
+                    BeginEdit(); // CheckBox toggles inside BeginEdit
+                    e.Handled = true;
+                }
+                break;
         }
         if (e.Modifiers.HasFlag(ModifierKeys.Control) && e.KeyCode == Keys.C) { Copy(); e.Handled = true; }
+
+        // For printable-character keys, start editing and forward
+        if (!e.Handled && !e.Modifiers.HasFlag(ModifierKeys.Control) && !e.Modifiers.HasFlag(ModifierKeys.Alt) &&
+            (EditMode == DataGridViewEditMode.EditOnEnter || EditMode == DataGridViewEditMode.EditOnF2))
+        {
+            var k = e.KeyCode;
+            if ((k >= Keys.D0 && k <= Keys.Z) || k == Keys.Delete || k == Keys.Back)
+            {
+                if (CanEditCurrentCell() && _columns[_selectedColumnIndex].CellEditType != DataGridViewColumnEditType.None &&
+                    _columns[_selectedColumnIndex].CellEditType != DataGridViewColumnEditType.CheckBox)
+                {
+                    BeginEdit();
+                    e.Handled = true;
+                }
+            }
+        }
+
         base.OnKeyDown(e);
+    }
+
+    /// <summary>
+    /// Handles text input. If the current cell is editable and not yet in edit mode,
+    /// starts editing and forwards the text to the editing control.
+    /// </summary>
+    protected internal override void OnTextInput(string text)
+    {
+        if (!IsCurrentCellInEditMode && CanEditCurrentCell())
+        {
+            var col = _columns[_selectedColumnIndex];
+            if (col.CellEditType == DataGridViewColumnEditType.TextBox ||
+                col.CellEditType == DataGridViewColumnEditType.ComboBox)
+            {
+                BeginEdit();
+                if (_editingControl != null)
+                {
+                    _editingControl.OnTextInput(text);
+                    return;
+                }
+            }
+        }
+
+        if (IsCurrentCellInEditMode && _editingControl != null)
+        {
+            _editingControl.OnTextInput(text);
+            return;
+        }
+
+        base.OnTextInput(text);
+    }
+
+    /// <summary>
+    /// Handles the LostFocus event. Commits any pending cell edit.
+    /// </summary>
+    protected internal override void OnLostFocus(EventArgs e)
+    {
+        if (IsCurrentCellInEditMode && !_suppressEndEdit)
+            EndEdit(true);
+        base.OnLostFocus(e);
+    }
+
+    private bool CanEditCurrentCell()
+    {
+        if (_readOnly) return false;
+        if (_selectedRowIndex < 0 || _selectedRowIndex >= _rows.Count) return false;
+        if (_selectedColumnIndex < 0 || _selectedColumnIndex >= _columns.Count) return false;
+        var col = _columns[_selectedColumnIndex];
+        if (col.ReadOnly) return false;
+        return col.CellEditType != DataGridViewColumnEditType.None;
+    }
+
+    /// <summary>
+    /// Computes the screen-space bounds of the cell at the specified row and column within the DataGridView's coordinate space.
+    /// </summary>
+    private Rectangle GetCellBounds(int rowIndex, int columnIndex)
+    {
+        int gbH = _showGroupingBar ? _groupingBarHeight : 0;
+        int hH = _columnHeadersVisible ? _rowHeight : 0;
+        int daY = gbH + hH;
+        int rhw = _rowHeadersVisible ? 40 : 0;
+
+        int x = rhw - _horizontalScrollOffset;
+        for (int c = 0; c < columnIndex; c++)
+            x += _columns[c].Width;
+
+        int y;
+
+        if (_groupedColumnIndices.Count > 0)
+            y = GetRowYInGroupedMode(rowIndex);
+        else
+            y = daY + rowIndex * _rowHeight - _vScrollBar.Value;
+
+        return new Rectangle(x, y, _columns[columnIndex].Width, _rowHeight);
+    }
+
+    private int GetRowYInGroupedMode(int rowIndex)
+    {
+        int daY = GetDataAreaY();
+        int so = _vScrollBar.Value;
+        int pos = 0;
+        foreach (var group in _groupRoots)
+        {
+            int result = WalkGroupForRowY(group, rowIndex, ref pos);
+            if (result >= 0)
+                return daY + result - so;
+        }
+        return daY;
+    }
+
+    private int WalkGroupForRowY(DataGridViewGroup group, int rowIndex, ref int pos)
+    {
+        pos += _groupHeaderHeight;
+        if (group.IsCollapsed)
+        {
+            int subH = GroupSubtreeHeight(group) - _groupHeaderHeight;
+            pos += subH;
+            return -1;
+        }
+        if (group.ChildGroups.Count > 0)
+        {
+            foreach (var child in group.ChildGroups)
+            {
+                int result = WalkGroupForRowY(child, rowIndex, ref pos);
+                if (result >= 0) return result;
+            }
+        }
+        else
+        {
+            for (int i = 0; i < group.RowIndices.Count; i++)
+            {
+                if (group.RowIndices[i] == rowIndex)
+                    return pos;
+                pos += _rowHeight;
+            }
+        }
+        return -1;
+    }
+
+    /// <summary>
+    /// Begins editing the current cell, creating and positioning the appropriate editing control.
+    /// </summary>
+    public void BeginEdit()
+    {
+        if (IsCurrentCellInEditMode) return;
+        if (!CanEditCurrentCell()) return;
+
+        int row = _selectedRowIndex;
+        int col = _selectedColumnIndex;
+        if (row < 0 || col < 0) return;
+
+        var cell = _rows[row].Cells.Count > col ? _rows[row].Cells[col] : null;
+        if (cell == null) return;
+
+        var column = _columns[col];
+        _originalCellValue = cell.Value;
+        _editingRowIndex = row;
+        _editingColumnIndex = col;
+        _editingControl = CreateEditingControl(column, cell);
+
+        if (_editingControl == null)
+        {
+            // CheckBox toggles inline; no long-lived editor needed
+            return;
+        }
+
+        var bounds = GetCellBounds(row, col);
+
+        // Clip to the grid content area
+        int gbH = _showGroupingBar ? _groupingBarHeight : 0;
+        int hH = _columnHeadersVisible ? _rowHeight : 0;
+        int daY = gbH + hH;
+        int clipX = _rowHeadersVisible ? 40 : 0;
+        int clipW = Width - clipX - 16;
+        int clipH = Height - daY;
+
+        int ex = bounds.X;
+        if (ex < clipX) ex = clipX;
+        if (ex + bounds.Width > clipX + clipW) ex = clipX + clipW - bounds.Width;
+        int ey = bounds.Y;
+        if (ey < daY) ey = daY;
+        if (ey + bounds.Height > daY + clipH) ey = daY + clipH - bounds.Height;
+
+        _editingControl.Bounds = new Rectangle(ex, ey, bounds.Width, bounds.Height);
+        Controls.Add(_editingControl);
+
+        _suppressEndEdit = true;
+        _editingControl.Focused = true;
+        _suppressEndEdit = false;
+
+        OnCellBeginEdit(new DataGridViewCellEventArgs(col, row));
+        Invalidate();
+    }
+
+    private Control? CreateEditingControl(DataGridViewColumn column, DataGridViewCell cell)
+    {
+        switch (column.CellEditType)
+        {
+            case DataGridViewColumnEditType.TextBox:
+            {
+                var tb = new TextBox();
+                tb.Text = cell.Value?.ToString() ?? "";
+                tb.BackColor = BackColor;
+                tb.TextChanged += (s, e) =>
+                {
+                    cell.Value = tb.Text;
+                    NotifyCellValueChanged(_editingColumnIndex, _editingRowIndex, tb.Text);
+                };
+                EventHandler? enterHandler = null;
+                EventHandler? escapeHandler = null;
+                enterHandler = (s, e) =>
+                {
+                    tb.KeyDown -= escapeHandler;
+                    EndEdit(true);
+                };
+                escapeHandler = (s, e) =>
+                {
+                    tb.KeyDown -= enterHandler;
+                    EndEdit(false);
+                };
+                tb.KeyDown += (s, e) =>
+                {
+                    if (e is KeyEventArgs ke)
+                    {
+                        if (ke.KeyCode == Keys.Enter)
+                        {
+                            ke.Handled = true;
+                            EndEdit(true);
+                            int nextRow = _selectedRowIndex + 1;
+                            if (nextRow < _rows.Count)
+                            {
+                                _selectedRowIndex = nextRow;
+                                EnsureRowVisible(_selectedRowIndex);
+                                OnSelectionChanged();
+                                Invalidate();
+                            }
+                        }
+                        else if (ke.KeyCode == Keys.Escape)
+                        {
+                            ke.Handled = true;
+                            EndEdit(false);
+                        }
+                    }
+                };
+                return tb;
+            }
+
+            case DataGridViewColumnEditType.ComboBox:
+            {
+                var cb = new ComboBox();
+                cb.BackColor = BackColor;
+                if (column.Items != null)
+                {
+                    foreach (var item in column.Items)
+                        cb.Items.Add(item);
+                }
+                cb.DropDownStyle = column.ComboBoxDropDownStyle;
+
+                // Select the matching item
+                if (cell.Value != null)
+                {
+                    for (int i = 0; i < cb.Items.Count; i++)
+                    {
+                        if (Equals(cb.Items[i], cell.Value))
+                        {
+                            cb.SelectedIndex = i;
+                            break;
+                        }
+                    }
+                }
+
+                cb.SelectedIndexChanged += (s, e) =>
+                {
+                    cell.Value = cb.SelectedItem;
+                    NotifyCellValueChanged(_editingColumnIndex, _editingRowIndex, cb.SelectedItem);
+                    OnCellValueChanged(new DataGridViewCellEventArgs(_editingColumnIndex, _editingRowIndex));
+                    EndEdit(true);
+                };
+                cb.KeyDown += (s, e) =>
+                {
+                    if (e is KeyEventArgs ke)
+                    {
+                        if (ke.KeyCode == Keys.Escape)
+                        {
+                            ke.Handled = true;
+                            EndEdit(false);
+                        }
+                        else if (ke.KeyCode == Keys.Enter)
+                        {
+                            ke.Handled = true;
+                            cell.Value = cb.SelectedItem;
+                            NotifyCellValueChanged(_editingColumnIndex, _editingRowIndex, cb.SelectedItem);
+                            EndEdit(true);
+                        }
+                    }
+                };
+                return cb;
+            }
+
+            case DataGridViewColumnEditType.CheckBox:
+            {
+                bool isTrue = cell.Value != null && (column.TrueValue == null
+                    ? (cell.Value is bool b && b)
+                    : Equals(cell.Value, column.TrueValue));
+                cell.Value = isTrue
+                    ? (column.FalseValue ?? false)
+                    : (column.TrueValue ?? true);
+                NotifyCellValueChanged(_editingColumnIndex, _editingRowIndex, cell.Value);
+                OnCellValueChanged(new DataGridViewCellEventArgs(_editingColumnIndex, _editingRowIndex));
+                // Clear editing state — no persistent editor, keep render from skipping this cell
+                _editingRowIndex = -1;
+                _editingColumnIndex = -1;
+                _originalCellValue = null;
+                Invalidate();
+                return null; // No persistent editor needed
+            }
+
+            case DataGridViewColumnEditType.DateTimePicker:
+            {
+                var dtp = new DateTimePicker();
+                dtp.BackColor = BackColor;
+                if (cell.Value is DateTime dt)
+                    dtp.Value = dt;
+                dtp.Format = column.PickerFormat;
+                if (column.PickerCustomFormat != null)
+                    dtp.CustomFormat = column.PickerCustomFormat;
+
+                dtp.ValueChanged += (s, e) =>
+                {
+                    cell.Value = dtp.Value;
+                    NotifyCellValueChanged(_editingColumnIndex, _editingRowIndex, dtp.Value);
+                };
+                EventHandler? dtpKeyHandler = null;
+                dtpKeyHandler = (s, e) =>
+                {
+                    if (e is KeyEventArgs ke)
+                    {
+                        if (ke.KeyCode == Keys.Enter)
+                        {
+                            ke.Handled = true;
+                            cell.Value = dtp.Value;
+                            NotifyCellValueChanged(_editingColumnIndex, _editingRowIndex, dtp.Value);
+                            EndEdit(true);
+                        }
+                        else if (ke.KeyCode == Keys.Escape)
+                        {
+                            ke.Handled = true;
+                            EndEdit(false);
+                        }
+                    }
+                };
+                dtp.KeyDown += dtpKeyHandler;
+                // Close dropdown when focus moves away
+                dtp.LostFocus += (s, e) => dtp.CloseDropDown();
+                return dtp;
+            }
+
+            default:
+                return null;
+        }
+    }
+
+    /// <summary>
+    /// Ends the current cell edit, optionally committing the value.
+    /// </summary>
+    /// <param name="commit">If true, the current editor value is committed to the cell; otherwise the original value is restored.</param>
+    public void EndEdit(bool commit)
+    {
+        if (!IsCurrentCellInEditMode) return;
+
+        int row = _editingRowIndex;
+        int col = _editingColumnIndex;
+
+        if (commit && row >= 0 && row < _rows.Count && col >= 0 && col < _columns.Count)
+        {
+            var cell = row < _rows.Count && col < _rows[row].Cells.Count ? _rows[row].Cells[col] : null;
+            if (cell != null)
+            {
+                try
+                {
+                    var rawValue = GetEditingControlValue();
+                    var colInfo = _columns[col];
+                    var desiredType = colInfo.ValueType ?? rawValue?.GetType();
+                    var parseArgs = new DataGridViewCellParsingEventArgs(col, row, rawValue, desiredType);
+                    OnCellParsing(parseArgs);
+                    var value = parseArgs.ParsingApplied ? parseArgs.Value : rawValue;
+                    cell.Value = value;
+                    NotifyCellValueChanged(col, row, value);
+                    OnCellValueChanged(new DataGridViewCellEventArgs(col, row));
+                }
+                catch (Exception ex)
+                {
+                    var errArgs = new DataGridViewDataErrorEventArgs(ex, col, row);
+                    OnDataError(errArgs);
+                    if (!errArgs.Handled)
+                    {
+                        MessageBox.Show(
+                            LangRes.GetString("DataError_InvalidValue") ?? $"Invalid value: {ex.Message}",
+                            LangRes.GetString("DataError_Title") ?? "Data Error",
+                            MessageBoxButtons.OK,
+                            MessageBoxIcon.Error);
+                    }
+                    // Restore original value
+                    if (_originalCellValue != null)
+                        cell.Value = _originalCellValue;
+                    commit = false; // prevent cleanup from leaving bad state
+                }
+            }
+        }
+        else if (!commit)
+        {
+            // Restore original value
+            if (row >= 0 && row < _rows.Count && col >= 0 && col < _columns.Count)
+            {
+                var cell = row < _rows.Count && col < _rows[row].Cells.Count ? _rows[row].Cells[col] : null;
+                if (cell != null)
+                    cell.Value = _originalCellValue;
+            }
+        }
+
+        CleanupEditingControl();
+        OnCellEndEdit(new DataGridViewCellEventArgs(col, row));
+        Invalidate();
+    }
+
+    private object? GetEditingControlValue()
+    {
+        if (_editingControl == null) return null;
+        switch (_editingControl)
+        {
+            case TextBox tb: return tb.Text;
+            case ComboBox cb: return cb.SelectedItem;
+            case DateTimePicker dtp: return dtp.Checked ? dtp.Value : null;
+            default: return null;
+        }
+    }
+
+    private void CleanupEditingControl()
+    {
+        if (_editingControl != null)
+        {
+            Controls.Remove(_editingControl);
+            _editingControl = null;
+        }
+        _editingRowIndex = -1;
+        _editingColumnIndex = -1;
+        _originalCellValue = null;
     }
 
     private void EnsureRowVisible(int rowIndex)
@@ -802,6 +1515,7 @@ public class DataGridView : ContainerControl
             if (_dataSource is System.Collections.IEnumerable enumerable && _dataSource is not string) { foreach (var item in enumerable) _rows.Add(CreateRowFromDataItem(item)); }
             if (_dataSource is IBindingList bindingList) bindingList.ListChanged += OnDataSourceListChanged;
             if (_groupedColumnIndices.Count > 0) BuildGroups();
+            if (_rows.Count > 0 && _columns.Count > 0) { _selectedRowIndex = 0; _selectedColumnIndex = 0; }
             Invalidate();
         }
         finally { _dataSourceUpdating = false; }
@@ -876,8 +1590,49 @@ public class DataGridView : ContainerControl
             if (di != null && columnIndex >= 0 && columnIndex < _columns.Count)
             {
                 var cd = _columns[columnIndex];
-                if (!string.IsNullOrEmpty(cd.DataPropertyName)) { var p = di.GetType().GetProperty(cd.DataPropertyName); if (p != null && p.CanWrite) p.SetValue(di, newValue); }
+                if (!string.IsNullOrEmpty(cd.DataPropertyName))
+                {
+                    var p = di.GetType().GetProperty(cd.DataPropertyName);
+                    if (p != null && p.CanWrite)
+                    {
+                        var convertedValue = ConvertValueToType(newValue, p.PropertyType);
+                        p.SetValue(di, convertedValue);
+                    }
+                }
             }
+        }
+    }
+
+    private static object? ConvertValueToType(object? value, Type targetType)
+    {
+        if (value == null || targetType == null || value.GetType() == targetType)
+            return value;
+
+        try
+        {
+            if (targetType == typeof(string))
+                return value?.ToString();
+            if (targetType == typeof(int))
+                return Convert.ToInt32(value);
+            if (targetType == typeof(long))
+                return Convert.ToInt64(value);
+            if (targetType == typeof(short))
+                return Convert.ToInt16(value);
+            if (targetType == typeof(float))
+                return Convert.ToSingle(value);
+            if (targetType == typeof(double))
+                return Convert.ToDouble(value);
+            if (targetType == typeof(decimal))
+                return Convert.ToDecimal(value);
+            if (targetType == typeof(bool))
+                return Convert.ToBoolean(value);
+            if (targetType == typeof(DateTime))
+                return Convert.ToDateTime(value);
+            return Convert.ChangeType(value, targetType);
+        }
+        catch
+        {
+            return value;
         }
     }
 
@@ -1031,6 +1786,42 @@ public class DataGridView : ContainerControl
         else { for (int i = 1; i <= text.Length; i++) { var sub = text.Substring(0, i); if (CoordinateTransform.MeasureText(sub, font, zoom).width > av) return text.Substring(0, i - 1) + dots; } return text + dots; }
     }
 
+    private void RenderCurrentCellFocus(Graphics g, Theme theme, int daY, int rhw, int dw)
+    {
+        if (_selectedRowIndex < 0 || _selectedRowIndex >= _rows.Count ||
+            _selectedColumnIndex < 0 || _selectedColumnIndex >= _columns.Count)
+            return;
+
+        int gbH = _showGroupingBar ? _groupingBarHeight : 0;
+        int hH = _columnHeadersVisible ? _rowHeight : 0;
+
+        int x = rhw - _horizontalScrollOffset;
+        for (int c = 0; c < _selectedColumnIndex; c++)
+            x += _columns[c].Width;
+
+        int y;
+        if (_groupedColumnIndices.Count > 0)
+            y = GetRowYInGroupedMode(_selectedRowIndex);
+        else
+            y = daY + _selectedRowIndex * _rowHeight - _vScrollBar.Value;
+
+        // Only draw if visible
+        if (x + _columns[_selectedColumnIndex].Width > rhw && x < rhw + dw &&
+            y + _rowHeight > daY && y < daY + daY + (Height - daY))
+        {
+            int dx = Math.Max(x, rhw);
+            int dy = Math.Max(y, daY);
+            int cw = _columns[_selectedColumnIndex].Width;
+            int adjX1 = dx;
+            int adjX2 = Math.Min(x + cw, rhw + dw);
+            int adjY1 = dy;
+            int adjY2 = Math.Min(y + _rowHeight, Height);
+
+            var focusColor = theme.FocusIndicator;
+            g.DrawRectangle(focusColor, adjX1, adjY1, adjX2 - adjX1, adjY2 - adjY1, 2);
+        }
+    }
+
     private static string FormatCellValue(object? value, string? formatString)
     {
         if (value == null) return "";
@@ -1043,6 +1834,26 @@ public class DataGridView : ContainerControl
         if (alignment == DataGridViewContentAlignment.Left || string.IsNullOrEmpty(text)) return cx + pad;
         float tw = CoordinateTransform.MeasureText(text, font, zoom).width / Math.Max(zoom, 0.001f);
         return alignment switch { DataGridViewContentAlignment.Center => cx + (cw - tw) / 2f, DataGridViewContentAlignment.Right => cx + cw - tw - pad, _ => cx + pad };
+    }
+
+    private static void RenderCheckBoxCell(Graphics g, Theme theme, bool isChecked, int cellX, int cellY, int cellWidth, int cellHeight)
+    {
+        int cbSize = Math.Min(15, Math.Min(cellWidth, cellHeight) - 2);
+        if (cbSize < 8) return;
+        int cbX = cellX + (cellWidth - cbSize) / 2;
+        int cbY = cellY + (cellHeight - cbSize) / 2;
+
+        g.FillRectangle(theme.CheckboxBackground, cbX, cbY, cbSize, cbSize);
+        g.DrawRectangle(theme.CheckboxBorder, cbX, cbY, cbSize, cbSize, 1);
+
+        if (isChecked)
+        {
+            float pad = cbSize * 0.2f;
+            float t = pad;
+            float b = cbSize - pad;
+            g.DrawLine(theme.CheckboxCheck, cbX + t, cbY + b * 0.55f, cbX + cbSize * 0.42f, cbY + b * 0.78f, Math.Max(1, cbSize / 6));
+            g.DrawLine(theme.CheckboxCheck, cbX + cbSize * 0.42f, cbY + b * 0.78f, cbX + cbSize - t, cbY + t, Math.Max(1, cbSize / 6));
+        }
     }
 }
 
@@ -1058,4 +1869,25 @@ internal sealed class ScrollBarContext : IScrollBarContext
 public enum DataGridViewSelectionMode
 {
     RowHeaderSelect, ColumnHeaderSelect, FullRowSelect, FullColumnSelect, CellSelect
+}
+
+/// <summary>
+/// Specifies how cell editing is triggered in a <see cref="DataGridView"/>.
+/// </summary>
+public enum DataGridViewEditMode
+{
+    /// <summary>
+    /// Editing starts when the cell receives focus (via click or keyboard navigation).
+    /// </summary>
+    EditOnEnter,
+
+    /// <summary>
+    /// Editing starts when the F2 key is pressed or when a printable character is typed.
+    /// </summary>
+    EditOnF2,
+
+    /// <summary>
+    /// Editing only starts when <see cref="DataGridView.BeginEdit"/> is called programmatically.
+    /// </summary>
+    EditProgrammatically,
 }

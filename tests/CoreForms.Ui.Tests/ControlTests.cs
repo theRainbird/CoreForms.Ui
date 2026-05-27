@@ -484,6 +484,542 @@ public class ControlTests
     }
 
     [Fact]
+    public void DataGridView_TextBoxCellEdit_BeginEdit_CreatesTextBoxChild()
+    {
+        var grid = new CoreForms.Ui.Controls.Advanced.DataGridView();
+        var col = new CoreForms.Ui.Controls.Advanced.DataGridViewColumn { HeaderText = "Col1", CellEditType = DataGridViewColumnEditType.TextBox };
+        grid.Columns.Add(col);
+        grid.AddRow("A1");
+        grid.SelectedRowIndex = 0;
+        grid.SelectedColumnIndex = 0;
+
+        grid.BeginEdit();
+
+        Assert.True(grid.IsCurrentCellInEditMode);
+        Assert.Single(grid.Controls);
+        Assert.IsType<TextBox>(grid.Controls[0]);
+    }
+
+    [Fact]
+    public void DataGridView_TextBoxCellEdit_CommitViaEnter_UpdatesCellValue()
+    {
+        var grid = new CoreForms.Ui.Controls.Advanced.DataGridView();
+        var col = new CoreForms.Ui.Controls.Advanced.DataGridViewColumn { HeaderText = "Col1", CellEditType = DataGridViewColumnEditType.TextBox };
+        grid.Columns.Add(col);
+        grid.AddRow("A1");
+        grid.SelectedRowIndex = 0;
+        grid.SelectedColumnIndex = 0;
+        grid.BeginEdit();
+
+        var tb = Assert.IsType<TextBox>(grid.Controls[0]);
+        tb.Text = "NewValue";
+
+        // Simulate Enter key on the editing control
+        tb.OnKeyDown(new KeyEventArgs { KeyCode = Keys.Enter, Modifiers = ModifierKeys.None });
+
+        Assert.Equal("NewValue", grid.Rows[0].Cells[0].Value);
+        Assert.False(grid.IsCurrentCellInEditMode);
+    }
+
+    [Fact]
+    public void DataGridView_TextBoxCellEdit_CancelViaEscape_RestoresOriginalValue()
+    {
+        var grid = new CoreForms.Ui.Controls.Advanced.DataGridView();
+        var col = new CoreForms.Ui.Controls.Advanced.DataGridViewColumn { HeaderText = "Col1", CellEditType = DataGridViewColumnEditType.TextBox };
+        grid.Columns.Add(col);
+        grid.AddRow("Original");
+        grid.SelectedRowIndex = 0;
+        grid.SelectedColumnIndex = 0;
+        grid.BeginEdit();
+
+        var tb = Assert.IsType<TextBox>(grid.Controls[0]);
+        tb.Text = "Modified";
+
+        // Simulate Escape key
+        tb.OnKeyDown(new KeyEventArgs { KeyCode = Keys.Escape, Modifiers = ModifierKeys.None });
+
+        Assert.Equal("Original", grid.Rows[0].Cells[0].Value);
+        Assert.False(grid.IsCurrentCellInEditMode);
+    }
+
+    [Fact]
+    public void DataGridView_ComboBoxCellEdit_SelectItem_UpdatesCellValue()
+    {
+        var grid = new CoreForms.Ui.Controls.Advanced.DataGridView();
+        var col = new CoreForms.Ui.Controls.Advanced.DataGridViewColumn
+        {
+            HeaderText = "Col1",
+            CellEditType = DataGridViewColumnEditType.ComboBox,
+            Items = new List<object> { "Option1", "Option2", "Option3" }
+        };
+        grid.Columns.Add(col);
+        grid.AddRow("Option1");
+        grid.SelectedRowIndex = 0;
+        grid.SelectedColumnIndex = 0;
+        grid.BeginEdit();
+
+        var cb = Assert.IsType<ComboBox>(grid.Controls[0]);
+        cb.SelectedIndex = 1;
+
+        // SelectedIndexChanged should trigger EndEdit
+        Assert.Equal("Option2", grid.Rows[0].Cells[0].Value);
+        Assert.False(grid.IsCurrentCellInEditMode);
+    }
+
+    [Fact]
+    public void DataGridView_CheckBoxCellEdit_TogglesValueDirectly()
+    {
+        var grid = new CoreForms.Ui.Controls.Advanced.DataGridView();
+        var col = new CoreForms.Ui.Controls.Advanced.DataGridViewColumn
+        {
+            HeaderText = "Col1",
+            CellEditType = DataGridViewColumnEditType.CheckBox,
+            TrueValue = true,
+            FalseValue = false
+        };
+        grid.Columns.Add(col);
+        grid.AddRow(false);
+        grid.SelectedRowIndex = 0;
+        grid.SelectedColumnIndex = 0;
+
+        // BeginEdit for CheckBox toggles inline (no persistent editor)
+        grid.BeginEdit();
+
+        Assert.Equal(true, grid.Rows[0].Cells[0].Value);
+        Assert.False(grid.IsCurrentCellInEditMode);
+
+        // Toggle again
+        grid.BeginEdit();
+        Assert.Equal(false, grid.Rows[0].Cells[0].Value);
+    }
+
+    [Fact]
+    public void DataGridView_CheckBoxCellEdit_WithCustomTrueFalseValues()
+    {
+        var grid = new CoreForms.Ui.Controls.Advanced.DataGridView();
+        var col = new CoreForms.Ui.Controls.Advanced.DataGridViewColumn
+        {
+            HeaderText = "Col1",
+            CellEditType = DataGridViewColumnEditType.CheckBox,
+            TrueValue = "yes",
+            FalseValue = "no"
+        };
+        grid.Columns.Add(col);
+        grid.AddRow("no");
+        grid.SelectedRowIndex = 0;
+        grid.SelectedColumnIndex = 0;
+
+        grid.BeginEdit();
+        Assert.Equal("yes", grid.Rows[0].Cells[0].Value);
+
+        grid.BeginEdit();
+        Assert.Equal("no", grid.Rows[0].Cells[0].Value);
+    }
+
+    [Fact]
+    public void DataGridView_ReadOnlyColumn_DoesNotEnterEditMode()
+    {
+        var grid = new CoreForms.Ui.Controls.Advanced.DataGridView();
+        var col = new CoreForms.Ui.Controls.Advanced.DataGridViewColumn
+        {
+            HeaderText = "Col1",
+            CellEditType = DataGridViewColumnEditType.TextBox,
+            ReadOnly = true
+        };
+        grid.Columns.Add(col);
+        grid.AddRow("A1");
+        grid.SelectedRowIndex = 0;
+        grid.SelectedColumnIndex = 0;
+
+        grid.BeginEdit();
+
+        Assert.False(grid.IsCurrentCellInEditMode);
+        Assert.Empty(grid.Controls);
+    }
+
+    [Fact]
+    public void DataGridView_GlobalReadOnly_DoesNotEnterEditMode()
+    {
+        var grid = new CoreForms.Ui.Controls.Advanced.DataGridView();
+        var col = new CoreForms.Ui.Controls.Advanced.DataGridViewColumn
+        {
+            HeaderText = "Col1",
+            CellEditType = DataGridViewColumnEditType.TextBox
+        };
+        grid.Columns.Add(col);
+        grid.AddRow("A1");
+        grid.ReadOnly = true;
+        grid.SelectedRowIndex = 0;
+        grid.SelectedColumnIndex = 0;
+
+        grid.BeginEdit();
+
+        Assert.False(grid.IsCurrentCellInEditMode);
+        Assert.Empty(grid.Controls);
+    }
+
+    [Fact]
+    public void DataGridView_ColumnWithNoEditType_DoesNotEnterEditMode()
+    {
+        var grid = new CoreForms.Ui.Controls.Advanced.DataGridView();
+        var col = new CoreForms.Ui.Controls.Advanced.DataGridViewColumn
+        {
+            HeaderText = "Col1",
+            CellEditType = DataGridViewColumnEditType.None
+        };
+        grid.Columns.Add(col);
+        grid.AddRow("A1");
+        grid.SelectedRowIndex = 0;
+        grid.SelectedColumnIndex = 0;
+
+        grid.BeginEdit();
+
+        Assert.False(grid.IsCurrentCellInEditMode);
+        Assert.Empty(grid.Controls);
+    }
+
+    [Fact]
+    public void DataGridView_F2Key_StartsEditingOnEditableCell()
+    {
+        var grid = new CoreForms.Ui.Controls.Advanced.DataGridView();
+        var col = new CoreForms.Ui.Controls.Advanced.DataGridViewColumn { HeaderText = "Col1", CellEditType = DataGridViewColumnEditType.TextBox };
+        grid.Columns.Add(col);
+        grid.AddRow("A1");
+        grid.SelectedRowIndex = 0;
+        grid.SelectedColumnIndex = 0;
+
+        grid.OnKeyDown(new KeyEventArgs { KeyCode = Keys.F2, Modifiers = ModifierKeys.None });
+
+        Assert.True(grid.IsCurrentCellInEditMode);
+    }
+
+    [Fact]
+    public void DataGridView_OnTextInput_StartsEditingAndForwardsText()
+    {
+        var grid = new CoreForms.Ui.Controls.Advanced.DataGridView();
+        var col = new CoreForms.Ui.Controls.Advanced.DataGridViewColumn { HeaderText = "Col1", CellEditType = DataGridViewColumnEditType.TextBox };
+        grid.Columns.Add(col);
+        grid.AddRow("");
+        grid.SelectedRowIndex = 0;
+        grid.SelectedColumnIndex = 0;
+
+        grid.OnTextInput("H");
+
+        Assert.True(grid.IsCurrentCellInEditMode);
+        var tb = Assert.IsType<TextBox>(grid.Controls[0]);
+        Assert.Equal("H", tb.Text);
+    }
+
+    [Fact]
+    public void DataGridView_EscapeKey_CancelsEditing()
+    {
+        var grid = new CoreForms.Ui.Controls.Advanced.DataGridView();
+        var col = new CoreForms.Ui.Controls.Advanced.DataGridViewColumn { HeaderText = "Col1", CellEditType = DataGridViewColumnEditType.TextBox };
+        grid.Columns.Add(col);
+        grid.AddRow("Original");
+        grid.SelectedRowIndex = 0;
+        grid.SelectedColumnIndex = 0;
+        grid.BeginEdit();
+
+        grid.OnKeyDown(new KeyEventArgs { KeyCode = Keys.Escape, Modifiers = ModifierKeys.None });
+
+        Assert.False(grid.IsCurrentCellInEditMode);
+        Assert.Equal("Original", grid.Rows[0].Cells[0].Value);
+    }
+
+    [Fact]
+    public void DataGridView_MouseClickOnNonEditableCell_DoesNotStartEdit()
+    {
+        var grid = new CoreForms.Ui.Controls.Advanced.DataGridView();
+        var col = new CoreForms.Ui.Controls.Advanced.DataGridViewColumn { HeaderText = "Col1", CellEditType = DataGridViewColumnEditType.None };
+        grid.Columns.Add(col);
+        grid.AddRow("A1");
+        grid.Size = new Size(200, 200);
+
+        // Click on cell (0, 0) - should select but not edit
+        grid.OnMouseDown(new MouseEventArgs(MouseButtons.Left, 1, 50, 50, 0));
+
+        Assert.Equal(0, grid.SelectedRowIndex);
+        Assert.False(grid.IsCurrentCellInEditMode);
+    }
+
+    [Fact]
+    public void DataGridView_MouseClickOnEditableCell_StartsEditing()
+    {
+        var grid = new CoreForms.Ui.Controls.Advanced.DataGridView();
+        var col = new CoreForms.Ui.Controls.Advanced.DataGridViewColumn { HeaderText = "Col1", CellEditType = DataGridViewColumnEditType.TextBox };
+        grid.Columns.Add(col);
+        grid.AddRow("A1");
+        grid.Size = new Size(200, 200);
+
+        // Click on cell (0, 0) - should select and start editing
+        grid.EditMode = DataGridViewEditMode.EditOnEnter;
+        grid.OnMouseDown(new MouseEventArgs(MouseButtons.Left, 1, 50, 50, 0));
+
+        Assert.Equal(0, grid.SelectedRowIndex);
+        Assert.True(grid.IsCurrentCellInEditMode);
+    }
+
+    [Fact]
+    public void DataGridView_DemoConfig_EditableCellClick_StartsEditing()
+    {
+        var grid = new CoreForms.Ui.Controls.Advanced.DataGridView();
+        grid.ShowGroupingBar = true;
+        grid.Size = new Size(600, 300);
+
+        grid.Columns.Add(new CoreForms.Ui.Controls.Advanced.DataGridViewColumn
+            { HeaderText = "Id", Width = 60, CellEditType = DataGridViewColumnEditType.TextBox });
+        grid.Columns.Add(new CoreForms.Ui.Controls.Advanced.DataGridViewColumn
+            { HeaderText = "Name", Width = 150, CellEditType = DataGridViewColumnEditType.TextBox });
+        grid.Columns.Add(new CoreForms.Ui.Controls.Advanced.DataGridViewColumn
+            { HeaderText = "Email", Width = 200, CellEditType = DataGridViewColumnEditType.TextBox, ReadOnly = true });
+        grid.AddRow(1, "John", "john@test.com");
+        grid.EditMode = DataGridViewEditMode.EditOnEnter;
+
+        // Click on Name cell (row 0, col 1) - daY = 30+30 = 60, col1 x = 40+60 = 100
+        grid.OnMouseDown(new MouseEventArgs(MouseButtons.Left, 1, 120, 75, 0));
+
+        Assert.Equal(0, grid.SelectedRowIndex);
+        Assert.Equal(1, grid.SelectedColumnIndex);
+        Assert.True(grid.IsCurrentCellInEditMode, "Editing should start when clicking an editable cell");
+    }
+
+    [Fact]
+    public void DataGridView_DemoConfig_ReadOnlyCellClick_DoesNotStartEditing()
+    {
+        var grid = new CoreForms.Ui.Controls.Advanced.DataGridView();
+        grid.ShowGroupingBar = true;
+        grid.Size = new Size(600, 300);
+
+        grid.Columns.Add(new CoreForms.Ui.Controls.Advanced.DataGridViewColumn
+            { HeaderText = "Id", Width = 60, CellEditType = DataGridViewColumnEditType.TextBox });
+        grid.Columns.Add(new CoreForms.Ui.Controls.Advanced.DataGridViewColumn
+            { HeaderText = "Name", Width = 150, CellEditType = DataGridViewColumnEditType.TextBox });
+        grid.Columns.Add(new CoreForms.Ui.Controls.Advanced.DataGridViewColumn
+            { HeaderText = "Email", Width = 200, CellEditType = DataGridViewColumnEditType.TextBox, ReadOnly = true });
+        grid.AddRow(1, "John", "john@test.com");
+
+        // Click on Email cell (row 0, col 2) - daY = 60, col2 x = 40+60+150 = 250
+        grid.OnMouseDown(new MouseEventArgs(MouseButtons.Left, 1, 280, 75, 0));
+
+        Assert.Equal(0, grid.SelectedRowIndex);
+        Assert.Equal(2, grid.SelectedColumnIndex);
+        Assert.False(grid.IsCurrentCellInEditMode, "Editing should NOT start when clicking a ReadOnly cell");
+    }
+
+    [Fact]
+    public void DataGridView_TabNavigation_MovesToNextCell()
+    {
+        var grid = new CoreForms.Ui.Controls.Advanced.DataGridView();
+        grid.Columns.Add(new CoreForms.Ui.Controls.Advanced.DataGridViewColumn { HeaderText = "Col1", CellEditType = DataGridViewColumnEditType.TextBox });
+        grid.Columns.Add(new CoreForms.Ui.Controls.Advanced.DataGridViewColumn { HeaderText = "Col2", CellEditType = DataGridViewColumnEditType.TextBox });
+        grid.AddRow("A1", "B1");
+        grid.AddRow("A2", "B2");
+        grid.SelectedRowIndex = 0;
+        grid.SelectedColumnIndex = 0;
+
+        grid.OnKeyDown(new KeyEventArgs { KeyCode = Keys.Tab, Modifiers = ModifierKeys.None });
+        Assert.Equal(1, grid.SelectedColumnIndex);
+        Assert.Equal(0, grid.SelectedRowIndex);
+    }
+
+    [Fact]
+    public void DataGridView_TabNavigationAtLastColumn_MovesToNextRow()
+    {
+        var grid = new CoreForms.Ui.Controls.Advanced.DataGridView();
+        grid.Columns.Add(new CoreForms.Ui.Controls.Advanced.DataGridViewColumn { HeaderText = "Col1" });
+        grid.Columns.Add(new CoreForms.Ui.Controls.Advanced.DataGridViewColumn { HeaderText = "Col2" });
+        grid.AddRow("A1", "B1");
+        grid.AddRow("A2", "B2");
+        grid.SelectedRowIndex = 0;
+        grid.SelectedColumnIndex = 1;
+
+        grid.OnKeyDown(new KeyEventArgs { KeyCode = Keys.Tab, Modifiers = ModifierKeys.None });
+        Assert.Equal(1, grid.SelectedRowIndex);
+        Assert.Equal(0, grid.SelectedColumnIndex);
+    }
+
+    [Fact]
+    public void DataGridView_ShiftTab_MovesToPreviousCell()
+    {
+        var grid = new CoreForms.Ui.Controls.Advanced.DataGridView();
+        grid.Columns.Add(new CoreForms.Ui.Controls.Advanced.DataGridViewColumn { HeaderText = "Col1" });
+        grid.Columns.Add(new CoreForms.Ui.Controls.Advanced.DataGridViewColumn { HeaderText = "Col2" });
+        grid.AddRow("A1", "B1");
+        grid.SelectedRowIndex = 0;
+        grid.SelectedColumnIndex = 1;
+
+        grid.OnKeyDown(new KeyEventArgs { KeyCode = Keys.Tab, Modifiers = ModifierKeys.Shift });
+        Assert.Equal(0, grid.SelectedColumnIndex);
+        Assert.Equal(0, grid.SelectedRowIndex);
+    }
+
+    [Fact]
+    public void DataGridView_ArrowKeyNavigation_SelectsFirstRowFromUnselected()
+    {
+        var grid = new CoreForms.Ui.Controls.Advanced.DataGridView();
+        grid.Columns.Add(new CoreForms.Ui.Controls.Advanced.DataGridViewColumn { HeaderText = "Col1" });
+        grid.AddRow("A1");
+        grid.AddRow("A2");
+
+        // No selection initially
+        Assert.Equal(-1, grid.SelectedRowIndex);
+
+        grid.OnKeyDown(new KeyEventArgs { KeyCode = Keys.Down, Modifiers = ModifierKeys.None });
+        Assert.Equal(0, grid.SelectedRowIndex);
+    }
+
+    [Fact]
+    public void DataGridView_ConvertValueToType_StringToDecimal_Succeeds()
+    {
+        var grid = new CoreForms.Ui.Controls.Advanced.DataGridView();
+        // This tests the value conversion path via EndEdit
+        grid.Columns.Add(new CoreForms.Ui.Controls.Advanced.DataGridViewColumn
+            { HeaderText = "Salary", CellEditType = DataGridViewColumnEditType.TextBox });
+        grid.AddRow("0");
+        grid.SelectedRowIndex = 0;
+        grid.SelectedColumnIndex = 0;
+        grid.BeginEdit();
+
+        // Simulate typing a decimal value
+        var tb = Assert.IsType<TextBox>(grid.Controls[0]);
+        tb.Text = "75000.50";
+        tb.OnKeyDown(new KeyEventArgs { KeyCode = Keys.Enter, Modifiers = ModifierKeys.None });
+
+        Assert.Equal("75000.50", grid.Rows[0].Cells[0].Value);
+        Assert.False(grid.IsCurrentCellInEditMode);
+    }
+
+    [Fact]
+    public void DataGridView_DateTimePickerCellEdit_CreatesEditor()
+    {
+        var grid = new CoreForms.Ui.Controls.Advanced.DataGridView();
+        var col = new CoreForms.Ui.Controls.Advanced.DataGridViewColumn
+        {
+            HeaderText = "Col1",
+            CellEditType = DataGridViewColumnEditType.DateTimePicker
+        };
+        grid.Columns.Add(col);
+        grid.AddRow(new DateTime(2025, 6, 15));
+        grid.SelectedRowIndex = 0;
+        grid.SelectedColumnIndex = 0;
+
+        grid.BeginEdit();
+
+        Assert.True(grid.IsCurrentCellInEditMode);
+        Assert.Single(grid.Controls);
+        var dtp = Assert.IsType<DateTimePicker>(grid.Controls[0]);
+        Assert.Equal(new DateTime(2025, 6, 15), dtp.Value);
+    }
+
+    [Fact]
+    public void DataGridView_CellValueChangedEvent_FiresOnEditCommit()
+    {
+        var grid = new CoreForms.Ui.Controls.Advanced.DataGridView();
+        var col = new CoreForms.Ui.Controls.Advanced.DataGridViewColumn { HeaderText = "Col1", CellEditType = DataGridViewColumnEditType.TextBox };
+        grid.Columns.Add(col);
+        grid.AddRow("A1");
+        grid.SelectedRowIndex = 0;
+        grid.SelectedColumnIndex = 0;
+
+        DataGridViewCellEventArgs? firedArgs = null;
+        grid.CellValueChanged += (s, e) => firedArgs = e;
+
+        grid.BeginEdit();
+        var tb = Assert.IsType<TextBox>(grid.Controls[0]);
+        tb.Text = "NewValue";
+        tb.OnKeyDown(new KeyEventArgs { KeyCode = Keys.Enter, Modifiers = ModifierKeys.None });
+
+        Assert.NotNull(firedArgs);
+        Assert.Equal(0, firedArgs.ColumnIndex);
+        Assert.Equal(0, firedArgs.RowIndex);
+    }
+
+    [Fact]
+    public void DataGridView_EndEdit_RemovesEditingControl()
+    {
+        var grid = new CoreForms.Ui.Controls.Advanced.DataGridView();
+        var col = new CoreForms.Ui.Controls.Advanced.DataGridViewColumn { HeaderText = "Col1", CellEditType = DataGridViewColumnEditType.TextBox };
+        grid.Columns.Add(col);
+        grid.AddRow("A1");
+        grid.SelectedRowIndex = 0;
+        grid.SelectedColumnIndex = 0;
+        grid.BeginEdit();
+
+        Assert.True(grid.IsCurrentCellInEditMode);
+
+        grid.EndEdit(true);
+
+        Assert.False(grid.IsCurrentCellInEditMode);
+        Assert.Empty(grid.Controls);
+    }
+
+    [Fact]
+    public void DataGridView_LostFocus_CommitsEditing()
+    {
+        var grid = new CoreForms.Ui.Controls.Advanced.DataGridView();
+        var col = new CoreForms.Ui.Controls.Advanced.DataGridViewColumn { HeaderText = "Col1", CellEditType = DataGridViewColumnEditType.TextBox };
+        grid.Columns.Add(col);
+        grid.AddRow("A1");
+        grid.SelectedRowIndex = 0;
+        grid.SelectedColumnIndex = 0;
+        grid.BeginEdit();
+
+        var tb = Assert.IsType<TextBox>(grid.Controls[0]);
+        tb.Text = "Committed";
+
+        // Simulate LostFocus on the DataGridView
+        grid.OnLostFocus(EventArgs.Empty);
+
+        Assert.Equal("Committed", grid.Rows[0].Cells[0].Value);
+        Assert.False(grid.IsCurrentCellInEditMode);
+    }
+
+    [Fact]
+    public void DataGridView_TabDuringEdit_CommitsAndNavigatesToNextColumn()
+    {
+        var grid = new CoreForms.Ui.Controls.Advanced.DataGridView();
+        var col1 = new CoreForms.Ui.Controls.Advanced.DataGridViewColumn { HeaderText = "Col1", CellEditType = DataGridViewColumnEditType.TextBox };
+        var col2 = new CoreForms.Ui.Controls.Advanced.DataGridViewColumn { HeaderText = "Col2", CellEditType = DataGridViewColumnEditType.TextBox };
+        grid.Columns.Add(col1);
+        grid.Columns.Add(col2);
+        grid.AddRow("A1", "B1");
+        grid.SelectedRowIndex = 0;
+        grid.SelectedColumnIndex = 0;
+        grid.BeginEdit();
+
+        var tb = Assert.IsType<TextBox>(grid.Controls[0]);
+        tb.Text = "Modified";
+
+        grid.OnKeyDown(new KeyEventArgs { KeyCode = Keys.Tab, Modifiers = ModifierKeys.None });
+
+        Assert.Equal("Modified", grid.Rows[0].Cells[0].Value);
+        Assert.Equal(1, grid.SelectedColumnIndex);
+        Assert.False(grid.IsCurrentCellInEditMode);
+    }
+
+    [Fact]
+    public void DataGridView_OnKeyDown_ArrowKeys_NavigateThroughReadOnlyCells()
+    {
+        var grid = new CoreForms.Ui.Controls.Advanced.DataGridView();
+        var col1 = new CoreForms.Ui.Controls.Advanced.DataGridViewColumn { HeaderText = "Col1", CellEditType = DataGridViewColumnEditType.TextBox, ReadOnly = true };
+        var col2 = new CoreForms.Ui.Controls.Advanced.DataGridViewColumn { HeaderText = "Col2", CellEditType = DataGridViewColumnEditType.TextBox };
+        grid.Columns.Add(col1);
+        grid.Columns.Add(col2);
+        grid.AddRow("ReadOnly", "Editable");
+        grid.SelectedRowIndex = 0;
+        grid.SelectedColumnIndex = 0;
+
+        // Right arrow -> moves to col1 (should not skip readonly)
+        grid.OnKeyDown(new KeyEventArgs { KeyCode = Keys.Right, Modifiers = ModifierKeys.None });
+        Assert.Equal(1, grid.SelectedColumnIndex);
+
+        // Left arrow -> moves back to col0 (readonly)
+        grid.OnKeyDown(new KeyEventArgs { KeyCode = Keys.Left, Modifiers = ModifierKeys.None });
+        Assert.Equal(0, grid.SelectedColumnIndex);
+    }
+
+    [Fact]
     public void TabControl_OnKeyDown_Right_ShouldSwitchTab()
     {
         var tabControl = new CoreForms.Ui.Controls.Advanced.TabControl();

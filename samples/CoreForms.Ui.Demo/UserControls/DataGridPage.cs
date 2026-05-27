@@ -27,27 +27,41 @@ public class DataGridPage : UserControl
             Name = "dataGrid"
         };
 
+        string[] statusOptions = ["Active", "Inactive", "Pending"];
+
         dataGrid.Columns.Add(new CoreForms.Ui.Controls.Advanced.DataGridViewColumn
             { HeaderText = SR.GetString("ColId"), Width = 60, Name = "Id", DataPropertyName = "Id",
-              TextAlign = CoreForms.Ui.Controls.Advanced.DataGridViewContentAlignment.Right, FormatString = "D3" });
+              TextAlign = CoreForms.Ui.Controls.Advanced.DataGridViewContentAlignment.Right, FormatString = "D3",
+              CellEditType = DataGridViewColumnEditType.TextBox });
         dataGrid.Columns.Add(new CoreForms.Ui.Controls.Advanced.DataGridViewColumn
-            { HeaderText = SR.GetString("ColName"), Width = 150, Name = "Name", DataPropertyName = "Name" });
+            { HeaderText = SR.GetString("ColName"), Width = 150, Name = "Name", DataPropertyName = "Name",
+              CellEditType = DataGridViewColumnEditType.TextBox });
         dataGrid.Columns.Add(new CoreForms.Ui.Controls.Advanced.DataGridViewColumn
-            { HeaderText = SR.GetString("ColEmail"), Width = 200, Name = "Email", DataPropertyName = "Email" });
+            { HeaderText = SR.GetString("ColEmail"), Width = 200, Name = "Email", DataPropertyName = "Email",
+              CellEditType = DataGridViewColumnEditType.TextBox, ReadOnly = true });
         dataGrid.Columns.Add(new CoreForms.Ui.Controls.Advanced.DataGridViewColumn
             { HeaderText = SR.GetString("ColStatus"), Width = 100, Name = "Status", DataPropertyName = "Status",
-              TextAlign = CoreForms.Ui.Controls.Advanced.DataGridViewContentAlignment.Center });
+              TextAlign = CoreForms.Ui.Controls.Advanced.DataGridViewContentAlignment.Center,
+              CellEditType = DataGridViewColumnEditType.ComboBox, Items = statusOptions.Cast<object>().ToList() });
         dataGrid.Columns.Add(new CoreForms.Ui.Controls.Advanced.DataGridViewColumn
             { HeaderText = SR.GetString("ColSalary"), Width = 110, Name = "Salary", DataPropertyName = "Salary",
-              TextAlign = CoreForms.Ui.Controls.Advanced.DataGridViewContentAlignment.Right, FormatString = "C" });
+              TextAlign = CoreForms.Ui.Controls.Advanced.DataGridViewContentAlignment.Right, FormatString = "C",
+              CellEditType = DataGridViewColumnEditType.TextBox });
+        dataGrid.Columns.Add(new CoreForms.Ui.Controls.Advanced.DataGridViewColumn
+            { HeaderText = "Active", Width = 80, Name = "IsActive", DataPropertyName = "IsActive",
+              TextAlign = CoreForms.Ui.Controls.Advanced.DataGridViewContentAlignment.Center,
+              CellEditType = DataGridViewColumnEditType.CheckBox, TrueValue = true, FalseValue = false });
+        dataGrid.Columns.Add(new CoreForms.Ui.Controls.Advanced.DataGridViewColumn
+            { HeaderText = "Birth Date", Width = 120, Name = "BirthDate", DataPropertyName = "BirthDate",
+              CellEditType = DataGridViewColumnEditType.DateTimePicker, PickerFormat = DateTimePickerFormat.Short });
 
         _personList = new BindingList<Person>
         {
-            new Person(1, "John Doe", "john@example.com", "Active") { Salary = 75000m },
-            new Person(2, "Jane Smith", "jane@example.com", "Active") { Salary = 82000m },
-            new Person(3, "Bob Johnson", "bob@example.com", "Inactive") { Salary = 0m },
-            new Person(4, "Alice Brown", "alice@example.com", "Active") { Salary = 91500m },
-            new Person(5, "Charlie Wilson", "charlie@example.com", "Pending") { Salary = 68000m }
+            new Person(1, "John Doe", "john@example.com", "Active") { Salary = 75000m, IsActive = true, BirthDate = new DateTime(1985, 3, 15) },
+            new Person(2, "Jane Smith", "jane@example.com", "Active") { Salary = 82000m, IsActive = true, BirthDate = new DateTime(1990, 7, 22) },
+            new Person(3, "Bob Johnson", "bob@example.com", "Inactive") { Salary = 0m, IsActive = false, BirthDate = new DateTime(1978, 11, 8) },
+            new Person(4, "Alice Brown", "alice@example.com", "Active") { Salary = 91500m, IsActive = true, BirthDate = new DateTime(1995, 1, 30) },
+            new Person(5, "Charlie Wilson", "charlie@example.com", "Pending") { Salary = 68000m, IsActive = false, BirthDate = new DateTime(2000, 6, 1) }
         };
         dataGrid.DataSource = _personList;
 
