@@ -68,6 +68,12 @@ public class DataGridView : ContainerControl
     private object? _originalCellValue;
     private bool _suppressEndEdit;
 
+    // Button cell hover/pressed tracking
+    private int _hotButtonRow = -1;
+    private int _hotButtonCol = -1;
+    private int _pressedButtonRow = -1;
+    private int _pressedButtonCol = -1;
+
     private ScrollBarContext VScrollBarContext => _scrollBarContext ??= new ScrollBarContext(this);
 
     public DataGridView()
@@ -586,7 +592,7 @@ public class DataGridView : ContainerControl
                             else if (cd.CellEditType == DataGridViewColumnEditType.Button)
                             {
                                 string btnText = cd.ButtonText ?? cell?.Value?.ToString() ?? "";
-                                RenderButtonCell(g, theme, btnText, cd.ButtonIcon, dx, y, dw2, _rowHeight, zoom, EffectiveFont);
+                                RenderButtonCell(g, theme, btnText, cd.ButtonIcon, dx, y, dw2, _rowHeight, zoom, EffectiveFont, i, c);
                             }
                             else
                             {
@@ -710,7 +716,7 @@ public class DataGridView : ContainerControl
                                         else if (cd.CellEditType == DataGridViewColumnEditType.Button)
                                         {
                                             string btnText = cd.ButtonText ?? cell?.Value?.ToString() ?? "";
-                                            RenderButtonCell(g, theme, btnText, cd.ButtonIcon, dx, ry, dw2, _rowHeight, zoom, EffectiveFont);
+                                            RenderButtonCell(g, theme, btnText, cd.ButtonIcon, dx, ry, dw2, _rowHeight, zoom, EffectiveFont, ri, c);
                                         }
                                         else
                                         {
@@ -830,6 +836,10 @@ public class DataGridView : ContainerControl
                     // Handle button cell click
                     if (col < _columns.Count && _columns[col].CellEditType == DataGridViewColumnEditType.Button)
                     {
+                        _pressedButtonRow = row;
+                        _pressedButtonCol = col;
+                        var f = FindForm();
+                        if (f != null) f.CaptureControl = this;
                         _selectedRowIndex = row;
                         _selectedColumnIndex = col;
                         OnCellClick(new DataGridViewCellEventArgs(col, row));
@@ -898,6 +908,12 @@ public class DataGridView : ContainerControl
         }
         if (_resizingColumnIndex >= 0) { _resizingColumnIndex = -1; var f = FindForm(); if (f != null) f.CaptureControl = null; return; }
         if (_vScrollBar.IsDragging || _vScrollBar.IsUpButtonPressed || _vScrollBar.IsDownButtonPressed) _vScrollBar.HandleMouseUp(VScrollBarContext);
+        if (_pressedButtonRow >= 0 || _pressedButtonCol >= 0)
+        {
+            _pressedButtonRow = -1;
+            _pressedButtonCol = -1;
+            Invalidate();
+        }
         base.OnMouseUp(e);
     }
 
@@ -923,7 +939,25 @@ public class DataGridView : ContainerControl
         int dc = GetDividerColumnIndex(m.X);
         if (dc >= 0 && _columns[dc].Resizable) { if (form != null) form.Cursor = SystemCursorType.SizeWE; }
         else { if (form != null && form.Cursor == SystemCursorType.SizeWE) form.Cursor = null; }
+
+        // Button cell hover tracking
+        TrackButtonHover(m.X, m.Y);
+
         base.OnMouseMove(e);
+    }
+
+    /// <summary>
+    /// Raises the MouseLeave event and clears button cell hover state.
+    /// </summary>
+    protected override void OnMouseLeave(EventArgs e)
+    {
+        if (_hotButtonRow >= 0 || _hotButtonCol >= 0)
+        {
+            _hotButtonRow = -1;
+            _hotButtonCol = -1;
+            Invalidate();
+        }
+        base.OnMouseLeave(e);
     }
 
     protected internal override void OnMouseWheel(EventArgs e)
@@ -1253,7 +1287,10 @@ public class DataGridView : ContainerControl
 
         if (_editingControl == null)
         {
-            // CheckBox toggles inline; no long-lived editor needed
+            // CheckBox/Button have no persistent editor; reset editing state so render doesn't skip this cell
+            _editingRowIndex = -1;
+            _editingColumnIndex = -1;
+            _originalCellValue = null;
             return;
         }
 
@@ -1435,10 +1472,6 @@ public class DataGridView : ContainerControl
                     : (column.TrueValue ?? true);
                 NotifyCellValueChanged(_editingColumnIndex, _editingRowIndex, cell.Value);
                 OnCellValueChanged(new DataGridViewCellEventArgs(_editingColumnIndex, _editingRowIndex));
-                // Clear editing state — no persistent editor, keep render from skipping this cell
-                _editingRowIndex = -1;
-                _editingColumnIndex = -1;
-                _originalCellValue = null;
                 Invalidate();
                 return null; // No persistent editor needed
             }
@@ -1981,7 +2014,70 @@ public class DataGridView : ContainerControl
         }
     }
 
-    private static void RenderButtonCell(Graphics g, Theme theme, string text, IGraphicsImage? icon, int cellX, int cellY, int cellWidth, int cellHeight, float zoom, Font font)
+    private void TrackButtonHover(int mouseX, int mouseY)
+    {
+        int gbH = _showGroupingBar ? _groupingBarHeight : 0;
+        int hH = _columnHeadersVisible ? _rowHeight : 0;
+        int daY = gbH + hH;
+        int rhw = _rowHeadersVisible ? 40 : 0;
+        int tch = GetTotalContentHeight();
+        int dH = Height - daY;
+        bool needVS = tch > dH;
+        int sbw = needVS ? 16 : 0;
+
+        if (mouseY < daY || mouseY >= Height || mouseX < rhw || mouseX >= Width - sbw)
+        {
+            ClearButtonHover();
+            return;
+        }
+
+        int col = GetColumnIndexAtX(mouseX);
+        if (col < 0 || col >= _columns.Count || _columns[col].CellEditType != DataGridViewColumnEditType.Button)
+        {
+            ClearButtonHover();
+            return;
+        }
+
+        int row;
+        if (_groupedColumnIndices.Count > 0)
+        {
+            var hit = HitTestGroupTree(_groupRoots, mouseY - daY + _vScrollBar.Value);
+            if (hit.group == null || hit.rowIndex < 0 || hit.rowIndex >= hit.group.RowIndices.Count)
+            {
+                ClearButtonHover();
+                return;
+            }
+            row = hit.group.RowIndices[hit.rowIndex];
+        }
+        else
+        {
+            row = (mouseY - daY + _vScrollBar.Value) / _rowHeight;
+            if (row < 0 || row >= _rows.Count)
+            {
+                ClearButtonHover();
+                return;
+            }
+        }
+
+        if (_hotButtonRow != row || _hotButtonCol != col)
+        {
+            _hotButtonRow = row;
+            _hotButtonCol = col;
+            Invalidate();
+        }
+    }
+
+    private void ClearButtonHover()
+    {
+        if (_hotButtonRow >= 0 || _hotButtonCol >= 0)
+        {
+            _hotButtonRow = -1;
+            _hotButtonCol = -1;
+            Invalidate();
+        }
+    }
+
+    private void RenderButtonCell(Graphics g, Theme theme, string text, IGraphicsImage? icon, int cellX, int cellY, int cellWidth, int cellHeight, float zoom, Font font, int row, int col)
     {
         int margin = 3;
         int btnX = cellX + margin;
@@ -1990,7 +2086,18 @@ public class DataGridView : ContainerControl
         int btnH = cellHeight - margin * 2;
         if (btnW < 10 || btnH < 10) return;
 
-        g.FillRectangle(theme.ControlBackground, btnX, btnY, btnW, btnH);
+        bool isHovered = _hotButtonRow == row && _hotButtonCol == col;
+        bool isPressed = _pressedButtonRow == row && _pressedButtonCol == col;
+
+        Color bg;
+        if (isPressed)
+            bg = theme.ButtonPressedBackground;
+        else if (isHovered)
+            bg = theme.ButtonHoverBackground;
+        else
+            bg = theme.ControlBackground;
+
+        g.FillRectangle(bg, btnX, btnY, btnW, btnH);
         g.DrawRectangle(theme.ButtonBorder, btnX, btnY, btnW, btnH, 1);
 
         int textX = btnX + 6;

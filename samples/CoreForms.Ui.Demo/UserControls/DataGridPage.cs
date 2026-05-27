@@ -54,6 +54,10 @@ public class DataGridPage : UserControl
         dataGrid.Columns.Add(new CoreForms.Ui.Controls.Advanced.DataGridViewColumn
             { HeaderText = "Birth Date", Width = 120, Name = "BirthDate", DataPropertyName = "BirthDate",
               CellEditType = DataGridViewColumnEditType.DateTimePicker, PickerFormat = DateTimePickerFormat.Short });
+        dataGrid.Columns.Add(new CoreForms.Ui.Controls.Advanced.DataGridViewColumn
+            { HeaderText = "", Width = 70, Name = "Actions",
+              CellEditType = DataGridViewColumnEditType.Button, ButtonText = "Edit",
+              ButtonIcon = CoreForms.Ui.Resources.Icons.Edit16 });
 
         _personList = new BindingList<Person>
         {
@@ -129,6 +133,22 @@ public class DataGridPage : UserControl
             {
                 e.BackColor = isDark ? Color.FromArgb(55, 55, 60) : Color.FromArgb(220, 235, 250);
                 e.Font = new Font(e.Font?.Name ?? "Arial", 13f, FontStyle.Regular);
+            }
+        };
+
+        dataGrid.CellButtonClick += (s, e) =>
+        {
+            if (_personList != null && e.RowIndex >= 0 && e.RowIndex < _personList.Count)
+            {
+                var person = _personList[e.RowIndex];
+                var displayName = person.Name;
+                var status = person.Status;
+                var statusTextChanged = StatusTextChanged;
+                if (statusTextChanged != null)
+                {
+                    var args = new StatusTextChangedEventArgs($"Edit clicked for {displayName} ({status})");
+                    statusTextChanged(this, args);
+                }
             }
         };
 

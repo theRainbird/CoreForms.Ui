@@ -110,9 +110,9 @@ public class ReportBand
 
         if (BackColor.A != 0)
         {
-            float bgX = 0;
+            float bgX = CmToPx(context.Report.LeftMargin, context);
             float bgY = CmToPx(bandOffsetY, context);
-            float bgW = CmToPx(context.Report.PageWidth, context);
+            float bgW = CmToPx(context.Report.PrintableWidth, context);
             float bgH = CmToPx(actualHeight, context);
             g.FillRectangle(BackColor, bgX, bgY, bgW, bgH);
         }

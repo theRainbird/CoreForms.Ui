@@ -47,7 +47,7 @@ public class ReportPage : UserControl
         var headerFont = new Font("Arial", 10, FontStyle.Bold);
         var dataFont = new Font("Arial", 9);
 
-        report.PageHeader.Height = 2.0;
+        report.PageHeader.Height = 2.5;
         report.PageHeader.BackColor = Color.FromArgb(230, 240, 255);
         report.PageHeader.Controls.Add(new ReportLabel
         {
@@ -57,8 +57,42 @@ public class ReportPage : UserControl
         });
         report.PageHeader.Controls.Add(new ReportLine
         {
-            Left = 0, Top = 1.6, X2 = 26.7, Y2 = 1.6,
+            Left = 0, Top = 1.5, X2 = 26.7, Y2 = 1.5,
             LineWidth = 0.04, LineColor = Color.FromArgb(50, 80, 180)
+        });
+
+        var colHdrFont = new Font("Arial", 8, FontStyle.Bold);
+        report.PageHeader.Controls.Add(new ReportLabel
+        {
+            Text = "ID", Left = 0.3, Top = 1.6, Width = 2, Height = 0.4,
+            Font = colHdrFont, ForeColor = Color.FromArgb(30, 60, 150),
+            TextAlign = TextAlignment.Right
+        });
+        report.PageHeader.Controls.Add(new ReportLabel
+        {
+            Text = "Name", Left = 3.0, Top = 1.6, Width = 7, Height = 0.4,
+            Font = colHdrFont, ForeColor = Color.FromArgb(30, 60, 150)
+        });
+        report.PageHeader.Controls.Add(new ReportLabel
+        {
+            Text = "Email", Left = 10.5, Top = 1.6, Width = 8, Height = 0.4,
+            Font = colHdrFont, ForeColor = Color.FromArgb(30, 60, 150)
+        });
+        report.PageHeader.Controls.Add(new ReportLabel
+        {
+            Text = "Salary", Left = 19.0, Top = 1.6, Width = 3.5, Height = 0.4,
+            Font = colHdrFont, ForeColor = Color.FromArgb(30, 60, 150),
+            TextAlign = TextAlignment.Right
+        });
+        report.PageHeader.Controls.Add(new ReportLabel
+        {
+            Text = "Active", Left = 23.0, Top = 1.6, Width = 3, Height = 0.4,
+            Font = colHdrFont, ForeColor = Color.FromArgb(30, 60, 150)
+        });
+        report.PageHeader.Controls.Add(new ReportLine
+        {
+            Left = 0, Top = 2.1, X2 = 26.7, Y2 = 2.1,
+            LineWidth = 0.02, LineColor = Color.FromArgb(80, 120, 200)
         });
 
         var group = new ReportGroup("Status");
