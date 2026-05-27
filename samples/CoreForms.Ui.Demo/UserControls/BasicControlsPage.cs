@@ -230,11 +230,29 @@ public class BasicControlsPage : UserControl
         groupBox5.Controls.Add(dtpLabel5);
         groupBox5.Controls.Add(dtp5);
 
+        var groupBox6 = new GroupBox
+        {
+            Text = SR.GetString("GroupFontPicker"),
+            Location = new Point(590, 220),
+            Size = new Size(250, 100)
+        };
+
+        var fontPickerLabel = new Label { Text = SR.GetString("FontPickerLabel"), Location = new Point(10, 25), Size = new Size(100, 20) };
+        var fontPicker = new FontPicker { Location = new Point(10, 50), Size = new Size(220, 30) };
+        fontPicker.SelectedFontChanged += (s, e) =>
+        {
+            OnStatusTextChanged(string.Format("Font: {0}", fontPicker.SelectedFontFamily));
+        };
+
+        groupBox6.Controls.Add(fontPickerLabel);
+        groupBox6.Controls.Add(fontPicker);
+
         Controls.Add(groupBox1);
         Controls.Add(groupBox2);
         Controls.Add(groupBox3);
         Controls.Add(groupBox4);
         Controls.Add(groupBox5);
+        Controls.Add(groupBox6);
     }
 
     private void OnStatusTextChanged(string text)

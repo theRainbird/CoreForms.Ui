@@ -291,4 +291,6 @@
   <data name="DtpWithCheckBox"><value>With CheckBox</value></data>
   <data name="DtpDataBinding"><value>Data Binding</value></data>
   <data name="DtpSelected"><value>Selected: {0}</value></data>
+  <data name="GroupFontPicker"><value>Sélecteur de police</value></data>
+  <data name="FontPickerLabel"><value>Choisissez une police</value></data>
 </root>

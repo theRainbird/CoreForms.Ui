@@ -15,10 +15,13 @@ dotnet run --project samples/CoreForms.Ui.Demo  # Run demo (requires X11/display
 ## Implemented Features
 
 **Controls (Basic):**
-- Label, Button, TextBox, CheckBox, RadioButton, ListBox, ComboBox, ProgressBar
+- Label, Button, TextBox, CheckBox, RadioButton, ListBox, ComboBox, ProgressBar, FontPicker
 
 **Controls (Containers):**
 - Panel, MenuStrip, ToolStrip
+
+**Core Utilities:**
+- FontManager (SKFontManager-based font enumeration, lazy typeface loading, memory-efficient)
 
 **Controls (Advanced):**
 - TabControl, TabPage, StatusStrip
@@ -57,6 +60,7 @@ dotnet run --project samples/CoreForms.Ui.Demo  # Run demo (requires X11/display
 - Custom `Color`, `Font`, `Point`, `Size`, `Rectangle` in `Core/SystemTypes.cs`
 - Custom `Graphics` in `Rendering/Graphics.cs` (use alias: `using Graphics = CoreForms.Ui.Rendering.Graphics`)
 - Custom `SkiaRenderer` in `Rendering/SkiaRenderer.cs`
+- `FontManager` in `Core/FontManager.cs` (uses `SKFontManager` for RAM-efficient font enumeration)
 
 **Headless limitation** - Demo won't show window without X11/display server.
 

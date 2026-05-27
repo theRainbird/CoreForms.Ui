@@ -365,4 +365,6 @@
   <data name="AppointmentSprintPlanning"><value>Sprint Planning</value></data>
   <data name="AppointmentRoom204"><value>Room 204</value></data>
   <data name="AppointmentConference"><value>Conference</value></data>
+  <data name="GroupFontPicker"><value>Font Picker</value></data>
+  <data name="FontPickerLabel"><value>Choose a font</value></data>
 </root>

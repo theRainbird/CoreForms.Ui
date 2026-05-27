@@ -344,4 +344,6 @@
   <data name="AppointmentSprintPlanning"><value>Sprint-Planung</value></data>
   <data name="AppointmentRoom204"><value>Raum 204</value></data>
   <data name="AppointmentConference"><value>Konferenz</value></data>
+  <data name="GroupFontPicker"><value>Schriftartauswahl</value></data>
+  <data name="FontPickerLabel"><value>Schriftart auswählen</value></data>
 </root>
