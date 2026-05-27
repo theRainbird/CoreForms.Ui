@@ -10,7 +10,9 @@ namespace CoreForms.Ui.Layout;
 public class FlowLayoutPanel : ContainerControl
 {
     private FlowDirection _flowDirection = FlowDirection.LeftToRight;
-    
+    private Point[]? _layoutCache;
+    private int _cachedLayoutVersion = -1;
+
     /// <summary>
     /// Initializes a new instance of FlowLayoutPanel.
     /// </summary>
@@ -40,7 +42,8 @@ public class FlowLayoutPanel : ContainerControl
         set
         {
             _flowDirection = value;
-            LayoutChildren();
+            MarkLayoutDirty();
+            PerformLayout();
         }
     }
 
@@ -53,16 +56,21 @@ public class FlowLayoutPanel : ContainerControl
         set => base.Padding = new CoreForms.Ui.Core.Padding(value);
     }
 
-    /// <summary>
-    /// Performs layout of child controls.
-    /// </summary>
-    public void LayoutChildren()
-    {
-        LayoutControls();
-    }
-
     private void LayoutControls()
     {
+        if (_cachedLayoutVersion == _layoutVersion && _layoutCache != null && _layoutCache.Length == Controls.Count)
+        {
+            for (int i = 0; i < Controls.Count; i++)
+            {
+                var child = Controls[i];
+                if (!child.Visible) continue;
+                child._layoutDrivenBoundsChange = true;
+                child.Location = _layoutCache[i];
+                child._layoutDrivenBoundsChange = false;
+            }
+            return;
+        }
+
         int padLeft = base.Padding.Left;
         int padTop = base.Padding.Top;
         int padRight = base.Padding.Right;
@@ -75,8 +83,11 @@ public class FlowLayoutPanel : ContainerControl
         int availableWidth = Width - padLeft - padRight;
         int availableHeight = Height - padTop - padBottom;
 
-        foreach (Control child in Controls)
+        var cache = Controls.Count > 0 ? new Point[Controls.Count] : null;
+
+        for (int i = 0; i < Controls.Count; i++)
         {
+            var child = Controls[i];
             if (!child.Visible) continue;
 
             if (_flowDirection == FlowDirection.LeftToRight)
@@ -91,6 +102,7 @@ public class FlowLayoutPanel : ContainerControl
                 child._layoutDrivenBoundsChange = true;
                 child.Location = new Point(x, y);
                 child._layoutDrivenBoundsChange = false;
+                cache![i] = child.Location;
                 x += child.Width + padLeft;
                 rowHeight = Math.Max(rowHeight, child.Height);
                 maxWidth = Math.Max(maxWidth, x);
@@ -107,10 +119,14 @@ public class FlowLayoutPanel : ContainerControl
                 child._layoutDrivenBoundsChange = true;
                 child.Location = new Point(x, y);
                 child._layoutDrivenBoundsChange = false;
+                cache![i] = child.Location;
                 y += child.Height + padTop;
                 maxWidth = Math.Max(maxWidth, child.Width);
             }
         }
+
+        _layoutCache = cache;
+        _cachedLayoutVersion = _layoutVersion;
     }
 
     /// <summary>

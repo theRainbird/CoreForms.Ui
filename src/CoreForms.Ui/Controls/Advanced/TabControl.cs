@@ -71,7 +71,6 @@ public class TabControl : ContainerControl
         page.TabStop = false;
         _tabPages.Add(page);
         Controls.Add(page);
-        PerformLayout();
     }
 
     /// <summary>
@@ -122,8 +121,9 @@ public class TabControl : ContainerControl
             if (_tabHeight != value)
             {
                 _tabHeight = value;
-                Invalidate();
+                MarkLayoutDirty();
                 PerformLayout();
+                Invalidate();
             }
         }
     }

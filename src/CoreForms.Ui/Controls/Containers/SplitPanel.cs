@@ -52,6 +52,7 @@ public class SplitPanel : ContainerControl
             if (_orientation != value)
             {
                 _orientation = value;
+                MarkLayoutDirty();
                 PerformLayout();
                 Invalidate();
             }
@@ -70,6 +71,7 @@ public class SplitPanel : ContainerControl
             if (_splitterWidth != value)
             {
                 _splitterWidth = value;
+                MarkLayoutDirty();
                 PerformLayout();
                 Invalidate();
             }
@@ -88,6 +90,7 @@ public class SplitPanel : ContainerControl
             if (_splitterDistance != value)
             {
                 _splitterDistance = value;
+                MarkLayoutDirty();
                 PerformLayout();
                 Invalidate();
             }
@@ -106,6 +109,7 @@ public class SplitPanel : ContainerControl
             if (_panel1MinSize != value)
             {
                 _panel1MinSize = value;
+                MarkLayoutDirty();
                 PerformLayout();
                 Invalidate();
             }
@@ -124,6 +128,7 @@ public class SplitPanel : ContainerControl
             if (_panel2MinSize != value)
             {
                 _panel2MinSize = value;
+                MarkLayoutDirty();
                 PerformLayout();
                 Invalidate();
             }
@@ -407,6 +412,7 @@ public class SplitPanel : ContainerControl
                 {
                     _splitterDistance = newDistance;
                     SplitterMoving?.Invoke(this, new SplitterDragEventArgs { NewPosition = _splitterDistance });
+                    MarkLayoutDirty();
                     PerformLayout();
                     Invalidate();
                 }

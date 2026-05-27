@@ -12,6 +12,8 @@ public class TableLayoutPanel : ContainerControl
     private int _rowCount = 2;
     private int _columnCount = 2;
     private readonly List<TableLayoutStyle> _styles = new();
+    private (Point location, Size size)[]? _layoutCache;
+    private int _cachedLayoutVersion = -1;
 
     /// <summary>
     /// Initializes a new instance of TableLayoutPanel.
@@ -42,7 +44,8 @@ public class TableLayoutPanel : ContainerControl
         set
         {
             _rowCount = value;
-            LayoutChildren();
+            MarkLayoutDirty();
+            PerformLayout();
         }
     }
 
@@ -55,21 +58,27 @@ public class TableLayoutPanel : ContainerControl
         set
         {
             _columnCount = value;
-            LayoutChildren();
+            MarkLayoutDirty();
+            PerformLayout();
         }
-    }
-
-    /// <summary>
-    /// Performs layout of child controls.
-    /// </summary>
-    public void LayoutChildren()
-    {
-        LayoutControls();
     }
 
     private void LayoutControls()
     {
         if (Controls.Count == 0) return;
+
+        if (_cachedLayoutVersion == _layoutVersion && _layoutCache != null && _layoutCache.Length == Controls.Count)
+        {
+            for (int i = 0; i < Controls.Count; i++)
+            {
+                var child = Controls[i];
+                child._layoutDrivenBoundsChange = true;
+                child.Location = _layoutCache[i].location;
+                child.Size = _layoutCache[i].size;
+                child._layoutDrivenBoundsChange = false;
+            }
+            return;
+        }
 
         int padLeft = Padding.Left + 2;
         int padTop = Padding.Top + 2;
@@ -79,6 +88,8 @@ public class TableLayoutPanel : ContainerControl
         int cellWidth = innerWidth / _columnCount;
         int cellHeight = innerHeight / _rowCount;
 
+        var cache = new (Point location, Size size)[Controls.Count];
+
         int index = 0;
         for (int row = 0; row < _rowCount && index < Controls.Count; row++)
         {
@@ -86,12 +97,18 @@ public class TableLayoutPanel : ContainerControl
             {
                 var child = Controls[index];
                 child._layoutDrivenBoundsChange = true;
-                child.Location = new Point(col * cellWidth + padLeft, row * cellHeight + padTop);
-                child.Size = new Size(cellWidth - 4, cellHeight - 4);
+                var loc = new Point(col * cellWidth + padLeft, row * cellHeight + padTop);
+                var sz = new Size(cellWidth - 4, cellHeight - 4);
+                child.Location = loc;
+                child.Size = sz;
                 child._layoutDrivenBoundsChange = false;
+                cache[index] = (loc, sz);
                 index++;
             }
         }
+
+        _layoutCache = cache;
+        _cachedLayoutVersion = _layoutVersion;
     }
 
     /// <summary>

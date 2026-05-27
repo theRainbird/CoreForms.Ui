@@ -11,12 +11,16 @@ namespace CoreForms.Ui.Core;
 /// Represents an SVG image that can be rendered by the graphics system.
 /// Encapsulates SkiaSharp types to keep the public API renderer-agnostic.
 /// Supports resolution-independent rendering by caching rasterizations at multiple sizes.
+/// The raster cache uses LRU eviction to prevent unbounded memory growth during zoom changes.
 /// </summary>
 public class SvgImage : IGraphicsImage
 {
+    private const int MaxCacheEntries = 32;
+
     private SKImage? _nativeImage;
     private byte[]? _svgData;
     private Dictionary<(int, int), SKImage>? _rasterCache;
+    private LinkedList<(int, int)>? _cacheOrder;
     private bool _disposed;
 
     /// <summary>
@@ -118,7 +122,7 @@ public class SvgImage : IGraphicsImage
 
     /// <summary>
     /// Gets a rasterized version of this SVG image at the specified size.
-    /// Results are cached so subsequent requests for the same size are fast.
+    /// Results are cached with LRU eviction so subsequent requests for the same size are fast.
     /// </summary>
     /// <param name="width">The desired width in pixels.</param>
     /// <param name="height">The desired height in pixels.</param>
@@ -135,7 +139,10 @@ public class SvgImage : IGraphicsImage
             return _nativeImage;
 
         if (_rasterCache != null && _rasterCache.TryGetValue((width, height), out var cached))
+        {
+            TouchCacheEntry((width, height));
             return cached;
+        }
 
         if (_svgData == null)
             return null;
@@ -155,8 +162,7 @@ public class SvgImage : IGraphicsImage
             if (rasterized == null)
                 return null;
 
-            _rasterCache ??= new Dictionary<(int, int), SKImage>();
-            _rasterCache[(width, height)] = rasterized;
+            AddToCache((width, height), rasterized);
             return rasterized;
         }
         catch (Exception ex)
@@ -164,6 +170,35 @@ public class SvgImage : IGraphicsImage
             Console.WriteLine($"[SvgImage] Failed to rasterize at {width}x{height}: {ex.Message}");
             return null;
         }
+    }
+
+    private void TouchCacheEntry((int, int) key)
+    {
+        if (_cacheOrder != null)
+        {
+            _cacheOrder.Remove(key);
+            _cacheOrder.AddLast(key);
+        }
+    }
+
+    private void AddToCache((int, int) key, SKImage image)
+    {
+        _rasterCache ??= new Dictionary<(int, int), SKImage>();
+        _cacheOrder ??= new LinkedList<(int, int)>();
+
+        if (_rasterCache.Count >= MaxCacheEntries && _cacheOrder.First != null)
+        {
+            var oldest = _cacheOrder.First.Value;
+            _cacheOrder.RemoveFirst();
+            if (_rasterCache.TryGetValue(oldest, out var evicted))
+            {
+                evicted.Dispose();
+                _rasterCache.Remove(oldest);
+            }
+        }
+
+        _rasterCache[key] = image;
+        _cacheOrder.AddLast(key);
     }
 
     private static SKImage? RasterizePicture(SKPicture picture, int width, int height)
@@ -221,5 +256,6 @@ public class SvgImage : IGraphicsImage
                 kvp.Value.Dispose();
             _rasterCache.Clear();
         }
+        _cacheOrder?.Clear();
     }
 }

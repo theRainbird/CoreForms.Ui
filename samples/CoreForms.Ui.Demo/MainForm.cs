@@ -301,6 +301,7 @@ public class MainForm : Form
         tabControl.AddTabPage(CreateTabPage(SR.GetString("TabFileDialogs"), CreateFileDialogPage()));
         tabControl.AddTabPage(CreateTabPage(SR.GetString("TabPrintDialog"), CreatePrintDialogPage()));
         tabControl.AddTabPage(CreateTabPage(SR.GetString("TabDockAnchor"), CreateDockAnchorPage()));
+        tabControl.AddTabPage(CreateTabPage("Flow/Table Layout", CreateLayoutPage()));
         tabControl.AddTabPage(CreateTabPage(SR.GetString("TabTreeView"), CreateTreeViewPage()));
         tabControl.AddTabPage(CreateTabPage(SR.GetString("TabUserControl"), CreateUserControlPage()));
         tabControl.AddTabPage(CreateTabPage(SR.GetString("TabImages"), CreateImagesPage()));
@@ -431,6 +432,11 @@ public class MainForm : Form
         var page = new ReportPage();
         page.StatusTextChanged += (s, e) => _statusLabel!.Text = e.Text;
         return page;
+    }
+
+    private static LayoutPage CreateLayoutPage()
+    {
+        return new LayoutPage();
     }
 
     private ToolStripMenuItem CreateLanguageItem(string displayName, string cultureCode)

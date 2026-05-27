@@ -44,6 +44,8 @@ public class Control : Component, IThemeChangeSubscriber, INotifyPropertyChanged
     private int _anchorRightDistance;
     private int _anchorBottomDistance;
     private int _layoutSuspendCount;
+    private bool _layoutDirty = true;
+    internal int _layoutVersion;
     internal bool _layoutDrivenBoundsChange;
     private ControlState _state = ControlState.None;
     private Form? _cachedForm;
@@ -390,7 +392,11 @@ public class Control : Component, IThemeChangeSubscriber, INotifyPropertyChanged
             {
                 _anchor = value;
                 UpdateAnchorDistances();
-                Parent?.PerformLayout();
+                if (Parent != null)
+                {
+                    Parent.MarkLayoutDirty();
+                    Parent.PerformLayout();
+                }
             }
         }
     }
@@ -406,7 +412,11 @@ public class Control : Component, IThemeChangeSubscriber, INotifyPropertyChanged
             if (_dock != value)
             {
                 _dock = value;
-                Parent?.PerformLayout();
+                if (Parent != null)
+                {
+                    Parent.MarkLayoutDirty();
+                    Parent.PerformLayout();
+                }
             }
         }
     }
@@ -423,6 +433,7 @@ public class Control : Component, IThemeChangeSubscriber, INotifyPropertyChanged
                 _padding.Right != value.Right || _padding.Bottom != value.Bottom)
             {
                 _padding = value;
+                MarkLayoutDirty();
                 PerformLayout();
             }
         }
@@ -800,11 +811,23 @@ if (_focused != value)
     }
 
     /// <summary>
+    /// Marks the layout as dirty, causing the next <see cref="PerformLayout"/> to recalculate.
+    /// </summary>
+    internal void MarkLayoutDirty()
+    {
+        _layoutDirty = true;
+        _layoutVersion++;
+    }
+
+    /// <summary>
     /// Forces the control to perform layout of its child controls.
+    /// Layout is skipped if no changes have been made since the last layout pass.
     /// </summary>
     public void PerformLayout()
     {
         if (_layoutSuspendCount > 0) return;
+        if (!_layoutDirty) return;
+        _layoutDirty = false;
         OnLayout();
     }
 
@@ -974,6 +997,7 @@ if (_controls == null || _controls.Count == 0) return;
         {
             UpdateAnchorDistances();
         }
+        MarkLayoutDirty();
         PerformLayout();
     }
 
@@ -988,7 +1012,11 @@ if (_controls == null || _controls.Count == 0) return;
     protected virtual void OnVisibleChanged()
     {
         Invalidate();
-        Parent?.PerformLayout();
+        if (Parent != null)
+        {
+            Parent.MarkLayoutDirty();
+            Parent.PerformLayout();
+        }
     }
 
     /// <summary>
@@ -1358,6 +1386,7 @@ public class ControlCollection : IEnumerable<Control>
             _controls.Add(control);
             control.Parent = _owner;
             control.UpdateAnchorDistances();
+            _owner.MarkLayoutDirty();
             if (_updateSuspendCount == 0)
             {
                 _owner.Invalidate();
@@ -1385,6 +1414,7 @@ public class ControlCollection : IEnumerable<Control>
                     control.UpdateAnchorDistances();
                 }
             }
+            _owner.MarkLayoutDirty();
         }
         finally
         {
@@ -1400,6 +1430,26 @@ public class ControlCollection : IEnumerable<Control>
     {
         if (_controls.Remove(control))
         {
+            _owner.MarkLayoutDirty();
+            if (_updateSuspendCount == 0)
+            {
+                _owner.Invalidate();
+                _owner.PerformLayout();
+            }
+        }
+    }
+
+    /// <summary>
+    /// Removes the control at the specified index from the collection.
+    /// </summary>
+    /// <param name="index">The zero-based index of the control to remove.</param>
+    public void RemoveAt(int index)
+    {
+        if (index >= 0 && index < _controls.Count)
+        {
+            var control = _controls[index];
+            _controls.RemoveAt(index);
+            _owner.MarkLayoutDirty();
             if (_updateSuspendCount == 0)
             {
                 _owner.Invalidate();
@@ -1414,6 +1464,7 @@ public class ControlCollection : IEnumerable<Control>
     public void Clear()
     {
         _controls.Clear();
+        _owner.MarkLayoutDirty();
         if (_updateSuspendCount == 0)
         {
             _owner.Invalidate();
