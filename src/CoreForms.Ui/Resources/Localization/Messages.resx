@@ -67,4 +67,10 @@
   <data name="Minute">
     <value>Minute</value>
   </data>
+  <data name="DataError_Title">
+    <value>Data Entry Error</value>
+  </data>
+  <data name="DataError_InvalidValue">
+    <value>The cell value is not valid.</value>
+  </data>
 </root>

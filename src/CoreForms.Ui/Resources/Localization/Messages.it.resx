@@ -67,4 +67,10 @@
   <data name="Minute">
     <value>Minuto</value>
   </data>
+  <data name="DataError_Title">
+    <value>Errore di immissione</value>
+  </data>
+  <data name="DataError_InvalidValue">
+    <value>Il valore immesso non è valido.</value>
+  </data>
 </root>

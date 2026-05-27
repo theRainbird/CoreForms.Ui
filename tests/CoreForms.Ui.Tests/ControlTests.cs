@@ -561,9 +561,44 @@ public class ControlTests
         var cb = Assert.IsType<ComboBox>(grid.Controls[0]);
         cb.SelectedIndex = 1;
 
-        // SelectedIndexChanged should trigger EndEdit
-        Assert.Equal("Option2", grid.Rows[0].Cells[0].Value);
+        // Value is NOT updated until commit; editor stays open
+        Assert.Equal("Option1", grid.Rows[0].Cells[0].Value);
+        Assert.True(grid.IsCurrentCellInEditMode);
+
+        // Commit via Enter
+        cb.OnKeyDown(new KeyEventArgs { KeyCode = Keys.Enter, Modifiers = ModifierKeys.None });
         Assert.False(grid.IsCurrentCellInEditMode);
+        Assert.Equal("Option2", grid.Rows[0].Cells[0].Value);
+    }
+
+    [Fact]
+    public void DataGridView_ComboBoxEscapeThenNavigate_PreservesOriginalValue()
+    {
+        var grid = new CoreForms.Ui.Controls.Advanced.DataGridView();
+        var col = new CoreForms.Ui.Controls.Advanced.DataGridViewColumn
+        {
+            HeaderText = "Status",
+            CellEditType = DataGridViewColumnEditType.ComboBox,
+            Items = new List<object> { "Active", "Inactive", "Pending" }
+        };
+        grid.Columns.Add(col);
+        grid.AddRow("Active");
+        grid.SelectedRowIndex = 0;
+        grid.SelectedColumnIndex = 0;
+        grid.BeginEdit();
+
+        var cb = Assert.IsType<ComboBox>(grid.Controls[0]);
+        cb.SelectedIndex = 2; // "Pending"
+
+        // Escape cancels the edit
+        cb.OnKeyDown(new KeyEventArgs { KeyCode = Keys.Escape, Modifiers = ModifierKeys.None });
+        Assert.False(grid.IsCurrentCellInEditMode);
+        Assert.Equal("Active", grid.Rows[0].Cells[0].Value);
+
+        // Navigate to another cell – original value must still be intact
+        grid.SelectedColumnIndex = 1; // doesn't exist but simulates navigation
+        grid.SelectedColumnIndex = 0;
+        Assert.Equal("Active", grid.Rows[0].Cells[0].Value);
     }
 
     [Fact]

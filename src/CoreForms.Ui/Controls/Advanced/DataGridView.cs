@@ -332,6 +332,11 @@ public class DataGridView : ContainerControl
     /// </summary>
     public event EventHandler<DataGridViewDataErrorEventArgs>? DataError;
 
+    /// <summary>
+    /// Occurs when a button cell is clicked.
+    /// </summary>
+    public event EventHandler<DataGridViewCellEventArgs>? CellButtonClick;
+
     protected virtual void OnSelectionChanged()
     {
         if (!_dataSourceUpdating && _dataSource != null && _selectedRowIndex >= 0)
@@ -362,6 +367,7 @@ public class DataGridView : ContainerControl
     protected virtual void OnCellFormatting(DataGridViewCellFormattingEventArgs e) => CellFormatting?.Invoke(this, e);
     protected virtual void OnCellParsing(DataGridViewCellParsingEventArgs e) => CellParsing?.Invoke(this, e);
     protected virtual void OnDataError(DataGridViewDataErrorEventArgs e) => DataError?.Invoke(this, e);
+    protected virtual void OnCellButtonClick(DataGridViewCellEventArgs e) => CellButtonClick?.Invoke(this, e);
     protected virtual void OnGroupHeaderFormatting(DataGridViewGroupHeaderFormattingEventArgs e) => GroupHeaderFormatting?.Invoke(this, e);
 
     private int GetDataAreaY() => (_showGroupingBar ? _groupingBarHeight : 0) + (_columnHeadersVisible ? _rowHeight : 0);
@@ -576,6 +582,11 @@ public class DataGridView : ContainerControl
                                 bool isChecked = cell?.Value is bool bv && bv;
                                 RenderCheckBoxCell(g, theme, isChecked, dx, y, dw2, _rowHeight);
                             }
+                            else if (cd.CellEditType == DataGridViewColumnEditType.Button)
+                            {
+                                string btnText = cd.ButtonText ?? cell?.Value?.ToString() ?? "";
+                                RenderButtonCell(g, theme, btnText, cd.ButtonIcon, dx, y, dw2, _rowHeight, zoom, EffectiveFont);
+                            }
                             else
                             {
                                 var fmtVal = cell?.Value;
@@ -695,6 +706,11 @@ public class DataGridView : ContainerControl
                                             bool isChecked = cell?.Value is bool bv && bv;
                                             RenderCheckBoxCell(g, theme, isChecked, dx, ry, dw2, _rowHeight);
                                         }
+                                        else if (cd.CellEditType == DataGridViewColumnEditType.Button)
+                                        {
+                                            string btnText = cd.ButtonText ?? cell?.Value?.ToString() ?? "";
+                                            RenderButtonCell(g, theme, btnText, cd.ButtonIcon, dx, ry, dw2, _rowHeight, zoom, EffectiveFont);
+                                        }
                                         else
                                         {
                                             var fmtVal = cell?.Value;
@@ -808,7 +824,27 @@ public class DataGridView : ContainerControl
             else
             {
                 int row = (m.Y - daY + _vScrollBar.Value) / _rowHeight;
-                if (row >= 0 && row < _rows.Count && col >= 0 && col < _columns.Count) { _selectedRowIndex = row; _selectedColumnIndex = col; OnCellClick(new DataGridViewCellEventArgs(col, row)); OnSelectionChanged(); Invalidate(); }
+                if (row >= 0 && row < _rows.Count && col >= 0 && col < _columns.Count)
+                {
+                    // Handle button cell click
+                    if (col < _columns.Count && _columns[col].CellEditType == DataGridViewColumnEditType.Button)
+                    {
+                        _selectedRowIndex = row;
+                        _selectedColumnIndex = col;
+                        OnCellClick(new DataGridViewCellEventArgs(col, row));
+                        OnSelectionChanged();
+                        OnCellButtonClick(new DataGridViewCellEventArgs(col, row));
+                        Invalidate();
+                    }
+                    else
+                    {
+                        _selectedRowIndex = row;
+                        _selectedColumnIndex = col;
+                        OnCellClick(new DataGridViewCellEventArgs(col, row));
+                        OnSelectionChanged();
+                        Invalidate();
+                    }
+                }
                 else if (row >= _rows.Count && _allowUserToAddRows) AddRow();
             }
         }
@@ -946,19 +982,13 @@ public class DataGridView : ContainerControl
                 return;
             }
 
-            // EndEdit on Enter, move to next row
+            // EndEdit on Enter, move to next column (or next row at last column)
             if (e.KeyCode == Keys.Enter)
             {
                 e.Handled = true;
                 EndEdit(true);
-                int nextRow = _selectedRowIndex + 1;
-                if (nextRow < _rows.Count)
-                {
-                    _selectedRowIndex = nextRow;
-                    EnsureRowVisible(_selectedRowIndex);
-                    OnSelectionChanged();
-                    Invalidate();
-                }
+                Focused = true;
+                NavigateToNextCell();
                 return;
             }
 
@@ -1043,10 +1073,21 @@ public class DataGridView : ContainerControl
 
             // Space toggles check box cell immediately
             case Keys.Space:
-                if (CanEditCurrentCell() && _columns[_selectedColumnIndex].CellEditType == DataGridViewColumnEditType.CheckBox)
+                if (CanEditCurrentCell())
                 {
-                    BeginEdit(); // CheckBox toggles inside BeginEdit
-                    e.Handled = true;
+                    var col = _columns[_selectedColumnIndex];
+                    if (col.CellEditType == DataGridViewColumnEditType.CheckBox)
+                    {
+                        BeginEdit(); // CheckBox toggles inline
+                        e.Handled = true;
+                    }
+                    else if (col.CellEditType == DataGridViewColumnEditType.DateTimePicker && !col.ReadOnly)
+                    {
+                        BeginEdit();
+                        if (_editingControl is DateTimePicker dtp)
+                            dtp.OpenDropDown();
+                        e.Handled = true;
+                    }
                 }
                 break;
         }
@@ -1255,7 +1296,6 @@ public class DataGridView : ContainerControl
                 tb.TextChanged += (s, e) =>
                 {
                     cell.Value = tb.Text;
-                    NotifyCellValueChanged(_editingColumnIndex, _editingRowIndex, tb.Text);
                 };
                 EventHandler? enterHandler = null;
                 EventHandler? escapeHandler = null;
@@ -1277,19 +1317,37 @@ public class DataGridView : ContainerControl
                         {
                             ke.Handled = true;
                             EndEdit(true);
-                            int nextRow = _selectedRowIndex + 1;
-                            if (nextRow < _rows.Count)
-                            {
-                                _selectedRowIndex = nextRow;
-                                EnsureRowVisible(_selectedRowIndex);
-                                OnSelectionChanged();
-                                Invalidate();
-                            }
+                            Focused = true;
+                            NavigateToNextCell();
                         }
                         else if (ke.KeyCode == Keys.Escape)
                         {
                             ke.Handled = true;
                             EndEdit(false);
+                        }
+                        else if (ke.KeyCode == Keys.Right && tb.SelectionStart >= tb.Text.Length)
+                        {
+                            ke.Handled = true;
+                            EndEdit(true);
+                            Focused = true;
+                            if (_selectedColumnIndex < _columns.Count - 1)
+                            {
+                                _selectedColumnIndex++;
+                                OnSelectionChanged();
+                                Invalidate();
+                            }
+                        }
+                        else if (ke.KeyCode == Keys.Left && tb.SelectionStart <= 0)
+                        {
+                            ke.Handled = true;
+                            EndEdit(true);
+                            Focused = true;
+                            if (_selectedColumnIndex > 0)
+                            {
+                                _selectedColumnIndex--;
+                                OnSelectionChanged();
+                                Invalidate();
+                            }
                         }
                     }
                 };
@@ -1320,13 +1378,7 @@ public class DataGridView : ContainerControl
                     }
                 }
 
-                cb.SelectedIndexChanged += (s, e) =>
-                {
-                    cell.Value = cb.SelectedItem;
-                    NotifyCellValueChanged(_editingColumnIndex, _editingRowIndex, cb.SelectedItem);
-                    OnCellValueChanged(new DataGridViewCellEventArgs(_editingColumnIndex, _editingRowIndex));
-                    EndEdit(true);
-                };
+                // Value is read from cb.SelectedItem in EndEdit(true), not written on selection
                 cb.KeyDown += (s, e) =>
                 {
                     if (e is KeyEventArgs ke)
@@ -1339,9 +1391,33 @@ public class DataGridView : ContainerControl
                         else if (ke.KeyCode == Keys.Enter)
                         {
                             ke.Handled = true;
-                            cell.Value = cb.SelectedItem;
-                            NotifyCellValueChanged(_editingColumnIndex, _editingRowIndex, cb.SelectedItem);
                             EndEdit(true);
+                            Focused = true;
+                            NavigateToNextCell();
+                        }
+                        else if (ke.KeyCode == Keys.Right)
+                        {
+                            ke.Handled = true;
+                            EndEdit(true);
+                            Focused = true;
+                            if (_selectedColumnIndex < _columns.Count - 1)
+                            {
+                                _selectedColumnIndex++;
+                                OnSelectionChanged();
+                                Invalidate();
+                            }
+                        }
+                        else if (ke.KeyCode == Keys.Left)
+                        {
+                            ke.Handled = true;
+                            EndEdit(true);
+                            Focused = true;
+                            if (_selectedColumnIndex > 0)
+                            {
+                                _selectedColumnIndex--;
+                                OnSelectionChanged();
+                                Invalidate();
+                            }
                         }
                     }
                 };
@@ -1376,13 +1452,8 @@ public class DataGridView : ContainerControl
                 if (column.PickerCustomFormat != null)
                     dtp.CustomFormat = column.PickerCustomFormat;
 
-                dtp.ValueChanged += (s, e) =>
-                {
-                    cell.Value = dtp.Value;
-                    NotifyCellValueChanged(_editingColumnIndex, _editingRowIndex, dtp.Value);
-                };
-                EventHandler? dtpKeyHandler = null;
-                dtpKeyHandler = (s, e) =>
+                // Value is read from dtp.Value in EndEdit(true), not written here
+                dtp.KeyDown += (s, e) =>
                 {
                     if (e is KeyEventArgs ke)
                     {
@@ -1392,15 +1463,45 @@ public class DataGridView : ContainerControl
                             cell.Value = dtp.Value;
                             NotifyCellValueChanged(_editingColumnIndex, _editingRowIndex, dtp.Value);
                             EndEdit(true);
+                            Focused = true;
+                            NavigateToNextCell();
                         }
                         else if (ke.KeyCode == Keys.Escape)
                         {
                             ke.Handled = true;
                             EndEdit(false);
                         }
+                        else if (ke.KeyCode == Keys.Right && !ke.Handled)
+                        {
+                            ke.Handled = true;
+                            EndEdit(true);
+                            Focused = true;
+                            if (_selectedColumnIndex < _columns.Count - 1)
+                            {
+                                _selectedColumnIndex++;
+                                OnSelectionChanged();
+                                Invalidate();
+                            }
+                        }
+                        else if (ke.KeyCode == Keys.Left && !ke.Handled)
+                        {
+                            ke.Handled = true;
+                            EndEdit(true);
+                            Focused = true;
+                            if (_selectedColumnIndex > 0)
+                            {
+                                _selectedColumnIndex--;
+                                OnSelectionChanged();
+                                Invalidate();
+                            }
+                        }
+                        else if (ke.KeyCode == Keys.Space && !dtp.ShowUpDown)
+                        {
+                            ke.Handled = true;
+                            dtp.OpenDropDown();
+                        }
                     }
                 };
-                dtp.KeyDown += dtpKeyHandler;
                 // Close dropdown when focus moves away
                 dtp.LostFocus += (s, e) => dtp.CloseDropDown();
                 return dtp;
@@ -1445,11 +1546,14 @@ public class DataGridView : ContainerControl
                     OnDataError(errArgs);
                     if (!errArgs.Handled)
                     {
-                        MessageBox.Show(
-                            LangRes.GetString("DataError_InvalidValue") ?? $"Invalid value: {ex.Message}",
-                            LangRes.GetString("DataError_Title") ?? "Data Error",
-                            MessageBoxButtons.OK,
-                            MessageBoxIcon.Error);
+                        var form = FindForm();
+                        if (form != null && form.IsProcessingKeyDown)
+                            form.SetProcessingKeyDown(false);
+                        var errMsg = LangRes.GetString("DataError_InvalidValue");
+                        if (errMsg == "DataError_InvalidValue") errMsg = $"The cell value is not valid.{Environment.NewLine}{ex.Message}";
+                        var errTitle = LangRes.GetString("DataError_Title");
+                        if (errTitle == "DataError_Title") errTitle = "Data Entry Error";
+                        MessageBox.Show(errMsg, errTitle, MessageBoxButtons.OK, MessageBoxIcon.Error);
                     }
                     // Restore original value
                     if (_originalCellValue != null)
@@ -1786,6 +1890,22 @@ public class DataGridView : ContainerControl
         else { for (int i = 1; i <= text.Length; i++) { var sub = text.Substring(0, i); if (CoordinateTransform.MeasureText(sub, font, zoom).width > av) return text.Substring(0, i - 1) + dots; } return text + dots; }
     }
 
+    private void NavigateToNextCell()
+    {
+        if (_selectedColumnIndex < _columns.Count - 1)
+        {
+            _selectedColumnIndex++;
+        }
+        else if (_selectedRowIndex < _rows.Count - 1)
+        {
+            _selectedRowIndex++;
+            _selectedColumnIndex = 0;
+            EnsureRowVisible(_selectedRowIndex);
+        }
+        OnSelectionChanged();
+        Invalidate();
+    }
+
     private void RenderCurrentCellFocus(Graphics g, Theme theme, int daY, int rhw, int dw)
     {
         if (_selectedRowIndex < 0 || _selectedRowIndex >= _rows.Count ||
@@ -1853,6 +1973,47 @@ public class DataGridView : ContainerControl
             float b = cbSize - pad;
             g.DrawLine(theme.CheckboxCheck, cbX + t, cbY + b * 0.55f, cbX + cbSize * 0.42f, cbY + b * 0.78f, Math.Max(1, cbSize / 6));
             g.DrawLine(theme.CheckboxCheck, cbX + cbSize * 0.42f, cbY + b * 0.78f, cbX + cbSize - t, cbY + t, Math.Max(1, cbSize / 6));
+        }
+    }
+
+    private static void RenderButtonCell(Graphics g, Theme theme, string text, IGraphicsImage? icon, int cellX, int cellY, int cellWidth, int cellHeight, float zoom, Font font)
+    {
+        int margin = 3;
+        int btnX = cellX + margin;
+        int btnY = cellY + margin;
+        int btnW = cellWidth - margin * 2;
+        int btnH = cellHeight - margin * 2;
+        if (btnW < 10 || btnH < 10) return;
+
+        g.FillRectangle(theme.ControlBackground, btnX, btnY, btnW, btnH);
+        g.DrawRectangle(theme.ButtonBorder, btnX, btnY, btnW, btnH, 1);
+
+        int textX = btnX + 6;
+        int iconSize = Math.Min(btnH - 4, 16);
+        int textY = btnY + (int)CoordinateTransform.CenterVertically(0, btnH, font, zoom);
+
+        if (icon != null)
+        {
+            int iconY = btnY + (btnH - iconSize) / 2;
+            g.DrawImage(icon, textX, iconY, iconSize, iconSize);
+            textX += iconSize + 4;
+        }
+
+        int maxTextW = btnW - (textX - btnX) - 4;
+        if (maxTextW > 0 && !string.IsNullOrEmpty(text))
+        {
+            string display = text;
+            var size = g.MeasureString(display, font);
+            if (size.width > maxTextW)
+            {
+                for (int i = text.Length; i > 0; i--)
+                {
+                    var sub = text.Substring(0, i) + "...";
+                    if (g.MeasureString(sub, font).width <= maxTextW)
+                    { display = sub; break; }
+                }
+            }
+            g.DrawString(display, font, theme.ControlText, textX, textY);
         }
     }
 }

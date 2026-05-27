@@ -1,4 +1,5 @@
 using CoreForms.Ui.Controls.Basic;
+using CoreForms.Ui.Core;
 
 namespace CoreForms.Ui.Controls.Advanced;
 
@@ -31,6 +32,11 @@ public enum DataGridViewColumnEditType
     /// Uses a <see cref="DateTimePicker"/> as the cell editor.
     /// </summary>
     DateTimePicker,
+
+    /// <summary>
+    /// Displays a clickable button in the cell.
+    /// </summary>
+    Button,
 }
 
 /// <summary>
@@ -135,6 +141,18 @@ public class DataGridViewColumn
     /// Gets or sets the custom format string when <see cref="PickerFormat"/> is <see cref="DateTimePickerFormat.Custom"/>.
     /// </summary>
     public string? PickerCustomFormat { get; set; }
+
+    /// <summary>
+    /// Gets or sets the static text displayed on the button when <see cref="CellEditType"/> is <see cref="DataGridViewColumnEditType.Button"/>.
+    /// When null, the cell's value is used as the button text.
+    /// </summary>
+    public string? ButtonText { get; set; }
+
+    /// <summary>
+    /// Gets or sets the SVG icon displayed on the button when <see cref="CellEditType"/> is <see cref="DataGridViewColumnEditType.Button"/>.
+    /// The icon is drawn to the left of the button text.
+    /// </summary>
+    public IGraphicsImage? ButtonIcon { get; set; }
 }
 
 /// <summary>

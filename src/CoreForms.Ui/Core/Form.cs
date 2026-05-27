@@ -814,6 +814,9 @@ public class Form : ContainerControl, IWin32Window
     /// Raises the KeyDown event, handling Tab key navigation and Alt+mnemonic activation.
     /// </summary>
     /// <param name="e">A KeyEventArgs that contains the event data.</param>
+    internal bool IsProcessingKeyDown => _processingKeyDown;
+    internal void SetProcessingKeyDown(bool value) => _processingKeyDown = value;
+
     protected internal override void OnKeyDown(KeyEventArgs e)
     {
         _currentModifiers = e.Modifiers;

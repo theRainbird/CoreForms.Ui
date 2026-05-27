@@ -67,4 +67,10 @@
   <data name="Minute">
     <value>Minute</value>
   </data>
+  <data name="DataError_Title">
+    <value>Erreur de saisie</value>
+  </data>
+  <data name="DataError_InvalidValue">
+    <value>La valeur saisie n'est pas valide.</value>
+  </data>
 </root>
