@@ -432,13 +432,48 @@ public class HtmlBox : Control
                 _preferredX = -1;
             }
 
-            InvalidateLayout();
+            CapturingMouse = true;
             Invalidate();
             ContentChanged?.Invoke(this, EventArgs.Empty);
         }
 
         base.OnMouseDown(e);
         Focused = true;
+    }
+
+    /// <inheritdoc/>
+    protected internal override void OnMouseMove(EventArgs e)
+    {
+        if (e is MouseEventArgs mouseArgs && IsPressed && _cachedLines != null)
+        {
+            float zoom = EffectiveZoom;
+            EnsureLayout(Width, zoom);
+
+            if (_cachedLines != null && _cachedLines.Count > 0)
+            {
+                var pos = TextLayoutEngine.HitTest(
+                    _engine.Document, _cachedLines,
+                    mouseArgs.X, mouseArgs.Y, zoom);
+
+                _engine.CursorBlock = pos.BlockIndex;
+                _engine.CursorContent = pos.ContentIndex;
+                _engine.CursorOffset = pos.CharOffset;
+            }
+
+            Invalidate();
+        }
+
+        base.OnMouseMove(e);
+    }
+
+    /// <inheritdoc/>
+    protected internal override void OnMouseUp(EventArgs e)
+    {
+        CapturingMouse = false;
+        Invalidate();
+        ContentChanged?.Invoke(this, EventArgs.Empty);
+
+        base.OnMouseUp(e);
     }
 
     /// <inheritdoc/>
@@ -605,6 +640,7 @@ public class HtmlBox : Control
             return;
         }
 
+        _preferredX = _cursorScreenX;
         int cursorFlat = _engine.CursorFlatIndex;
 
         for (int li = 0; li < _cachedLines.Count; li++)
@@ -612,7 +648,7 @@ public class HtmlBox : Control
             var line = _cachedLines[li];
             if (line.BlockIndex != _engine.CursorBlock) continue;
 
-            // Check if cursor is on this visual line
+            bool found = false;
             foreach (var run in line.Runs)
             {
                 int runStart = TextLayoutEngine.ToFlatIndex(_engine.Document,
@@ -620,47 +656,44 @@ public class HtmlBox : Control
                 int runEnd = runStart + run.Length;
                 if (cursorFlat >= runStart && cursorFlat <= runEnd)
                 {
-                    // Found the current visual line
-                    if (li > 0 && _cachedLines[li - 1].BlockIndex == _engine.CursorBlock)
-                    {
-                        // Previous visual line is in the same block → go to its end
-                        var prev = _cachedLines[li - 1];
-                        var lastRun = prev.Runs[^1];
-                        int lastFlat = TextLayoutEngine.ToFlatIndex(_engine.Document,
-                            prev.BlockIndex, lastRun.ContentIndex, lastRun.StartOffset + lastRun.Length);
-                        var pos = TextLayoutEngine.FromFlatIndex(_engine.Document, lastFlat);
-                        _engine.CursorBlock = pos.BlockIndex;
-                        _engine.CursorContent = pos.ContentIndex;
-                        _engine.CursorOffset = pos.CharOffset;
-                    }
-                    else
-                    {
-                        // First line of this block → go to end of previous block
-                        _engine.MoveUp();
-                    }
-                    return;
+                    found = true;
+                    break;
                 }
             }
-            // Empty line in current block
-            if (line.BlockIndex == _engine.CursorBlock && line.Runs.Count == 0)
+
+            if (!found && !(line.BlockIndex == _engine.CursorBlock && line.Runs.Count == 0))
+                continue;
+
+            // Find target visual line (previous in same block, or last of previous block)
+            VisualLine? targetLine = null;
+            if (li > 0 && _cachedLines[li - 1].BlockIndex == _engine.CursorBlock)
             {
-                if (li > 0 && _cachedLines[li - 1].BlockIndex == _engine.CursorBlock)
-                {
-                    var prev = _cachedLines[li - 1];
-                    var lastRun = prev.Runs[^1];
-                    int lastFlat = TextLayoutEngine.ToFlatIndex(_engine.Document,
-                        prev.BlockIndex, lastRun.ContentIndex, lastRun.StartOffset + lastRun.Length);
-                    var pos = TextLayoutEngine.FromFlatIndex(_engine.Document, lastFlat);
-                    _engine.CursorBlock = pos.BlockIndex;
-                    _engine.CursorContent = pos.ContentIndex;
-                    _engine.CursorOffset = pos.CharOffset;
-                }
-                else
-                {
-                    _engine.MoveUp();
-                }
-                return;
+                targetLine = _cachedLines[li - 1];
             }
+            else
+            {
+                for (int nl = li - 1; nl >= 0; nl--)
+                {
+                    if (_cachedLines[nl].BlockIndex != _engine.CursorBlock)
+                    {
+                        targetLine = _cachedLines[nl];
+                        break;
+                    }
+                }
+            }
+
+            if (targetLine != null)
+            {
+                var pos = FindPositionAtXInLine(targetLine, _preferredX, EffectiveZoom);
+                _engine.CursorBlock = pos.BlockIndex;
+                _engine.CursorContent = pos.ContentIndex;
+                _engine.CursorOffset = pos.CharOffset;
+            }
+            else
+            {
+                _engine.MoveUp();
+            }
+            return;
         }
         // Fallback: no visual line found in layout — use block-level navigation
         _engine.MoveUp();
@@ -675,6 +708,7 @@ public class HtmlBox : Control
             return;
         }
 
+        _preferredX = _cursorScreenX;
         int cursorFlat = _engine.CursorFlatIndex;
 
         for (int li = 0; li < _cachedLines.Count; li++)
@@ -682,6 +716,7 @@ public class HtmlBox : Control
             var line = _cachedLines[li];
             if (line.BlockIndex != _engine.CursorBlock) continue;
 
+            bool found = false;
             foreach (var run in line.Runs)
             {
                 int runStart = TextLayoutEngine.ToFlatIndex(_engine.Document,
@@ -689,48 +724,113 @@ public class HtmlBox : Control
                 int runEnd = runStart + run.Length;
                 if (cursorFlat >= runStart && cursorFlat <= runEnd)
                 {
-                    if (li + 1 < _cachedLines.Count && _cachedLines[li + 1].BlockIndex == _engine.CursorBlock)
-                    {
-                        // Next visual line is in the same block → go to its start
-                        var next = _cachedLines[li + 1];
-                        var firstRun = next.Runs[0];
-                        int firstFlat = TextLayoutEngine.ToFlatIndex(_engine.Document,
-                            next.BlockIndex, firstRun.ContentIndex, firstRun.StartOffset);
-                        var pos = TextLayoutEngine.FromFlatIndex(_engine.Document, firstFlat);
-                        _engine.CursorBlock = pos.BlockIndex;
-                        _engine.CursorContent = pos.ContentIndex;
-                        _engine.CursorOffset = pos.CharOffset;
-                    }
-                    else
-                    {
-                        // Last line of this block → go to start of next block
-                        _engine.MoveDown();
-                    }
-                    return;
+                    found = true;
+                    break;
                 }
             }
-            if (line.BlockIndex == _engine.CursorBlock && line.Runs.Count == 0)
+
+            if (!found && !(line.BlockIndex == _engine.CursorBlock && line.Runs.Count == 0))
+                continue;
+
+            // Find target visual line (next in same block, or first of next block)
+            VisualLine? targetLine = null;
+            if (li + 1 < _cachedLines.Count && _cachedLines[li + 1].BlockIndex == _engine.CursorBlock)
             {
-                if (li + 1 < _cachedLines.Count && _cachedLines[li + 1].BlockIndex == _engine.CursorBlock)
-                {
-                    var next = _cachedLines[li + 1];
-                    var firstRun = next.Runs[0];
-                    int firstFlat = TextLayoutEngine.ToFlatIndex(_engine.Document,
-                        next.BlockIndex, firstRun.ContentIndex, firstRun.StartOffset);
-                    var pos = TextLayoutEngine.FromFlatIndex(_engine.Document, firstFlat);
-                    _engine.CursorBlock = pos.BlockIndex;
-                    _engine.CursorContent = pos.ContentIndex;
-                    _engine.CursorOffset = pos.CharOffset;
-                }
-                else
-                {
-                    _engine.MoveDown();
-                }
-                return;
+                targetLine = _cachedLines[li + 1];
             }
+            else
+            {
+                for (int nl = li + 1; nl < _cachedLines.Count; nl++)
+                {
+                    if (_cachedLines[nl].BlockIndex != _engine.CursorBlock)
+                    {
+                        targetLine = _cachedLines[nl];
+                        break;
+                    }
+                }
+            }
+
+            if (targetLine != null)
+            {
+                var pos = FindPositionAtXInLine(targetLine, _preferredX, EffectiveZoom);
+                _engine.CursorBlock = pos.BlockIndex;
+                _engine.CursorContent = pos.ContentIndex;
+                _engine.CursorOffset = pos.CharOffset;
+            }
+            else
+            {
+                _engine.MoveDown();
+            }
+            return;
         }
         // Fallback: no visual line found in layout — use block-level navigation
         _engine.MoveDown();
+    }
+
+    private DocumentPosition FindPositionAtXInLine(VisualLine line, int prefX, float zoom)
+    {
+        float padding = 8;
+        float leftMargin = GetLeftMargin(line.Block?.Type ?? 0);
+        float lineStartX = padding + leftMargin;
+
+        foreach (var run in line.Runs)
+        {
+            float runX = lineStartX + run.X;
+
+            if (run.Source is TextRun tr)
+            {
+                string text = run.DisplayText;
+                if (string.IsNullOrEmpty(text))
+                {
+                    if (prefX <= runX)
+                        return new DocumentPosition(line.BlockIndex, run.ContentIndex, run.StartOffset);
+                    continue;
+                }
+
+                float blockFontSize = GetBlockFontSize(line.Block?.Type ?? RichTextBlockType.Paragraph);
+                var measFont = new Font(tr.FontFamily, blockFontSize, tr.Style);
+
+                if (prefX <= runX)
+                {
+                    return new DocumentPosition(line.BlockIndex, run.ContentIndex, run.StartOffset);
+                }
+
+                for (int i = 1; i <= text.Length; i++)
+                {
+                    string sub = text[..i];
+                    float measured = Platform.Platform.MeasureText(sub, measFont, zoom).width / zoom;
+                    float charX = runX + measured;
+
+                    if (charX >= prefX)
+                    {
+                        return new DocumentPosition(line.BlockIndex, run.ContentIndex, run.StartOffset + i);
+                    }
+                }
+            }
+            else
+            {
+                if (prefX <= runX)
+                    return new DocumentPosition(line.BlockIndex, run.ContentIndex, run.StartOffset);
+
+                float runEndX = runX + run.Width;
+                if (prefX <= runEndX)
+                    return new DocumentPosition(line.BlockIndex, run.ContentIndex, run.StartOffset + Math.Min(1, run.Length));
+            }
+        }
+
+        if (line.Runs.Count > 0)
+        {
+            var lastRun = line.Runs[^1];
+            if (lastRun.Source is TextRun)
+            {
+                return new DocumentPosition(line.BlockIndex, lastRun.ContentIndex,
+                    lastRun.StartOffset + lastRun.Length);
+            }
+            return new DocumentPosition(line.BlockIndex, lastRun.ContentIndex,
+                lastRun.StartOffset + Math.Min(1, lastRun.Length));
+        }
+
+        return new DocumentPosition(line.BlockIndex, 0, 0);
     }
 
     private void MoveToVisualLineStart()

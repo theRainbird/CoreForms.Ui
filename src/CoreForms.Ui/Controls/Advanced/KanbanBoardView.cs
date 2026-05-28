@@ -2,7 +2,6 @@ using System.Collections;
 using System.ComponentModel;
 using CoreForms.Ui.Core;
 using CoreForms.Ui.Data;
-using CoreForms.Ui.Resources;
 using CoreForms.Ui.Theming;
 using Graphics = CoreForms.Ui.Rendering.Graphics;
 
@@ -38,6 +37,15 @@ public class KanbanBoardView : Control
     private bool _allowDrop = true;
     private bool _allowReorder = true;
 
+    // Scrollbar
+    private readonly ScrollBarEngine _vScrollBar = new();
+    private KanbanScrollBarContext? _scrollBarContext;
+    private int _scrollOffset;
+    private int _totalContentHeight;
+
+    private KanbanScrollBarContext VScrollBarContext =>
+        _scrollBarContext ??= new KanbanScrollBarContext(this);
+
     // Drag state
     private KanbanBoardCard? _dragCard;
     private KanbanBoardColumn? _dragFromColumn;
@@ -55,6 +63,7 @@ public class KanbanBoardView : Control
     private const int ColumnBodyPadding = 6;
     private const int ColumnGap = 8;
 
+    private long _lastDragRenderTicks;
 
     // Focus state
     private KanbanBoardCard? _focusedCard;
@@ -94,6 +103,12 @@ public class KanbanBoardView : Control
         _backColor = theme.WindowBackground;
         Size = new Size(800, 400);
         TabStop = true;
+        _vScrollBar.Scroll += (s, e) =>
+        {
+            _scrollOffset = _vScrollBar.Value;
+            _layoutDirty = true;
+            Invalidate();
+        };
     }
 
     /// <inheritdoc />
@@ -699,7 +714,9 @@ public class KanbanBoardView : Control
         int padTop = Padding.Top;
         int padRight = Padding.Right;
         int padBottom = Padding.Bottom;
-        int availableWidth = Width - padLeft - padRight;
+
+        int scrollBarWidth = _vScrollBar.NeedsScrollbar ? ScrollBarEngine.DefaultScrollBarSize : 0;
+        int availableWidth = Width - padLeft - padRight - scrollBarWidth;
         int availableHeight = Height - padTop - padBottom;
 
         int totalGaps = ColumnGap * (_columns.Count - 1);
@@ -707,31 +724,34 @@ public class KanbanBoardView : Control
         int extra = (availableWidth - totalGaps) - colWidth * _columns.Count;
 
         int x = padLeft;
+        _totalContentHeight = 0;
 
         for (int i = 0; i < _columns.Count; i++)
         {
             var col = _columns[i];
             int w = colWidth + (i < extra ? 1 : 0);
 
-            int colHeight = availableHeight;
-            var colBounds = new Rectangle(x, padTop, w, colHeight);
-
             var layouts = new List<CardLayout>();
             int cardY = padTop + ColumnHeaderHeight + ColumnBodyPadding;
-            int cardAvailableWidth = colBounds.Width - ColumnBodyPadding * 2;
+            int cardAvailableWidth = w - ColumnBodyPadding * 2;
 
             foreach (var card in col.Cards)
             {
                 int cardHeight = ComputeCardHeight(card, cardAvailableWidth);
                 var cardBounds = new Rectangle(
-                    colBounds.X + ColumnBodyPadding,
-                    cardY,
+                    x + ColumnBodyPadding,
+                    cardY - _scrollOffset,
                     cardAvailableWidth,
                     cardHeight);
                 layouts.Add(new CardLayout { Card = card, Bounds = cardBounds });
                 cardY += cardHeight + CardGap;
             }
 
+            int colHeight = availableHeight;
+            int columnContentEnd = cardY - CardGap + ColumnBodyPadding;
+            _totalContentHeight = Math.Max(_totalContentHeight, columnContentEnd);
+
+            var colBounds = new Rectangle(x, padTop, w, colHeight);
             _columnLayouts.Add(new ColumnLayout
             {
                 Column = col,
@@ -739,9 +759,15 @@ public class KanbanBoardView : Control
                 CardLayouts = layouts
             });
 
-            x += colBounds.Width + ColumnGap;
-            if (x >= Width - padRight) break;
+            x += w + ColumnGap;
+            if (x >= Width - padRight - scrollBarWidth) break;
         }
+
+        _totalContentHeight = Math.Max(_totalContentHeight, availableHeight);
+        _vScrollBar.ViewSize = availableHeight;
+        _vScrollBar.ContentSize = _totalContentHeight;
+        _vScrollBar.SmallChange = 20;
+        _vScrollBar.LargeChange = 80;
     }
 
     private int ComputeCardHeight(KanbanBoardCard card, int availableWidth)
@@ -766,7 +792,7 @@ public class KanbanBoardView : Control
             height += 14 + 4;
 
         if (card.Value != null)
-            height += 2 + 1 + 4 + 14;
+            height += 14;
 
         return Math.Max(50, height);
     }
@@ -821,9 +847,6 @@ public class KanbanBoardView : Control
             string headerText = $"{col.Name} ({col.CardCount})";
             g.DrawString(headerText, EffectiveFont, Color.White, bounds.X + 6, bounds.Y + 6);
 
-            // Column separator line
-            g.FillRectangle(theme.ControlDark, bounds.X, bounds.Y + ColumnHeaderHeight, bounds.Width, 1);
-
             // Draw cards
             foreach (var cardLayout in colLayout.CardLayouts)
             {
@@ -835,6 +858,20 @@ public class KanbanBoardView : Control
         if (_isDragging && _dragCard != null)
         {
             DrawDragGhost(g, _dragCard, theme);
+        }
+
+        // Draw scrollbar
+        if (_vScrollBar.NeedsScrollbar)
+        {
+            var scrollBarBounds = new Rectangle(
+                Width - ScrollBarEngine.DefaultScrollBarSize,
+                0,
+                ScrollBarEngine.DefaultScrollBarSize,
+                Height);
+            _vScrollBar.Render(g, scrollBarBounds, theme);
+
+            // Divider line between board content and scrollbar
+            g.FillRectangle(theme.ControlDark, scrollBarBounds.X - 1, 0, 1, Height);
         }
 
         base.Render(g);
@@ -852,8 +889,8 @@ public class KanbanBoardView : Control
             : Color.White;
         g.FillRectangle(cardBack, r.X, r.Y, r.Width, r.Height);
 
-        var borderColor = isFocused ? theme.FocusIndicator : Color.FromArgb(200, 200, 200);
-        g.DrawRectangle(borderColor, r.X, r.Y, r.Width, r.Height, isFocused ? 2 : 1);
+        if (isFocused)
+            g.DrawRectangle(theme.FocusIndicator, r.X, r.Y, r.Width, r.Height, 2);
 
         int textX = r.X + CardHorizPadding;
         int textY = r.Y + CardVertPadding;
@@ -913,27 +950,14 @@ public class KanbanBoardView : Control
 
         if (!string.IsNullOrEmpty(card.AssignedToText))
         {
-            var personIcon = Resources.Icons.Person16;
-            if (personIcon != null)
-            {
-                int iconSize = Math.Min(14, scaledFontHeight);
-                g.DrawImage(personIcon, textX, textY, iconSize, iconSize);
-                g.DrawString(card.AssignedToText, EffectiveFont, theme.ControlText, textX + iconSize + 3, textY);
-            }
-            else
-            {
-                g.DrawString(card.AssignedToText, EffectiveFont, theme.ControlText, textX, textY);
-            }
+            g.DrawString(card.AssignedToText, EffectiveFont, theme.ControlText, textX, textY);
             textY += 14 + 4;
         }
 
         if (card.Value != null)
         {
-            textY += 2;
-            g.FillRectangle(Color.FromArgb(220, 220, 220), textX, textY, maxTextWidth, 1);
-            textY += 4;
             string valueText = card.Value.ToString() ?? string.Empty;
-            g.DrawString($"#{valueText}", EffectiveFont, theme.GrayText, textX, textY);
+            g.DrawString(valueText, EffectiveFont, theme.GrayText, textX, textY);
         }
     }
 
@@ -1039,6 +1063,16 @@ public class KanbanBoardView : Control
         if (!Enabled) return;
         if (e is not MouseEventArgs args) { base.OnMouseDown(e); return; }
 
+        // Forward to scrollbar
+        var scrollBarBounds = new Rectangle(
+            Width - ScrollBarEngine.DefaultScrollBarSize, 0,
+            ScrollBarEngine.DefaultScrollBarSize, Height);
+        if (_vScrollBar.NeedsScrollbar && scrollBarBounds.Contains(args.X, args.Y))
+        {
+            _vScrollBar.HandleMouseDown(new Point(args.X, args.Y), scrollBarBounds, VScrollBarContext);
+            return;
+        }
+
         Focused = true;
         var point = new Point(args.X, args.Y);
         var (col, card, cardIndex, colIndex) = BoardHitTest(point);
@@ -1079,6 +1113,13 @@ public class KanbanBoardView : Control
     protected internal override void OnMouseMove(EventArgs e)
     {
         if (e is not MouseEventArgs args) { base.OnMouseMove(e); return; }
+
+        // Forward to scrollbar
+        var scrollBarBounds = new Rectangle(
+            Width - ScrollBarEngine.DefaultScrollBarSize, 0,
+            ScrollBarEngine.DefaultScrollBarSize, Height);
+        if (_vScrollBar.NeedsScrollbar)
+            _vScrollBar.HandleMouseMove(new Point(args.X, args.Y), scrollBarBounds, VScrollBarContext);
 
         var point = new Point(args.X, args.Y);
 
@@ -1121,19 +1162,24 @@ public class KanbanBoardView : Control
     /// <inheritdoc />
     protected internal override void OnMouseUp(EventArgs e)
     {
-        if (_isDragging && _dragCard != null)
-        {
-            CapturingMouse = false;
+        _vScrollBar.HandleMouseUp(VScrollBarContext);
 
-            if (_dropTargetColumn != null)
+        if (_dragCard != null)
+        {
+            if (_isDragging)
             {
-                if (_dropTargetColumn != _dragFromColumn)
+                CapturingMouse = false;
+
+                if (_dropTargetColumn != null)
                 {
-                    PerformColumnMove(_dragCard, _dragFromColumn!, _dropTargetColumn, _dropTargetIndex);
-                }
-                else if (_allowReorder)
-                {
-                    PerformReorder(_dragCard, _dropTargetColumn, _dragFromIndex, _dropTargetIndex);
+                    if (_dropTargetColumn != _dragFromColumn)
+                    {
+                        PerformColumnMove(_dragCard, _dragFromColumn!, _dropTargetColumn, _dropTargetIndex);
+                    }
+                    else if (_allowReorder)
+                    {
+                        PerformReorder(_dragCard, _dropTargetColumn, _dragFromIndex, _dropTargetIndex);
+                    }
                 }
             }
 
@@ -1377,5 +1423,25 @@ public class KanbanBoardView : Control
         Invalidate();
     }
 
+    /// <inheritdoc />
+    protected internal override void OnMouseWheel(EventArgs e)
+    {
+        if (e is not MouseEventArgs me) { base.OnMouseWheel(e); return; }
+
+        if (_vScrollBar.NeedsScrollbar && !_vScrollBar.IsDragging)
+            _vScrollBar.HandleMouseWheel(me.Delta, VScrollBarContext);
+
+        base.OnMouseWheel(e);
+    }
+
     #endregion
+
+    private sealed class KanbanScrollBarContext : IScrollBarContext
+    {
+        private readonly KanbanBoardView _owner;
+        public KanbanScrollBarContext(KanbanBoardView owner) => _owner = owner;
+        public float Zoom => _owner.EffectiveZoom;
+        public void Invalidate() => _owner.Invalidate();
+        public void CaptureMouse(bool capture) => _owner.CapturingMouse = capture;
+    }
 }

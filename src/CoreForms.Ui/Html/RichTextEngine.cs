@@ -469,9 +469,37 @@ public class RichTextEngine
 
     private void ApplyActionAcrossRange(int startFlat, int endFlat, Action<TextRun> action)
     {
+        if (startFlat >= endFlat) return;
+
+        int origCursorFlat = CursorFlatIndex;
+        int origSelectionFlat = SelectionFlatIndex;
+
         var startPos = TextLayoutEngine.FromFlatIndex(Document, startFlat);
+
+        // Split start run if selection starts mid-run
+        if (startPos.CharOffset > 0)
+        {
+            var block = Document.Blocks[startPos.BlockIndex];
+            if (startPos.ContentIndex < block.Content.Count && block.Content[startPos.ContentIndex] is TextRun)
+            {
+                SplitRunAt(block, startPos.ContentIndex, startPos.CharOffset);
+                startPos = new DocumentPosition(startPos.BlockIndex, startPos.ContentIndex + 1, 0);
+            }
+        }
+
         var endPos = TextLayoutEngine.FromFlatIndex(Document, endFlat);
 
+        // Split end run if selection ends mid-run
+        if (endPos.CharOffset > 0)
+        {
+            var endBlock = Document.Blocks[endPos.BlockIndex];
+            if (endPos.ContentIndex < endBlock.Content.Count && endBlock.Content[endPos.ContentIndex] is TextRun endRun && endPos.CharOffset < endRun.Text.Length)
+            {
+                SplitRunAt(endBlock, endPos.ContentIndex, endPos.CharOffset);
+            }
+        }
+
+        // Apply action to all fully-selected runs in range
         for (int bi = startPos.BlockIndex; bi <= endPos.BlockIndex && bi < Document.Blocks.Count; bi++)
         {
             var block = Document.Blocks[bi];
@@ -484,6 +512,35 @@ public class RichTextEngine
                     action(run);
             }
         }
+
+        // Recompute cursor/selection from original flat indices (document text unchanged, only runs split)
+        var newCursor = TextLayoutEngine.FromFlatIndex(Document, origCursorFlat);
+        CursorBlock = newCursor.BlockIndex;
+        CursorContent = newCursor.ContentIndex;
+        CursorOffset = newCursor.CharOffset;
+
+        var newSel = TextLayoutEngine.FromFlatIndex(Document, origSelectionFlat);
+        SelectionBlock = newSel.BlockIndex;
+        SelectionContent = newSel.ContentIndex;
+        SelectionOffset = newSel.CharOffset;
+    }
+
+    private static void SplitRunAt(RichTextBlock block, int contentIndex, int splitOffset)
+    {
+        if (contentIndex < 0 || contentIndex >= block.Content.Count) return;
+        if (block.Content[contentIndex] is not TextRun run) return;
+        if (splitOffset <= 0 || splitOffset >= run.Text.Length) return;
+
+        var rightRun = new TextRun
+        {
+            Text = run.Text[splitOffset..],
+            Style = run.Style,
+            FontFamily = run.FontFamily,
+            FontSize = run.FontSize,
+            ForeColor = run.ForeColor
+        };
+        run.Text = run.Text[..splitOffset];
+        block.Content.Insert(contentIndex + 1, rightRun);
     }
 
     private void DeleteSelection()

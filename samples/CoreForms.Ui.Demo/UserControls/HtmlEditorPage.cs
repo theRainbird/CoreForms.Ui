@@ -9,10 +9,12 @@ using CoreForms.Ui.Core;
 namespace CoreForms.Ui.Demo.UserControls;
 
 /// <summary>
-/// Demonstrates the HtmlBox rich text editor with a formatting toolbar.
+/// Demonstrates the HtmlBox rich text editor with a formatting toolbar and HTML source view.
 /// </summary>
 public class HtmlEditorPage : UserControl
 {
+    private bool _syncing;
+
     /// <summary>
     /// Occurs when the status text should be updated.
     /// </summary>
@@ -52,6 +54,21 @@ public class HtmlEditorPage : UserControl
 </ol>"
         };
 
+        var sourceBox = new MemoBox
+        {
+            Dock = DockStyle.Fill,
+            WordWrap = false,
+            Font = new Font("Courier New", 10, FontStyle.Regular),
+            Text = htmlBox.Html
+        };
+
+        var splitPanel = new SplitPanel
+        {
+            Dock = DockStyle.Fill,
+            Orientation = SplitOrientation.Horizontal,
+            SplitterDistance = 300
+        };
+
         void UpdateFormatButtons()
         {
             boldButton.Checked = htmlBox.IsBold;
@@ -66,7 +83,28 @@ public class HtmlEditorPage : UserControl
         numberListButton.Click += (s, e) => { htmlBox.ApplyFormat("insertOrderedList"); };
         linkButton.Click += (s, e) => { htmlBox.ApplyFormat("createLink"); };
         imageButton.Click += (s, e) => { htmlBox.ApplyFormat("insertImage"); };
-        htmlBox.ContentChanged += (s, e) => { UpdateFormatButtons(); OnStatusTextChanged(htmlBox.CursorDebug); };
+
+        htmlBox.ContentChanged += (s, e) =>
+        {
+            UpdateFormatButtons();
+            OnStatusTextChanged(htmlBox.CursorDebug);
+            if (!_syncing)
+            {
+                _syncing = true;
+                sourceBox.Text = htmlBox.Html;
+                _syncing = false;
+            }
+        };
+
+        sourceBox.TextChanged += (s, e) =>
+        {
+            if (!_syncing)
+            {
+                _syncing = true;
+                htmlBox.Html = sourceBox.Text;
+                _syncing = false;
+            }
+        };
 
         toolStrip.Items.Add(boldButton);
         toolStrip.Items.Add(italicButton);
@@ -78,8 +116,11 @@ public class HtmlEditorPage : UserControl
         toolStrip.Items.Add(linkButton);
         toolStrip.Items.Add(imageButton);
 
+        splitPanel.Panel1.Controls.Add(sourceBox);
+        splitPanel.Panel2.Controls.Add(htmlBox);
+
+        Controls.Add(splitPanel);
         Controls.Add(toolStrip);
-        Controls.Add(htmlBox);
     }
 
     private void OnStatusTextChanged(string text)

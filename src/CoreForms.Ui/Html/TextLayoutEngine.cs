@@ -72,10 +72,26 @@ public static class TextLayoutEngine
 
             if (bi > 0)
             {
-                if (block.Type is RichTextBlockType.Heading1 or RichTextBlockType.Heading2)
-                    y += 10;
+                var prev = doc.Blocks[bi - 1];
+                bool prevIsList = prev.Type is RichTextBlockType.BulletItem or RichTextBlockType.NumberItem;
+                bool currIsList = block.Type is RichTextBlockType.BulletItem or RichTextBlockType.NumberItem;
+
+                if (prevIsList && currIsList)
+                {
+                    y += 0; // between list items: no gap
+                }
+                else if (prev.Type is RichTextBlockType.Heading1 or RichTextBlockType.Heading2)
+                {
+                    y += 14; // after heading
+                }
+                else if (prevIsList || currIsList)
+                {
+                    y += 10; // before or after a list (but not between items)
+                }
                 else
-                    y += 6;
+                {
+                    y += 6; // default between paragraphs
+                }
             }
 
             blockTopY = y;

@@ -79,12 +79,14 @@ public class ControlTests
 
         engine.ToggleBold();
 
-        // Run 0 ("Hello "): only "lo " was selected, so the entire run toggles
-        Assert.Equal(FontStyle.Bold, ((TextRun)engine.Document.Blocks[0].Content[0]).Style);
-        // Run 1 ("World"): entirely selected + toggle
-        Assert.Equal(FontStyle.Regular, ((TextRun)engine.Document.Blocks[0].Content[1]).Style);
-        // Run 2 ("!"): not selected
+        // Run 0 ("Hel"): not selected, should stay Regular
+        Assert.Equal(FontStyle.Regular, ((TextRun)engine.Document.Blocks[0].Content[0]).Style);
+        // Run 1 ("lo "): selected portion, should become Bold
+        Assert.Equal(FontStyle.Bold, ((TextRun)engine.Document.Blocks[0].Content[1]).Style);
+        // Run 2 ("World"): entirely selected, toggles from Bold back to Regular
         Assert.Equal(FontStyle.Regular, ((TextRun)engine.Document.Blocks[0].Content[2]).Style);
+        // Run 3 ("!"): not selected
+        Assert.Equal(FontStyle.Regular, ((TextRun)engine.Document.Blocks[0].Content[3]).Style);
     }
     [Fact]
     public void Control_Bounds_ShouldInitializeCorrectly()
