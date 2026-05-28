@@ -1,0 +1,12 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <RootNamespace>CoreForms.Ui.Designer</RootNamespace>
+    <AssemblyName>CoreForms.Ui.Designer</AssemblyName>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\CoreForms.Ui\CoreForms.Ui.csproj" />
+  </ItemGroup>
+</Project>

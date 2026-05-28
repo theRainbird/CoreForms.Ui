@@ -13,7 +13,7 @@ namespace CoreForms.Ui.Demo.UserControls;
 /// </summary>
 public class HtmlEditorPage : UserControl
 {
-    private bool _syncing;
+    private string _lastHtml = string.Empty;
 
     /// <summary>
     /// Occurs when the status text should be updated.
@@ -53,13 +53,14 @@ public class HtmlEditorPage : UserControl
 <li>Number three</li>
 </ol>"
         };
+        _lastHtml = htmlBox.Html;
 
         var sourceBox = new MemoBox
         {
             Dock = DockStyle.Fill,
             WordWrap = false,
-            Font = new Font("Courier New", 10, FontStyle.Regular),
-            Text = htmlBox.Html
+            Font = new Font("Arial", 10, FontStyle.Regular),
+            Text = _lastHtml
         };
 
         var splitPanel = new SplitPanel
@@ -88,21 +89,21 @@ public class HtmlEditorPage : UserControl
         {
             UpdateFormatButtons();
             OnStatusTextChanged(htmlBox.CursorDebug);
-            if (!_syncing)
+            string currentHtml = htmlBox.Html;
+            if (currentHtml != _lastHtml)
             {
-                _syncing = true;
-                sourceBox.Text = htmlBox.Html;
-                _syncing = false;
+                _lastHtml = currentHtml;
+                sourceBox.Text = currentHtml;
             }
         };
 
         sourceBox.TextChanged += (s, e) =>
         {
-            if (!_syncing)
+            string currentText = sourceBox.Text;
+            if (currentText != _lastHtml)
             {
-                _syncing = true;
-                htmlBox.Html = sourceBox.Text;
-                _syncing = false;
+                _lastHtml = currentText;
+                htmlBox.Html = currentText;
             }
         };
 
