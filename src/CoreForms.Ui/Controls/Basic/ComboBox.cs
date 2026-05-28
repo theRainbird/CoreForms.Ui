@@ -802,6 +802,22 @@ public class ComboBox : Control
     }
 
     /// <summary>
+    /// Raises the GotFocus event and selects all text in editable modes.
+    /// </summary>
+    /// <param name="e">The event arguments.</param>
+    protected internal override void OnGotFocus(EventArgs e)
+    {
+        base.OnGotFocus(e);
+        if (_dropDownStyle != DropDownStyle.DropDownList)
+        {
+            var text = _engine.Text;
+            if (!string.IsNullOrEmpty(text))
+                _engine.SetSelectionRange(0, text.Length);
+            Invalidate();
+        }
+    }
+
+    /// <summary>
     /// Raises the LostFocus event and closes the dropdown (except in Simple mode).
     /// </summary>
     /// <param name="e">The event arguments.</param>

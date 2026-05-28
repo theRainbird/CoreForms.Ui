@@ -1,6 +1,6 @@
 # Banded Reports
 
-CoreForms.Ui includes a banded report engine inspired by Microsoft Access Reports and SQL Server Reporting Services (RDLC). Reports are built programmatically in C# using bands (headers, detail, footers), support data binding, grouping, pagination, and can be previewed, printed, or exported to PDF.
+CoreForms.Ui includes a banded report engine. Reports are built programmatically in C# using bands (headers, detail, footers), support data binding, grouping, pagination, and can be previewed, printed, or exported to PDF.
 
 All measurements use **centimeters** (`Cm` struct) — a metric unit system independent of screen DPI.
 
@@ -420,6 +420,180 @@ viewer.RefreshReport();
 
 ---
 
+---
+
+## Cross-Tab (Pivot Table)
+
+`ReportCrossTab` dynamically generates row and column headers from data and displays aggregated values in a matrix. It is useful for summary tables such as "Sales by Category and Quarter."
+
+### Field Definitions
+
+| Property | Type | Description |
+|---|---|---|
+| `Fields` | `List<CrossTabField>` | Row, column, and value field definitions |
+| `HeaderFont` | `Font?` | Font for row/column headers (falls back to control font) |
+| `HeaderBackColor` | `Color` | Background color for header cells |
+| `AlternateRowColor` | `Color` | Background for alternating rows (Transparent = off) |
+| `CellPadding` | `Cm` | Horizontal padding inside cells |
+| `RowPadding` | `Cm` | Vertical padding inside data rows |
+| `ColumnHeaderHeight` | `Cm` | Fixed height of column header row |
+| `RowHeaderWidth` | `Cm` | Fixed width of row header column (0 = auto) |
+| `ShowGridLines` | `bool` | Draw grid lines between cells |
+| `GridLineColor` | `Color` | Grid line color |
+| `GrayScale` | `bool` | Desaturate all colors |
+
+### CrossTabField
+
+| Property | Type | Description |
+|---|---|---|
+| `DataField` | `string` | Property name on the data record |
+| `HeaderText` | `string?` | Display header (null = DataField) |
+| `Usage` | `FieldUsage` | `RowField`, `ColumnField`, or `ValueField` |
+| `Aggregation` | `CrossTabAggregation` | `Sum`, `Count`, `Avg`, `Min`, `Max` |
+| `Format` | `string?` | .NET format string (e.g. `"{0:N0}"`, `"C2"`) |
+
+### Example
+
+```csharp
+var xtab = new ReportCrossTab
+{
+    Left = 0, Top = 0, Width = 17, Height = 3,
+    Font = new Font("Arial", 9),
+    HeaderFont = new Font("Arial", 9, FontStyle.Bold),
+    Fields =
+    {
+        new CrossTabField { DataField = "Category", Usage = FieldUsage.RowField },
+        new CrossTabField { DataField = "Amount", Usage = FieldUsage.ValueField,
+            Aggregation = CrossTabAggregation.Sum, Format = "{0:N0} EUR" },
+        new CrossTabField { DataField = "Id", Usage = FieldUsage.ValueField,
+            Aggregation = CrossTabAggregation.Count, Format = "0" },
+    }
+};
+report.Detail.Controls.Add(xtab);
+```
+
+The cross-tab reads data from `report.DataSource`, groups by row fields, computes aggregates per value field, and renders the matrix with headers, grid lines, and alternating row colors.
+
+---
+
+## Charts in Reports
+
+`ReportChartControl` renders business diagrams inside report bands. It supports the same chart types as `DiagramView`.
+
+### Supported Chart Types
+
+| `DiagramType` | Description |
+|---|---|
+| `Bar` | Vertical bar chart (columns) |
+| `StackedBar` | Stacked vertical bars |
+| `Pie` | Pie chart (circular) |
+| `Doughnut` | Pie chart with a hole |
+| `Line` | Line chart with markers |
+| `Area` | Line chart with filled area |
+| `Gauge` | Radial gauge/tachometer |
+
+### Properties
+
+| Property | Type | Default | Description |
+|---|---|---|---|
+| `ChartType` | `DiagramType` | `Bar` | Type of chart |
+| `Series` | `DiagramViewSeriesCollection` | — | Data series collection |
+| `XAxis` | `DiagramViewAxisConfig` | — | X-axis config |
+| `YAxis` | `DiagramViewAxisConfig` | — | Y-axis config |
+| `TrendLine` | `DiagramViewTrendLine` | — | Trend line config |
+| `Title` | `string` | `""` | Chart title |
+| `ShowLegend` | `bool` | `true` | Show/hide legend |
+| `LegendPosition` | `LegendPosition` | `Right` | Legend position |
+| `DataLabelStyle` | `LabelStyle` | `None` | Show values/percentages |
+| `GrayScale` | `bool` | `false` | Render in grayscale |
+| `DiagramBackColor` | `Color` | `(248,248,252)` | Chart area background |
+| `GridLineColor` | `Color` | `(220,220,225)` | Grid line color |
+| `AxisLineColor` | `Color` | `(160,160,165)` | Axis line color |
+| `AxisLabelColor` | `Color` | `(60,60,65)` | Axis label color |
+| `LegendBackColor` | `Color` | `(248,248,252)` | Legend background |
+| `Palette` | `Color[]` | 8 colors | Series color palette |
+| `GaugeRedThreshold` | `double` | 0.25 | Red zone (0-1) |
+| `GaugeYellowThreshold` | `double` | 0.50 | Yellow zone (0-1) |
+| `ChartPadding` | `(Cm,Cm,Cm,Cm)` | `(0.3,0.3,0.3,0.3)` | Padding (left, top, right, bottom) |
+
+### Data Model
+
+Reuses the same types as `DiagramView`:
+
+```csharp
+using CoreForms.Ui.Controls.Advanced;
+
+// Series with points
+var series = new DiagramViewSeries
+{
+    Name = "Revenue",
+    Color = Color.FromArgb(70, 130, 180),
+    Points =
+    {
+        new DiagramViewDataPoint("Jan", 100),
+        new DiagramViewDataPoint("Feb", 150),
+        new DiagramViewDataPoint("Mar", 130),
+    }
+};
+chart.Series.Add(series);
+```
+
+### Example
+
+```csharp
+var chart = new ReportChartControl
+{
+    Left = 0, Top = 0, Width = 17, Height = 5,
+    ChartType = DiagramType.Bar,
+    Title = "Quarterly Revenue",
+    Font = new Font("Arial", 9),
+    ShowLegend = true,
+    LegendPosition = LegendPosition.Right,
+    DataLabelStyle = LabelStyle.Value,
+};
+chart.Series.Add(new DiagramViewSeries
+{
+    Name = "Revenue",
+    Color = Color.FromArgb(70, 130, 180),
+    Points =
+    {
+        new DiagramViewDataPoint("Q1", 250),
+        new DiagramViewDataPoint("Q2", 320),
+        new DiagramViewDataPoint("Q3", 290),
+        new DiagramViewDataPoint("Q4", 410),
+    }
+});
+report.ReportFooter.Controls.Add(chart);
+```
+
+### Grayscale Mode
+
+```csharp
+chart.GrayScale = true; // render in grayscale for black-and-white printing
+```
+
+### Axis Configuration
+
+```csharp
+chart.YAxis.MinValue = 0;
+chart.YAxis.MaxValue = 500;
+chart.YAxis.Title = "Amount (EUR)";
+chart.YAxis.TickInterval = 50;
+
+chart.XAxis.Title = "Quarter";
+chart.XAxis.ShowGridLines = false;
+```
+
+### Trend Lines
+
+```csharp
+chart.TrendLine.Type = TrendLineType.LinearRegression;
+chart.TrendLine.Color = Color.Red;
+chart.TrendLine.LineWidth = 2;
+```
+
+---
+
 ## Architecture Notes
 
 - All report controls live in the `CoreForms.Ui.Reports` namespace
@@ -429,3 +603,5 @@ viewer.RefreshReport();
 - Band backgrounds fill only the printable area, not the margins
 - Page headers/footers repeat on each page; group headers/footers repeat on group boundaries
 - Scrollbars appear automatically when zoomed in past the viewport size
+- Cross-tab and chart controls work with PDF export via `ReportExportPdf` (all draw commands supported)
+- Chart controls reuse the same rendering primitives as `DiagramView` (FillPie, DrawArc, FillPolygon, etc.)

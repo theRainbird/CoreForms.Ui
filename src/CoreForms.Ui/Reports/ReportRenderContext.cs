@@ -39,6 +39,13 @@ public class ReportRenderContext
     public ReportGroup? CurrentGroup { get; set; }
 
     /// <summary>
+    /// Gets or sets the field value of the current group.
+    /// Set by the render engine before rendering group headers/footers.
+    /// Used by <see cref="ReportCrossTab"/> to filter records.
+    /// </summary>
+    public object? CurrentGroupValue { get; set; }
+
+    /// <summary>
     /// Dictionary of named variables for aggregations (sum, count, etc.).
     /// </summary>
     public Dictionary<string, object> Variables { get; } = new();

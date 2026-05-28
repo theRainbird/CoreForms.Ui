@@ -292,6 +292,9 @@ public class Form : ContainerControl, IWin32Window
         Application.Instance.RegisterForm(this);
         OnShown(EventArgs.Empty);
 
+        if (_ownerForm != null && _ownerForm != this)
+            Platform.Platform.RegisterModal(this, _ownerForm);
+
         while (_modal && Application.Running)
         {
             Platform.Platform.ProcessEvents(Application.Instance);
@@ -303,10 +306,13 @@ public class Form : ContainerControl, IWin32Window
             }
         }
 
-        if (_ownerForm != null && _ownerForm != this && _ownerForm.Handle != IntPtr.Zero)
+        if (_ownerForm != null && _ownerForm != this)
         {
+            if (_ownerForm.Handle != IntPtr.Zero)
+                Platform.Platform.UnregisterModal(this, _ownerForm);
             _ownerForm.Enabled = true;
-            Platform.Platform.BringToFront(_ownerForm.Handle);
+            if (_ownerForm.Handle != IntPtr.Zero)
+                Platform.Platform.BringToFront(_ownerForm.Handle);
         }
 
         _ownerForm = null;

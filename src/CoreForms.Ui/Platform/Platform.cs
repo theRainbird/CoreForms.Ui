@@ -32,6 +32,8 @@ public static class Platform
 
     private static readonly Dictionary<uint, List<Action>> _windowCleanupActions = new();
 
+    private static readonly Dictionary<Form, Form> _modalOwnerMap = new();
+
     [DllImport("kernel32.dll", SetLastError = true, CharSet = CharSet.Auto)]
     private static extern IntPtr GetModuleHandle(string lpModuleName);
 
@@ -40,6 +42,21 @@ public static class Platform
 
     [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
     private delegate IntPtr GlfwGetWin32WindowDelegate(IntPtr window);
+
+    [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+    private delegate void GlfwSetWindowAttribDelegate(IntPtr window, int attrib, int value);
+
+    private const int GLFW_FLOATING = 0x00020007;
+
+    private static readonly GlfwSetWindowAttribDelegate? _glfwSetWindowAttrib = ResolveGlfwSetWindowAttrib();
+
+    [DllImport("libc", EntryPoint = "dlopen", ExactSpelling = true)]
+    private static extern IntPtr DlOpen(string? filename, int flags);
+
+    [DllImport("libc", EntryPoint = "dlsym", ExactSpelling = true)]
+    private static extern IntPtr DSym(IntPtr handle, string symbol);
+
+    private const int RTLD_LAZY = 1;
 
     /// <summary>
     /// Called every frame before event processing. External components can hook here.
@@ -109,6 +126,71 @@ public static class Platform
         // On non-Windows platforms (X11, Wayland), the GLFW pointer is sufficient
         // for most purposes since CEF and WebKit don't use this handle directly.
         return ctx.Window.Handle;
+    }
+
+    private static GlfwSetWindowAttribDelegate? ResolveGlfwSetWindowAttrib()
+    {
+        IntPtr pFunc = IntPtr.Zero;
+        try
+        {
+            if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+            {
+                var mod = GetModuleHandle("glfw3.dll");
+                if (mod != IntPtr.Zero)
+                    pFunc = GetProcAddress(mod, "glfwSetWindowAttrib");
+            }
+            else if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
+            {
+                var global = DlOpen(null, RTLD_LAZY);
+                if (global != IntPtr.Zero)
+                    pFunc = DSym(global, "glfwSetWindowAttrib");
+            }
+        }
+        catch
+        {
+            return null;
+        }
+
+        if (pFunc != IntPtr.Zero)
+            return Marshal.GetDelegateForFunctionPointer<GlfwSetWindowAttribDelegate>(pFunc);
+        return null;
+    }
+
+    internal static void RegisterModal(Form modalForm, Form ownerForm)
+    {
+        _modalOwnerMap[ownerForm] = modalForm;
+        SetModalFloating(modalForm, floating: true);
+    }
+
+    internal static void UnregisterModal(Form modalForm, Form ownerForm)
+    {
+        _modalOwnerMap.Remove(ownerForm);
+        SetModalFloating(modalForm, floating: false);
+    }
+
+    private static void SetModalFloating(Form form, bool floating)
+    {
+        if (_glfwSetWindowAttrib == null)
+            return;
+        if (!_contexts.TryGetValue(form.WindowId, out var ctx))
+            return;
+        try
+        {
+            _glfwSetWindowAttrib(ctx.Window.Handle, GLFW_FLOATING, floating ? 1 : 0);
+        }
+        catch { }
+    }
+
+    internal static void CleanupModalMap(Form form)
+    {
+        var keysToRemove = new List<Form>();
+        foreach (var kvp in _modalOwnerMap)
+        {
+            if (kvp.Key == form || kvp.Value == form)
+                keysToRemove.Add(kvp.Key);
+        }
+        foreach (var key in keysToRemove)
+            _modalOwnerMap.Remove(key);
     }
 
     /// <summary>
@@ -211,6 +293,9 @@ public static class Platform
             {
                 Action<IMouse, MouseButton> mouseDown = (m, button) =>
                 {
+                    // Block input to forms that are owners of active modal dialogs
+                    if (_modalOwnerMap.ContainsKey(form))
+                        return;
                     var pos = mouse.Position;
                     float zoom = form.Zoom;
                     var point = new Point((int)(pos.X / zoom), (int)(pos.Y / zoom));
@@ -284,6 +369,14 @@ public static class Platform
                 Log($"[Platform] FocusChanged: focused={focused} windowId={windowId} form='{form.Text}'");
                 if (focused)
                 {
+                    // If this form is the owner of a modal dialog, redirect focus to the modal
+                    if (_modalOwnerMap.TryGetValue(form, out var modalForm) &&
+                        modalForm.Handle != IntPtr.Zero &&
+                        _contexts.TryGetValue(modalForm.WindowId, out var modalCtx))
+                    {
+                        try { modalCtx.Window.Focus(); } catch { }
+                        return;
+                    }
                     _focusedWindow = form;
                     form.Focused = true;
                     form.OnGotFocus(EventArgs.Empty);
@@ -373,6 +466,9 @@ public static class Platform
                 ? _contexts.Values.FirstOrDefault()?.Form
                 : null;
         }
+
+        // If the closing form was a modal dialog or an owner, clean up the modal map
+        CleanupModalMap(form);
 
         Log($"[Platform] CleanupWindowOnClose: id={windowId} glCleanup={glCleanup} focusedWindow now='{_focusedWindow?.Text}'");
 

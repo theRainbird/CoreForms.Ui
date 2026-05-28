@@ -1,4 +1,6 @@
+using CoreForms.Ui.Controls.Advanced;
 using CoreForms.Ui.Core;
+using CoreForms.Ui.Rendering;
 using CoreForms.Ui.Reports;
 using Xunit;
 
@@ -423,4 +425,339 @@ public class ReportTests
         public int Value { get; set; }
         public string Category { get; set; } = "";
     }
+
+    [Fact]
+    public void CrossTabField_Defaults()
+    {
+        var field = new CrossTabField();
+        Assert.Equal(string.Empty, field.DataField);
+        Assert.Equal(FieldUsage.ValueField, field.Usage);
+        Assert.Equal(CrossTabAggregation.Sum, field.Aggregation);
+    }
+
+    [Fact]
+    public void CrossTabField_DisplayHeader()
+    {
+        var field = new CrossTabField { DataField = "Salary" };
+        Assert.Equal("Salary (Sum)", field.DisplayHeader);
+
+        field.HeaderText = "Gehalt";
+        Assert.Equal("Gehalt", field.DisplayHeader);
+
+        var rowField = new CrossTabField { DataField = "Name", Usage = FieldUsage.RowField };
+        Assert.Equal("Name", rowField.DisplayHeader);
+    }
+
+    [Fact]
+    public void ReportCrossTab_EmptyData_RendersWithoutError()
+    {
+        var report = new Report("Test");
+        report.DataSource = new List<TestRecord>();
+        report.Detail.Controls.Add(new ReportCrossTab
+        {
+            Width = 10, Height = 3,
+            Fields =
+            {
+                new CrossTabField { DataField = "Category", Usage = FieldUsage.RowField },
+                new CrossTabField { DataField = "Value", Usage = FieldUsage.ValueField }
+            }
+        });
+        var engine = new ReportRenderEngine();
+        var pages = engine.Render(report);
+        Assert.NotEmpty(pages);
+    }
+
+    [Fact]
+    public void ReportCrossTab_WithData_RendersWithoutError()
+    {
+        var report = new Report("Test");
+        report.DataSource = new List<TestRecord>
+        {
+            new() { Category = "A", Value = 10 },
+            new() { Category = "B", Value = 20 },
+            new() { Category = "A", Value = 30 },
+        };
+        var xtab = new ReportCrossTab
+        {
+            Width = 10, Height = 2,
+            Font = new Font("Arial", 9),
+            Fields =
+            {
+                new CrossTabField { DataField = "Category", Usage = FieldUsage.RowField },
+                new CrossTabField { DataField = "Value", Usage = FieldUsage.ValueField, Aggregation = CrossTabAggregation.Sum }
+            }
+        };
+        report.Detail.Controls.Add(xtab);
+
+        var engine = new ReportRenderEngine();
+        var pages = engine.Render(report);
+        Assert.NotEmpty(pages);
+    }
+
+    [Fact]
+    public void ReportCrossTab_Aggregation_RendersAllTypes()
+    {
+        var records = new List<TestRecord>
+        {
+            new() { Category = "X", Value = 5 },
+            new() { Category = "X", Value = 15 },
+            new() { Category = "Y", Value = 25 },
+        };
+
+        foreach (var agg in new[] { CrossTabAggregation.Sum, CrossTabAggregation.Count, CrossTabAggregation.Avg, CrossTabAggregation.Min, CrossTabAggregation.Max })
+        {
+            var report = new Report("Test");
+            report.DataSource = records;
+            report.Detail.Controls.Add(new ReportCrossTab
+            {
+                Width = 10, Height = 2,
+                Font = new Font("Arial", 9),
+                Fields =
+                {
+                    new CrossTabField { DataField = "Category", Usage = FieldUsage.RowField },
+                    new CrossTabField { DataField = "Value", Usage = FieldUsage.ValueField, Aggregation = agg }
+                }
+            });
+            var engine = new ReportRenderEngine();
+            var pages = engine.Render(report);
+            Assert.NotEmpty(pages);
+        }
+    }
+
+    [Fact]
+    public void ReportChartControl_DefaultState()
+    {
+        var chart = new ReportChartControl();
+        Assert.Equal(DiagramType.Bar, chart.ChartType);
+        Assert.Empty(chart.Series);
+        Assert.True(chart.ShowLegend);
+        Assert.False(chart.GrayScale);
+    }
+
+    [Fact]
+    public void ReportChartControl_WithSeries_RendersWithoutError()
+    {
+        var report = new Report("Test");
+        report.DataSource = new List<TestRecord> { new() { Name = "Test", Value = 1 } };
+        report.ReportFooter.Height = 6;
+        report.ReportFooter.Controls.Add(new ReportChartControl
+        {
+            Left = 0, Top = 0, Width = 10, Height = 5,
+            ChartType = DiagramType.Bar,
+            Series =
+            {
+                new DiagramViewSeries
+                {
+                    Name = "Test Series",
+                    Points = { new DiagramViewDataPoint("A", 10), new DiagramViewDataPoint("B", 20) }
+                }
+            }
+        });
+        var engine = new ReportRenderEngine();
+        var pages = engine.Render(report);
+        Assert.NotEmpty(pages);
+
+        bool hasBar = false;
+        foreach (var cmd in pages[^1].Graphics.GetCommands())
+            if (cmd.Type == DrawCommandType.FillRectangle && cmd.Height > 0)
+                hasBar = true;
+        Assert.True(hasBar, "Chart did not produce any bar (FillRectangle) commands");
+    }
+
+    [Fact]
+    public void ReportChartControl_Bar_ProducesFillRects()
+    {
+        var report = new Report("BarDiag");
+        report.PageSetup.SetPaperSize(ReportPaperSize.A4, landscape: true);
+        report.PageSetup.SetMargins(1.5);
+        report.DataSource = new List<TestRecord> { new() { Name = "X", Value = 1 } };
+        var chart = new ReportChartControl
+        {
+            Left = 0, Top = 0, Width = 26.7, Height = 6,
+            ChartType = DiagramType.Bar,
+            Title = "Test Chart",
+            ShowLegend = true,
+            DataLabelStyle = LabelStyle.Value,
+        };
+        chart.Series.Add(new DiagramViewSeries
+        {
+            Name = "S1",
+            Points =
+            {
+                new DiagramViewDataPoint("A", 100),
+                new DiagramViewDataPoint("B", 200),
+                new DiagramViewDataPoint("C", 50),
+            }
+        });
+        report.ReportFooter.Height = 7;
+        report.ReportFooter.Controls.Add(chart);
+
+        var engine = new ReportRenderEngine();
+        var pages = engine.Render(report);
+        Assert.NotEmpty(pages);
+
+        bool found = false;
+        foreach (var cmd in pages[^1].Graphics.GetCommands())
+        {
+            if (cmd.Type == DrawCommandType.FillRectangle && cmd.Height > 5)
+                found = true;
+        }
+        Assert.True(found, "Chart produced no bar FillRectangle commands");
+    }
+
+    [Fact]
+    public void ReportChartControl_DemoConfig_ProducesBars()
+    {
+        var report = new Report("DemoDiag");
+        report.PageSetup.SetPaperSize(ReportPaperSize.A4, landscape: true);
+        report.PageSetup.SetMargins(1.5);
+        report.DataSource = new List<TestRecord>
+        {
+            new() { Name = "A", Value = 1 },
+            new() { Name = "B", Value = 2 },
+        };
+
+        var dataFont = new Font("Arial", 9);
+        var chart = new ReportChartControl
+        {
+            Left = 0, Top = 0, Width = 26.7, Height = 6,
+            ChartType = DiagramType.Bar,
+            Title = "Salary by Status (Average)",
+            Font = dataFont,
+            ShowLegend = true,
+            LegendPosition = LegendPosition.Right,
+            DataLabelStyle = LabelStyle.Value,
+        };
+        chart.Series.Add(new DiagramViewSeries
+        {
+            Name = "Avg Salary",
+            Color = Color.FromArgb(70, 130, 180),
+            Points =
+            {
+                new DiagramViewDataPoint("Active", 91714.3),
+                new DiagramViewDataPoint("Inactive", 0),
+                new DiagramViewDataPoint("Pending", 65000),
+            }
+        });
+
+        report.ReportFooter.Height = 11;
+        report.ReportFooter.Controls.Add(chart);
+        report.ReportFooter.Controls.Add(new ReportCrossTab
+        {
+            Left = 0, Top = 7, Width = 26.7, Height = 3.5,
+            Font = dataFont,
+            Fields =
+            {
+                new CrossTabField { DataField = "Status", Usage = FieldUsage.RowField },
+                new CrossTabField { DataField = "Name", Usage = FieldUsage.ColumnField },
+                new CrossTabField { DataField = "Value", Usage = FieldUsage.ValueField },
+            }
+        });
+
+        var engine = new ReportRenderEngine();
+        var pages = engine.Render(report);
+        Assert.NotEmpty(pages);
+
+        int bars = 0;
+        foreach (var cmd in pages[^1].Graphics.GetCommands())
+            if (cmd.Type == DrawCommandType.FillRectangle && cmd.Height > 5)
+                bars++;
+        Assert.True(bars >= 2, $"Expected >=2 bars, got {bars}");
+    }
+
+    [Fact]
+    public void ReportChartControl_PieChart_RendersWithoutError()
+    {
+        var report = new Report("Test");
+        report.DataSource = new List<TestRecord> { new() { Name = "Test", Value = 1 } };
+        report.ReportFooter.Height = 9;
+        report.ReportFooter.Controls.Add(new ReportChartControl
+        {
+            Left = 0, Top = 0, Width = 8, Height = 8,
+            ChartType = DiagramType.Pie,
+            Series =
+            {
+                new DiagramViewSeries
+                {
+                    Name = "Pie",
+                    Points =
+                    {
+                        new DiagramViewDataPoint("Alpha", 30),
+                        new DiagramViewDataPoint("Beta", 50),
+                        new DiagramViewDataPoint("Gamma", 20),
+                    }
+                }
+            }
+        });
+        var engine = new ReportRenderEngine();
+        var pages = engine.Render(report);
+        Assert.NotEmpty(pages);
+
+        bool hasPie = false;
+        foreach (var cmd in pages[^1].Graphics.GetCommands())
+            if (cmd.Type == DrawCommandType.FillPie)
+                hasPie = true;
+        Assert.True(hasPie, "Pie chart produced no FillPie commands");
+    }
+
+    [Fact]
+    public void ReportChartControl_GrayScale()
+    {
+        var chart = new ReportChartControl { GrayScale = true };
+        Assert.True(chart.GrayScale);
+    }
+
+    [Fact]
+    public void ReportChartControl_Gauge_RendersWithoutError()
+    {
+        var report = new Report("Test");
+        report.DataSource = new List<TestRecord> { new() { Name = "Test", Value = 1 } };
+        report.ReportFooter.Height = 7;
+        report.ReportFooter.Controls.Add(new ReportChartControl
+        {
+            Left = 0, Top = 0, Width = 6, Height = 6,
+            ChartType = DiagramType.Gauge,
+            YAxis = { MinValue = 0, MaxValue = 100 },
+            Series =
+            {
+                new DiagramViewSeries
+                {
+                    Points = { new DiagramViewDataPoint(null, 65) }
+                }
+            }
+        });
+        var engine = new ReportRenderEngine();
+        var pages = engine.Render(report);
+        Assert.NotEmpty(pages);
+    }
+
+    [Fact]
+    public void ReportChartControl_PdfExport()
+    {
+        var report = new Report("Test");
+        report.DataSource = new List<TestRecord> { new() { Name = "Test", Value = 1 } };
+        report.ReportFooter.Height = 6;
+        report.ReportFooter.Controls.Add(new ReportChartControl
+        {
+            Left = 0, Top = 0, Width = 10, Height = 5,
+            ChartType = DiagramType.Bar,
+            Series =
+            {
+                new DiagramViewSeries
+                {
+                    Name = "Export",
+                    Points = { new DiagramViewDataPoint("X", 100), new DiagramViewDataPoint("Y", 200) }
+                }
+            }
+        });
+        var exporter = new ReportExportPdf();
+        var bytes = exporter.ExportToBytes(report);
+        Assert.NotNull(bytes);
+        Assert.True(bytes.Length > 0);
+
+        // Verify it's a valid PDF (starts with %PDF)
+        var header = System.Text.Encoding.ASCII.GetString(bytes, 0, Math.Min(8, bytes.Length));
+        Assert.StartsWith("%PDF", header);
+    }
+
 }

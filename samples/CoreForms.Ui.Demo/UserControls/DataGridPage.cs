@@ -53,7 +53,7 @@ public class DataGridPage : UserControl
               CellEditType = DataGridViewColumnEditType.CheckBox, TrueValue = true, FalseValue = false });
         dataGrid.Columns.Add(new CoreForms.Ui.Controls.Advanced.DataGridViewColumn
             { HeaderText = "Birth Date", Width = 120, Name = "BirthDate", DataPropertyName = "BirthDate",
-              CellEditType = DataGridViewColumnEditType.DateTimePicker, PickerFormat = DateTimePickerFormat.Short });
+              CellEditType = DataGridViewColumnEditType.DateTimePicker, PickerFormat = DateTimePickerFormat.Short, FormatString = "d"});
         dataGrid.Columns.Add(new CoreForms.Ui.Controls.Advanced.DataGridViewColumn
             { HeaderText = "", Width = 70, Name = "Actions",
               CellEditType = DataGridViewColumnEditType.Button, ButtonText = "Edit",

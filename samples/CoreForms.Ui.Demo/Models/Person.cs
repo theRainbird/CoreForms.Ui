@@ -83,6 +83,11 @@ public class Person : INotifyPropertyChanged
     }
 
     /// <summary>
+    /// Gets or sets the department.
+    /// </summary>
+    public string Department { get; set; } = string.Empty;
+
+    /// <summary>
     /// Gets or sets the salary.
     /// </summary>
     public decimal Salary { get; set; }

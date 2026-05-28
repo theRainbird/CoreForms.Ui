@@ -234,6 +234,7 @@ public class ReportRenderEngine
                 {
                     if (trackers[g].IsOpen)
                     {
+                        _context.CurrentGroupValue = trackers[g].CurrentValue;
                         RenderBand(trackers[g].Group.Footer);
                         trackers[g].IsOpen = false;
                     }
@@ -243,6 +244,7 @@ public class ReportRenderEngine
                 {
                     if (trackers[g].CurrentValue != null)
                     {
+                        _context.CurrentGroupValue = trackers[g].CurrentValue;
                         RenderBand(trackers[g].Group.Header);
                         trackers[g].IsOpen = true;
                     }
@@ -257,6 +259,7 @@ public class ReportRenderEngine
         {
             if (trackers[g].IsOpen)
             {
+                _context.CurrentGroupValue = trackers[g].CurrentValue;
                 RenderBand(trackers[g].Group.Footer);
                 trackers[g].IsOpen = false;
             }

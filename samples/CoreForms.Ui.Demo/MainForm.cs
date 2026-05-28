@@ -24,8 +24,8 @@ public class MainForm : Form
     public MainForm()
     {
         Text = SR.GetString("FormTitle");
-        Width = 1200;
-        Height = 900;
+        Width = 1600;
+        Height = 1080;
         Zoom = 1.25f;
 
         PopulateForm();
@@ -178,20 +178,6 @@ public class MainForm : Form
 
         toolStrip.Items.Add(new ToolStripSeparator());
 
-        var boldButton = new ToolStripButton(SR.GetString("ToolBold"));
-        boldButton.DisplayStyle = ToolStripItemDisplayStyle.Text;
-        boldButton.CheckOnClick = true;
-        boldButton.CheckedChanged += (s, e) => _statusLabel!.Text = string.Format(SR.GetString("StatusBoldFormat"), boldButton.Checked);
-        toolStrip.Items.Add(boldButton);
-
-        var italicButton = new ToolStripButton(SR.GetString("ToolItalic"));
-        italicButton.DisplayStyle = ToolStripItemDisplayStyle.Text;
-        italicButton.CheckOnClick = true;
-        italicButton.CheckedChanged += (s, e) => _statusLabel!.Text = string.Format(SR.GetString("StatusItalicFormat"), italicButton.Checked);
-        toolStrip.Items.Add(italicButton);
-
-        toolStrip.Items.Add(new ToolStripSeparator());
-
         var searchBox = new ToolStripTextBox();
         searchBox.TextBoxWidth = 120;
         searchBox.TextChanged += (s, e) => _statusLabel!.Text = string.Format(SR.GetString("StatusSearchFormat"), searchBox.Text);
@@ -313,6 +299,7 @@ public class MainForm : Form
         tabControl.AddTabPage(CreateTabPage(SR.GetString("TabWebBrowser"), CreateWebBrowserPage()));
         tabControl.AddTabPage(CreateTabPage(SR.GetString("TabHtmlEditor"), CreateHtmlEditorPage()));
         tabControl.AddTabPage(CreateTabPage(SR.GetString("TabCalendar"), CreateCalendarPage()));
+        tabControl.AddTabPage(CreateTabPage("Kanban Board", CreateKanbanBoardPage()));
         tabControl.AddTabPage(CreateTabPage(SR.GetString("TabDiagram"), CreateDiagramPage()));
         tabControl.AddTabPage(CreateTabPage(SR.GetString("TabMultiWindows"), CreateMultiWindowPage()));
         tabControl.AddTabPage(CreateTabPage("Reports", CreateReportPage()));
@@ -415,6 +402,11 @@ public class MainForm : Form
         var page = new CalendarPage();
         page.StatusTextChanged += (s, e) => _statusLabel!.Text = e.Text;
         return page;
+    }
+
+    private KanbanBoardPage CreateKanbanBoardPage()
+    {
+        return new KanbanBoardPage();
     }
 
     private DiagramPage CreateDiagramPage()

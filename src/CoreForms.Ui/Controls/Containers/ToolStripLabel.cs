@@ -140,7 +140,7 @@ public class ToolStripLabel : ToolStripItem
         if (_isLink)
         {
             int textWidth = MeasureTextWidth(displayText, font, zoom);
-            int underlineY = textY + (int)(font.Size * zoom);
+            int underlineY = textY + (int)font.Size;
             g.DrawLine(textColor, textX, underlineY, textX + textWidth, underlineY);
         }
     }
@@ -153,6 +153,11 @@ public class ToolStripLabel : ToolStripItem
     /// <returns>The preferred width in pixels.</returns>
     public override int GetPreferredWidth(Font font, float zoom)
     {
-        return MeasureTextWidth(DisplayText, font, zoom) + Padding.Horizontal + 4;
+        int width = Padding.Horizontal;
+        if (!string.IsNullOrEmpty(DisplayText))
+            width += MeasureTextWidth(DisplayText, font, zoom) + 10;
+        else
+            width += 4;
+        return width;
     }
 }

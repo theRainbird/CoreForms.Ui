@@ -893,9 +893,10 @@ if (_controls == null || _controls.Count == 0) return;
         int areaW = Math.Max(0, _bounds.Width - _padding.Horizontal);
         int areaH = Math.Max(0, _bounds.Height - _padding.Vertical);
 
+        // First pass: edge-docked controls (Top/Bottom/Left/Right) in Z-order
         foreach (Control child in Controls)
         {
-            if (child.Dock == DockStyle.None) continue;
+            if (child.Dock == DockStyle.None || child.Dock == DockStyle.Fill) continue;
 
             switch (child.Dock)
             {
@@ -925,14 +926,17 @@ if (_controls == null || _controls.Count == 0) return;
                     child._layoutDrivenBoundsChange = false;
                     areaW -= child.Width;
                     break;
-                case DockStyle.Fill:
-                    child._layoutDrivenBoundsChange = true;
-                    child.Bounds = new Rectangle(areaX, areaY, areaW, areaH);
-                    child._layoutDrivenBoundsChange = false;
-                    areaX = areaY = 0;
-                    areaW = areaH = 0;
-                    break;
             }
+        }
+
+        // Second pass: Fill controls take remaining space (Z-order)
+        foreach (Control child in Controls)
+        {
+            if (child.Dock != DockStyle.Fill) continue;
+
+            child._layoutDrivenBoundsChange = true;
+            child.Bounds = new Rectangle(areaX, areaY, areaW, areaH);
+            child._layoutDrivenBoundsChange = false;
         }
 
         if (areaH < 0) areaH = 0;

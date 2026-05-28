@@ -496,10 +496,9 @@ public abstract class ToolStripItem : Component
 
         if (mnemonicIdx >= 0 && Owner != null)
         {
-            float scaledFontSize = font.Size * zoom;
-            int charWidth = (int)(scaledFontSize / 2);
+            int charWidth = (int)(font.Size / 2);
             int underlineX = x + mnemonicIdx * charWidth;
-            int underlineY = y + (int)scaledFontSize;
+            int underlineY = y + (int)font.Size;
             g.DrawLine(color, underlineX, underlineY, underlineX + charWidth, underlineY);
         }
     }

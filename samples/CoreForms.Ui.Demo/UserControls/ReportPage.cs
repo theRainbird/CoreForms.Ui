@@ -1,6 +1,7 @@
 using CoreForms.Ui.Controls.Basic;
 using CoreForms.Ui.Demo.Models;
 using CoreForms.Ui.Controls;
+using CoreForms.Ui.Controls.Advanced;
 using CoreForms.Ui.Core;
 using CoreForms.Ui.Reports;
 using Graphics = CoreForms.Ui.Rendering.Graphics;
@@ -28,18 +29,18 @@ public class ReportPage : UserControl
 
         var employees = new List<Person>
         {
-            new(1, "Alice Wonder", "alice@example.com", "Active") { Salary = 85000m },
-            new(2, "Bob Builder", "bob@example.com", "Active") { Salary = 72000m },
+            new(1, "Alice Wonder", "alice@example.com", "Active") { Salary = 85000m, Department = "Engineering" },
+            new(2, "Bob Builder", "bob@example.com", "Active") { Salary = 72000m, Department = "Engineering" },
             new(3, "Charlie Brown", "charlie@example.com", "Inactive") { Salary = 0m },
-            new(4, "Diana Prince", "diana@example.com", "Active") { Salary = 95000m },
-            new(5, "Eve Adams", "eve@example.com", "Pending") { Salary = 68000m },
-            new(6, "Frank Castle", "frank@example.com", "Active") { Salary = 78000m },
-            new(7, "Grace Hopper", "grace@example.com", "Active") { Salary = 110000m },
+            new(4, "Diana Prince", "diana@example.com", "Active") { Salary = 95000m, Department = "Marketing" },
+            new(5, "Eve Adams", "eve@example.com", "Pending") { Salary = 68000m, Department = "Engineering" },
+            new(6, "Frank Castle", "frank@example.com", "Active") { Salary = 78000m, Department = "Sales" },
+            new(7, "Grace Hopper", "grace@example.com", "Active") { Salary = 110000m, Department = "Engineering" },
             new(8, "Henry Ford", "henry@example.com", "Inactive") { Salary = 0m },
-            new(9, "Ivy League", "ivy@example.com", "Pending") { Salary = 62000m },
-            new(10, "Jack Sparrow", "jack@example.com", "Active") { Salary = 88000m },
-            new(11, "Kate Bishop", "kate@example.com", "Active") { Salary = 74000m },
-            new(12, "Leo Messi", "leo@example.com", "Active") { Salary = 120000m },
+            new(9, "Ivy League", "ivy@example.com", "Pending") { Salary = 62000m, Department = "Marketing" },
+            new(10, "Jack Sparrow", "jack@example.com", "Active") { Salary = 88000m, Department = "Sales" },
+            new(11, "Kate Bishop", "kate@example.com", "Active") { Salary = 74000m, Department = "HR" },
+            new(12, "Leo Messi", "leo@example.com", "Active") { Salary = 120000m, Department = "Engineering" },
         };
         report.DataSource = employees;
 
@@ -146,6 +147,47 @@ public class ReportPage : UserControl
             DataField = "IsActive", Left = 23.0, Top = 0.05,
             Width = 3, Height = 0.45
         });
+
+        var chart = new ReportChartControl
+        {
+            Left = 0, Top = 0, Width = 26.7, Height = 6,
+            ChartType = DiagramType.Bar,
+            Title = "Salary by Status (Average)",
+            Font = dataFont,
+            ShowLegend = true,
+            LegendPosition = LegendPosition.Right,
+            DataLabelStyle = LabelStyle.Value,
+        };
+        chart.Series.Add(new DiagramViewSeries
+        {
+            Name = "Avg Salary",
+            Color = Color.FromArgb(135, 195, 235),
+            Points =
+            {
+                new DiagramViewDataPoint("Active", 91714.3),
+                new DiagramViewDataPoint("Inactive", 0),
+                new DiagramViewDataPoint("Pending", 65000),
+            }
+        });
+        var xtab = new ReportCrossTab
+        {
+            Left = 0, Top = 7, Width = 26.7, Height = 3.5,
+            HeaderFont = headerFont,
+            CellPadding = 0.08,
+            RowPadding = 0.02,
+            ColumnHeaderHeight = 0.5,
+            Font = dataFont,
+            Fields =
+            {
+                new CrossTabField { DataField = "Status", Usage = FieldUsage.RowField, HeaderText = "Status" },
+                new CrossTabField { DataField = "Department", Usage = FieldUsage.ColumnField, HeaderText = "Department" },
+                new CrossTabField { DataField = "Salary", Usage = FieldUsage.ValueField, Aggregation = CrossTabAggregation.Sum, Format = "{0:N0} EUR", HeaderText = "Total" },
+                new CrossTabField { DataField = "Salary", Usage = FieldUsage.ValueField, Aggregation = CrossTabAggregation.Avg, Format = "{0:N0} EUR", HeaderText = "Average" },
+            }
+        };
+        report.ReportFooter.Height = 11;
+        report.ReportFooter.Controls.Add(chart);
+        report.ReportFooter.Controls.Add(xtab);
 
         report.PageFooter.Height = 0.6;
         report.PageFooter.Controls.Add(new ReportLine

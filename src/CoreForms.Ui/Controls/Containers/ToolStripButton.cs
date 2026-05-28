@@ -172,9 +172,9 @@ public class ToolStripButton : ToolStripItem
 
         if (showText && !string.IsNullOrEmpty(DisplayText))
         {
-            int textX = showImage ? contentX + imageWidth + 4 : contentX;
+            int textX = showImage && Image != null ? contentX + imageWidth + 4 : contentX;
             var textColor = Enabled ? theme.ToolStripItemText : theme.GrayText;
-            g.DrawString(DisplayText, font, textColor, textX, y + (height - (int)(font.Size * zoom)) / 2);
+            g.DrawString(DisplayText, font, textColor, textX, y + (height - (int)font.Size) / 2);
         }
 
         if (_dropDownItems.Count > 0)
