@@ -136,6 +136,10 @@ public class HtmlBox : Control
             case "insertParagraph": _engine.InsertParagraph(); break;
             case "insertLineBreak": _engine.InsertLineBreak(); break;
             case "insertHorizontalRule": _engine.InsertHorizontalRule(); break;
+            case "insertUnorderedList": _engine.ToggleUnorderedList(); break;
+            case "insertOrderedList": _engine.ToggleOrderedList(); break;
+            case "createLink": _engine.CreateLink(); break;
+            case "insertImage": _engine.InsertImage(); break;
         }
 
         InvalidateLayout();

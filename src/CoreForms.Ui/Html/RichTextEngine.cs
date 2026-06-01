@@ -637,6 +637,102 @@ public class RichTextEngine
         SyncSelection();
     }
 
+    /// <summary>Toggles the selected block(s) between bulleted list and paragraph.</summary>
+    public void ToggleUnorderedList()
+        => ToggleList(RichTextBlockType.BulletItem);
+
+    /// <summary>Toggles the selected block(s) between numbered list and paragraph.</summary>
+    public void ToggleOrderedList()
+        => ToggleList(RichTextBlockType.NumberItem);
+
+    private void ToggleList(RichTextBlockType listType)
+    {
+        if (Document.Blocks.Count == 0) return;
+
+        if (HasSelection)
+        {
+            int start = Math.Min(CursorFlatIndex, SelectionFlatIndex);
+            int end = Math.Max(CursorFlatIndex, SelectionFlatIndex);
+            if (start >= end) return;
+
+            var startPos = TextLayoutEngine.FromFlatIndex(Document, start);
+            var endPos = TextLayoutEngine.FromFlatIndex(Document, end);
+
+            bool allList = true;
+            for (int bi = startPos.BlockIndex; bi <= endPos.BlockIndex && bi < Document.Blocks.Count; bi++)
+            {
+                if (Document.Blocks[bi].Type != listType) { allList = false; break; }
+            }
+
+            var targetType = allList ? RichTextBlockType.Paragraph : listType;
+            for (int bi = startPos.BlockIndex; bi <= endPos.BlockIndex && bi < Document.Blocks.Count; bi++)
+            {
+                if (Document.Blocks[bi].Type != targetType)
+                    Document.Blocks[bi].Type = targetType;
+            }
+        }
+        else
+        {
+            EnsureValidPosition();
+            var block = Document.Blocks[CursorBlock];
+            if (block.Type == listType)
+                block.Type = RichTextBlockType.Paragraph;
+            else
+                block.Type = listType;
+        }
+        SyncSelection();
+    }
+
+    /// <summary>Wraps the selected text in a hyperlink with the given URL.</summary>
+    public void CreateLink()
+    {
+        if (!HasSelection) return;
+
+        int start = Math.Min(CursorFlatIndex, SelectionFlatIndex);
+        int end = Math.Max(CursorFlatIndex, SelectionFlatIndex);
+        if (start >= end) return;
+
+        var startPos = TextLayoutEngine.FromFlatIndex(Document, start);
+        var endPos = TextLayoutEngine.FromFlatIndex(Document, end);
+
+        var link = new HyperlinkRun { Url = "https://" };
+
+        if (startPos.BlockIndex == endPos.BlockIndex)
+        {
+            var block = Document.Blocks[startPos.BlockIndex];
+            if (startPos.ContentIndex < block.Content.Count &&
+                block.Content[startPos.ContentIndex] is TextRun run &&
+                startPos.CharOffset > 0 && endPos.CharOffset < run.Text.Length)
+            {
+                SplitRunAt(block, startPos.ContentIndex, startPos.CharOffset);
+                SplitRunAt(block, startPos.ContentIndex + 1, endPos.CharOffset);
+                startPos = new DocumentPosition(startPos.BlockIndex, startPos.ContentIndex + 1, 0);
+            }
+
+            endPos = TextLayoutEngine.FromFlatIndex(Document, end);
+            for (int ci = startPos.ContentIndex; ci <= endPos.ContentIndex && ci < block.Content.Count; ci++)
+            {
+                link.InnerContent.Add(block.Content[ci]);
+                block.Content.RemoveAt(ci);
+                ci--;
+            }
+            block.Content.Insert(startPos.ContentIndex, link);
+        }
+
+        SyncSelection();
+    }
+
+    /// <summary>Inserts an image placeholder at the cursor position.</summary>
+    public void InsertImage()
+    {
+        if (HasSelection) DeleteSelection();
+        EnsureValidPosition();
+        var block = Document.Blocks[CursorBlock];
+        block.Content.Insert(CursorContent + 1, new ImageRun { Src = "placeholder" });
+        CursorContent++;
+        SyncSelection();
+    }
+
     private void SyncSelection()
     {
         SelectionBlock = CursorBlock;
