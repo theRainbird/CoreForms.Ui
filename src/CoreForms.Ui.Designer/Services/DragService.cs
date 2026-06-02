@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using CoreForms.Ui.Core;
 
 namespace CoreForms.Ui.Designer.Services;
@@ -12,13 +13,14 @@ public class DragService
 {
     private readonly DesignSurface _surface;
     private readonly SelectionService _selectionService;
+    private readonly SnapService _snapService;
 
     private bool _isDragging;
     private ResizeHandle _activeHandle = ResizeHandle.None;
     private Point _dragStart;
-    private Point _originLocation;
-    private Size _originSize;
     private readonly List<DesignItem> _dragItems = new();
+
+    private SnapResult _currentSnap = new();
 
     private const int MinControlSize = 10;
 
@@ -43,15 +45,22 @@ public class DragService
     public ResizeHandle ActiveHandle => _activeHandle;
 
     /// <summary>
+    /// Gets the current snap result with guide lines for rendering.
+    /// </summary>
+    public SnapResult CurrentSnap => _currentSnap;
+
+    /// <summary>
     /// Initializes a new instance of <see cref="DragService"/>.
     /// </summary>
     /// <param name="surface">The design surface.</param>
     /// <param name="selectionService">The selection service.</param>
-    /// <exception cref="ArgumentNullException">Thrown if any parameter is null.</exception>
-    public DragService(DesignSurface surface, SelectionService selectionService)
+    /// <param name="snapService">The snap service for smart guides, or null to disable.</param>
+    /// <exception cref="ArgumentNullException">Thrown if surface or selectionService is null.</exception>
+    public DragService(DesignSurface surface, SelectionService selectionService, SnapService? snapService = null)
     {
         _surface = surface ?? throw new ArgumentNullException(nameof(surface));
         _selectionService = selectionService ?? throw new ArgumentNullException(nameof(selectionService));
+        _snapService = snapService ?? new SnapService();
     }
 
     /// <summary>
@@ -65,6 +74,7 @@ public class DragService
         _isDragging = true;
         _activeHandle = ResizeHandle.None;
         _dragStart = screenPoint;
+        _currentSnap = new SnapResult();
 
         _dragItems.Clear();
         foreach (var item in _selectionService.SelectedItems)
@@ -73,15 +83,11 @@ public class DragService
             _dragItems.Add(item);
         }
 
-        _originLocation = _selectionService.PrimarySelection?.Control.Location ?? Point.Empty;
-        _originSize = _selectionService.PrimarySelection?.Control.Size ?? Size.Empty;
-
         OnDragStarted();
     }
 
     /// <summary>
     /// Begins a drag operation for resizing a single control via the specified handle.
-    /// Only the primary selection is resized.
     /// </summary>
     /// <param name="screenPoint">The initial mouse point in form coordinates.</param>
     /// <param name="handle">The resize handle being dragged.</param>
@@ -93,18 +99,18 @@ public class DragService
         _isDragging = true;
         _activeHandle = handle;
         _dragStart = screenPoint;
+        _currentSnap = new SnapResult();
 
         _dragItems.Clear();
         _dragItems.Add(primary);
         primary.SnapshotBounds();
-        _originLocation = primary.Control.Location;
-        _originSize = primary.Control.Size;
 
         OnDragStarted();
     }
 
     /// <summary>
     /// Updates the drag operation with the current mouse position.
+    /// Applies smart guide snapping when enabled.
     /// </summary>
     /// <param name="screenPoint">The current mouse point in form coordinates.</param>
     public void ContinueDrag(Point screenPoint)
@@ -123,6 +129,12 @@ public class DragService
                     item.OriginalBounds.X + dx,
                     item.OriginalBounds.Y + dy);
             }
+
+            // Apply smart snap
+            if (_dragItems.Count == 1 && _surface.SnapToGrid)
+            {
+                ApplyMoveSnap();
+            }
         }
         else
         {
@@ -133,7 +145,6 @@ public class DragService
             int newX = original.X, newY = original.Y;
             int newW = original.Width, newH = original.Height;
 
-            // Horizontal changes
             bool leftAnchor = (_activeHandle & (ResizeHandle.TopLeft | ResizeHandle.MiddleLeft | ResizeHandle.BottomLeft)) != 0;
             bool rightAnchor = (_activeHandle & (ResizeHandle.TopRight | ResizeHandle.MiddleRight | ResizeHandle.BottomRight)) != 0;
 
@@ -153,7 +164,6 @@ public class DragService
                 if (newW < MinControlSize) newW = MinControlSize;
             }
 
-            // Vertical changes
             bool topAnchor = (_activeHandle & (ResizeHandle.TopLeft | ResizeHandle.TopCenter | ResizeHandle.TopRight)) != 0;
             bool bottomAnchor = (_activeHandle & (ResizeHandle.BottomLeft | ResizeHandle.BottomCenter | ResizeHandle.BottomRight)) != 0;
 
@@ -177,6 +187,25 @@ public class DragService
         }
     }
 
+    private void ApplyMoveSnap()
+    {
+        var primary = _dragItems[0];
+        var movingBounds = primary.Control.Bounds;
+        var siblingBounds = _surface.Items
+            .Where(i => i != primary)
+            .Select(i => i.Control.Bounds)
+            .ToList();
+
+        _currentSnap = _snapService.ComputeSnap(movingBounds, primary.OriginalBounds, siblingBounds);
+
+        if (_currentSnap.HasSnap)
+        {
+            primary.Control.Location = new Point(
+                movingBounds.X + _currentSnap.SnapX,
+                movingBounds.Y + _currentSnap.SnapY);
+        }
+    }
+
     /// <summary>
     /// Ends the current drag operation.
     /// </summary>
@@ -186,6 +215,7 @@ public class DragService
         _isDragging = false;
         _activeHandle = ResizeHandle.None;
         _dragItems.Clear();
+        _currentSnap = new SnapResult();
         OnDragCompleted();
     }
 
@@ -197,18 +227,16 @@ public class DragService
         if (!_isDragging) return;
 
         foreach (var item in _dragItems)
-        {
             item.Control.Bounds = item.OriginalBounds;
-        }
 
         _isDragging = false;
         _activeHandle = ResizeHandle.None;
         _dragItems.Clear();
+        _currentSnap = new SnapResult();
     }
 
     /// <summary>
     /// Hit-tests the resize handles for the given control at the specified point.
-    /// Returns the handle under the point, or <see cref="ResizeHandle.None"/>.
     /// </summary>
     public ResizeHandle HitTestHandles(DesignItem item, Point point)
     {
@@ -218,13 +246,11 @@ public class DragService
         int hs = SelectionService.GetHandleSize();
         int half = hs / 2;
 
-        // Corner handles
         if (HitTestRect(point, bounds.X - half, bounds.Y - half, hs, hs)) return ResizeHandle.TopLeft;
         if (HitTestRect(point, bounds.Right - half, bounds.Y - half, hs, hs)) return ResizeHandle.TopRight;
         if (HitTestRect(point, bounds.X - half, bounds.Bottom - half, hs, hs)) return ResizeHandle.BottomLeft;
         if (HitTestRect(point, bounds.Right - half, bounds.Bottom - half, hs, hs)) return ResizeHandle.BottomRight;
 
-        // Edge handles (only if control is large enough)
         if (bounds.Width > hs * 3)
         {
             int cx = bounds.X + bounds.Width / 2 - half;

@@ -93,31 +93,15 @@ public class ToolboxControl : ContainerControl
     {
         if (e is not MouseEventArgs args) return;
         _lastMouseDownY = args.Y;
-        _selectedIndex = HitTestItem(args.Y);
-        _hoveredIndex = _selectedIndex;
-        Invalidate();
-    }
-
-    protected override void OnMouseMove(EventArgs e)
-    {
-        if (e is not MouseEventArgs args) return;
-
         int index = HitTestItem(args.Y);
-        if (_hoveredIndex != index)
+        if (index >= 0 && index < _filteredItems.Count)
         {
+            _selectedIndex = index;
             _hoveredIndex = index;
+            var item = _filteredItems[index];
+            // Immediately enter drop mode on click (no drag required)
+            DragStarted?.Invoke(this, new ToolboxDragEventArgs(item));
             Invalidate();
-        }
-
-        if (args.Button == MouseButtons.Left && _selectedIndex >= 0)
-        {
-            if (Math.Abs(args.Y - _lastMouseDownY) > 4)
-            {
-                var item = _filteredItems[_selectedIndex];
-                _selectedIndex = -1;
-                DragStarted?.Invoke(this, new ToolboxDragEventArgs(item));
-                Invalidate();
-            }
         }
     }
 

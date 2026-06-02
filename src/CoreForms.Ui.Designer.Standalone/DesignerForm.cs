@@ -25,8 +25,6 @@ public class DesignerForm : Form
     private Label _statusLabel = null!;
     private Label _positionLabel = null!;
 
-    private ToolboxItem? _dragItem;
-    private bool _isDragging;
     private bool _showGrid = true;
     private bool _snapToGrid = true;
 
@@ -187,7 +185,11 @@ public class DesignerForm : Form
 
     private void WireEvents()
     {
-        _toolbox.DragStarted += OnToolboxDragStarted;
+        _toolbox.DragStarted += (_, e) =>
+        {
+            _designSurface.BeginExternalDrop(e.Item);
+            _statusLabel.Text = $"Platziere {e.Item.DisplayName} – Klicken Sie auf die Designfläche";
+        };
 
         _designSurface.SelectionChanged += (_, _) =>
         {
@@ -201,100 +203,6 @@ public class DesignerForm : Form
         {
             _statusLabel.Text = "Geändert";
         };
-    }
-
-    private void OnToolboxDragStarted(object? sender, ToolboxDragEventArgs e)
-    {
-        _dragItem = e.Item;
-        _isDragging = true;
-        _statusLabel.Text = $"Ziehe {e.Item.DisplayName} auf die Oberfläche...";
-        Cursor = SystemCursorType.Crosshair;
-    }
-
-    protected override void OnMouseMove(EventArgs e)
-    {
-        if (_isDragging && e is MouseEventArgs args)
-        {
-            var dropPoint = ScreenToDesignSurface(new Point(args.X, args.Y));
-            var hitItem = _designSurface.HitTestChild(dropPoint);
-            _positionLabel.Text = hitItem != null
-                ? $"über: {hitItem.Control.Name ?? hitItem.Control.GetType().Name}"
-                : $"Pos: ({dropPoint.X}, {dropPoint.Y})";
-            _designSurface.Invalidate();
-        }
-
-        base.OnMouseMove(e);
-    }
-
-    protected override void OnMouseDown(EventArgs e)
-    {
-        if (_isDragging && e is MouseEventArgs args && args.Button == MouseButtons.Left)
-        {
-            var dropPoint = ScreenToDesignSurface(new Point(args.X, args.Y));
-            Control? container = null;
-
-            var hitItem = _designSurface.HitTestChild(dropPoint);
-            if (hitItem != null && hitItem.Control is ContainerControl)
-                container = hitItem.Control;
-
-            if (container != null)
-            {
-                var control = _toolboxService.CreateControl(_dragItem!);
-                var localPoint = container.PointToClient(
-                    _designSurface.PointToScreen(dropPoint));
-                control.Location = _designSurface.SnapToGrid
-                    ? _designSurface.SnapPoint(localPoint)
-                    : localPoint;
-
-                // Add control to both the container and track it as a design item
-                container.Controls.Add(control);
-                _designSurface.AddControl(control, control.Location);
-            }
-            else
-            {
-                _designSurface.AddControlFromToolbox(_dragItem!, dropPoint);
-            }
-
-            _dragItem = null;
-            _isDragging = false;
-            Cursor = null;
-            _statusLabel.Text = "Bereit";
-            _positionLabel.Text = "";
-            _designSurface.Invalidate();
-            return;
-        }
-
-        if (_isDragging)
-        {
-            _dragItem = null;
-            _isDragging = false;
-            Cursor = null;
-            _statusLabel.Text = "Abgebrochen";
-        }
-
-        base.OnMouseDown(e);
-    }
-
-    protected override void OnKeyDown(KeyEventArgs e)
-    {
-        if (_isDragging && e.KeyCode == Keys.Escape)
-        {
-            _dragItem = null;
-            _isDragging = false;
-            Cursor = null;
-            _statusLabel.Text = "Abgebrochen";
-            _positionLabel.Text = "";
-            e.Handled = true;
-            return;
-        }
-
-        base.OnKeyDown(e);
-    }
-
-    protected override void OnMouseUp(EventArgs e)
-    {
-        if (!_isDragging)
-            base.OnMouseUp(e);
     }
 
     private Point ScreenToDesignSurface(Point screenPoint)

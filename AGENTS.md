@@ -94,3 +94,8 @@ dotnet run --project samples/CoreForms.Ui.Demo  # Run demo (requires X11/display
 - Properties must document their intended purpose
 - Events must describe when they are raised
 - Methods must describe their functionality and parameters
+
+**Tool Call Format (Qwen AI Agents):**
+- Use ONLY OpenAI-compatible JSON format for tool calls: `{"name": "tool_name", "arguments": {"param1": "value"}}`
+- NEVER use XML format for tool calls (e.g., `<tool_call>`, `<function=...>`, or similar XML tags)
+- XML tool call syntax is not supported by the OpenCode parser and will cause failures

@@ -24,6 +24,7 @@ public class PropertyGrid : ContainerControl
     private const int NameColumnWidth = 140;
 
     private string? _activeCategory;
+    private PropertyGridRow? _editingRow;
 
     /// <summary>
     /// Gets the current target control whose properties are being edited.
@@ -90,9 +91,29 @@ public class PropertyGrid : ContainerControl
         if (e is not MouseEventArgs args) return;
 
         int rowIndex = HitTestRow(args.Y);
+
+        // Commit any existing edit before processing new click
+        if (_editingRow != null)
+        {
+            _editingRow.CommitEdit();
+            _editingRow = null;
+        }
+
         if (rowIndex >= 0 && rowIndex < _rows.Count)
         {
-            _rows[rowIndex].HandleClick(args.X, args.Y);
+            var row = _rows[rowIndex];
+            row.HandleClick(args.X, args.Y);
+
+            if (row.IsEditing)
+            {
+                _editingRow = row;
+                var form = FindForm();
+                if (form != null)
+                {
+                    form.ActiveControl = this;
+                }
+                Invalidate();
+            }
         }
 
         base.OnMouseDown(e);
@@ -118,6 +139,81 @@ public class PropertyGrid : ContainerControl
         }
 
         return -1;
+    }
+
+    protected override void OnTextInput(string text)
+    {
+        if (_editingRow != null && text.Length > 0)
+        {
+            if (_editingRow.HandleKey(text[0]))
+            {
+                Invalidate();
+                return;
+            }
+        }
+        base.OnTextInput(text);
+    }
+
+    protected override void OnKeyDown(KeyEventArgs e)
+    {
+        if (_editingRow != null)
+        {
+            switch (e.KeyCode)
+            {
+                case Keys.Enter:
+                    _editingRow.CommitEdit();
+                    _editingRow = null;
+                    Invalidate();
+                    e.Handled = true;
+                    return;
+
+                case Keys.Escape:
+                    _editingRow.CancelEdit();
+                    _editingRow = null;
+                    Invalidate();
+                    e.Handled = true;
+                    return;
+
+                case Keys.Back:
+                    if (_editingRow.HandleKey('\b'))
+                    {
+                        Invalidate();
+                        e.Handled = true;
+                    }
+                    return;
+
+                case Keys.Delete:
+                    if (_editingRow.HandleKey('\x03'))
+                    {
+                        Invalidate();
+                        e.Handled = true;
+                    }
+                    return;
+
+                case Keys.Tab:
+                    _editingRow.CommitEdit();
+                    _editingRow = null;
+                    Invalidate();
+                    break;
+            }
+        }
+        base.OnKeyDown(e);
+    }
+
+    protected override void OnKeyUp(KeyEventArgs e)
+    {
+        base.OnKeyUp(e);
+    }
+
+    protected override void OnLostFocus(EventArgs e)
+    {
+        if (_editingRow != null)
+        {
+            _editingRow.CommitEdit();
+            _editingRow = null;
+            Invalidate();
+        }
+        base.OnLostFocus(e);
     }
 
     public override void Render(Graphics g)

@@ -66,9 +66,9 @@ public class PropertyGridRow
             g.FillRectangle(Color.White, x, y, width, height);
             g.DrawString(_editBuffer, theme.DefaultFont, theme.ControlText, x + 4, y + 5);
 
-            // Draw caret
-            float caretX = x + 4 + MeasureTextWidth(_editBuffer[..Math.Min(_caretPos, _editBuffer.Length)], theme.DefaultFont);
-            g.DrawLine(theme.ControlText, caretX, y + 4, caretX, y + height - 4);
+            // Draw caret using actual measured width
+            int caretWidth = g.MeasureString(_editBuffer[..Math.Min(_caretPos, _editBuffer.Length)], theme.DefaultFont).width;
+            g.DrawLine(theme.ControlText, x + 4 + caretWidth, y + 4, x + 4 + caretWidth, y + height - 4);
             return;
         }
 
@@ -243,9 +243,4 @@ public class PropertyGridRow
     /// Gets whether this row is currently being edited.
     /// </summary>
     public bool IsEditing => _isEditing;
-
-    private static float MeasureTextWidth(string text, Font font)
-    {
-        return text.Length * font.Size * 0.6f;
-    }
 }

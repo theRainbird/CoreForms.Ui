@@ -24,6 +24,10 @@ public class DesignSurface : ContainerControl
 
     private Point _lastMouseDown;
     private bool _hasMouseMovedSinceDown;
+    private bool _leftButtonPressed;
+    private ResizeHandle _pendingResizeHandle = ResizeHandle.None;
+
+    private ToolboxItem? _pendingDropItem;
 
     private const int GridSize = 8;
     private bool _showGrid = true;
@@ -83,12 +87,39 @@ public class DesignSurface : ContainerControl
     }
 
     /// <summary>
+    /// Gets whether the design surface is waiting for a drop (from toolbox).
+    /// </summary>
+    public bool IsPendingDrop => _pendingDropItem != null;
+
+    /// <summary>
+    /// Begins an external drop operation. The surface enters a mode where the next
+    /// left-click will create a control of the given toolbox item at the click position.
+    /// </summary>
+    /// <param name="item">The toolbox item to place.</param>
+    public void BeginExternalDrop(ToolboxItem item)
+    {
+        _pendingDropItem = item ?? throw new ArgumentNullException(nameof(item));
+        var form = FindForm();
+        if (form != null) form.Cursor = SystemCursorType.Crosshair;
+    }
+
+    /// <summary>
+    /// Cancels a pending external drop operation.
+    /// </summary>
+    public void CancelExternalDrop()
+    {
+        _pendingDropItem = null;
+        var form = FindForm();
+        if (form != null) form.Cursor = null;
+    }
+
+    /// <summary>
     /// Initializes a new instance of <see cref="DesignSurface"/>.
     /// </summary>
     public DesignSurface()
     {
         _selectionService = new SelectionService();
-        _dragService = new DragService(this, _selectionService);
+        _dragService = new DragService(this, _selectionService, new SnapService());
         _toolboxService = new ToolboxService();
         _undoService = new UndoService();
 
@@ -105,6 +136,8 @@ public class DesignSurface : ContainerControl
         };
 
         BackColor = Color.White;
+
+        _dragService.DragStarted += (_, _) => Invalidate();
     }
 
     /// <summary>
@@ -214,16 +247,35 @@ public class DesignSurface : ContainerControl
     }
 
     /// <summary>
-    /// Hit-tests the children of this design surface and returns the deepest
+    /// Overrides child hit-testing to return null for all designed controls.
+    /// This ensures all mouse events are routed to DesignSurface, allowing the
+    /// designer to intercept selection, move, and resize operations. Controls
+    /// still render normally; they just don't receive interactive events.
+    /// </summary>
+    /// <param name="point">The point to test.</param>
+    /// <returns>Always null — designed controls are not interactive in design mode.</returns>
+    protected override Control? GetChildAtPoint(Point point)
+    {
+        return null;
+    }
+
+    /// <summary>
+    /// Hit-tests the children of this design surface and returns the topmost
     /// <see cref="DesignItem"/> at the given point (in surface coordinates).
-    /// Useful for container-aware drop placement.
+    /// Iterates through _designItems in reverse z-order to find the deepest hit.
     /// </summary>
     /// <param name="point">The point in this surface's coordinates.</param>
-    /// <returns>The deepest DesignItem at the point, or null if none.</returns>
+    /// <returns>The topmost DesignItem at the point, or null if none.</returns>
     public DesignItem? HitTestChild(Point point)
     {
-        var child = GetDeepestChildAtPoint(point, out _);
-        return child != null && child != this ? FindItem(child) : null;
+        for (int i = _designItems.Count - 1; i >= 0; i--)
+        {
+            var item = _designItems[i];
+            var ctrl = item.Control;
+            if (ctrl.Visible && ctrl.Bounds.Contains(point))
+                return item;
+        }
+        return null;
     }
 
     /// <summary>
@@ -255,11 +307,62 @@ public class DesignSurface : ContainerControl
     {
         if (e is not MouseEventArgs args) return;
 
+        // Handle pending drop from toolbox
+        if (_pendingDropItem != null)
+        {
+            if (args.Button == MouseButtons.Left)
+            {
+                var dropPoint = new Point(args.X, args.Y);
+                PerformToolboxDrop(dropPoint);
+            }
+            else
+            {
+                CancelExternalDrop();
+            }
+            return;
+        }
+
         _lastMouseDown = new Point(args.X, args.Y);
         _hasMouseMovedSinceDown = false;
 
+        // Track mouse button state - Platform layer always passes MouseButtons.None
+        // in OnMouseMove, so we must track it ourselves.
+        if (args.Button == MouseButtons.Left) _leftButtonPressed = true;
+
+        // Fix 1: Detect if clicking on a resize handle upfront to prevent
+        // OnMouseUp from overriding the selection before drag starts.
+        var primarySel = _selectionService.PrimarySelection;
+        _pendingResizeHandle = primarySel != null
+            ? _dragService.HitTestHandles(primarySel, _lastMouseDown)
+            : ResizeHandle.None;
+
         // Do NOT call base.OnMouseDown — we intercept all mouse events
         // to prevent routing interaction events to designed controls.
+    }
+
+    private void PerformToolboxDrop(Point dropPoint)
+    {
+        if (_pendingDropItem == null) return;
+
+        // Check if dropping on a container
+        var hitItem = HitTestChild(dropPoint);
+        if (hitItem != null && hitItem.Control is ContainerControl container && container != this)
+        {
+            var control = _toolboxService.CreateControl(_pendingDropItem);
+            var localPoint = container.PointToClient(PointToScreen(dropPoint));
+            control.Location = _snapToGrid ? SnapPoint(localPoint) : localPoint;
+            container.Controls.Add(control);
+            AddControl(control, control.Location);
+        }
+        else
+        {
+            AddControlFromToolbox(_pendingDropItem, dropPoint);
+        }
+
+        _pendingDropItem = null;
+        var form = FindForm();
+        if (form != null) form.Cursor = null;
+        Invalidate();
     }
 
     protected override void OnMouseMove(EventArgs e)
@@ -275,7 +378,9 @@ public class DesignSurface : ContainerControl
             return;
         }
 
-        if (args.Button == MouseButtons.None)
+        // Silk.NET always passes MouseButtons.None in MouseMove, so we use our own
+        // _leftButtonPressed flag to know whether the button is held down.
+        if (!_leftButtonPressed)
         {
             // Update resize cursor when hovering over handles
             var primary = _selectionService.PrimarySelection;
@@ -293,7 +398,7 @@ public class DesignSurface : ContainerControl
             }
         }
 
-        if (args.Button == MouseButtons.Left && !_hasMouseMovedSinceDown)
+        if (_leftButtonPressed && !_hasMouseMovedSinceDown)
         {
             int moveThreshold = 4;
             if (Math.Abs(point.X - _lastMouseDown.X) > moveThreshold ||
@@ -304,10 +409,9 @@ public class DesignSurface : ContainerControl
                 var primarySel = _selectionService.PrimarySelection;
                 if (primarySel != null)
                 {
-                    var handle = _dragService.HitTestHandles(primarySel, _lastMouseDown);
-                    if (handle != ResizeHandle.None)
+                    if (_pendingResizeHandle != ResizeHandle.None)
                     {
-                        _dragService.BeginResize(_lastMouseDown, handle);
+                        _dragService.BeginResize(_lastMouseDown, _pendingResizeHandle);
                         _undoService.PushSnapshot(primarySel.Control);
                     }
                     else
@@ -328,40 +432,54 @@ public class DesignSurface : ContainerControl
         if (_dragService.IsDragging)
         {
             _dragService.EndDrag();
-            Invalidate();
+            // Fix 4: DragCompleted event handler calls Invalidate() + ClearResizeCursor()
+            // No need to call them here again.
             return;
         }
 
         var point = new Point(args.X, args.Y);
 
-        if (!_hasMouseMovedSinceDown && args.Button == MouseButtons.Left)
+        // Use _leftButtonPressed instead of args.Button - Silk.NET may not pass correct
+        // button state in MouseUp events either.
+        if (!_hasMouseMovedSinceDown && _leftButtonPressed)
         {
-            // It was a click (not a drag)
-            var target = GetDeepestChildAtPoint(point, out var localPoint);
-            if (target != null && target != this)
+            // Fix 1: Skip selection if we clicked on a resize handle - the drag will start
+            // in OnMouseMove, and selecting here would override it.
+            if (_pendingResizeHandle == ResizeHandle.None)
             {
-                var item = FindItem(target);
-                if (item != null)
+                // It was a click (not a drag)
+                var hitItem = HitTestChild(point);
+                if (hitItem != null)
                 {
                     bool ctrlPressed = GetCurrentModifiers().HasFlag(ModifierKeys.Control);
 
                     if (ctrlPressed)
-                        _selectionService.ToggleSelection(item);
+                        _selectionService.ToggleSelection(hitItem);
                     else
-                        _selectionService.Select(item);
+                        _selectionService.Select(hitItem);
                 }
-            }
-            else
-            {
-                _selectionService.DeselectAll();
+                else
+                {
+                    _selectionService.DeselectAll();
+                }
             }
         }
 
+        _leftButtonPressed = false;
         ClearResizeCursor();
     }
 
     protected override void OnKeyDown(KeyEventArgs e)
     {
+        // Cancel pending drop on Escape
+        if (_pendingDropItem != null && e.KeyCode == Keys.Escape)
+        {
+            CancelExternalDrop();
+            Invalidate();
+            e.Handled = true;
+            return;
+        }
+
         if (e.KeyCode == Keys.Delete || e.KeyCode == Keys.Back)
         {
             DeleteSelected();
@@ -422,6 +540,11 @@ public class DesignSurface : ContainerControl
 
     public override void Render(Graphics g)
     {
+        // Fix: Fill background first to clear previous frame content.
+        // Without this, the SKSurface retains old content at the old control
+        // positions, causing ghost lines and flickering during drag operations.
+        g.FillRectangle(BackColor, 0, 0, Width, Height);
+
         // Draw grid background
         DrawGrid(g);
 
@@ -430,20 +553,51 @@ public class DesignSurface : ContainerControl
 
         // Draw selection chrome (handles + border) on selected controls
         DrawSelectionChrome(g);
+
+        // Draw smart guide lines during drag
+        DrawGuideLines(g);
+
+        // Draw subtle top banner when in toolbox drop mode
+        if (_pendingDropItem != null)
+        {
+            var bannerHeight = 40;
+            var bannerColor = Color.FromArgb(120, 230, 230, 230);
+            g.FillRectangle(bannerColor, 0, 0, Width, bannerHeight);
+            var borderColor = Color.FromArgb(160, 200, 200, 200);
+            g.FillRectangle(borderColor, 0, bannerHeight - 1, Width, 1);
+            var msg = $"Klicken Sie, um einen {_pendingDropItem.DisplayName} zu platzieren. ESC zum Abbrechen.";
+            g.DrawString(msg, ThemeManager.CurrentTheme.DefaultFont,
+                Color.FromArgb(0, 80, 160), 10, 10);
+        }
     }
 
     private void DrawGrid(Graphics g)
     {
         if (!_showGrid) return;
 
+        // Draw a subtle dot pattern: only draw in the lower-right quadrant of each cell.
+        // 9 draw calls per cell (3×3 grid dots) instead of O(n×m) fill rectangles.
         var gridColor = Color.FromArgb(230, 230, 230);
         int spacing = GridSize;
 
-        for (int x = 0; x < Width; x += spacing)
+        // Fix 3: Reduce grid draw calls. Instead of every cell, draw every second cell
+        // and only 1 dot per cell.
+        int stride = spacing * 2;  // skip every second cell
+        int cols = (Width + stride - 1) / stride;
+        int rows = (Height + stride - 1) / stride;
+
+        for (int cx = 0; cx < cols; cx++)
         {
-            for (int y = 0; y < Height; y += spacing)
+            int baseX = cx * stride;
+            if (baseX >= Width) break;
+
+            for (int cy = 0; cy < rows; cy++)
             {
-                g.FillRectangle(gridColor, x, y, 1, 1);
+                int baseY = cy * stride;
+                if (baseY >= Height) break;
+
+                // Draw 1 dot per cell at center
+                g.FillRectangle(gridColor, baseX + spacing / 2, baseY + spacing / 2, 1, 1);
             }
         }
     }
@@ -494,6 +648,41 @@ public class DesignSurface : ContainerControl
                 DrawHandle(g, bounds.Right - half, cy, hs, hs, selectionColor, false);
             }
         }
+    }
+
+    private void DrawGuideLines(Graphics g)
+    {
+        if (!_dragService.IsDragging) return;
+
+        var snap = _dragService.CurrentSnap;
+        if (snap.GuideLines.Count == 0) return;
+
+        var guideColor = Color.FromArgb(255, 0, 120, 215);
+        var centerColor = Color.FromArgb(0, 200, 0);
+
+        foreach (var line in snap.GuideLines)
+        {
+            bool isCenter = IsCenterGuide(line);
+
+            // Draw glow (thicker, more transparent)
+            var glowColor = Color.FromArgb(isCenter ? 60 : 40,
+                isCenter ? 0 : 0,
+                isCenter ? 200 : 120,
+                isCenter ? 0 : 215);
+            g.DrawLine(glowColor, line.Start.X, line.Start.Y, line.End.X, line.End.Y, 3);
+
+            // Draw main line
+            g.DrawLine(isCenter ? centerColor : guideColor,
+                line.Start.X, line.Start.Y, line.End.X, line.End.Y, 1);
+        }
+    }
+
+    private static bool IsCenterGuide(GuideLine line)
+    {
+        // Center guides are shorter (they span just the two controls, not full surface)
+        int dx = Math.Abs(line.End.X - line.Start.X);
+        int dy = Math.Abs(line.End.Y - line.Start.Y);
+        return dx < 100 && dy < 100;
     }
 
     private static void DrawHandle(Graphics g, int x, int y, int w, int h, Color borderColor, bool filled)
