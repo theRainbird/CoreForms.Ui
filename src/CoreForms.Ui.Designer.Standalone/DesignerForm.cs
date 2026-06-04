@@ -60,7 +60,8 @@ public class DesignerForm : Form
         {
             Dock = DockStyle.Left,
             Width = ToolboxWidth,
-            Padding = new Padding(0, 0, 4, 0)
+            Padding = new Padding(0, 0, 4, 0),
+            BackColor = ThemeManager.CurrentTheme.ControlBackground
         };
         _toolbox = new ToolboxControl(_toolboxService)
         {
@@ -77,7 +78,8 @@ public class DesignerForm : Form
         {
             Dock = DockStyle.Right,
             Width = 280,
-            Padding = new Padding(4, 0, 0, 0)
+            Padding = new Padding(4, 0, 0, 0),
+            BackColor = ThemeManager.CurrentTheme.ControlBackground
         };
         _propertyGrid.Dock = DockStyle.Fill;
         propertyPanel.Controls.Add(_propertyGrid);

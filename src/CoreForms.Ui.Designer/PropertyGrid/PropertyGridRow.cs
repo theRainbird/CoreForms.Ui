@@ -1,4 +1,5 @@
 using System;
+using System.Reflection;
 using CoreForms.Ui.Core;
 using CoreForms.Ui.Theming;
 using Graphics = CoreForms.Ui.Rendering.Graphics;
@@ -14,8 +15,13 @@ public class PropertyGridRow
     private readonly PropertyDescriptor _descriptor;
     private readonly int _nameWidth;
     private bool _isEditing;
+    private bool _isEnumDropdownOpen;
+    private int _enumSelectedIndex = -1;
+    private readonly List<int> _selectedFlagIndices = new();
     private string _editBuffer = string.Empty;
     private int _caretPos;
+
+    private const int DropdownArrowWidth = 20;
 
     /// <summary>
     /// Gets the property category.
@@ -36,10 +42,29 @@ public class PropertyGridRow
     /// <summary>
     /// Handles a mouse click on this row.
     /// </summary>
-    public void HandleClick(int mouseX, int mouseY)
+    /// <param name="mouseX">The X coordinate of the click.</param>
+    /// <param name="mouseY">The Y coordinate of the click.</param>
+    /// <param name="valueColumnX">The X position of the value column.</param>
+    /// <param name="valueColumnWidth">The width of the value column.</param>
+    /// <returns>True if an enum dropdown was opened.</returns>
+    public bool HandleClick(int mouseX, int mouseY, int valueColumnX, int valueColumnWidth)
     {
-        if (mouseX > _nameWidth && !_descriptor.IsReadOnly)
-            StartEdit();
+        if (mouseX <= valueColumnX || _descriptor.IsReadOnly)
+            return false;
+
+        int localX = mouseX - valueColumnX;
+
+        if (_descriptor.PropertyType.IsEnum)
+        {
+            if (localX >= valueColumnWidth - DropdownArrowWidth)
+            {
+                StartEnumDropdown();
+                return true;
+            }
+        }
+
+        StartEdit();
+        return false;
     }
 
     /// <summary>
@@ -170,28 +195,133 @@ public class PropertyGridRow
         _editBuffer = value?.ToString() ?? "";
         _caretPos = _editBuffer.Length;
         _isEditing = true;
+        _isEnumDropdownOpen = false;
     }
 
     /// <summary>
-    /// Commits the current edit buffer to the property.
+    /// Opens the enum dropdown for this row. Initializes the selection to the current value.
+    /// </summary>
+    public void StartEnumDropdown()
+    {
+        var type = _descriptor.PropertyType;
+        if (!type.IsEnum) return;
+
+        var values = Enum.GetValues(type).Cast<object>().ToArray();
+        var currentValue = _descriptor.GetValue();
+
+        _selectedFlagIndices.Clear();
+
+        if (type.GetCustomAttribute<System.FlagsAttribute>() != null && currentValue != null)
+        {
+            for (int i = 0; i < values.Length; i++)
+            {
+                if (currentValue is Enum enumVal && enumVal.HasFlag((Enum)values[i]))
+                    _selectedFlagIndices.Add(i);
+            }
+        }
+
+        if (_selectedFlagIndices.Count == 0)
+        {
+            _enumSelectedIndex = -1;
+            for (int i = 0; i < values.Length; i++)
+            {
+                if (currentValue != null && currentValue.Equals(values[i]))
+                {
+                    _enumSelectedIndex = i;
+                    break;
+                }
+            }
+            if (_enumSelectedIndex < 0)
+                _enumSelectedIndex = 0;
+        }
+
+        _isEnumDropdownOpen = true;
+        _isEditing = false;
+    }
+
+    /// <summary>
+    /// Selects an item in the enum dropdown by index.
+    /// For flags enums, toggles the flag at the given index.
+    /// For non-flags enums, sets the single selection.
+    /// </summary>
+    /// <param name="index">The index of the enum value to select.</param>
+    public void SelectEnumItem(int index)
+    {
+        var type = _descriptor.PropertyType;
+        if (!type.IsEnum) return;
+
+        if (type.GetCustomAttribute<System.FlagsAttribute>() != null)
+        {
+            if (index < 0 || index >= Enum.GetValues(type).Length)
+                return;
+
+            if (!_selectedFlagIndices.Contains(index))
+                _selectedFlagIndices.Add(index);
+            else
+                _selectedFlagIndices.Remove(index);
+        }
+        else
+        {
+            var values = Enum.GetValues(type).Cast<object>().ToArray();
+            if (index >= 0 && index < values.Length)
+                _enumSelectedIndex = index;
+        }
+    }
+
+     /// <summary>
+    /// Commits the enum dropdown selection or the current edit buffer to the property.
     /// </summary>
     public void CommitEdit()
     {
-        if (!_isEditing) return;
+        if (_isEnumDropdownOpen)
+        {
+            var type = _descriptor.PropertyType;
+            var isFlags = type.GetCustomAttribute<System.FlagsAttribute>() != null;
 
-        var type = _descriptor.PropertyType;
+            if (isFlags)
+            {
+                if (_selectedFlagIndices.Count > 0)
+                {
+                    var values = Enum.GetValues(type).Cast<object>().ToArray();
+                    ulong combined = 0;
+                    foreach (var idx in _selectedFlagIndices)
+                    {
+                        var val = Convert.ToUInt64(values[idx]);
+                        combined |= val;
+                    }
+                    _descriptor.SetValue(Enum.ToObject(type, combined));
+                }
+                else
+                {
+                    _descriptor.SetValue(Enum.ToObject(type, 0));
+                }
+            }
+            else if (_enumSelectedIndex >= 0)
+            {
+                var values = Enum.GetValues(type).Cast<object>().ToArray();
+                if (_enumSelectedIndex < values.Length)
+                    _descriptor.SetValue(values[_enumSelectedIndex]);
+            }
+
+            _isEnumDropdownOpen = false;
+            _enumSelectedIndex = -1;
+            _selectedFlagIndices.Clear();
+            return;
+        }
+
+        if (!_isEditing) return;
 
         try
         {
-            if (type == typeof(string))
+            if (_descriptor.PropertyType == typeof(string))
                 _descriptor.SetValue(_editBuffer);
-            else if (type == typeof(int))
+            else if (_descriptor.PropertyType == typeof(int))
                 _descriptor.SetValue(int.TryParse(_editBuffer, out var i) ? i : 0);
-            else if (type == typeof(float))
+            else if (_descriptor.PropertyType == typeof(float))
                 _descriptor.SetValue(float.TryParse(_editBuffer, out var f) ? f : 0f);
-            else if (type.IsEnum)
+            else if (_descriptor.PropertyType.IsEnum)
             {
-                if (Enum.TryParse(type, _editBuffer, true, out var result))
+                if (Enum.TryParse(_descriptor.PropertyType, _editBuffer, true, out var result))
                     _descriptor.SetValue(result);
             }
         }
@@ -200,11 +330,19 @@ public class PropertyGridRow
         _isEditing = false;
     }
 
-    /// <summary>
-    /// Cancels editing without saving.
+  /// <summary>
+    /// Cancels editing or closes the enum dropdown without saving.
     /// </summary>
     public void CancelEdit()
     {
+        if (_isEnumDropdownOpen)
+        {
+            _isEnumDropdownOpen = false;
+            _enumSelectedIndex = -1;
+            _selectedFlagIndices.Clear();
+            return;
+        }
+
         _isEditing = false;
     }
 
@@ -243,4 +381,71 @@ public class PropertyGridRow
     /// Gets whether this row is currently being edited.
     /// </summary>
     public bool IsEditing => _isEditing;
+
+    /// <summary>
+    /// Gets whether the enum dropdown is currently open for this row.
+    /// </summary>
+    public bool IsEnumDropdownOpen => _isEnumDropdownOpen;
+
+   /// <summary>
+    /// Gets the index of the currently selected item in the enum dropdown.
+    /// </summary>
+    public int EnumSelectedIndex => _enumSelectedIndex;
+
+    /// <summary>
+    /// Gets whether the given index is a selected flag in a flags enum dropdown.
+    /// </summary>
+    /// <param name="index">The index to check.</param>
+    /// <returns>True if the flag at the given index is selected.</returns>
+    public bool IsFlagSelected(int index)
+    {
+        return _selectedFlagIndices.Contains(index);
+    }
+
+    /// <summary>
+    /// Gets whether this enum type has the Flags attribute (supports multi-selection).
+    /// </summary>
+    public bool IsFlagsEnum => _descriptor.PropertyType.GetCustomAttribute<System.FlagsAttribute>() != null;
+
+    /// <summary>
+    /// Gets the number of enum values for this property type.
+    /// </summary>
+    public int EnumValueCount
+    {
+        get
+        {
+            if (!_descriptor.PropertyType.IsEnum) return 0;
+            return Enum.GetValues(_descriptor.PropertyType).Length;
+        }
+    }
+
+    /// <summary>
+    /// Gets the display text for an enum value at the given index.
+    /// </summary>
+    /// <param name="index">The index of the enum value.</param>
+    /// <returns>The formatted display text.</returns>
+    public string GetEnumDisplayText(int index)
+    {
+        var type = _descriptor.PropertyType;
+        var values = Enum.GetValues(type).Cast<object>().ToArray();
+
+        if (index < 0 || index >= values.Length)
+            return "";
+
+        var value = values[index];
+
+        if (type == typeof(AnchorStyles))
+            return FormatAnchor((AnchorStyles)value);
+
+        return value.ToString() ?? "";
+    }
+
+    /// <summary>
+    /// Gets or sets whether this row is in enum-dropdown mode.
+    /// </summary>
+    public bool IsEnumDropdown
+    {
+        get => _isEnumDropdownOpen;
+        set => _isEnumDropdownOpen = value;
+    }
 }
