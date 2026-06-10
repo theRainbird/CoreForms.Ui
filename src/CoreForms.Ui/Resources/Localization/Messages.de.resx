@@ -73,4 +73,31 @@
   <data name="DataError_InvalidValue">
     <value>Der eingegebene Wert ist ungültig.</value>
   </data>
+  <data name="ColorPickerDialog_Title">
+    <value>Farbe auswählen</value>
+  </data>
+  <data name="ColorPickerDialog_SystemColorsTab">
+    <value>Systemfarben</value>
+  </data>
+  <data name="ColorPickerDialog_PaletteTab">
+    <value>Farbpalette</value>
+  </data>
+  <data name="ColorPickerDialog_ColumnName">
+    <value>Name</value>
+  </data>
+  <data name="ColorPickerDialog_ColumnColor">
+    <value>Farbe</value>
+  </data>
+  <data name="ColorPickerDialog_LabelR">
+    <value>R</value>
+  </data>
+  <data name="ColorPickerDialog_LabelG">
+    <value>G</value>
+  </data>
+  <data name="ColorPickerDialog_LabelB">
+    <value>B</value>
+  </data>
+  <data name="ColorPickerDialog_LabelA">
+    <value>A</value>
+  </data>
 </root>

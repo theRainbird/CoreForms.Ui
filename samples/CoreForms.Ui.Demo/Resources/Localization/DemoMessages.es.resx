@@ -293,4 +293,6 @@
   <data name="DtpSelected"><value>Selected: {0}</value></data>
   <data name="GroupFontPicker"><value>Selector de fuente</value></data>
   <data name="FontPickerLabel"><value>Elija una fuente</value></data>
+  <data name="BtnColorPicker"><value>Selector de color</value></data>
+  <data name="StatusColorPickerResult"><value>Resultado del diálogo: {0}</value></data>
 </root>

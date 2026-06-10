@@ -740,14 +740,46 @@ public class TabControl : ContainerControl
                 }
                 break;
             default:
-                if (SelectedTab?.ActiveControl != null)
+                if (SelectedTab != null)
                 {
-                    SelectedTab.ActiveControl.OnKeyDown(e);
-                    if (e.Handled) return;
+                    var activeControl = SelectedTab.ActiveControl;
+                    if (activeControl == null)
+                    {
+                        activeControl = GetFirstFocusableControl(SelectedTab);
+                        if (activeControl != null)
+                            SelectedTab.ActiveControl = activeControl;
+                    }
+                    if (activeControl != null)
+                    {
+                        activeControl.OnKeyDown(e);
+                        if (e.Handled) return;
+                    }
                 }
                 break;
         }
         base.OnKeyDown(e);
+    }
+
+    /// <summary>
+    /// Gets the first focusable control within the specified container.
+    /// Recursively searches child containers for the first control that can receive focus.
+    /// </summary>
+    /// <param name="container">The container to search in.</param>
+    /// <returns>The first focusable control, or null if none found.</returns>
+    private static Control? GetFirstFocusableControl(Control container)
+    {
+        foreach (Control child in container.Controls)
+        {
+            if (child.Visible && child.Enabled && child.TabStop)
+                return child;
+            if (child is ContainerControl subContainer)
+            {
+                var result = GetFirstFocusableControl(subContainer);
+                if (result != null)
+                    return result;
+            }
+        }
+        return null;
     }
 
     private void EnsureOverflowSelectedVisible()

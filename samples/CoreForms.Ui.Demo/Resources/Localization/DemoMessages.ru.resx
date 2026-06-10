@@ -293,4 +293,6 @@
   <data name="DtpSelected"><value>Selected: {0}</value></data>
   <data name="GroupFontPicker"><value>Выбор шрифта</value></data>
   <data name="FontPickerLabel"><value>Выберите шрифт</value></data>
+  <data name="BtnColorPicker"><value>Выбор цвета</value></data>
+  <data name="StatusColorPickerResult"><value>Результат диалога: {0}</value></data>
 </root>

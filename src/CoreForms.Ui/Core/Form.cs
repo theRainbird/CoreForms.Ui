@@ -11,9 +11,9 @@ namespace CoreForms.Ui.Core;
 public class Form : ContainerControl, IWin32Window
 {
     private string _title = string.Empty;
-    private bool _modal;
+    protected internal bool _modal;
     private Form? _ownerForm;
-    private DialogResult _dialogResult = DialogResult.None;
+    protected internal DialogResult _dialogResult = DialogResult.None;
 
     private FormWindowState _windowState = FormWindowState.Normal;
     private FormBorderStyle _formBorderStyle = FormBorderStyle.Sizable;
@@ -620,6 +620,8 @@ public class Form : ContainerControl, IWin32Window
 
     private void ProcessTabKey(bool shift)
     {
+        ClearMenuStripMenuMode();
+
         var tabs = GetTabControls();
         if (tabs.Count == 0) return;
 
@@ -654,8 +656,19 @@ public class Form : ContainerControl, IWin32Window
         }
     }
 
+    private void ClearMenuStripMenuMode()
+    {
+        for (int i = 0; i < Controls.Count; i++)
+        {
+            if (Controls[i] is MenuStrip ms)
+                ms.MenuMode = false;
+        }
+    }
+
     private bool ProcessArrowKey(Keys key)
     {
+        ClearMenuStripMenuMode();
+
         if (ActiveControl == null) return false;
 
         var tabs = GetTabControls();
@@ -734,11 +747,13 @@ public class Form : ContainerControl, IWin32Window
     }
 
     /// <summary>
-    /// Raises the GotFocus event.
+    /// Raises the GotFocus event. Invalidates the form to trigger a re-render
+    /// when the window gains focus (e.g. after Alt+Tab back to this window).
     /// </summary>
     /// <param name="e">An EventArgs that contains the event data.</param>
     protected internal override void OnGotFocus(EventArgs e)
     {
+        Invalidate();
         base.OnGotFocus(e);
     }
 

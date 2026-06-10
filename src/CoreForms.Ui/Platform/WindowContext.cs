@@ -56,6 +56,13 @@ internal sealed class WindowContext : IDisposable
     public bool IsClosing { get; set; }
 
     /// <summary>
+    /// Gets or sets whether this window should be rendered regardless of its IsVisible state.
+    /// Used after focus transitions (Alt+Tab) to ensure the window renders even if the
+    /// compositor hasn't updated IsVisible yet. Automatically cleared after one render pass.
+    /// </summary>
+    public bool ForceRender { get; set; }
+
+    /// <summary>
     /// Initializes a new WindowContext with the specified window and form.
     /// Renderer initialization is deferred until InitializeRenderer is called.
     /// </summary>

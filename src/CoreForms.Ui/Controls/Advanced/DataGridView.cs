@@ -307,6 +307,7 @@ public class DataGridView : ContainerControl
 
     public event EventHandler? SelectionChanged;
     public event EventHandler? CellClick;
+    public event EventHandler<DataGridViewCellPaintingEventArgs>? CellPainting;
     public event EventHandler<DataGridViewCellEventArgs>? CellValueChanged;
     public event EventHandler<DataGridViewCellEventArgs>? ColumnHeaderMouseClick;
     public event EventHandler<DataGridViewGroupHeaderFormattingEventArgs>? GroupHeaderFormatting;
@@ -376,6 +377,7 @@ public class DataGridView : ContainerControl
     protected virtual void OnDataError(DataGridViewDataErrorEventArgs e) => DataError?.Invoke(this, e);
     protected virtual void OnCellButtonClick(DataGridViewCellEventArgs e) => CellButtonClick?.Invoke(this, e);
     protected virtual void OnGroupHeaderFormatting(DataGridViewGroupHeaderFormattingEventArgs e) => GroupHeaderFormatting?.Invoke(this, e);
+    protected virtual void OnCellPainting(DataGridViewCellPaintingEventArgs e) => CellPainting?.Invoke(this, e);
 
     private int GetDataAreaY() => (_showGroupingBar ? _groupingBarHeight : 0) + (_columnHeadersVisible ? _rowHeight : 0);
 
@@ -582,37 +584,42 @@ public class DataGridView : ContainerControl
                         // Skip rendering text for the cell currently being edited (editing control overlays it)
                         if (!(i == _editingRowIndex && c == _editingColumnIndex))
                         {
-                            var cell = _rows[i].Cells.Count > c ? _rows[i].Cells[c] : null;
-                            var cd = _columns[c];
-                            if (cd.CellEditType == DataGridViewColumnEditType.CheckBox || cell?.Value is bool)
+                            var cellPaintArgs = new DataGridViewCellPaintingEventArgs(c, i, g, new Rectangle(dx, y, dw2, _rowHeight));
+                            OnCellPainting(cellPaintArgs);
+                            if (!cellPaintArgs.Handled)
                             {
-                                bool isChecked = cell?.Value is bool bv && bv;
-                                RenderCheckBoxCell(g, theme, isChecked, dx, y, dw2, _rowHeight);
-                            }
-                            else if (cd.CellEditType == DataGridViewColumnEditType.Button)
-                            {
-                                string btnText = cd.ButtonText ?? cell?.Value?.ToString() ?? "";
-                                RenderButtonCell(g, theme, btnText, cd.ButtonIcon, dx, y, dw2, _rowHeight, zoom, EffectiveFont, i, c);
-                            }
-                            else
-                            {
-                                var fmtVal = cell?.Value;
-                                var fmtStr = cd.FormatString;
-                                var fmtArgs = new DataGridViewCellFormattingEventArgs(c, i, cell?.Value, fmtStr);
-                                OnCellFormatting(fmtArgs);
-                                if (!fmtArgs.FormattingApplied)
+                                var cell = _rows[i].Cells.Count > c ? _rows[i].Cells[c] : null;
+                                var cd = _columns[c];
+                                if (cd.CellEditType == DataGridViewColumnEditType.CheckBox || cell?.Value is bool)
                                 {
-                                    fmtVal = FormatCellValue(fmtArgs.Value, fmtStr ?? fmtArgs.FormatString);
+                                    bool isChecked = cell?.Value is bool bv && bv;
+                                    RenderCheckBoxCell(g, theme, isChecked, dx, y, dw2, _rowHeight);
+                                }
+                                else if (cd.CellEditType == DataGridViewColumnEditType.Button)
+                                {
+                                    string btnText = cd.ButtonText ?? cell?.Value?.ToString() ?? "";
+                                    RenderButtonCell(g, theme, btnText, cd.ButtonIcon, dx, y, dw2, _rowHeight, zoom, EffectiveFont, i, c);
                                 }
                                 else
                                 {
-                                    fmtVal = fmtArgs.Value;
+                                    var fmtVal = cell?.Value;
+                                    var fmtStr = cd.FormatString;
+                                    var fmtArgs = new DataGridViewCellFormattingEventArgs(c, i, cell?.Value, fmtStr);
+                                    OnCellFormatting(fmtArgs);
+                                    if (!fmtArgs.FormattingApplied)
+                                    {
+                                        fmtVal = FormatCellValue(fmtArgs.Value, fmtStr ?? fmtArgs.FormatString);
+                                    }
+                                    else
+                                    {
+                                        fmtVal = fmtArgs.Value;
+                                    }
+                                    var f = EffectiveFont;
+                                    int av = dw2 - 8;
+                                    string display = TruncateText(fmtVal?.ToString() ?? "", f, zoom, cd.TextAlign, av > 0 ? av : 0);
+                                    float tx = GetAlignedX(display, f, zoom, cd.TextAlign, dx, dw2, 4);
+                                    g.DrawString(display, f, tc, tx, y + (int)CoordinateTransform.CenterVertically(0, _rowHeight, f, zoom));
                                 }
-                                var f = EffectiveFont;
-                                int av = dw2 - 8;
-                                string display = TruncateText(fmtVal?.ToString() ?? "", f, zoom, cd.TextAlign, av > 0 ? av : 0);
-                                float tx = GetAlignedX(display, f, zoom, cd.TextAlign, dx, dw2, 4);
-                                g.DrawString(display, f, tc, tx, y + (int)CoordinateTransform.CenterVertically(0, _rowHeight, f, zoom));
                             }
                         }
                     }
@@ -706,38 +713,43 @@ public class DataGridView : ContainerControl
                                     // Skip rendering text for the cell currently being edited
                                     if (!(ri == _editingRowIndex && c == _editingColumnIndex))
                                     {
-                                        var cell = _rows[ri].Cells.Count > c ? _rows[ri].Cells[c] : null;
-                                        var cd = _columns[c];
-                                        if (cd.CellEditType == DataGridViewColumnEditType.CheckBox || cell?.Value is bool)
+                                        var cellPaintArgs = new DataGridViewCellPaintingEventArgs(c, ri, g, new Rectangle(dx, ry, dw2, _rowHeight));
+                                        OnCellPainting(cellPaintArgs);
+                                        if (!cellPaintArgs.Handled)
                                         {
-                                            bool isChecked = cell?.Value is bool bv && bv;
-                                            RenderCheckBoxCell(g, theme, isChecked, dx, ry, dw2, _rowHeight);
-                                        }
-                                        else if (cd.CellEditType == DataGridViewColumnEditType.Button)
-                                        {
-                                            string btnText = cd.ButtonText ?? cell?.Value?.ToString() ?? "";
-                                            RenderButtonCell(g, theme, btnText, cd.ButtonIcon, dx, ry, dw2, _rowHeight, zoom, EffectiveFont, ri, c);
-                                        }
-                                        else
-                                        {
-                                            var fmtVal = cell?.Value;
-                                            var fmtStr = cd.FormatString;
-                                            var fmtArgs = new DataGridViewCellFormattingEventArgs(c, ri, cell?.Value, fmtStr);
-                                            OnCellFormatting(fmtArgs);
-                                            if (!fmtArgs.FormattingApplied)
+                                            var cell = _rows[ri].Cells.Count > c ? _rows[ri].Cells[c] : null;
+                                            var cd = _columns[c];
+                                            if (cd.CellEditType == DataGridViewColumnEditType.CheckBox || cell?.Value is bool)
                                             {
-                                                fmtVal = FormatCellValue(fmtArgs.Value, fmtStr ?? fmtArgs.FormatString);
+                                                bool isChecked = cell?.Value is bool bv && bv;
+                                                RenderCheckBoxCell(g, theme, isChecked, dx, ry, dw2, _rowHeight);
+                                            }
+                                            else if (cd.CellEditType == DataGridViewColumnEditType.Button)
+                                            {
+                                                string btnText = cd.ButtonText ?? cell?.Value?.ToString() ?? "";
+                                                RenderButtonCell(g, theme, btnText, cd.ButtonIcon, dx, ry, dw2, _rowHeight, zoom, EffectiveFont, ri, c);
                                             }
                                             else
                                             {
-                                                fmtVal = fmtArgs.Value;
+                                                var fmtVal = cell?.Value;
+                                                var fmtStr = cd.FormatString;
+                                                var fmtArgs = new DataGridViewCellFormattingEventArgs(c, ri, cell?.Value, fmtStr);
+                                                OnCellFormatting(fmtArgs);
+                                                if (!fmtArgs.FormattingApplied)
+                                                {
+                                                    fmtVal = FormatCellValue(fmtArgs.Value, fmtStr ?? fmtArgs.FormatString);
+                                                }
+                                                else
+                                                {
+                                                    fmtVal = fmtArgs.Value;
+                                                }
+                                                var f = EffectiveFont;
+                                                var tc = sel ? theme.HighlightText : theme.DataGridViewCellText;
+                                                int av = dw2 - 8;
+                                                string display = TruncateText(fmtVal?.ToString() ?? "", f, zoom, cd.TextAlign, av > 0 ? av : 0);
+                                                float tx = GetAlignedX(display, f, zoom, cd.TextAlign, dx, dw2, 4);
+                                                g.DrawString(display, f, tc, tx, ry + (int)CoordinateTransform.CenterVertically(0, _rowHeight, f, zoom));
                                             }
-                                            var f = EffectiveFont;
-                                            var tc = sel ? theme.HighlightText : theme.DataGridViewCellText;
-                                            int av = dw2 - 8;
-                                            string display = TruncateText(fmtVal?.ToString() ?? "", f, zoom, cd.TextAlign, av > 0 ? av : 0);
-                                            float tx = GetAlignedX(display, f, zoom, cd.TextAlign, dx, dw2, 4);
-                                            g.DrawString(display, f, tc, tx, ry + (int)CoordinateTransform.CenterVertically(0, _rowHeight, f, zoom));
                                         }
                                     }
                                 }

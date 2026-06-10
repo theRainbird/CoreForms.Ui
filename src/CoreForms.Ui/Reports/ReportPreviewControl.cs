@@ -195,7 +195,6 @@ public class ReportPreviewControl : Control
         var page = _pages[_currentPageIndex];
         float pageW = page.Width.ToPixelF(96) * _zoom;
         float pageH = page.Height.ToPixelF(96) * _zoom;
-        int sbSize = ScrollBarEngine.DefaultScrollBarSize;
 
         int viewW = Width;
         int viewH = Height;

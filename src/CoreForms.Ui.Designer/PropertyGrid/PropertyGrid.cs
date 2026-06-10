@@ -26,6 +26,9 @@ public class PropertyGrid : ContainerControl
     private const int DropdownArrowWidth = 20;
     private const int DropdownItemHeight = 22;
     private const int MaxDropdownHeight = 150;
+    private const int ColorSwatchSize = 18;
+    private const int ColorPaletteCols = 17;
+    private const int ColorPaletteMaxVisibleRows = 10;
 
     private string? _activeCategory;
     private PropertyGridRow? _editingRow;
@@ -36,6 +39,14 @@ public class PropertyGrid : ContainerControl
     private int _dropdownValueX;
     private int _dropdownRowY;
     private int _dropdownItemCount;
+
+   private PropertyGridRow? _colorPickerRow;
+    private int _colorPickerX;
+    private int _colorPickerY;
+    private int _colorPickerWidth;
+    private int _rgbEditingChannel = -1;
+    private PropertyGridRow? _rgbPickerRow;
+    private int _systemColorHoveredIndex = -1;
 
     /// <summary>
     /// Gets the current target control whose properties are being edited.
@@ -97,13 +108,96 @@ public class PropertyGrid : ContainerControl
         }
     }
 
-    protected override void OnMouseDown(EventArgs e)
+   protected override void OnMouseDown(EventArgs e)
     {
         if (e is not MouseEventArgs args) return;
 
         int rowIndex = HitTestRow(args.Y);
 
-       // Handle dropdown open
+        // Handle color picker open
+        if (_colorPickerRow != null && _colorPickerRow.IsColorPickerOpen)
+        {
+            int gridStartY = PropertyGridRow.SystemColorComboBoxHeight;
+            int gridBottom = gridStartY + (PropertyGridRow.ColorPaletteMaxVisibleRows - 1) * 19;
+            int dropdownHeight = PropertyGridRow.SystemColorCount * PropertyGridRow.SystemColorDropdownItemHeight;
+            int totalPickerHeight = PropertyGridRow.SystemColorComboBoxHeight +
+                Math.Max(dropdownHeight, gridBottom - gridStartY) +
+                PropertyGridRow.RgbSectionHeight;
+
+            if (args.X >= _colorPickerX && args.X < _colorPickerX + _colorPickerWidth &&
+                args.Y >= _colorPickerY && args.Y < _colorPickerY + totalPickerHeight)
+            {
+                int rgbY = _colorPickerY + gridBottom;
+
+                   if (args.Y >= rgbY && args.Y < rgbY + PropertyGridRow.RgbSectionHeight)
+                    {
+                        int channelIndex = _colorPickerRow.HandleRgbClick(
+                            _colorPickerX, _colorPickerY, args.X, args.Y, _colorPickerWidth);
+                        if (channelIndex >= 0)
+                        {
+                            _rgbEditingChannel = channelIndex;
+                            _rgbPickerRow = _colorPickerRow;
+                            Invalidate();
+                            return;
+                        }
+
+                        int rgbTop = 6;
+                        int rgbLeft = _colorPickerX + 8;
+                        int labelWidth = 20;
+                        int inputWidth = PropertyGridRow.RgbInputWidth;
+                        int spacing = 6;
+                        int channelTotalWidth = labelWidth + inputWidth;
+                        int rgbAreaWidth = 3 * (channelTotalWidth + spacing) - spacing;
+                        int okX = rgbLeft + rgbAreaWidth + 16;
+                        int okY = rgbY + rgbTop;
+                        int okWidth = 60;
+                        int okHeight = 24;
+                        if (args.X >= okX && args.X < okX + okWidth && args.Y >= okY && args.Y < okY + okHeight)
+                        {
+                            _colorPickerRow.CommitRgbFromBuffers();
+                            _colorPickerRow = null;
+                            _rgbEditingChannel = -1;
+                            _rgbPickerRow = null;
+                            CapturingMouse = false;
+                            Invalidate();
+                            return;
+                        }
+                    }
+
+                  int colorIndex = _colorPickerRow.HandleColorPickerClick(
+                        _colorPickerX, _colorPickerY, args.X, args.Y, _colorPickerWidth);
+                    if (colorIndex >= 0)
+                    {
+                        _colorPickerRow.CommitColorSelection(colorIndex);
+                        _colorPickerRow = null;
+                        _rgbEditingChannel = -1;
+                        _rgbPickerRow = null;
+                        CapturingMouse = false;
+                    }
+                    else if (colorIndex == -2)
+                    {
+                        _colorPickerRow.CancelColorPicker();
+                        _colorPickerRow = null;
+                        _rgbEditingChannel = -1;
+                        _rgbPickerRow = null;
+                        CapturingMouse = false;
+                    }
+                    Invalidate();
+                    return;
+            }
+            else
+            {
+                _colorPickerRow.CancelColorPicker();
+                _colorPickerRow = null;
+                _rgbEditingChannel = -1;
+                _rgbPickerRow = null;
+                CapturingMouse = false;
+                Invalidate();
+                return;
+            }
+        }
+
+        // Handle dropdown open
         if (_dropdownOpen && _dropdownRow != null)
         {
             if (args.X >= _dropdownValueX && args.X < _dropdownValueX + ValueColumnWidth &&
@@ -148,13 +242,27 @@ public class PropertyGrid : ContainerControl
         {
             var row = _rows[rowIndex];
             int rowY = GetRowY(rowIndex);
-            int valueX = NameColumnWidth + 4;
-            int valueWidth = Width - valueX - 8;
+            int valueX = NameColumnWidth;
+            int valueWidth = Width - valueX;
             bool dropdownOpened = row.HandleClick(args.X, args.Y, valueX, valueWidth);
 
             if (dropdownOpened)
             {
-                OpenEnumDropdown(row, valueX, rowY);
+                if (row.IsColorProperty)
+                {
+                    row.StartColorPicker();
+                    _dropdownValueX = valueX;
+                    _colorPickerRow = row;
+                    _colorPickerX = valueX;
+                    _colorPickerY = rowY;
+                    _colorPickerWidth = valueWidth;
+                    CapturingMouse = true;
+                    Invalidate();
+                }
+                else
+                {
+                    OpenEnumDropdown(row, valueX, rowY);
+                }
             }
             else if (row.IsEditing)
             {
@@ -219,6 +327,14 @@ public class PropertyGrid : ContainerControl
     {
         CloseEnumDropdown();
 
+        if (_colorPickerRow != null)
+        {
+            _colorPickerRow.CancelColorPicker();
+            _colorPickerRow = null;
+            _rgbEditingChannel = -1;
+            _rgbPickerRow = null;
+        }
+
         _dropdownOpen = true;
         _dropdownRow = row;
         _dropdownSelectedIndex = row.EnumSelectedIndex;
@@ -232,6 +348,15 @@ public class PropertyGrid : ContainerControl
 
     private void CloseEnumDropdown()
     {
+        if (_colorPickerRow != null)
+        {
+            _colorPickerRow.CancelColorPicker();
+            _colorPickerRow = null;
+            _rgbEditingChannel = -1;
+            _rgbPickerRow = null;
+            CapturingMouse = false;
+        }
+
         if (!_dropdownOpen) return;
 
         _dropdownOpen = false;
@@ -257,8 +382,133 @@ public class PropertyGrid : ContainerControl
         base.OnTextInput(text);
     }
 
-    protected override void OnKeyDown(KeyEventArgs e)
+   protected override void OnKeyDown(KeyEventArgs e)
     {
+        // RGB channel editing
+        if (_rgbEditingChannel >= 0 && _rgbPickerRow != null)
+        {
+            if (e.KeyCode == Keys.Escape)
+            {
+                _rgbPickerRow._rgbEditingChannel = -1;
+                _rgbPickerRow._rgbRBuffer = string.Empty;
+                _rgbPickerRow._rgbGBuffer = string.Empty;
+                _rgbPickerRow._rgbBBuffer = string.Empty;
+                _rgbEditingChannel = -1;
+                _rgbPickerRow = null;
+                Invalidate();
+                e.Handled = true;
+                return;
+            }
+
+            if (e.KeyCode == Keys.Enter || e.KeyCode == Keys.Tab)
+            {
+                _rgbPickerRow.CommitRgbFromBuffers();
+                _colorPickerRow = null;
+                _rgbEditingChannel = -1;
+                _rgbPickerRow = null;
+                CapturingMouse = false;
+                Invalidate();
+                e.Handled = true;
+                return;
+            }
+
+            if (e.KeyCode == Keys.Escape)
+            {
+                _rgbPickerRow._rgbEditingChannel = -1;
+                _rgbEditingChannel = -1;
+                _rgbPickerRow = null;
+                Invalidate();
+                e.Handled = true;
+                return;
+            }
+
+            if (e.KeyCode >= Keys.D0 && e.KeyCode <= Keys.D9)
+            {
+                char key = (char)('0' + (e.KeyCode - Keys.D0));
+                _rgbPickerRow.HandleRgbInput(key);
+                Invalidate();
+                e.Handled = true;
+                return;
+            }
+
+           // NumPad keys handled via TextInput
+
+            if (e.KeyCode == Keys.Back || e.KeyCode == Keys.Delete)
+            {
+                _rgbPickerRow.HandleRgbInput('\b');
+                Invalidate();
+                e.Handled = true;
+                return;
+            }
+        }
+
+        // Color picker keyboard handling
+        if (_colorPickerRow != null && _colorPickerRow.IsColorPickerOpen)
+        {
+            switch (e.KeyCode)
+            {
+                case Keys.Escape:
+                    _colorPickerRow.CancelColorPicker();
+                    _colorPickerRow = null;
+                    Invalidate();
+                    e.Handled = true;
+                    return;
+
+                case Keys.Enter:
+                    if (_colorPickerRow.ColorPickerHoveredIndex >= 0)
+                    {
+                        _colorPickerRow.CommitColorSelection(_colorPickerRow.ColorPickerHoveredIndex);
+                    }
+                    _colorPickerRow = null;
+                    Invalidate();
+                    e.Handled = true;
+                    return;
+
+                case Keys.Up:
+                    {
+                        int idx = _colorPickerRow.ColorPickerHoveredIndex;
+                        if (idx < 0) idx = 0;
+                        else idx -= ColorPaletteCols;
+                        if (idx < 0) idx = 0;
+                        _colorPickerRow.SetColorPickerHovered(Math.Min(idx, PropertyGridRow.ColorPalette.Length - 1));
+                        Invalidate();
+                        e.Handled = true;
+                        return;
+                    }
+                case Keys.Down:
+                    {
+                        int idx = _colorPickerRow.ColorPickerHoveredIndex;
+                        if (idx < 0) idx = 0;
+                        else idx += ColorPaletteCols;
+                        _colorPickerRow.SetColorPickerHovered(Math.Min(idx, PropertyGridRow.ColorPalette.Length - 1));
+                        Invalidate();
+                        e.Handled = true;
+                        return;
+                    }
+                case Keys.Left:
+                    {
+                        int idx = _colorPickerRow.ColorPickerHoveredIndex;
+                        if (idx < 0) idx = 1;
+                        else if (idx % ColorPaletteCols > 0) idx--;
+                        _colorPickerRow.SetColorPickerHovered(idx);
+                        Invalidate();
+                        e.Handled = true;
+                        return;
+                    }
+                case Keys.Right:
+                    {
+                        int idx = _colorPickerRow.ColorPickerHoveredIndex;
+                        if (idx < 0) idx = 1;
+                        else if ((idx + 1) % ColorPaletteCols != 0) idx++;
+                        _colorPickerRow.SetColorPickerHovered(Math.Min(idx, PropertyGridRow.ColorPalette.Length - 1));
+                        Invalidate();
+                        e.Handled = true;
+                        return;
+                    }
+            }
+            return;
+        }
+
         if (_dropdownOpen && _dropdownRow != null)
         {
             switch (e.KeyCode)
@@ -343,20 +593,100 @@ public class PropertyGrid : ContainerControl
         base.OnKeyDown(e);
     }
 
-    protected override void OnMouseMove(EventArgs e)
+   protected override void OnMouseMove(EventArgs e)
     {
+        // Handle color picker hover
+        if (_colorPickerRow != null && _colorPickerRow.IsColorPickerOpen && e is MouseEventArgs mouseArgs)
+        {
+            int localX = mouseArgs.X - _colorPickerX;
+            int localY = mouseArgs.Y - _colorPickerY;
+
+           int totalPickerHeight = PropertyGridRow.SystemColorComboBoxHeight +
+                Math.Max(PropertyGridRow.SystemColorCount * PropertyGridRow.SystemColorDropdownItemHeight,
+                    (PropertyGridRow.ColorPaletteMaxVisibleRows - 1) * 19) +
+                PropertyGridRow.RgbSectionHeight;
+
+            if (localX >= 0 && localY >= 0 && localX < _colorPickerWidth && localY < totalPickerHeight)
+            {
+                int systemColorAreaHeight = PropertyGridRow.SystemColorComboBoxHeight +
+                    PropertyGridRow.SystemColorCount * PropertyGridRow.SystemColorDropdownItemHeight;
+                int gridStartY = PropertyGridRow.SystemColorComboBoxHeight;
+                int gridBottom = gridStartY + (PropertyGridRow.ColorPaletteMaxVisibleRows - 1) * 19;
+
+                // ComboBox area hover
+                if (localY < gridStartY)
+                {
+                    _systemColorHoveredIndex = -1;
+                    _colorPickerRow.SetSystemColorHovered(-1);
+                }
+                // System colors dropdown hover (only when open)
+                else if (_colorPickerRow._systemColorDropdownOpen && localY >= gridStartY && localY < systemColorAreaHeight)
+                {
+                    int dropIndex = (localY - gridStartY) / PropertyGridRow.SystemColorDropdownItemHeight;
+                    if (dropIndex >= 0 && dropIndex < PropertyGridRow.SystemColorCount)
+                    {
+                        if (_systemColorHoveredIndex != dropIndex)
+                        {
+                            _systemColorHoveredIndex = dropIndex;
+                            _colorPickerRow.SetSystemColorHovered(dropIndex);
+                            Invalidate();
+                        }
+                        _colorPickerRow.SetColorPickerHovered(-999);
+                    }
+                    else
+                    {
+                        _systemColorHoveredIndex = -1;
+                        _colorPickerRow.SetSystemColorHovered(-1);
+                    }
+                }
+                // Color grid hover
+                else if (localY >= gridStartY && localY < gridBottom)
+                {
+                    int gridY = localY - gridStartY;
+                    int row = gridY / 19;
+                    int col = localX / 19;
+
+                    _systemColorHoveredIndex = -1;
+                    _colorPickerRow.SetSystemColorHovered(-1);
+
+                    if (col >= 0 && col < ColorPaletteCols && row >= 0 && row < ColorPaletteMaxVisibleRows - 1)
+                    {
+                        int index = PropertyGridRow.SystemColorCount + row * ColorPaletteCols + col;
+                        if (_colorPickerRow.ColorPickerHoveredIndex != index)
+                        {
+                            _colorPickerRow.SetColorPickerHovered(index);
+                            Invalidate();
+                        }
+                    }
+                    else if (_colorPickerRow.ColorPickerHoveredIndex != -1 &&
+                             _colorPickerRow.ColorPickerHoveredIndex < PropertyGridRow.SystemColorCount)
+                    {
+                        _colorPickerRow.SetColorPickerHovered(-1);
+                        Invalidate();
+                    }
+                }
+            }
+            else if (_colorPickerRow.ColorPickerHoveredIndex != -1)
+            {
+                _colorPickerRow.SetColorPickerHovered(-1);
+                Invalidate();
+            }
+            return;
+        }
+
         if (!_dropdownOpen || _dropdownRow == null)
         {
             base.OnMouseMove(e);
             return;
         }
 
-        if (e is MouseEventArgs mouseArgs)
+        if (e is MouseEventArgs)
         {
-            if (mouseArgs.X >= _dropdownValueX && mouseArgs.X < _dropdownValueX + ValueColumnWidth &&
-                mouseArgs.Y >= _dropdownRowY + RowHeight && mouseArgs.Y < _dropdownRowY + RowHeight + _dropdownItemCount * DropdownItemHeight)
+            MouseEventArgs me = (MouseEventArgs)e;
+            if (me.X >= _dropdownValueX && me.X < _dropdownValueX + ValueColumnWidth &&
+                me.Y >= _dropdownRowY + RowHeight && me.Y < _dropdownRowY + RowHeight + _dropdownItemCount * DropdownItemHeight)
             {
-                int hoveredIndex = (mouseArgs.Y - _dropdownRowY - RowHeight) / DropdownItemHeight;
+                int hoveredIndex = (me.Y - _dropdownRowY - RowHeight) / DropdownItemHeight;
                 if (hoveredIndex >= 0 && hoveredIndex < _dropdownItemCount)
                 {
                     if (_dropdownHoveredIndex != hoveredIndex)
@@ -396,6 +726,13 @@ public class PropertyGrid : ContainerControl
         {
             _dropdownRow?.CancelEdit();
             CloseEnumDropdown();
+        }
+
+        if (_colorPickerRow != null && _colorPickerRow.IsColorPickerOpen)
+        {
+            _colorPickerRow.CancelColorPicker();
+            _colorPickerRow = null;
+            CapturingMouse = false;
         }
 
         base.OnLostFocus(e);
@@ -446,11 +783,104 @@ public class PropertyGrid : ContainerControl
         }
     }
 
-    public override void RenderOverlay(Graphics g)
+   public override void RenderOverlay(Graphics g)
     {
+        var theme = ThemeManager.CurrentTheme;
+
+        // Color picker overlay
+        if (_colorPickerRow != null && _colorPickerRow.IsColorPickerOpen)
+        {
+            int paletteWidth = Math.Max(340, Width - NameColumnWidth);
+            int totalPickerHeight = PropertyGridRow.SystemColorComboBoxHeight +
+                Math.Max(PropertyGridRow.SystemColorCount * PropertyGridRow.SystemColorDropdownItemHeight,
+                    (PropertyGridRow.ColorPaletteMaxVisibleRows - 1) * 19) +
+                PropertyGridRow.RgbSectionHeight;
+
+            Form? topForm = null;
+            Control? current = this;
+            while (current != null)
+            {
+                if (current is Form form)
+                {
+                    topForm = form;
+                    break;
+                }
+                current = current.Parent;
+            }
+
+            // Convert PropertyGrid position to form coordinates
+            int gridFormX = 0, gridFormY = 0;
+            if (topForm != null)
+            {
+                Control? c = this;
+                while (c != null && c != topForm)
+                {
+                    gridFormX += c.X;
+                    gridFormY += c.Y;
+                    c = c.Parent;
+                }
+            }
+
+            int formLeft = topForm?.ClientRectangle.Left ?? 0;
+            int formRight = topForm?.ClientRectangle.Right ?? ClientRectangle.Right;
+            int formTop = topForm?.ClientRectangle.Top ?? 0;
+            int formBottom = topForm?.ClientRectangle.Bottom ?? ClientRectangle.Bottom;
+
+            // Palette edges in form coordinates
+            int paletteFormX = gridFormX + _dropdownValueX;
+            int paletteFormY = gridFormY + _dropdownRowY + RowHeight;
+
+            // Available space in each direction
+            int spaceRight = formRight - (paletteFormX + paletteWidth);
+            int spaceLeft = paletteFormX - formLeft;
+            int spaceBelow = formBottom - (paletteFormY + totalPickerHeight);
+            int spaceAbove = paletteFormY - formTop;
+
+            // Horizontal: prefer side with more space
+            int paletteX;
+            if (spaceLeft > spaceRight && spaceLeft >= paletteWidth)
+                paletteX = _dropdownValueX + ValueColumnWidth - paletteWidth;
+            else
+                paletteX = _dropdownValueX;
+
+            // Clamp horizontal to form bounds
+            int paletteFormX2 = gridFormX + paletteX;
+            if (paletteFormX2 < formLeft)
+                paletteX = formLeft - gridFormX;
+            if (paletteFormX2 + paletteWidth > formRight)
+                paletteWidth = Math.Max(200, formRight - paletteFormX2);
+
+            // Vertical: prefer side with more space
+            int paletteY;
+            if (spaceAbove > spaceBelow && spaceAbove >= totalPickerHeight)
+                paletteY = _dropdownRowY - totalPickerHeight;
+            else
+                paletteY = _dropdownRowY + RowHeight;
+
+            // Clamp vertical to form bounds
+            int paletteFormY2 = gridFormY + paletteY;
+            if (paletteFormY2 < formTop)
+                paletteY = formTop - gridFormY;
+            if (paletteFormY2 + totalPickerHeight > formBottom)
+                paletteY = formBottom - totalPickerHeight - gridFormY;
+
+            PropertyGridRow.DrawColorPalette(g, paletteX, paletteY, paletteWidth,
+                _colorPickerRow.ColorPickerHoveredIndex,
+                _colorPickerRow.ColorPickerSelectedIndex,
+                _colorPickerRow._rgbRBuffer,
+                _colorPickerRow._rgbGBuffer,
+                _colorPickerRow._rgbBBuffer,
+                _colorPickerRow._rgbEditingChannel,
+                theme,
+                _colorPickerRow._systemColorDropdownOpen,
+                _systemColorHoveredIndex);
+
+            CapturingMouse = true;
+            return;
+        }
+
         if (!_dropdownOpen || _dropdownRow == null) return;
 
-        var theme = ThemeManager.CurrentTheme;
         int dropdownHeight = Math.Min(_dropdownItemCount * DropdownItemHeight, MaxDropdownHeight);
 
         // Background overlay

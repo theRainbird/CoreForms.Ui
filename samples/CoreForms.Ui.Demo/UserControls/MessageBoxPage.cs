@@ -1,7 +1,8 @@
 using CoreForms.Ui.Controls.Basic;
 using CoreForms.Ui.Controls;
-using Graphics = CoreForms.Ui.Rendering.Graphics;
 using CoreForms.Ui.Core;
+using CoreForms.Ui.Core.Dialogs;
+using Graphics = CoreForms.Ui.Rendering.Graphics;
 
 namespace CoreForms.Ui.Demo.UserControls;
 
@@ -76,6 +77,14 @@ public class MessageBoxPage : UserControl
             OnStatusTextChanged(string.Format(SR.GetString("StatusResultFormat"), result));
         };
 
+        var colorPickerButton = new Button { Text = SR.GetString("BtnColorPicker"), Location = new Point(10, 145), Size = new Size(180, 35) };
+        colorPickerButton.Click += (s, e) =>
+        {
+            var initialColor = Color.FromArgb(255, 0, 0);
+            var result = ColorPickerDialog.ShowDialog(initialColor, false);
+            OnStatusTextChanged(string.Format(SR.GetString("StatusColorPickerResult"), result, initialColor));
+        };
+
         Controls.Add(infoButton);
         Controls.Add(warningButton);
         Controls.Add(errorButton);
@@ -84,6 +93,7 @@ public class MessageBoxPage : UserControl
         Controls.Add(yesNoCancelButton);
         Controls.Add(retryButton);
         Controls.Add(abortButton);
+        Controls.Add(colorPickerButton);
     }
 
     private void OnStatusTextChanged(string text)

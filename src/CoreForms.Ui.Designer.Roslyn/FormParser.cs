@@ -57,6 +57,33 @@ public class FormParser
         { "DataGridView", typeof(DataGridView) },
     };
 
+    private static readonly Dictionary<string, Color> _namedColors = new(StringComparer.OrdinalIgnoreCase)
+    {
+        // Color static fields
+        { "White", Color.White },
+        { "Black", Color.Black },
+        { "Red", Color.Red },
+        { "Green", Color.Green },
+        { "Blue", Color.Blue },
+        { "Yellow", Color.Yellow },
+        { "Transparent", Color.Transparent },
+        { "Empty", Color.Empty },
+
+        // SystemColors fields
+        { "Control", SystemColors.Control },
+        { "ControlText", SystemColors.ControlText },
+        { "Window", SystemColors.Window },
+        { "WindowText", SystemColors.WindowText },
+        { "Highlight", SystemColors.Highlight },
+        { "HighlightText", SystemColors.HighlightText },
+        { "ActiveCaption", SystemColors.ActiveCaption },
+        { "ActiveCaptionText", SystemColors.ActiveCaptionText },
+        { "InactiveCaption", SystemColors.InactiveCaption },
+        { "ControlLight", SystemColors.ControlLight },
+        { "ControlDark", SystemColors.ControlDark },
+        { "GrayText", SystemColors.GrayText },
+    };
+
     /// <summary>
     /// Parses the given source code and populates the design surface with the reconstructed controls.
     /// </summary>
@@ -310,15 +337,39 @@ public class FormParser
         // Color.FromArgb(...)
         if (rawValue.StartsWith("Color.FromArgb("))
         {
-            var m = System.Text.RegularExpressions.Regex.Match(rawValue, @"Color\.ArgbFrom\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*\)");
-            if (!m.Success)
+            // Color.FromArgb(R, G, B) — opaque (3 args)
+            var m = System.Text.RegularExpressions.Regex.Match(rawValue, @"Color\.FromArgb\s*\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*\)");
+            if (m.Success)
             {
-                m = System.Text.RegularExpressions.Regex.Match(rawValue, @"Color\.Argb\s*\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*\)");
+                return Core.Color.FromArgb(
+                    int.Parse(m.Groups[1].Value),
+                    int.Parse(m.Groups[2].Value),
+                    int.Parse(m.Groups[3].Value));
             }
-            if (!m.Success)
+
+            // Color.FromArgb(R, G, B, A) — transparent (4 args)
+            m = System.Text.RegularExpressions.Regex.Match(rawValue, @"Color\.FromArgb\s*\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*\)");
+            if (m.Success)
             {
-                m = System.Text.RegularExpressions.Regex.Match(rawValue, @"Color\.FromArgb\s*\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*\)");
+                return Core.Color.FromArgb(
+                    int.Parse(m.Groups[1].Value),
+                    int.Parse(m.Groups[2].Value),
+                    int.Parse(m.Groups[3].Value),
+                    int.Parse(m.Groups[4].Value));
             }
+
+            // Legacy variants (ArgbFrom, Argb) — kept for backward compatibility
+            m = System.Text.RegularExpressions.Regex.Match(rawValue, @"Color\.ArgbFrom\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*\)");
+            if (m.Success)
+            {
+                return Core.Color.FromArgb(
+                    int.Parse(m.Groups[1].Value),
+                    int.Parse(m.Groups[2].Value),
+                    int.Parse(m.Groups[3].Value),
+                    int.Parse(m.Groups[4].Value));
+            }
+
+            m = System.Text.RegularExpressions.Regex.Match(rawValue, @"Color\.Argb\s*\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*\)");
             if (m.Success)
             {
                 return Core.Color.FromArgb(
@@ -343,6 +394,23 @@ public class FormParser
                     return Enum.Parse(propType, parts[1]);
                 }
                 catch { /* ignore */ }
+            }
+        }
+
+        // Named color references (e.g., Color.White, SystemColors.Control)
+        if (propType == typeof(Color) && rawValue.Contains('.'))
+        {
+            var parts = rawValue.Split('.');
+            if (parts.Length == 2)
+            {
+                string typeName = parts[0];
+                string memberName = parts[1];
+
+                if (typeName == "Color" || typeName == "SystemColors")
+                {
+                    if (_namedColors.TryGetValue(memberName, out var namedColor))
+                        return namedColor;
+                }
             }
         }
 

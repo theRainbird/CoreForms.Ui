@@ -1255,9 +1255,9 @@ public class CalendarView : ContainerControl
 
         // Draw focus border on all segments
         var firstBounds = firstEntry.Value.Bounds;
-        var lastBounds = lastEntry.Value.Bounds;
+        var lastBounds = lastEntry!.Value.Bounds;
         bool isMultiDay = count > 1;
-        bool canEdit = _allowEdit && !_selectedAppointment.IsReadOnly;
+        bool canEdit = _allowEdit && !_selectedAppointment!.IsReadOnly;
 
         foreach (var layout in layouts)
         {

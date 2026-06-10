@@ -367,4 +367,6 @@
   <data name="AppointmentConference"><value>Conference</value></data>
   <data name="GroupFontPicker"><value>Font Picker</value></data>
   <data name="FontPickerLabel"><value>Choose a font</value></data>
+  <data name="BtnColorPicker"><value>Color Picker</value></data>
+  <data name="StatusColorPickerResult"><value>Dialog result: {0}</value></data>
 </root>

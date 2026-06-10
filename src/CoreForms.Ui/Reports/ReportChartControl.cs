@@ -1017,5 +1017,5 @@ public class ReportChartControl : ReportControl
         return Color.FromArgb(c.A, gray, gray, gray);
     }
 
-    private float CmToPx(Cm value, ReportRenderContext context) => value.ToPixelF(context.RenderDpi);
+    private new float CmToPx(Cm value, ReportRenderContext context) => value.ToPixelF(context.RenderDpi);
 }

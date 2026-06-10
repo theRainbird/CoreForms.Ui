@@ -251,7 +251,7 @@ public class ReportCrossTab : ReportControl
                     if (cellData.TryGetValue((cellKey, vi), out var list) && list.Count > 0)
                         value = AggregateValues(list, valFields[vi].Aggregation);
 
-                    string fmt = valFields[vi].Format;
+                    string fmt = valFields[vi].Format ?? string.Empty;
                     string valText = FormatValueRaw(value, fmt);
                     Color valColor = GrayScale ? Desaturate(ForeColor) : ForeColor;
                     DrawCellText(g, valText, dataFnt, valColor,

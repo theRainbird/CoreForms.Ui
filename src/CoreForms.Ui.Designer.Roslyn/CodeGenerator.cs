@@ -185,7 +185,42 @@ public class CodeGenerator
 
     private static string FormatPoint(Point p) => $"new Point({p.X}, {p.Y})";
     private static string FormatSize(Size s) => $"new Size({s.Width}, {s.Height})";
-    private static string FormatColor(Color c) => $"Color.FromArgb({c.A}, {c.R}, {c.G}, {c.B})";
+    private static string FormatColor(Color c)
+    {
+        // Emit named color references when they match known colors
+        if (c.A == 255)
+        {
+            if (c == Color.White) return "Color.White";
+            if (c == Color.Black) return "Color.Black";
+            if (c == Color.Red) return "Color.Red";
+            if (c == Color.Green) return "Color.Green";
+            if (c == Color.Blue) return "Color.Blue";
+            if (c == Color.Yellow) return "Color.Yellow";
+            if (c == Color.Transparent) return "Color.Transparent";
+
+            // SystemColors — resolved at runtime, not fixed RGB
+            if (c == SystemColors.Control) return "SystemColors.Control";
+            if (c == SystemColors.ControlText) return "SystemColors.ControlText";
+            if (c == SystemColors.Window) return "SystemColors.Window";
+            if (c == SystemColors.WindowText) return "SystemColors.WindowText";
+            if (c == SystemColors.Highlight) return "SystemColors.Highlight";
+            if (c == SystemColors.HighlightText) return "SystemColors.HighlightText";
+            if (c == SystemColors.ActiveCaption) return "SystemColors.ActiveCaption";
+            if (c == SystemColors.ActiveCaptionText) return "SystemColors.ActiveCaptionText";
+            if (c == SystemColors.InactiveCaption) return "SystemColors.InactiveCaption";
+            if (c == SystemColors.ControlLight) return "SystemColors.ControlLight";
+            if (c == SystemColors.ControlDark) return "SystemColors.ControlDark";
+            if (c == SystemColors.GrayText) return "SystemColors.GrayText";
+        }
+        else
+        {
+            if (c == Color.Transparent) return "Color.Transparent";
+            if (c == Color.Empty) return "Color.Empty";
+        }
+
+        // Fall back to RGB for custom colors
+        return $"Color.FromArgb({c.R}, {c.G}, {c.B}{(c.A < 255 ? $", {c.A}" : "")})";
+    }
     private static string Quote(string s) => string.IsNullOrEmpty(s) ? "" : $"\"{EscapeString(s)}\"";
     private static string EscapeString(string s) => s.Replace("\\", "\\\\").Replace("\"", "\\\"").Replace("\n", "\\n").Replace("\r", "\\r").Replace("\t", "\\t");
 }

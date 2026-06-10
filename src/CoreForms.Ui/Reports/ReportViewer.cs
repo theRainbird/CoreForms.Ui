@@ -114,20 +114,20 @@ public class ReportViewer : UserControl
     {
         Size = new Size(800, 600);
 
-        var btnFirst = new ToolStripButton(Icons.Previous) { DisplayStyle = ToolStripItemDisplayStyle.Image };
-        var btnPrev = new ToolStripButton(Icons.Left) { DisplayStyle = ToolStripItemDisplayStyle.Image };
-        var btnNext = new ToolStripButton(Icons.Right) { DisplayStyle = ToolStripItemDisplayStyle.Image };
-        var btnLast = new ToolStripButton(Icons.Next) { DisplayStyle = ToolStripItemDisplayStyle.Image };
+        var btnFirst = new ToolStripButton(Icons.Previous!) { DisplayStyle = ToolStripItemDisplayStyle.Image };
+        var btnPrev = new ToolStripButton(Icons.Left!) { DisplayStyle = ToolStripItemDisplayStyle.Image };
+        var btnNext = new ToolStripButton(Icons.Right!) { DisplayStyle = ToolStripItemDisplayStyle.Image };
+        var btnLast = new ToolStripButton(Icons.Next!) { DisplayStyle = ToolStripItemDisplayStyle.Image };
 
         btnFirst.Click += (_, _) => _preview.FirstPage();
         btnPrev.Click += (_, _) => _preview.PreviousPage();
         btnNext.Click += (_, _) => _preview.NextPage();
         btnLast.Click += (_, _) => _preview.LastPage();
 
-        var btnPrint = new ToolStripButton("Print", Icons.Print) { DisplayStyle = ToolStripItemDisplayStyle.ImageAndText };
+        var btnPrint = new ToolStripButton("Print", Icons.Print!) { DisplayStyle = ToolStripItemDisplayStyle.ImageAndText };
         btnPrint.Click += (_, _) => PrintReport();
 
-        var btnExport = new ToolStripButton("PDF", Icons.DocumentText24) { DisplayStyle = ToolStripItemDisplayStyle.ImageAndText };
+        var btnExport = new ToolStripButton("PDF", Icons.DocumentText24!) { DisplayStyle = ToolStripItemDisplayStyle.ImageAndText };
         btnExport.Click += (_, _) => ExportPdf();
 
         _txtZoom.TextChanged += (_, _) =>

@@ -252,6 +252,17 @@ public static class Platform
                 Action<IKeyboard, Key, int> keyDown = (kb, key, keyCode) =>
                 {
                     Log($"[Platform] KeyDown: key={key} focusedWindow='{_focusedWindow?.Text}' windowId={windowId}");
+                    // If this form is the owner of a modal dialog, route keyboard to the modal
+                    if (_modalOwnerMap.TryGetValue(form, out var modalForm) && modalForm.Handle != IntPtr.Zero)
+                    {
+                        var modalArgs = new KeyEventArgs
+                        {
+                            KeyCode = MapKeyCode(key),
+                            Modifiers = MapModifierKeys(keyboard)
+                        };
+                        modalForm.OnKeyDown(modalArgs);
+                        return;
+                    }
                     if (_focusedWindow == null) return;
                     var args = new KeyEventArgs
                     {
@@ -265,6 +276,16 @@ public static class Platform
 
                 Action<IKeyboard, Key, int> keyUp = (kb, key, keyCode) =>
                 {
+                    if (_modalOwnerMap.TryGetValue(form, out var modalForm) && modalForm.Handle != IntPtr.Zero)
+                    {
+                        var modalArgs = new KeyEventArgs
+                        {
+                            KeyCode = MapKeyCode(key),
+                            Modifiers = MapModifierKeys(keyboard)
+                        };
+                        modalForm.OnKeyUp(modalArgs);
+                        return;
+                    }
                     if (_focusedWindow == null) return;
                     var args = new KeyEventArgs
                     {
@@ -278,6 +299,11 @@ public static class Platform
 
                 Action<IKeyboard, char> keyChar = (kb, ch) =>
                 {
+                    if (_modalOwnerMap.TryGetValue(form, out var modalForm) && modalForm.Handle != IntPtr.Zero)
+                    {
+                        modalForm.OnTextInput(ch.ToString());
+                        return;
+                    }
                     if (_focusedWindow == null) return;
                     _focusedWindow.OnTextInput(ch.ToString());
                 };
@@ -293,13 +319,27 @@ public static class Platform
             {
                 Action<IMouse, MouseButton> mouseDown = (m, button) =>
                 {
-                    // Block input to forms that are owners of active modal dialogs
+                    // Block input to forms that are owners of active modal dialogs,
+                    // and try to refocus the modal (works on X11, best-effort on Wayland).
                     if (_modalOwnerMap.ContainsKey(form))
+                    {
+                        Log($"[Platform] MouseDown BLOCKED for owner form='{form.Text}'");
+                        if (_modalOwnerMap.TryGetValue(form, out var modalForm) &&
+                            modalForm.Handle != IntPtr.Zero &&
+                            _contexts.TryGetValue(modalForm.WindowId, out var modalCtx))
+                        {
+                            modalCtx.Window.Focus();
+                            modalCtx.Window.IsVisible = true;
+                        }
                         return;
-                    var pos = mouse.Position;
+                    }
+                    // Use 'm' (the IMouse parameter) not the captured variable — Silk.NET may
+                    // recreate the IMouse object after focus transitions (Wayland/GLFW).
+                    var pos = m.Position;
                     float zoom = form.Zoom;
                     var point = new Point((int)(pos.X / zoom), (int)(pos.Y / zoom));
                     var btn = MapMouseButton(button);
+                    Log($"[Platform] MouseDown form='{form.Text}' btn={btn} pos=({point.X},{point.Y})");
                     var args = new MouseEventArgs(btn, 1, point.X, point.Y, 0);
                     form.OnMouseDown(args);
                 };
@@ -308,7 +348,7 @@ public static class Platform
 
                 Action<IMouse, MouseButton> mouseUp = (m, button) =>
                 {
-                    var pos = mouse.Position;
+                    var pos = m.Position;
                     float zoom = form.Zoom;
                     var point = new Point((int)(pos.X / zoom), (int)(pos.Y / zoom));
                     var btn = MapMouseButton(button);
@@ -333,7 +373,8 @@ public static class Platform
 
                 Action<IMouse, ScrollWheel> scroll = (m, wheel) =>
                 {
-                    var point = _lastMousePosition;
+                    float zoom = form.Zoom;
+                    var point = new Point((int)(m.Position.X / zoom), (int)(m.Position.Y / zoom));
                     var args = new MouseEventArgs(MouseButtons.None, 0, point.X, point.Y, wheel.Y);
                     form.OnMouseWheel(args);
                 };
@@ -369,12 +410,31 @@ public static class Platform
                 Log($"[Platform] FocusChanged: focused={focused} windowId={windowId} form='{form.Text}'");
                 if (focused)
                 {
-                    // If this form is the owner of a modal dialog, redirect focus to the modal
+                    // Always trigger a re-render when focus is regained (Alt+Tab back, etc.)
+                    form.Invalidate();
+
+                    // Force at least one render pass regardless of IsVisible state.
+                    // After Alt+Tab the compositor may lag and IsVisible can still be false
+                    // even though the window has focus. ForceRender ensures the window renders
+                    // and is cleared after one successful render.
+                    if (_contexts.TryGetValue(windowId, out var ctx))
+                        ctx.ForceRender = true;
+
+                    // If this form is the owner of a modal dialog, redirect focus to the modal.
+                    // Window.Focus() is required on Wayland where mouse events are only
+                    // delivered to the focused window. On some GLFW/Wayland versions this
+                    // may be a no-op — IsVisible = true is an additional fallback that forces
+                    // the compositor to bring the surface to the foreground.
                     if (_modalOwnerMap.TryGetValue(form, out var modalForm) &&
                         modalForm.Handle != IntPtr.Zero &&
                         _contexts.TryGetValue(modalForm.WindowId, out var modalCtx))
                     {
                         try { modalCtx.Window.Focus(); } catch { }
+                        try { modalCtx.Window.IsVisible = true; } catch { }
+                        modalCtx.ForceRender = true;
+                        _focusedWindow = modalForm;
+                        modalForm.Focused = true;
+                        modalForm.OnGotFocus(EventArgs.Empty);
                         return;
                     }
                     _focusedWindow = form;
@@ -385,6 +445,10 @@ public static class Platform
                 {
                     form.Focused = false;
                     form.OnLostFocus(EventArgs.Empty);
+                    // Clear the global focused window on focus loss to prevent stale references.
+                    // Without this, keyboard events may be routed to a window that no longer has focus.
+                    if (_focusedWindow == form)
+                        _focusedWindow = null;
                 }
             };
             window.FocusChanged += focusChanged;
@@ -397,6 +461,19 @@ public static class Platform
             };
             window.Move += move;
             cleanup.Add(() => window.Move -= move);
+
+            Action<WindowState> stateChanged = state =>
+            {
+                form.WindowState = state switch
+                {
+                    Silk.NET.Windowing.WindowState.Minimized => FormWindowState.Minimized,
+                    Silk.NET.Windowing.WindowState.Maximized => FormWindowState.Maximized,
+                    _ => FormWindowState.Normal
+                };
+                form.Invalidate();
+            };
+            window.StateChanged += stateChanged;
+            cleanup.Add(() => window.StateChanged -= stateChanged);
 
             try
             {
@@ -814,7 +891,15 @@ public static class Platform
 
             try
             {
+                // Safeguard against DoEvents blocking indefinitely on some platforms.
+                // Under normal conditions DoEvents returns in <1ms. A 2-second threshold
+                // detects hangs without interfering with normal operation.
+                var sw = Stopwatch.StartNew();
                 ctx.DoEvents();
+                if (sw.ElapsedMilliseconds > 2000)
+                {
+                    Console.WriteLine($"[Platform] WARNING: DoEvents took {sw.ElapsedMilliseconds}ms for window id={ctx.WindowId} form='{ctx.Form.Text}'");
+                }
             }
             catch { }
 
@@ -850,12 +935,16 @@ public static class Platform
 
             var form = ctx.Form;
 
-            // Skip if no invalidation has occurred since last render
-            if (!form.RequiresRender)
-                continue;
-
             // Skip minimized windows
             if (form.WindowState == FormWindowState.Minimized)
+                continue;
+
+            // Skip hidden windows — SwapBuffers can block indefinitely on some Linux
+            // GPU drivers when the window is not on the current virtual desktop or
+            // is fully obscured by other windows. GLFW does not fire any event to
+            // notify us, so we must check IsVisible explicitly. ForceRender overrides
+            // this check to ensure at least one render pass after focus transitions.
+            if (!ctx.Window.IsVisible && !ctx.ForceRender)
                 continue;
 
             try
@@ -863,8 +952,15 @@ public static class Platform
                 ctx.Window.MakeCurrent();
                 RenderForm(ctx);
                 ctx.Window.SwapBuffers();
+                // Clear ForceRender after a successful render pass.
+                ctx.ForceRender = false;
             }
-            catch { }
+            catch (Exception ex)
+            {
+                // Clear ForceRender even on error to avoid infinite forced renders.
+                ctx.ForceRender = false;
+                Console.WriteLine($"[Platform] Render error for '{form.Text}': {ex.GetType().Name} - {ex.Message}");
+            }
         }
 
         _lastRenderTicks = _frameTimer.Elapsed.Ticks;

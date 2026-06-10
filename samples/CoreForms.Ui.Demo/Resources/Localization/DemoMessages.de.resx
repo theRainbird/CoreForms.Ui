@@ -346,4 +346,6 @@
   <data name="AppointmentConference"><value>Konferenz</value></data>
   <data name="GroupFontPicker"><value>Schriftartauswahl</value></data>
   <data name="FontPickerLabel"><value>Schriftart auswählen</value></data>
+  <data name="BtnColorPicker"><value>Farbauswahl</value></data>
+  <data name="StatusColorPickerResult"><value>Dialogergebnisse: {0}</value></data>
 </root>

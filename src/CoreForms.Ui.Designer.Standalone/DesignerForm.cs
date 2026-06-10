@@ -30,6 +30,9 @@ public class DesignerForm : Form
 
     private const int ToolboxWidth = 220;
     private const int StatusBarHeight = 24;
+    private const int PropertyGridWidth = 276;
+
+    private SplitPanel _mainContentSplit = null!;
 
     /// <summary>
     /// Initializes a new instance.
@@ -39,7 +42,7 @@ public class DesignerForm : Form
         Title = "CoreForms Form Designer";
         Width = 1400;
         Height = 900;
-        Zoom = 1.0f;
+        Zoom = 1.25f;
 
         _toolboxService = new ToolboxService();
         _designSurface = new DesignSurface();
@@ -70,25 +73,40 @@ public class DesignerForm : Form
         _toolboxPanel.Controls.Add(_toolbox);
         Controls.Add(_toolboxPanel);
 
-        _designSurface.Dock = DockStyle.Fill;
+        var mainContentSplit = new SplitPanel
+        {
+            Dock = DockStyle.Fill,
+            Orientation = SplitOrientation.Horizontal,
+            SplitterWidth = 6,
+            Panel1MinSize = 150,
+            Panel2MinSize = 180
+        };
+        _mainContentSplit = mainContentSplit;
+
         _designSurface.BackColor = Color.FromArgb(240, 240, 240);
-        Controls.Add(_designSurface);
+        mainContentSplit.Panel1.Controls.Add(_designSurface);
+        _designSurface.Dock = DockStyle.Fill;
 
         var propertyPanel = new Panel
         {
-            Dock = DockStyle.Right,
-            Width = 280,
+            Dock = DockStyle.Fill,
             Padding = new Padding(4, 0, 0, 0),
             BackColor = ThemeManager.CurrentTheme.ControlBackground
         };
         _propertyGrid.Dock = DockStyle.Fill;
         propertyPanel.Controls.Add(_propertyGrid);
-        Controls.Add(propertyPanel);
+        mainContentSplit.Panel2.Controls.Add(propertyPanel);
+
+        Controls.Add(mainContentSplit);
 
         BuildStatusStrip();
         Controls.Add(_statusPanel!);
 
         ResumeLayout();
+
+        _mainContentSplit.SplitterDistance = Math.Max(
+            _mainContentSplit.Panel1MinSize,
+            _mainContentSplit.Width - _mainContentSplit.SplitterWidth - PropertyGridWidth);
     }
 
     private MenuStrip BuildMenuStrip()
@@ -204,6 +222,13 @@ public class DesignerForm : Form
         _designSurface.ContentModified += (_, _) =>
         {
             _statusLabel.Text = "Geändert";
+        };
+
+        Resize += (_, _) =>
+        {
+            _mainContentSplit.SplitterDistance = Math.Max(
+                _mainContentSplit.Panel1MinSize,
+                _mainContentSplit.Width - _mainContentSplit.SplitterWidth - PropertyGridWidth);
         };
     }
 
