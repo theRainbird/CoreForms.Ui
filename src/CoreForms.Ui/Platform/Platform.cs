@@ -34,6 +34,14 @@ public static class Platform
 
     private static readonly Dictionary<Form, Form> _modalOwnerMap = new();
 
+    /// <summary>
+    /// Stores the modal form that needs focus after the next DoEvents cycle.
+    /// Used to defer focus redirection until after DoEvents returns, avoiding
+    /// a deadlock on Wayland where Window.Focus() blocks waiting for the compositor
+    /// while the compositor is waiting for DoEvents to process its response.
+    /// </summary>
+    private static Form? _deferredFocusRedirect;
+
     [DllImport("kernel32.dll", SetLastError = true, CharSet = CharSet.Auto)]
     private static extern IntPtr GetModuleHandle(string lpModuleName);
 
@@ -320,16 +328,15 @@ public static class Platform
                 Action<IMouse, MouseButton> mouseDown = (m, button) =>
                 {
                     // Block input to forms that are owners of active modal dialogs,
-                    // and try to refocus the modal (works on X11, best-effort on Wayland).
+                    // and try to refocus the modal. Use deferred focus redirect to avoid
+                    // deadlock on Wayland where Window.Focus() blocks inside DoEvents.
                     if (_modalOwnerMap.ContainsKey(form))
                     {
                         Log($"[Platform] MouseDown BLOCKED for owner form='{form.Text}'");
                         if (_modalOwnerMap.TryGetValue(form, out var modalForm) &&
-                            modalForm.Handle != IntPtr.Zero &&
-                            _contexts.TryGetValue(modalForm.WindowId, out var modalCtx))
+                            modalForm.Handle != IntPtr.Zero)
                         {
-                            modalCtx.Window.Focus();
-                            modalCtx.Window.IsVisible = true;
+                            _deferredFocusRedirect = modalForm;
                         }
                         return;
                     }
@@ -421,17 +428,16 @@ public static class Platform
                         ctx.ForceRender = true;
 
                     // If this form is the owner of a modal dialog, redirect focus to the modal.
-                    // Window.Focus() is required on Wayland where mouse events are only
-                    // delivered to the focused window. On some GLFW/Wayland versions this
-                    // may be a no-op — IsVisible = true is an additional fallback that forces
-                    // the compositor to bring the surface to the foreground.
+                    // DO NOT call Window.Focus() here — on Wayland it blocks waiting for
+                    // the compositor while the compositor is waiting for DoEvents to process
+                    // its response, causing a deadlock. Instead, set _deferredFocusRedirect
+                    // so the redirect is processed after DoEvents returns.
                     if (_modalOwnerMap.TryGetValue(form, out var modalForm) &&
-                        modalForm.Handle != IntPtr.Zero &&
-                        _contexts.TryGetValue(modalForm.WindowId, out var modalCtx))
+                        modalForm.Handle != IntPtr.Zero)
                     {
-                        try { modalCtx.Window.Focus(); } catch { }
-                        try { modalCtx.Window.IsVisible = true; } catch { }
-                        modalCtx.ForceRender = true;
+                        if (_contexts.TryGetValue(modalForm.WindowId, out var modalCtx))
+                            modalCtx.ForceRender = true;
+                        _deferredFocusRedirect = modalForm;
                         _focusedWindow = modalForm;
                         modalForm.Focused = true;
                         modalForm.OnGotFocus(EventArgs.Empty);
@@ -889,17 +895,18 @@ public static class Platform
                 continue;
             }
 
+            // Skip DoEvents for owner windows that have an active modal dialog.
+            // On Wayland, background windows don't receive events from the compositor,
+            // so DoEvents would block indefinitely waiting for events that never arrive.
+            // The owner is disabled during modal state and doesn't need event processing.
+            // System events (close, resize) will be delivered when the modal closes
+            // and the owner window comes back to the foreground.
+            if (_modalOwnerMap.ContainsKey(ctx.Form))
+                continue;
+
             try
             {
-                // Safeguard against DoEvents blocking indefinitely on some platforms.
-                // Under normal conditions DoEvents returns in <1ms. A 2-second threshold
-                // detects hangs without interfering with normal operation.
-                var sw = Stopwatch.StartNew();
                 ctx.DoEvents();
-                if (sw.ElapsedMilliseconds > 2000)
-                {
-                    Console.WriteLine($"[Platform] WARNING: DoEvents took {sw.ElapsedMilliseconds}ms for window id={ctx.WindowId} form='{ctx.Form.Text}'");
-                }
             }
             catch { }
 
@@ -907,9 +914,23 @@ public static class Platform
                 pendingCleanup.Add(ctx);
         }
 
+        // Process deferred focus redirect after DoEvents has completed.
+        // This avoids deadlock on Wayland where Window.Focus() blocks inside DoEvents.
+        if (_deferredFocusRedirect != null)
+        {
+            var target = _deferredFocusRedirect;
+            _deferredFocusRedirect = null;
+
+            if (target.Handle != IntPtr.Zero && _contexts.TryGetValue(target.WindowId, out var targetCtx))
+            {
+                try { targetCtx.Window.Focus(); } catch { }
+                try { targetCtx.Window.IsVisible = true; } catch { }
+                targetCtx.ForceRender = true;
+            }
+        }
+
         foreach (var ctx in pendingCleanup)
         {
-            Log($"[Platform] Deferred cleanup: id={ctx.WindowId} form='{ctx.Form.Text}'");
             CleanupWindowOnClose(ctx.WindowId, ctx, ctx.Form, glCleanup: false);
             // Actually close and hide the Silk.NET window (CleanupWindowOnClose only removes
             // from _contexts and disposes renderers, but does not destroy the native window)
