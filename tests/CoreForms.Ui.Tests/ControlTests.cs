@@ -1708,4 +1708,53 @@ public class ControlTests
         comboBox.Columns.Add(new ComboBoxColumn { HeaderText = "Name", Width = 100, DataPropertyName = nameof(TestPerson.Name) });
         Assert.Equal("Alice", comboBox.Text);
     }
+
+    [Fact]
+    public void TabControl_MouseClick_ShouldReachChildNearBottomOfContentArea()
+    {
+        const int tabHeaderHeight = 26;
+        var tabControl = new TabControl();
+        tabControl.Size = new Size(400, tabHeaderHeight + 200);
+        var tabPage = new TabPage();
+        var button = new Button { Location = new Point(10, 175), Size = new Size(100, 25) };
+        tabPage.Controls.Add(button);
+        tabControl.AddTabPage(tabPage);
+        tabControl.PerformLayout();
+
+        Assert.Equal(tabHeaderHeight + 200, tabControl.Height);
+        Assert.Equal(200, tabPage.Height);
+
+        var clicked = false;
+        button.Click += (s, e) => clicked = true;
+
+        var mouseDownArgs = new MouseEventArgs(MouseButtons.Left, 1, 60, tabHeaderHeight + 190, 0);
+        var mouseUpArgs = new MouseEventArgs(MouseButtons.Left, 1, 60, tabHeaderHeight + 190, 0);
+        tabControl.OnMouseDown(mouseDownArgs);
+        tabControl.OnMouseUp(mouseUpArgs);
+
+        Assert.True(clicked, "Click at bottom of content area should reach button");
+    }
+
+    [Fact]
+    public void TabControl_MouseClick_ShouldReachChildAtExactBottomOfContentArea()
+    {
+        const int tabHeaderHeight = 26;
+        var tabControl = new TabControl();
+        tabControl.Size = new Size(400, tabHeaderHeight + 200);
+        var tabPage = new TabPage();
+        var button = new Button { Location = new Point(10, 175), Size = new Size(100, 25) };
+        tabPage.Controls.Add(button);
+        tabControl.AddTabPage(tabPage);
+        tabControl.PerformLayout();
+
+        var clicked = false;
+        button.Click += (s, e) => clicked = true;
+
+        var mouseDownArgs = new MouseEventArgs(MouseButtons.Left, 1, 60, tabHeaderHeight + 199, 0);
+        var mouseUpArgs = new MouseEventArgs(MouseButtons.Left, 1, 60, tabHeaderHeight + 199, 0);
+        tabControl.OnMouseDown(mouseDownArgs);
+        tabControl.OnMouseUp(mouseUpArgs);
+
+        Assert.True(clicked, "Click at exact bottom edge of content area should reach button");
+    }
 }

@@ -58,20 +58,16 @@ namespace CoreForms.Ui.Core.Dialogs
         public static DialogResult ShowDialog(Color initialColor, bool isSystemColor, Form? owner = null)
         {
             var dialog = new ColorPickerDialog(initialColor, isSystemColor);
-            
+            dialog.Size = new Size(450, 500);
+
             if (owner != null)
             {
                 dialog.Zoom = owner.Zoom;
-                dialog.Size = owner.Size;
             }
-            else
-            {
-                dialog.Size = new Size(450, 500);
-            }
-            
+
             dialog.Text = LangRes.GetString("ColorPickerDialog_Title");
             dialog.FormBorderStyle = FormBorderStyle.FixedDialog;
-            
+
             return dialog.ShowDialog((IWin32Window?)owner);
         }
         
@@ -88,6 +84,8 @@ namespace CoreForms.Ui.Core.Dialogs
         {
             base.OnShown(e);
             SetupDialog();
+            MarkLayoutDirty();
+            PerformLayout();
         }
 
         private void SetupDialog()

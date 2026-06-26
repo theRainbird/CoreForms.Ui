@@ -47,7 +47,7 @@ public class LayoutPage : UserControl
         var addButton = new Button
         {
             Text = "Add Item",
-            Location = new Point(10, 345),
+            Location = new Point(10, 340),
             Size = new Size(100, 25),
             Anchor = AnchorStyles.Bottom | AnchorStyles.Left
         };
@@ -61,7 +61,7 @@ public class LayoutPage : UserControl
         var removeButton = new Button
         {
             Text = "Remove Last",
-            Location = new Point(120, 345),
+            Location = new Point(120, 340),
             Size = new Size(100, 25),
             Anchor = AnchorStyles.Bottom | AnchorStyles.Left
         };

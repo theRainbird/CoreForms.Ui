@@ -894,13 +894,10 @@ public static class Platform
                     pendingCleanup.Add(ctx);
                 continue;
             }
-
-            // Skip DoEvents for owner windows that have an active modal dialog.
-            // On Wayland, background windows don't receive events from the compositor,
-            // so DoEvents would block indefinitely waiting for events that never arrive.
-            // The owner is disabled during modal state and doesn't need event processing.
-            // System events (close, resize) will be delivered when the modal closes
-            // and the owner window comes back to the foreground.
+         // Skip DoEvents for owner windows that have an active modal dialog.
+            // On Wayland, DoEvents blocks indefinitely for background windows because
+            // the compositor doesn't send events. Focus redirect to the modal is handled
+            // via Window.Focus() after the DoEvents loop below.
             if (_modalOwnerMap.ContainsKey(ctx.Form))
                 continue;
 
@@ -909,7 +906,6 @@ public static class Platform
                 ctx.DoEvents();
             }
             catch { }
-
             if (ctx.IsClosing && _contexts.ContainsKey(ctx.WindowId))
                 pendingCleanup.Add(ctx);
         }
@@ -928,6 +924,29 @@ public static class Platform
                 targetCtx.ForceRender = true;
             }
         }
+
+        // Ensure modal dialogs retain focus when their owner windows gain focus.
+        // Since we skip DoEvents for owner windows, the FocusChanged handler never fires.
+        // This check ensures that if a modal dialog is open and _focusedWindow is NOT
+        // the modal, we redirect focus back to the modal.
+        if (_modalOwnerMap.Count > 0)
+        {
+            var modalForm = _modalOwnerMap.Values.First();
+            if (_focusedWindow != modalForm)
+            {
+                _focusedWindow = modalForm;
+                modalForm.Focused = true;
+                modalForm.OnGotFocus(EventArgs.Empty);
+
+                if (modalForm.Handle != IntPtr.Zero && _contexts.TryGetValue(modalForm.WindowId, out var modalCtx))
+                {
+                    try { modalCtx.Window.Focus(); } catch { }
+                    try { modalCtx.Window.IsVisible = true; } catch { }
+                    modalCtx.ForceRender = true;
+                }
+            }
+        }
+
 
         foreach (var ctx in pendingCleanup)
         {

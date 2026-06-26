@@ -206,6 +206,8 @@ public class TabControl : ContainerControl
 
     /// <summary>
     /// Gets the child control at the specified point, returning null for clicks in the tab header area.
+    /// Adjusts the point by the tab header offset before checking bounds, since the TabPage
+    /// is visually rendered below the header but its Bounds origin is at (0,0).
     /// </summary>
     /// <param name="point">The point to test, in TabControl coordinates.</param>
     /// <returns>The child control at the point, or null if in the header area.</returns>
@@ -214,9 +216,8 @@ public class TabControl : ContainerControl
         var tabHeaderHeight = TabHeaderHeight;
         if (point.Y < tabHeaderHeight)
             return null;
-        var contentPoint = new Point(point.X, point.Y - tabHeaderHeight);
-        // Only the selected tab page should receive hits
-        if (SelectedTab != null && SelectedTab.HitTest(contentPoint))
+        var adjusted = new Point(point.X, point.Y - tabHeaderHeight);
+        if (SelectedTab != null && SelectedTab.HitTest(adjusted))
             return SelectedTab;
         return null;
     }
