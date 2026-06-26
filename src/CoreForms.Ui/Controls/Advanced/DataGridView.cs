@@ -1515,6 +1515,7 @@ public class DataGridView : ContainerControl
                     : (column.TrueValue ?? true);
                 NotifyCellValueChanged(_editingColumnIndex, _editingRowIndex, cell.Value);
                 OnCellValueChanged(new DataGridViewCellEventArgs(_editingColumnIndex, _editingRowIndex));
+                if (_groupedColumnIndices.Count > 0) BuildGroups();
                 Invalidate();
                 return null; // No persistent editor needed
             }
@@ -1616,6 +1617,18 @@ public class DataGridView : ContainerControl
                     cell.Value = value;
                     NotifyCellValueChanged(col, row, value);
                     OnCellValueChanged(new DataGridViewCellEventArgs(col, row));
+                    // Rebuild groups after commit (catches non-INotifyPropertyChanged properties)
+                    if (_groupedColumnIndices.Count > 0)
+                    {
+                        var selItem = _selectedRowIndex >= 0 && _selectedRowIndex < _rows.Count
+                            ? _rows[_selectedRowIndex].DataBoundItem : null;
+                        BuildGroups();
+                        if (selItem != null)
+                        {
+                            int newIdx = FindRowIndexByDataBoundItem(selItem);
+                            if (newIdx >= 0) _selectedRowIndex = newIdx;
+                        }
+                    }
                 }
                 catch (Exception ex)
                 {
@@ -1686,6 +1699,15 @@ public class DataGridView : ContainerControl
         else if (rb > _vScrollBar.Value + dH) _vScrollBar.Value = rb - dH;
     }
 
+    private int FindRowIndexByDataBoundItem(object? item)
+    {
+        if (item == null) return -1;
+        for (int i = 0; i < _rows.Count; i++)
+            if (ReferenceEquals(_rows[i].DataBoundItem, item))
+                return i;
+        return -1;
+    }
+
     protected virtual void OnDataSourceChanged()
     {
         if (_dataSourceUpdating) return;
@@ -1725,37 +1747,58 @@ public class DataGridView : ContainerControl
         switch (e.ListChangedType)
         {
             case ListChangedType.ItemAdded:
-                if (e.NewIndex >= 0 && e.NewIndex <= _rows.Count)
+                if (e.NewIndex >= 0 && e.NewIndex <= bl.Count)
                 {
-                    var item = bl[e.NewIndex]; var nr = CreateRowFromDataItem(item);
-                    if (e.NewIndex < _rows.Count)
-                    {
-                        var tmp = new List<DataGridViewRow>(); while (_rows.Count > e.NewIndex) { tmp.Add(_rows[_rows.Count - 1]); _rows.Remove(_rows[_rows.Count - 1]); }
-                        _rows.Add(nr); while (tmp.Count > 0) { var r = tmp[tmp.Count - 1]; tmp.RemoveAt(tmp.Count - 1); _rows.Add(r); }
-                    }
-                    else _rows.Add(nr);
+                    var item = bl[e.NewIndex];
+                    _rows.Add(CreateRowFromDataItem(item));
                     if (g) BuildGroups(); else if (_sortColumnIndex >= 0) SortRows(); Invalidate();
                 }
                 break;
             case ListChangedType.ItemDeleted:
-                if (e.NewIndex >= 0 && e.NewIndex < _rows.Count)
+                if (e.NewIndex >= 0)
                 {
-                    var rows = new List<DataGridViewRow>(); for (int i = 0; i < _rows.Count; i++) if (i != e.NewIndex) rows.Add(_rows[i]);
-                    _rows.Clear(); foreach (var r in rows) _rows.Add(r);
+                    var remaining = new HashSet<object>();
+                    foreach (var item in bl)
+                        if (item != null) remaining.Add(item);
+                    // Collect rows whose DataBoundItem is no longer in the BindingList
+                    var deadRows = new List<DataGridViewRow>();
+                    for (int i = 0; i < _rows.Count; i++)
+                    {
+                        var di = _rows[i].DataBoundItem;
+                        if (di != null && !remaining.Contains(di))
+                            deadRows.Add(_rows[i]);
+                    }
+                    foreach (var r in deadRows)
+                        _rows.Remove(r);
                     if (_selectedRowIndex >= _rows.Count) _selectedRowIndex = Math.Max(0, _rows.Count - 1);
                     if (g) BuildGroups(); else if (_sortColumnIndex >= 0) SortRows(); Invalidate();
                 }
                 break;
             case ListChangedType.ItemChanged:
-                if (e.NewIndex >= 0 && e.NewIndex < _rows.Count && e.NewIndex < bl.Count)
+                if (e.NewIndex >= 0 && e.NewIndex < bl.Count)
                 {
-                    var item = bl[e.NewIndex]; _rows[e.NewIndex].DataBoundItem = item;
-                    if (!string.IsNullOrEmpty(_columns[0].DataPropertyName))
+                    var item = bl[e.NewIndex];
+                    // Find the row by DataBoundItem identity (BindingList indices may not match _rows after sorting)
+                    var selItem = _selectedRowIndex >= 0 && _selectedRowIndex < _rows.Count
+                        ? _rows[_selectedRowIndex].DataBoundItem : null;
+                    int gridIdx = FindRowIndexByDataBoundItem(item);
+                    if (gridIdx >= 0)
                     {
-                        var ur = CreateRowFromDataItem(item); _rows[e.NewIndex].Cells.Clear();
-                        foreach (var c in ur.Cells) _rows[e.NewIndex].Cells.Add(c);
+                        _rows[gridIdx].DataBoundItem = item;
+                        if (!string.IsNullOrEmpty(_columns[0].DataPropertyName))
+                        {
+                            var ur = CreateRowFromDataItem(item);
+                            _rows[gridIdx].Cells.Clear();
+                            foreach (var c in ur.Cells) _rows[gridIdx].Cells.Add(c);
+                        }
+                        if (g) BuildGroups(); else if (_sortColumnIndex >= 0) SortRows(); Invalidate();
+                        // Restore selected row after rebuild
+                        if (selItem != null)
+                        {
+                            int newIdx = FindRowIndexByDataBoundItem(selItem);
+                            if (newIdx >= 0) _selectedRowIndex = newIdx;
+                        }
                     }
-                    if (g) BuildGroups(); else if (_sortColumnIndex >= 0) SortRows(); Invalidate();
                 }
                 break;
             case ListChangedType.Reset:
@@ -1857,6 +1900,13 @@ public class DataGridView : ContainerControl
 
     protected void BuildGroups()
     {
+        // Preserve collapsed state across rebuild
+        var collapsedState = new Dictionary<string, bool>();
+        foreach (var g in _allGroups)
+        {
+            string key = $"{g.ColumnIndex}_{g.Level}_{g.Key?.ToString() ?? "\0"}";
+            collapsedState[key] = g.IsCollapsed;
+        }
         _groupRoots.Clear(); _allGroups.Clear();
         if (_groupedColumnIndices.Count == 0 || _rows.Count == 0) return;
         _rows.Sort((a, b) =>
@@ -1907,6 +1957,13 @@ public class DataGridView : ContainerControl
             var args = new DataGridViewGroupHeaderFormattingEventArgs(ci, g.Level, g.Key, g.TotalRowCount, def);
             OnGroupHeaderFormatting(args);
             g.CustomHeaderText = args.HeaderText; g.CustomFont = args.Font; g.CustomForeColor = args.ForeColor; g.CustomBackColor = args.BackColor; g.CustomTextAlign = args.TextAlign;
+        }
+        // Restore collapsed state
+        foreach (var g in _allGroups)
+        {
+            string key = $"{g.ColumnIndex}_{g.Level}_{g.Key?.ToString() ?? "\0"}";
+            if (collapsedState.TryGetValue(key, out bool collapsed))
+                g.IsCollapsed = collapsed;
         }
         if (_secondarySortColumnIndex >= 0) SortRowsWithinGroups();
     }
