@@ -154,7 +154,7 @@ public class DataGridPage : UserControl
 
         DataGrid = dataGrid;
 
-        Controls.Add(bottomPanel);
         Controls.Add(dataGrid);
+        Controls.Add(bottomPanel);
     }
 }

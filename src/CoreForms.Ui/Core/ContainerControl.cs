@@ -77,7 +77,7 @@ public class ContainerControl : Control
             var childLocal = new Point(
                 point.X - child.X - offset.X,
                 point.Y - child.Y - offset.Y);
-            Console.WriteLine($"[ContainerControl] GetDeepestChildAtPoint this={GetType().Name} point=({point.X},{point.Y}) child={child.GetType().Name} childLocal=({childLocal.X},{childLocal.Y}) offset=({offset.X},{offset.Y}) childPos=({child.X},{child.Y})");
+
             if (child is ContainerControl container)
             {
                 var deepest = container.GetDeepestChildAtPoint(childLocal, out var deepestLocal);

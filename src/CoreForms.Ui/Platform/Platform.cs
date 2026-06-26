@@ -212,7 +212,7 @@ public static class Platform
     {
         var options = WindowOptions.Default;
         options.Title = form.Text ?? string.Empty;
-        options.Size = new Vector2D<int>(form.Width > 0 ? form.Width : 800, form.Height > 0 ? form.Height : 600);
+        options.Size = new Vector2D<int>(form.Width > 0 ? (int)(form.Width * form.Zoom) : 800, form.Height > 0 ? (int)(form.Height * form.Zoom) : 600);
         options.IsVisible = true;
         options.ShouldSwapAutomatically = false;
         options.API = new GraphicsAPI(ContextAPI.OpenGL, ContextProfile.Core, ContextFlags.Default, new APIVersion(3, 3));
