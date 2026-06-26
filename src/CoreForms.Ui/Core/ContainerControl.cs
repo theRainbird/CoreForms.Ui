@@ -77,6 +77,7 @@ public class ContainerControl : Control
             var childLocal = new Point(
                 point.X - child.X - offset.X,
                 point.Y - child.Y - offset.Y);
+            Console.WriteLine($"[ContainerControl] GetDeepestChildAtPoint this={GetType().Name} point=({point.X},{point.Y}) child={child.GetType().Name} childLocal=({childLocal.X},{childLocal.Y}) offset=({offset.X},{offset.Y}) childPos=({child.X},{child.Y})");
             if (child is ContainerControl container)
             {
                 var deepest = container.GetDeepestChildAtPoint(childLocal, out var deepestLocal);
@@ -102,9 +103,11 @@ public class ContainerControl : Control
         if (args != null)
         {
             var point = new Point(args.X, args.Y);
+            Console.WriteLine($"[ContainerControl] OnMouseDown this={GetType().Name} point=({point.X},{point.Y})");
             var target = GetDeepestChildAtPoint(point, out var localPoint);
             if (target != null)
             {
+                Console.WriteLine($"[ContainerControl] Dispatch this={GetType().Name} target={target.GetType().Name} localPoint=({localPoint.X},{localPoint.Y})");
                 var localArgs = new MouseEventArgs(args.Button, args.Clicks, localPoint.X, localPoint.Y, args.Delta);
                 SetActiveControlRecursive(target);
                 target.OnMouseDown(localArgs);

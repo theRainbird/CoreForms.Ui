@@ -58,12 +58,19 @@ namespace CoreForms.Ui.Core.Dialogs
         public static DialogResult ShowDialog(Color initialColor, bool isSystemColor, Form? owner = null)
         {
             var dialog = new ColorPickerDialog(initialColor, isSystemColor);
-            dialog.Size = new Size(450, 500);
 
             if (owner != null)
             {
                 dialog.Zoom = owner.Zoom;
             }
+            else
+            {
+                var activeForm = CoreForms.Ui.Platform.Platform.FocusedWindow;
+                if (activeForm != null)
+                    dialog.Zoom = activeForm.Zoom;
+            }
+
+            dialog.Size = new Size(450, 500);
 
             dialog.Text = LangRes.GetString("ColorPickerDialog_Title");
             dialog.FormBorderStyle = FormBorderStyle.FixedDialog;
@@ -201,6 +208,7 @@ namespace CoreForms.Ui.Core.Dialogs
             colorCol.CellEditType = DataGridViewColumnEditType.None;
             _systemColorsGrid!.Columns.Add(colorCol);
 
+            int fieldIdx = 0;
             foreach (var field in fields)
             {
                 if (field.FieldType == typeof(Color))
@@ -209,7 +217,9 @@ namespace CoreForms.Ui.Core.Dialogs
                     {
                         var color = (Color)field.GetValue(null)!;
                         var name = field.Name;
+                        Console.WriteLine($"[CPD] SystemColor idx={fieldIdx} name={name}");
                         _systemColors.Add(new SystemColorEntry { Name = name, Color = color });
+                        fieldIdx++;
                     }
                     catch { }
                 }
@@ -274,7 +284,9 @@ namespace CoreForms.Ui.Core.Dialogs
             if (e is DataGridViewCellEventArgs cellArgs && cellArgs.RowIndex >= 0 && cellArgs.RowIndex < _systemColors.Count)
             {
                 var entry = _systemColors[cellArgs.RowIndex];
-                SelectColor(entry.Color, true);
+                _currentSelectedColor = entry.Color;
+                _isSystemColor = true;
+                _systemColorsGrid!.SelectedRowIndex = cellArgs.RowIndex;
             }
         }
 
@@ -342,11 +354,23 @@ namespace CoreForms.Ui.Core.Dialogs
 
         private void SelectSystemColor(Color color)
         {
-            int idx = _systemColors.FindIndex(x => x.Color.R == color.R && x.Color.G == color.G && x.Color.B == color.B && x.Color.A == color.A);
-            if (idx != -1)
+            int bestIdx = -1;
+            int bestDist = int.MaxValue;
+            for (int i = 0; i < _systemColors.Count; i++)
             {
-                _systemColorsGrid!.SelectedRowIndex = idx;
+                var sc = _systemColors[i].Color;
+                if (sc.R == color.R && sc.G == color.G && sc.B == color.B && sc.A == color.A)
+                {
+                    int dist = Math.Abs(i - _systemColorsGrid!.SelectedRowIndex);
+                    if (dist < bestDist)
+                    {
+                        bestDist = dist;
+                        bestIdx = i;
+                    }
+                }
             }
+            if (bestIdx != -1)
+                _systemColorsGrid!.SelectedRowIndex = bestIdx;
         }
 
         private void UpdateRGBBoxes(Color color)

@@ -830,19 +830,21 @@ public class DataGridView : ContainerControl
             if (grouped)
             {
                 var hit = HitTestGroupTree(_groupRoots, m.Y - daY + _vScrollBar.Value);
-                if (hit.group != null)
-                {
-                    if (hit.rowIndex < 0) { hit.group.IsCollapsed = !hit.group.IsCollapsed; Invalidate(); }
-                    else if (hit.rowIndex < hit.group.RowIndices.Count)
+                    if (hit.group != null)
                     {
-                        int actual = hit.group.RowIndices[hit.rowIndex];
-                        if (actual >= 0 && actual < _rows.Count && col >= 0 && col < _columns.Count) { _selectedRowIndex = actual; _selectedColumnIndex = col; OnCellClick(new DataGridViewCellEventArgs(col, actual)); OnSelectionChanged(); Invalidate(); }
+                        if (hit.rowIndex < 0) { hit.group.IsCollapsed = !hit.group.IsCollapsed; Invalidate(); }
+                        else if (hit.rowIndex < hit.group.RowIndices.Count)
+                        {
+                            int actual = hit.group.RowIndices[hit.rowIndex];
+                            Console.WriteLine($"[DataGridView] Grouped click: hitRow={hit.rowIndex} actualRow={actual}");
+                            if (actual >= 0 && actual < _rows.Count && col >= 0 && col < _columns.Count) { _selectedRowIndex = actual; _selectedColumnIndex = col; OnCellClick(new DataGridViewCellEventArgs(col, actual)); OnSelectionChanged(); Invalidate(); }
                     }
                 }
             }
             else
             {
                 int row = (m.Y - daY + _vScrollBar.Value) / _rowHeight;
+                Console.WriteLine($"[DataGridView] OnMouseDown m=({m.X},{m.Y}) daY={daY} scroll={_vScrollBar.Value} rowHeight={_rowHeight} row={row} rows.Count={_rows.Count} Height={Height} tch={GetTotalContentHeight()} col={col} columns.Count={_columns.Count}");
                 if (row >= 0 && row < _rows.Count && col >= 0 && col < _columns.Count)
                 {
                     // Handle button cell click
@@ -866,6 +868,33 @@ public class DataGridView : ContainerControl
                         OnCellClick(new DataGridViewCellEventArgs(col, row));
                         OnSelectionChanged();
                         Invalidate();
+                        // Show selected cell value in form title for visual debugging
+                        if (row >= 0 && row < _rows.Count && col >= 0 && col < _columns.Count && col < _rows[row].Cells.Count)
+                        {
+                            var val = _rows[row].Cells[col].Value;
+                            var f = FindForm();
+                            if (f != null && val != null)
+                                f.Text = $"Ausgewählt: {val}";
+                        }
+                    }
+                    // Log cell bounds for the selected row
+                    try
+                    {
+                        Console.WriteLine($"[DataGridView] Selected cell col={col} row={row} _columns.Count={_columns.Count}");
+                        if (col >= 0 && _columns != null && col < _columns.Count)
+                        {
+                            var cellRect = GetCellBounds(col, row);
+                            Console.WriteLine($"[DataGridView] Cell bounds=({cellRect.X},{cellRect.Y},{cellRect.Width},{cellRect.Height})");
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        Console.WriteLine($"[DataGridView] Error in cell bounds logging: {ex.Message}");
+                    }
+                    if (row >= 0 && row < _rows.Count && col >= 0 && col < _columns.Count && col < _rows[row].Cells.Count)
+                    {
+                        var val = _rows[row].Cells[col].Value;
+                        Console.WriteLine($"[DataGridView] Cell value='{val}'");
                     }
                 }
                 else if (row >= _rows.Count && _allowUserToAddRows) AddRow();
@@ -1229,6 +1258,8 @@ public class DataGridView : ContainerControl
             y = GetRowYInGroupedMode(rowIndex);
         else
             y = daY + rowIndex * _rowHeight - _vScrollBar.Value;
+
+        Console.WriteLine($"[DataGridView] GetCellBounds row={rowIndex} col={columnIndex} daY={daY} rhw={rhw} x={x} y={y} _rowHeight={_rowHeight} scroll={_vScrollBar.Value}");
 
         return new Rectangle(x, y, _columns[columnIndex].Width, _rowHeight);
     }

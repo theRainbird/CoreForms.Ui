@@ -1759,6 +1759,149 @@ public class ControlTests
     }
 
     [Fact]
+    public void DataGridView_UngroupedInsideTabControl_SelectsCorrectRow()
+    {
+        var tabControl = new CoreForms.Ui.Controls.Advanced.TabControl();
+        tabControl.Size = new Size(450, 450);
+        var tabPage = new CoreForms.Ui.Controls.Advanced.TabPage();
+        var grid = new CoreForms.Ui.Controls.Advanced.DataGridView();
+        grid.Dock = DockStyle.Fill;
+        grid.ColumnHeadersVisible = true;
+        grid.AllowUserToAddRows = false;
+        grid.Columns.Add(new CoreForms.Ui.Controls.Advanced.DataGridViewColumn { HeaderText = "Name", Width = 150 });
+        grid.Columns.Add(new CoreForms.Ui.Controls.Advanced.DataGridViewColumn { HeaderText = "Value", Width = 120 });
+        for (int i = 0; i < 12; i++)
+            grid.AddRow($"Item {i}", i);
+        tabPage.Controls.Add(grid);
+        tabControl.AddTabPage(tabPage);
+        tabControl.PerformLayout();
+        tabPage.PerformLayout();
+
+        int daY = grid.ColumnHeadersVisible ? 30 : 0;
+        // Row 0 renders at Y = daY + 0*30 = daY
+        grid.OnMouseDown(new MouseEventArgs(MouseButtons.Left, 1, 50, daY + 15, 0));
+        grid.OnMouseUp(new MouseEventArgs(MouseButtons.Left, 1, 50, daY + 15, 0));
+        Assert.Equal(0, grid.SelectedRowIndex);
+
+        // Row 5 renders at Y = daY + 5*30 = daY + 150
+        grid.OnMouseDown(new MouseEventArgs(MouseButtons.Left, 1, 50, daY + 150 + 15, 0));
+        grid.OnMouseUp(new MouseEventArgs(MouseButtons.Left, 1, 50, daY + 150 + 15, 0));
+        Assert.Equal(5, grid.SelectedRowIndex);
+
+        // Row 11 (last, 0-indexed) renders at Y = daY + 11*30 = daY + 330
+        grid.OnMouseDown(new MouseEventArgs(MouseButtons.Left, 1, 50, daY + 330 + 15, 0));
+        grid.OnMouseUp(new MouseEventArgs(MouseButtons.Left, 1, 50, daY + 330 + 15, 0));
+        Assert.Equal(11, grid.SelectedRowIndex);
+    }
+
+    [Fact]
+    public void DataGridView_UngroupedInsideTabControl_ClickThroughTabControl_SelectsCorrectRow()
+    {
+        var tabControl = new CoreForms.Ui.Controls.Advanced.TabControl();
+        tabControl.Size = new Size(450, 450);
+        var tabPage = new CoreForms.Ui.Controls.Advanced.TabPage();
+        var grid = new CoreForms.Ui.Controls.Advanced.DataGridView();
+        grid.Dock = DockStyle.Fill;
+        grid.ColumnHeadersVisible = true;
+        grid.AllowUserToAddRows = false;
+        grid.Columns.Add(new CoreForms.Ui.Controls.Advanced.DataGridViewColumn { HeaderText = "Name", Width = 150 });
+        grid.Columns.Add(new CoreForms.Ui.Controls.Advanced.DataGridViewColumn { HeaderText = "Value", Width = 120 });
+        for (int i = 0; i < 12; i++)
+            grid.AddRow($"Item {i}", i);
+        tabPage.Controls.Add(grid);
+        tabControl.AddTabPage(tabPage);
+        tabControl.PerformLayout();
+
+        int tabHeaderHeight = 26;
+        int daY = grid.ColumnHeadersVisible ? 30 : 0;
+
+        // Click through TabControl at Y = daY + header + 15 (middle of row 0)
+        tabControl.OnMouseDown(new MouseEventArgs(MouseButtons.Left, 1, 50, daY + tabHeaderHeight + 15, 0));
+        tabControl.OnMouseUp(new MouseEventArgs(MouseButtons.Left, 1, 50, daY + tabHeaderHeight + 15, 0));
+        Assert.Equal(0, grid.SelectedRowIndex);
+
+        // Row 5: Y = daY + header + 5*30 + 15
+        tabControl.OnMouseDown(new MouseEventArgs(MouseButtons.Left, 1, 50, daY + tabHeaderHeight + 150 + 15, 0));
+        tabControl.OnMouseUp(new MouseEventArgs(MouseButtons.Left, 1, 50, daY + tabHeaderHeight + 150 + 15, 0));
+        Assert.Equal(5, grid.SelectedRowIndex);
+
+        // Row 11 (last): Y = daY + header + 11*30 + 15
+        tabControl.OnMouseDown(new MouseEventArgs(MouseButtons.Left, 1, 50, daY + tabHeaderHeight + 330 + 15, 0));
+        tabControl.OnMouseUp(new MouseEventArgs(MouseButtons.Left, 1, 50, daY + tabHeaderHeight + 330 + 15, 0));
+        Assert.Equal(11, grid.SelectedRowIndex);
+    }
+
+    [Fact]
+    public void DataGridView_InsideDialogLayout_SelectsCorrectRow()
+    {
+        var container = new CoreForms.Ui.Controls.Containers.Panel();
+        container.Size = new Size(450, 500);
+
+        var tabControl = new CoreForms.Ui.Controls.Advanced.TabControl();
+        tabControl.Dock = DockStyle.Fill;
+
+        var tabPage = new CoreForms.Ui.Controls.Advanced.TabPage();
+        var grid = new CoreForms.Ui.Controls.Advanced.DataGridView();
+        grid.Dock = DockStyle.Fill;
+        grid.ColumnHeadersVisible = true;
+        grid.AllowUserToAddRows = false;
+        grid.Columns.Add(new CoreForms.Ui.Controls.Advanced.DataGridViewColumn { HeaderText = "Name", Width = 150 });
+        grid.Columns.Add(new CoreForms.Ui.Controls.Advanced.DataGridViewColumn { HeaderText = "Value", Width = 120 });
+        for (int i = 0; i < 12; i++)
+            grid.AddRow($"Item {i}", i);
+        tabPage.Controls.Add(grid);
+        tabControl.AddTabPage(tabPage);
+        tabControl.AddTabPage(new CoreForms.Ui.Controls.Advanced.TabPage { Text = "Tab 2" });
+
+        container.Controls.Add(tabControl);
+
+        var buttonPanel = new CoreForms.Ui.Controls.Containers.Panel { Dock = DockStyle.Bottom, Height = 50 };
+        container.Controls.Add(buttonPanel);
+
+        container.PerformLayout();
+
+        Assert.Equal(0, tabControl.X);
+        Assert.Equal(0, tabControl.Y);
+        Assert.Equal(450, tabControl.Width);
+        Assert.Equal(450, tabControl.Height);
+
+        int tabHeaderHeight = 26;
+        int daY = grid.ColumnHeadersVisible ? 30 : 0;
+
+        // Row 0: Y = daY + 15
+        grid.OnMouseDown(new MouseEventArgs(MouseButtons.Left, 1, 50, daY + 15, 0));
+        Assert.Equal(0, grid.SelectedRowIndex);
+
+        // Row 5: Y = daY + 150 + 15
+        grid.OnMouseDown(new MouseEventArgs(MouseButtons.Left, 1, 50, daY + 150 + 15, 0));
+        Assert.Equal(5, grid.SelectedRowIndex);
+
+        // Row 11: Y = daY + 330 + 15
+        grid.OnMouseDown(new MouseEventArgs(MouseButtons.Left, 1, 50, daY + 330 + 15, 0));
+        Assert.Equal(11, grid.SelectedRowIndex);
+
+        // Now dispatch through the container (panel) as Form would:
+        grid.SelectedRowIndex = -1;
+
+        // Row 0 at container Y = daY + header + 15
+        container.OnMouseDown(new MouseEventArgs(MouseButtons.Left, 1, 50, daY + tabHeaderHeight + 15, 0));
+        container.OnMouseUp(new MouseEventArgs(MouseButtons.Left, 1, 50, daY + tabHeaderHeight + 15, 0));
+        Assert.Equal(0, grid.SelectedRowIndex);
+
+        // Row 5 at container Y = daY + header + 5*30 + 15
+        grid.SelectedRowIndex = -1;
+        container.OnMouseDown(new MouseEventArgs(MouseButtons.Left, 1, 50, daY + tabHeaderHeight + 150 + 15, 0));
+        container.OnMouseUp(new MouseEventArgs(MouseButtons.Left, 1, 50, daY + tabHeaderHeight + 150 + 15, 0));
+        Assert.Equal(5, grid.SelectedRowIndex);
+
+        // Row 11 at container Y = daY + header + 11*30 + 15
+        grid.SelectedRowIndex = -1;
+        container.OnMouseDown(new MouseEventArgs(MouseButtons.Left, 1, 50, daY + tabHeaderHeight + 330 + 15, 0));
+        container.OnMouseUp(new MouseEventArgs(MouseButtons.Left, 1, 50, daY + tabHeaderHeight + 330 + 15, 0));
+        Assert.Equal(11, grid.SelectedRowIndex);
+    }
+
+    [Fact]
     public void DataGridView_GroupedMode_MultiGroupHitTest_SelectsCorrectRow()
     {
         var grid = new CoreForms.Ui.Controls.Advanced.DataGridView();

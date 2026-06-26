@@ -545,6 +545,7 @@ public class TabControl : ContainerControl
             }
         }
 
+        Console.WriteLine($"[TabControl] OnMouseDown args=({args.X},{args.Y}) tabHeaderHeight={tabHeaderHeight} -> delegating to base.OnMouseDown");
         base.OnMouseDown(e);
     }
 

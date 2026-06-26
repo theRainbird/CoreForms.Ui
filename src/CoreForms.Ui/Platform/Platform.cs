@@ -255,6 +255,25 @@ public static class Platform
             var cleanup = new List<Action>();
             _windowCleanupActions[windowId] = cleanup;
 
+            Action<Vector2D<int>> resize = size =>
+            {
+                if (size.X > 0 && size.Y > 0)
+                {
+                    Log($"[Platform] Resize: windowId={windowId} form='{form.Text}' nativeSize=({size.X},{size.Y}) zoom={form.Zoom}");
+                    var oldW = form.Width;
+                    var oldH = form.Height;
+                    form.SuspendLayout();
+                    form.Width = (int)MathF.Ceiling(size.X / form.Zoom);
+                    form.Height = (int)MathF.Ceiling(size.Y / form.Zoom);
+                    Log($"[Platform] Resize result: form.Width={oldW}->{form.Width} form.Height={oldH}->{form.Height} clientPixels=({form.ClientSizePixels.Width},{form.ClientSizePixels.Height})");
+                    form.ResumeLayout(true);
+                    form.OnResize(EventArgs.Empty);
+                    form.Invalidate();
+                }
+            };
+            window.Resize += resize;
+            cleanup.Add(() => window.Resize -= resize);
+
             if (keyboard != null)
             {
                 Action<IKeyboard, Key, int> keyDown = (kb, key, keyCode) =>
@@ -346,7 +365,7 @@ public static class Platform
                     float zoom = form.Zoom;
                     var point = new Point((int)(pos.X / zoom), (int)(pos.Y / zoom));
                     var btn = MapMouseButton(button);
-                    Log($"[Platform] MouseDown form='{form.Text}' btn={btn} pos=({point.X},{point.Y})");
+                    Log($"[Platform] MouseDown form='{form.Text}' btn={btn} native=({pos.X},{pos.Y}) zoom={zoom} logical=({point.X},{point.Y})");
                     var args = new MouseEventArgs(btn, 1, point.X, point.Y, 0);
                     form.OnMouseDown(args);
                 };
@@ -359,6 +378,7 @@ public static class Platform
                     float zoom = form.Zoom;
                     var point = new Point((int)(pos.X / zoom), (int)(pos.Y / zoom));
                     var btn = MapMouseButton(button);
+                    Log($"[Platform] MouseUp form='{form.Text}' btn={btn} native=({pos.X},{pos.Y}) zoom={zoom} logical=({point.X},{point.Y})");
                     var args = new MouseEventArgs(btn, 1, point.X, point.Y, 0);
                     form.OnMouseUp(args);
                 };
@@ -388,21 +408,6 @@ public static class Platform
                 mouse.Scroll += scroll;
                 cleanup.Add(() => mouse.Scroll -= scroll);
             }
-
-            Action<Vector2D<int>> resize = size =>
-            {
-                if (size.X > 0 && size.Y > 0)
-                {
-                    form.SuspendLayout();
-                    form.Width = (int)MathF.Ceiling(size.X / form.Zoom);
-                    form.Height = (int)MathF.Ceiling(size.Y / form.Zoom);
-                    form.ResumeLayout(true);
-                    form.OnResize(EventArgs.Empty);
-                    form.Invalidate();
-                }
-            };
-            window.Resize += resize;
-            cleanup.Add(() => window.Resize -= resize);
 
             Action closing = () =>
             {
@@ -493,10 +498,6 @@ public static class Platform
         };
 
         window.Initialize();
-
-        // Convert initial pixel dimensions to logical coordinates
-        form.Width = (int)(form.Width / form.Zoom);
-        form.Height = (int)(form.Height / form.Zoom);
 
         return handle;
     }
@@ -1016,6 +1017,7 @@ public static class Platform
         renderer.Clear(form.BackColor);
 
         using var g = new Graphics();
+        g.Zoom = form.Zoom;
         g.MeasureText = (text, font, zoom) => fontRenderer.MeasureText(text, font, zoom);
         form.Render(g);
 
@@ -1025,6 +1027,7 @@ public static class Platform
         }
 
         using var gOverlay = new Graphics();
+        gOverlay.Zoom = form.Zoom;
         gOverlay.MeasureText = (text, font, zoom) => fontRenderer.MeasureText(text, font, zoom);
         form.RenderOverlay(gOverlay);
 
