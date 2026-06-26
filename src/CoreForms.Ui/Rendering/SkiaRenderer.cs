@@ -42,10 +42,18 @@ public class SkiaRenderer : IDisposable
     /// Attempts GPU-accelerated rendering first; falls back to software if GPU init fails.
     /// </summary>
     public SkiaRenderer(IWindow window)
+        : this(window, window.Size.X, window.Size.Y)
+    {
+    }
+
+    /// <summary>
+    /// Initializes a new SkiaRenderer for the specified window with explicit dimensions.
+    /// </summary>
+    public SkiaRenderer(IWindow window, int width, int height)
     {
         _window = window;
-        _width = window.Size.X;
-        _height = window.Size.Y;
+        _width = width > 0 ? width : Math.Max(1, window.Size.X);
+        _height = height > 0 ? height : Math.Max(1, window.Size.Y);
 
         window.MakeCurrent();
 

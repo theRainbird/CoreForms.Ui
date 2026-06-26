@@ -17,6 +17,7 @@ namespace CoreForms.Ui.Demo;
 public class MainForm : Form
 {
     private Label _statusLabel = null!;
+    private DebugForm _debugForm = null!;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="MainForm"/> class.
@@ -27,8 +28,16 @@ public class MainForm : Form
         Width = 1600;
         Height = 1080;
         Zoom = 1.25f;
-
+        
         PopulateForm();
+    }
+
+    protected override void OnFormClosing(FormClosingEventArgs e)
+    {   
+        if (_debugForm != null)
+            _debugForm.Dispose();
+        
+        base.OnFormClosing(e);
     }
 
     private void PopulateForm()
@@ -163,7 +172,18 @@ public class MainForm : Form
 
         var newButton = new ToolStripButton(SR.GetString("ToolNew"), Icons.DocumentAdd24!);
         newButton.DisplayStyle = ToolStripItemDisplayStyle.ImageAndText;
-        newButton.Click += (s, e) => _statusLabel!.Text = SR.GetString("StatusNewClicked");
+        newButton.Click += (s, e) =>
+        {
+            _statusLabel!.Text = SR.GetString("StatusNewClicked");
+
+            if (_debugForm != null)
+            {
+                _debugForm.Dispose();
+            }
+            
+            _debugForm = new DebugForm();
+            _debugForm.Show();
+        };
         toolStrip.Items.Add(newButton);
 
         var openButton = new ToolStripButton(SR.GetString("ToolOpen"), Icons.Document24!);

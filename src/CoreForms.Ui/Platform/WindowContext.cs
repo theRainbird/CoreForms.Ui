@@ -85,7 +85,9 @@ internal sealed class WindowContext : IDisposable
     {
         if (_renderer != null) return;
 
-        _renderer = new SkiaRenderer(Window);
+        var width = Math.Max(1, (int)(Form.Width * Form.Zoom));
+        var height = Math.Max(1, (int)(Form.Height * Form.Zoom));
+        _renderer = new SkiaRenderer(Window, width, height);
         _fontRenderer = new SkiaFontRenderer();
     }
 

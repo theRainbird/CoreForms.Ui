@@ -337,6 +337,18 @@ public class Form : ContainerControl, IWin32Window
     /// <summary>
     /// Clears the render-required flag after rendering is complete.
     /// </summary>
+    /// <summary>
+    /// Renders the form and its child controls.
+    /// Draws the form background via the command-list pipeline
+    /// so the fill is visible on the same buffer as child controls.
+    /// </summary>
+    /// <param name="g">The Graphics object to use for rendering.</param>
+    public override void Render(CoreForms.Ui.Rendering.Graphics g)
+    {
+        g.FillRectangle(BackColor, 0, 0, Width, Height);
+        base.Render(g);
+    }
+
     internal void ClearRenderFlag()
     {
         _requiresRender = false;
