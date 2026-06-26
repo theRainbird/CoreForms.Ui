@@ -1904,7 +1904,12 @@ public class DataGridView : ContainerControl
             cy -= _groupHeaderHeight;
             if (!g.IsCollapsed)
             {
-                if (g.ChildGroups.Count > 0) { var r = HitTestGroupTree(g.ChildGroups, cy); if (r.group != null) return r; }
+                if (g.ChildGroups.Count > 0)
+                {
+                    var r = HitTestGroupTree(g.ChildGroups, cy);
+                    if (r.group != null) return r;
+                    cy -= GroupSubtreeHeight(g) - _groupHeaderHeight;
+                }
                 else { int ri = cy / _rowHeight; if (ri < g.RowIndices.Count) return (g, ri); cy -= g.RowIndices.Count * _rowHeight; }
             }
             else cy -= GroupSubtreeHeight(g) - _groupHeaderHeight;

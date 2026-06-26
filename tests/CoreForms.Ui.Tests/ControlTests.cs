@@ -1757,4 +1757,49 @@ public class ControlTests
 
         Assert.True(clicked, "Click at exact bottom edge of content area should reach button");
     }
+
+    [Fact]
+    public void DataGridView_GroupedMode_MultiGroupHitTest_SelectsCorrectRow()
+    {
+        var grid = new CoreForms.Ui.Controls.Advanced.DataGridView();
+        grid.ShowGroupingBar = false;
+        grid.ColumnHeadersVisible = false;
+        grid.Size = new Size(400, 400);
+        grid.Columns.Add(new CoreForms.Ui.Controls.Advanced.DataGridViewColumn { HeaderText = "Category", Groupable = true });
+        grid.Columns.Add(new CoreForms.Ui.Controls.Advanced.DataGridViewColumn { HeaderText = "Type", Groupable = true });
+        grid.AddRow("A", "X");
+        grid.AddRow("A", "Y");
+        grid.AddRow("B", "X");
+        grid.AddRow("B", "Y");
+        grid.AddGroupColumn(0);
+        grid.AddGroupColumn(1);
+
+        // With 2 grouping levels (Category then Type) and no grouping bar/column headers:
+        // daY = 0
+        // Content area starts at Y=0
+        // Cat A header: Y=0..29, Type X header: Y=30..59, Row 0 (A,X): Y=60..89
+        // Type Y header: Y=90..119, Row 1 (A,Y): Y=120..149
+        // Cat B header: Y=150..179, Type X header: Y=180..209, Row 2 (B,X): Y=210..239
+        // Type Y header: Y=240..269, Row 3 (B,Y): Y=270..299
+
+        // Click on Row 0 (A,X) at Y=75
+        grid.OnMouseDown(new MouseEventArgs(MouseButtons.Left, 1, 50, 75, 0));
+        grid.OnMouseUp(new MouseEventArgs(MouseButtons.Left, 1, 50, 75, 0));
+        Assert.Equal(0, grid.SelectedRowIndex);
+
+        // Click on Row 1 (A,Y) at Y=135
+        grid.OnMouseDown(new MouseEventArgs(MouseButtons.Left, 1, 50, 135, 0));
+        grid.OnMouseUp(new MouseEventArgs(MouseButtons.Left, 1, 50, 135, 0));
+        Assert.Equal(1, grid.SelectedRowIndex);
+
+        // Click on Row 2 (B,X) at Y=225
+        grid.OnMouseDown(new MouseEventArgs(MouseButtons.Left, 1, 50, 225, 0));
+        grid.OnMouseUp(new MouseEventArgs(MouseButtons.Left, 1, 50, 225, 0));
+        Assert.Equal(2, grid.SelectedRowIndex);
+
+        // Click on Row 3 (B,Y) at Y=285
+        grid.OnMouseDown(new MouseEventArgs(MouseButtons.Left, 1, 50, 285, 0));
+        grid.OnMouseUp(new MouseEventArgs(MouseButtons.Left, 1, 50, 285, 0));
+        Assert.Equal(3, grid.SelectedRowIndex);
+    }
 }
