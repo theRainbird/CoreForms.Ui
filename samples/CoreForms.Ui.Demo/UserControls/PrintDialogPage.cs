@@ -1,6 +1,7 @@
 using CoreForms.Ui.Controls.Basic;
 using CoreForms.Ui.Controls;
 using CoreForms.Ui.Core;
+using CoreForms.Ui.Printing;
 using Graphics = CoreForms.Ui.Rendering.Graphics;
 
 namespace CoreForms.Ui.Demo.UserControls;

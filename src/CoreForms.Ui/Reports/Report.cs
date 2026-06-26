@@ -1,4 +1,5 @@
 using CoreForms.Ui.Core;
+using CoreForms.Ui.Printing;
 
 namespace CoreForms.Ui.Reports;
 

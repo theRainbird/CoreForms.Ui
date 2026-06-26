@@ -4,6 +4,7 @@ using CoreForms.Ui.Controls.Basic;
 using CoreForms.Ui.Controls.Containers;
 using CoreForms.Ui.Core;
 using CoreForms.Ui.Platform;
+using CoreForms.Ui.Printing;
 using CoreForms.Ui.Resources;
 
 namespace CoreForms.Ui.Reports;

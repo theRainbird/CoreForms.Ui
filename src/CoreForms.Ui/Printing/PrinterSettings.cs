@@ -1,7 +1,4 @@
-using System.Runtime.InteropServices;
-using CoreForms.Ui.Core;
-
-namespace CoreForms.Ui;
+namespace CoreForms.Ui.Printing;
 
 /// <summary>
 /// Specifies the configuration of a printer.

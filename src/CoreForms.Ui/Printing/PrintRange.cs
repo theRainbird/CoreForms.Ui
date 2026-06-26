@@ -1,4 +1,4 @@
-namespace CoreForms.Ui;
+namespace CoreForms.Ui.Printing;
 
 /// <summary>
 /// Specifies the range of pages to print.

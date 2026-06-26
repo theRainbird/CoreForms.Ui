@@ -1,7 +1,7 @@
 using CoreForms.Ui.Core;
 using CoreForms.Ui.Platform;
 
-namespace CoreForms.Ui;
+namespace CoreForms.Ui.Printing;
 
 /// <summary>
 /// Displays a print dialog box that allows users to select a printer

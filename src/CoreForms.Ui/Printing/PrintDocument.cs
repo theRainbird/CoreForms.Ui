@@ -2,7 +2,7 @@ using CoreForms.Ui.Core;
 using CoreForms.Ui.Rendering;
 using SkiaSharp;
 
-namespace CoreForms.Ui;
+namespace CoreForms.Ui.Printing;
 
 /// <summary>
 /// Defines a reusable object that sends output to a printer.

@@ -1,6 +1,7 @@
 #pragma warning disable CA1416 // Windows-only
 using System.Runtime.InteropServices;
 using CoreForms.Ui.Core;
+using CoreForms.Ui.Printing;
 
 namespace CoreForms.Ui.Platform.Windows;
 

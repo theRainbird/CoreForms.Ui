@@ -1,6 +1,6 @@
 using CoreForms.Ui.Core;
 
-namespace CoreForms.Ui;
+namespace CoreForms.Ui.Printing;
 
 /// <summary>
 /// Specifies the settings for a single printed page.

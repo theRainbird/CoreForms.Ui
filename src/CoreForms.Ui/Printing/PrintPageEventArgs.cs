@@ -1,7 +1,7 @@
 using CoreForms.Ui.Core;
 using CoreForms.Ui.Rendering;
 
-namespace CoreForms.Ui;
+namespace CoreForms.Ui.Printing;
 
 /// <summary>
 /// Provides data for the PrintDocument.PrintPage event.

@@ -1,5 +1,6 @@
 using System.Runtime.InteropServices;
 using CoreForms.Ui.Core;
+using CoreForms.Ui.Printing;
 using static CoreForms.Ui.Platform.DBus.DBusNative;
 
 namespace CoreForms.Ui.Platform.DBus;
