@@ -81,7 +81,7 @@ public class MessageBoxPage : UserControl
         colorPickerButton.Click += (s, e) =>
         {
             var initialColor = Color.FromArgb(255, 0, 0);
-            var result = ColorPickerDialog.ShowDialog(initialColor, false);
+            var result = ColorPickerDialog.ShowDialog(initialColor, false, Platform.Platform.FocusedWindow);
             OnStatusTextChanged(string.Format(SR.GetString("StatusColorPickerResult"), result, initialColor));
         };
 

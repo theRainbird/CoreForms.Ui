@@ -167,7 +167,7 @@ public abstract class FileDialog : Core.Component
         if (owner is Form f)
             ownerForm = f;
         else if (owner != null)
-            ownerForm = FindFormFromHandle(owner.Handle);
+            ownerForm = FindFormFromHandle(owner.NativeHandle);
 
         DialogResult result;
 

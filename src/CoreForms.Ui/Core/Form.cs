@@ -6,14 +6,14 @@ using System;
 namespace CoreForms.Ui.Core;
 
 /// <summary>
-/// Represents a window or dialog in the application.
+/// Represents a window or dialog in the application.NativeHandle => Platform.Platform.GetNativeWindowHandle(this);
 /// </summary>
 public class Form : ContainerControl, INativeWindow
 {
     private string _title = string.Empty;
-    protected internal bool _modal;
+    protected bool _modal;
     private Form? _ownerForm;
-    protected internal DialogResult _dialogResult = DialogResult.None;
+    private DialogResult _dialogResult = DialogResult.None;
 
     private FormWindowState _windowState = FormWindowState.Normal;
     private FormBorderStyle _formBorderStyle = FormBorderStyle.Sizable;
@@ -55,7 +55,7 @@ public class Form : ContainerControl, INativeWindow
     /// <summary>
     /// Gets the native platform window handle (HWND on Windows, X11 Window / wl_surface on Linux).
     /// </summary>
-    nint INativeWindow.Handle => Platform.Platform.GetNativeWindowHandle(this);
+    public nint NativeHandle => Platform.Platform.GetNativeWindowHandle(this);
 
     /// <summary>
     /// Sets the native window handle. Called by the platform layer after window creation.
@@ -163,6 +163,7 @@ public class Form : ContainerControl, INativeWindow
             _zoomSet = true;
             var oldZoom = _zoom;
             _zoom = Dpi.ClampZoom(value);
+            
             if (Math.Abs(oldZoom - _zoom) > 0.001f)
             {
                 var pixelWidth = (int)(Width * oldZoom);
@@ -231,7 +232,7 @@ public class Form : ContainerControl, INativeWindow
         {
             var activeForm = CoreForms.Ui.Platform.Platform.FocusedWindow;
             if (activeForm != null && activeForm != this)
-                _zoom = activeForm.Zoom;
+                Zoom = activeForm.Zoom;
         }
 
         Create();
@@ -266,25 +267,24 @@ public class Form : ContainerControl, INativeWindow
         {
             foreach (var f in Application.Instance.GetForms())
             {
-                if (f.Handle == owner.Handle)
+                if (f.NativeHandle == owner.NativeHandle)
                 {
                     _ownerForm = f;
-                    if (!_zoomSet)
-                        _zoom = f.Zoom;
+                    Zoom = _ownerForm.Zoom;
                     break;
                 }
             }
         }
         else
         {
-            _ownerForm = 
+            _ownerForm =
                 Application
                     .Instance
                     .GetForms()
                     .LastOrDefault(f => f != this && f.Handle != IntPtr.Zero);
-            
+
             if (!_zoomSet && _ownerForm != null)
-                _zoom = _ownerForm.Zoom;
+                Zoom = _ownerForm.Zoom;
         }
 
         if (_ownerForm != null && _ownerForm != this)
@@ -295,6 +295,18 @@ public class Form : ContainerControl, INativeWindow
 
         Create();
         Application.Instance.RegisterForm(this);
+
+        if (_ownerForm != null && _ownerForm != this)
+        {
+            // Center the dialog on the owner form.
+            // Position is calculated in native pixel coordinates.
+            var ownerCenterX = _ownerForm.X + (int)(_ownerForm.Width * _ownerForm.Zoom / 2f);
+            var ownerCenterY = _ownerForm.Y + (int)(_ownerForm.Height * _ownerForm.Zoom / 2f);
+            var dialogX = Math.Max(0, (int)(ownerCenterX - Width * Zoom / 2f));
+            var dialogY = Math.Max(0, (int)(ownerCenterY - Height * Zoom / 2f));
+            Platform.Platform.MoveWindow(_handle, dialogX, dialogY);
+        }
+
         OnShown(EventArgs.Empty);
 
         if (_ownerForm != null && _ownerForm != this)
@@ -303,7 +315,7 @@ public class Form : ContainerControl, INativeWindow
         while (_modal && Application.Running)
         {
             Platform.Platform.ProcessEvents(Application.Instance);
-            
+
             if (Handle == IntPtr.Zero)
             {
                 if (_dialogResult == DialogResult.None)
@@ -316,9 +328,9 @@ public class Form : ContainerControl, INativeWindow
         {
             if (_ownerForm.Handle != IntPtr.Zero)
                 Platform.Platform.UnregisterModal(this, _ownerForm);
-            
+
             _ownerForm.Enabled = true;
-            
+
             if (_ownerForm.Handle != IntPtr.Zero)
                 Platform.Platform.BringToFront(_ownerForm.Handle);
         }
@@ -562,6 +574,7 @@ public class Form : ContainerControl, INativeWindow
                 return child;
             }
         }
+
         return null;
     }
 
@@ -569,7 +582,8 @@ public class Form : ContainerControl, INativeWindow
     {
         var tabs = new List<Control>();
         CollectTabControls(tabs, this);
-        var names = string.Join(", ", tabs.ConvertAll(t => $"{(string.IsNullOrEmpty(t.Name) ? t.GetType().Name : t.Name)}"));
+        var names = string.Join(", ",
+            tabs.ConvertAll(t => $"{(string.IsNullOrEmpty(t.Name) ? t.GetType().Name : t.Name)}"));
         return tabs;
     }
 
@@ -672,6 +686,7 @@ public class Form : ContainerControl, INativeWindow
             {
                 cc.ActiveControl = nextControl;
             }
+
             parent = parent.Parent;
         }
     }
@@ -738,7 +753,9 @@ public class Form : ContainerControl, INativeWindow
     /// <summary>
     /// Called when the window state changes.
     /// </summary>
-    protected internal virtual void OnWindowStateChanged() { }
+    protected internal virtual void OnWindowStateChanged()
+    {
+    }
 
     /// <summary>
     /// Called when the theme changes. Propagates the theme change to all child controls.
@@ -844,10 +861,12 @@ public class Form : ContainerControl, INativeWindow
         {
             _keyTextMap[_lastKeyDown] = text;
         }
+
         if (ActiveControl != null)
         {
             ActiveControl.OnTextInput(text);
         }
+
         TextInput?.Invoke(this, new TextInputEventArgs(text));
     }
 
@@ -856,6 +875,7 @@ public class Form : ContainerControl, INativeWindow
     /// </summary>
     /// <param name="e">A KeyEventArgs that contains the event data.</param>
     internal bool IsProcessingKeyDown => _processingKeyDown;
+
     internal void SetProcessingKeyDown(bool value) => _processingKeyDown = value;
 
     protected internal override void OnKeyDown(KeyEventArgs e)
@@ -871,114 +891,117 @@ public class Form : ContainerControl, INativeWindow
                 LastRepeatTime = Environment.TickCount
             };
         }
+
         _lastKeyDown = e.KeyCode;
 
         _processingKeyDown = true;
         try
         {
-
-        var modalOverlay = GetVisibleModalOverlay();
-        if (modalOverlay != null)
-        {
-            modalOverlay.OnKeyDown(e);
-            return;
-        }
-
-        if (ActiveControl != null && ActiveControl.Enabled)
-        {
-            ActiveControl.OnKeyDown(e);
-            if (e.Handled) return;
-        }
-
-        if (e.Modifiers.HasFlag(ModifierKeys.Control) && !e.Handled)
-        {
-            switch (e.KeyCode)
+            var modalOverlay = GetVisibleModalOverlay();
+            if (modalOverlay != null)
             {
-                case Keys.C:
-                    if (ActiveControl != null)
-                    {
-                        var method = ActiveControl.GetType().GetMethod("CopyToClipboard");
-                        method?.Invoke(ActiveControl, null);
-                    }
-                    e.Handled = true;
-                    return;
-                case Keys.X:
-                    if (ActiveControl is Controls.Basic.TextBox tb)
-                    {
-                        tb.Cut();
-                        e.Handled = true;
-                    }
-                    return;
-                case Keys.V:
-                    if (ActiveControl is Controls.Basic.TextBox tb2)
-                    {
-                        tb2.Paste();
-                        e.Handled = true;
-                    }
-                    return;
+                modalOverlay.OnKeyDown(e);
+                return;
             }
-        }
 
-        MenuStrip? activeMenu = null;
-        foreach (Control control in Controls)
-        {
-            if (control is MenuStrip ms && ms.MenuMode)
+            if (ActiveControl != null && ActiveControl.Enabled)
             {
-                activeMenu = ms;
-                break;
+                ActiveControl.OnKeyDown(e);
+                if (e.Handled) return;
             }
-        }
 
-        if (activeMenu != null)
-        {
-            activeMenu.OnKeyDown(e);
-            if (e.Handled) return;
-        }
-
-        if (e.KeyCode == Keys.Tab)
-        {
-            ProcessTabKey(e.Modifiers.HasFlag(ModifierKeys.Shift));
-            e.Handled = true;
-            return;
-        }
-
-        if (e.KeyCode == Keys.Left || e.KeyCode == Keys.Right ||
-            e.KeyCode == Keys.Up || e.KeyCode == Keys.Down)
-        {
-            if (ProcessArrowKey(e.KeyCode))
+            if (e.Modifiers.HasFlag(ModifierKeys.Control) && !e.Handled)
             {
+                switch (e.KeyCode)
+                {
+                    case Keys.C:
+                        if (ActiveControl != null)
+                        {
+                            var method = ActiveControl.GetType().GetMethod("CopyToClipboard");
+                            method?.Invoke(ActiveControl, null);
+                        }
+
+                        e.Handled = true;
+                        return;
+                    case Keys.X:
+                        if (ActiveControl is Controls.Basic.TextBox tb)
+                        {
+                            tb.Cut();
+                            e.Handled = true;
+                        }
+
+                        return;
+                    case Keys.V:
+                        if (ActiveControl is Controls.Basic.TextBox tb2)
+                        {
+                            tb2.Paste();
+                            e.Handled = true;
+                        }
+
+                        return;
+                }
+            }
+
+            MenuStrip? activeMenu = null;
+            foreach (Control control in Controls)
+            {
+                if (control is MenuStrip ms && ms.MenuMode)
+                {
+                    activeMenu = ms;
+                    break;
+                }
+            }
+
+            if (activeMenu != null)
+            {
+                activeMenu.OnKeyDown(e);
+                if (e.Handled) return;
+            }
+
+            if (e.KeyCode == Keys.Tab)
+            {
+                ProcessTabKey(e.Modifiers.HasFlag(ModifierKeys.Shift));
                 e.Handled = true;
                 return;
             }
-        }
 
-        if (e.Modifiers.HasFlag(ModifierKeys.Alt) || e.KeyCode == Keys.Menu)
-        {
-            foreach (Control control in Controls)
+            if (e.KeyCode == Keys.Left || e.KeyCode == Keys.Right ||
+                e.KeyCode == Keys.Up || e.KeyCode == Keys.Down)
             {
-                if (control is MenuStrip menuStrip)
+                if (ProcessArrowKey(e.KeyCode))
                 {
-                    if (e.KeyCode == Keys.Menu || (e.Modifiers.HasFlag(ModifierKeys.Alt) && e.KeyCode == Keys.None))
-                    {
-                        menuStrip.MenuMode = !menuStrip.MenuMode;
-                        e.Handled = true;
-                        return;
-                    }
+                    e.Handled = true;
+                    return;
+                }
+            }
 
-                    if (e.KeyCode != Keys.None && e.KeyCode != Keys.Menu)
+            if (e.Modifiers.HasFlag(ModifierKeys.Alt) || e.KeyCode == Keys.Menu)
+            {
+                foreach (Control control in Controls)
+                {
+                    if (control is MenuStrip menuStrip)
                     {
-                        char keyChar = (char)e.KeyCode;
-                        if (menuStrip.ProcessMnemonic(keyChar))
+                        if (e.KeyCode == Keys.Menu || (e.Modifiers.HasFlag(ModifierKeys.Alt) && e.KeyCode == Keys.None))
                         {
+                            menuStrip.MenuMode = !menuStrip.MenuMode;
                             e.Handled = true;
                             return;
+                        }
+
+                        if (e.KeyCode != Keys.None && e.KeyCode != Keys.Menu)
+                        {
+                            char keyChar = (char)e.KeyCode;
+                            if (menuStrip.ProcessMnemonic(keyChar))
+                            {
+                                e.Handled = true;
+                                return;
+                            }
                         }
                     }
                 }
             }
-        }
 
-        base.OnKeyDown(e);
+            base.OnKeyDown(e);
         }
         finally
         {
@@ -1005,6 +1028,7 @@ public class Form : ContainerControl, INativeWindow
                 ActiveControl.OnKeyUp(e);
                 if (e.Handled) return;
             }
+
             base.OnKeyUp(e);
         }
         finally
@@ -1025,6 +1049,7 @@ public class Form : ContainerControl, INativeWindow
             ActiveControl.OnKeyPress(e);
             if (e.Handled) return;
         }
+
         base.OnKeyPress(e);
     }
 

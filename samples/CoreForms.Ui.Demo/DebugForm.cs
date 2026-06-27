@@ -1,3 +1,4 @@
+using CoreForms.Ui.Controls.Advanced;
 using CoreForms.Ui.Controls.Basic;
 using CoreForms.Ui.Core;
 
@@ -6,19 +7,31 @@ namespace CoreForms.Ui.Demo;
 public class DebugForm : Form
 {
     private TextBox _textBox;
+    private TabControl _tabControl;
     
     public DebugForm()
     {
         Size = new Size(800, 600);
         Text = "Debug Form";
 
+        var page1 = new TabPage() { Text = "Tab1", Name = "page1" };
+        
+        _tabControl = new TabControl()
+        {
+            Dock = DockStyle.Fill
+        };
+        
+        _tabControl.AddTabPage(page1);
+        
         _textBox = new TextBox()
         {
-            Location = new Point(20, 560),
+            Location = new Point(20, 300),
             Width = 400,
             Text = "Enter text here..."
         };
         
-        Controls.Add(_textBox);
+        page1.Controls.Add(_textBox);
+        
+        Controls.Add(_tabControl);
     }
 }

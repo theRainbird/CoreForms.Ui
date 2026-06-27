@@ -75,12 +75,15 @@ public class TabControl : ContainerControl
 
     /// <summary>
     /// Arranges tab pages to fill the content area below the tab headers.
+    /// Ensures each page has its Parent set so FindForm/EffectiveZoom work correctly.
     /// </summary>
     protected override void OnLayout()
     {
         var tabHeaderHeight = TabHeaderHeight;
         foreach (var page in _tabPages)
         {
+            if (page.Parent == null)
+                page.Parent = this;
             page.Bounds = new Rectangle(0, 0, Width, Math.Max(0, Height - tabHeaderHeight));
         }
         base.OnLayout();

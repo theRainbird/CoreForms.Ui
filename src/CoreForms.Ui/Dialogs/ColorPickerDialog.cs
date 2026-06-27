@@ -58,53 +58,32 @@ namespace CoreForms.Ui.Dialogs
         /// <returns>DialogResult.OK if confirmed, DialogResult.Cancel if cancelled.</returns>
         public static DialogResult ShowDialog(Color initialColor, bool isSystemColor, Form? owner = null)
         {
-            var dialog = new ColorPickerDialog(initialColor, isSystemColor);
-
-            if (owner != null)
-            {
-                dialog.Zoom = owner.Zoom;
-            }
-            else
-            {
-                var activeForm = CoreForms.Ui.Platform.Platform.FocusedWindow;
-                if (activeForm != null)
-                    dialog.Zoom = activeForm.Zoom;
-            }
-
-            dialog.Size = new Size(450, 500);
-
-            dialog.Text = LangRes.GetString("ColorPickerDialog_Title");
-            dialog.FormBorderStyle = FormBorderStyle.FixedDialog;
-
+            var dialog = 
+                new ColorPickerDialog(initialColor, isSystemColor)
+                {
+                    Text = LangRes.GetString("ColorPickerDialog_Title")
+                };
+            
             return dialog.ShowDialog(owner);
         }
         
         /// <summary>
         /// Constructor.
         /// </summary>
-        public ColorPickerDialog(Color initialColor, bool isSystemColor)
+        private ColorPickerDialog(Color initialColor, bool isSystemColor)
         {
             _currentSelectedColor = initialColor;
             _isSystemColor = isSystemColor;
+
+            Size = new Size(450, 520);
+            FormBorderStyle = FormBorderStyle.Sizable;
             
-            SetupDialog();
-        }
-
-        // protected internal override void OnShown(EventArgs e)
-        // {
-        //     base.OnShown(e);
-        //     
-        //     MarkLayoutDirty();
-        //     PerformLayout();
-        // }
-
-        private void SetupDialog()
-        {
-            _tabControl = new TabControl { Dock = DockStyle.Fill };
-            Controls.Add(_tabControl!);
+            _tabControl = new TabControl { Dock = DockStyle.Fill, Name = nameof(_tabControl) };
+            Controls.Add(_tabControl);
 
             // --- Tab 1: System Colors ---
             var systemTab = new TabPage { Text = LangRes.GetString("ColorPickerDialog_SystemColorsTab") };
+            
             _systemColorsGrid = new DataGridView
             {
                 Dock = DockStyle.Fill,
@@ -145,7 +124,7 @@ namespace CoreForms.Ui.Dialogs
             _labelA = new Label { Text = LangRes.GetString("ColorPickerDialog_LabelA"), Width = 20, X = 10, Y = 100 };
             _aBox = new TextBox { X = 35, Y = 100, Width = 40 };
 
-            rgbPanel.Controls.AddRange(new Control[] { _labelR!, _rBox!, _labelG!, _gBox!, _labelB!, _bBox!, _labelA!, _aBox! });
+            rgbPanel.Controls.AddRange([_labelR!, _rBox!, _labelG!, _gBox!, _labelB!, _bBox!, _labelA!, _aBox!]);
 
             // RGB events
             _rBox.TextChanged += (s, e) => UpdateColorFromRGB();
@@ -207,12 +186,14 @@ namespace CoreForms.Ui.Dialogs
                 {
                     Name = "Color", 
                     HeaderText = LangRes.GetString("ColorPickerDialog_ColumnColor"),
-                    Width = 120
+                    Width = 120,
+                    CellEditType = DataGridViewColumnEditType.None
                 };
-            colorCol.CellEditType = DataGridViewColumnEditType.None;
+            
             _systemColorsGrid!.Columns.Add(colorCol);
 
             int fieldIdx = 0;
+            
             foreach (var field in fields)
             {
                 if (field.FieldType == typeof(Color))
