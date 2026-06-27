@@ -57,7 +57,7 @@ public sealed class PrintDialog : Component
     /// </summary>
     /// <param name="owner">The owner window.</param>
     /// <returns>One of the DialogResult values.</returns>
-    public DialogResult ShowDialog(IWin32Window? owner)
+    public DialogResult ShowDialog(INativeWindow? owner)
     {
         Form? ownerForm = null;
         if (owner is Form f)

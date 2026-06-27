@@ -21,11 +21,4 @@ public class DebugForm : Form
         
         Controls.Add(_textBox);
     }
-
-    public override void Dispose()
-    {
-        _textBox?.Dispose();
-        
-        base.Dispose();
-    }
 }

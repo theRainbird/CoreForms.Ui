@@ -161,7 +161,7 @@ public abstract class FileDialog : Core.Component
     /// </summary>
     /// <param name="owner">The owner window implementing IWin32Window, or null.</param>
     /// <returns>One of the DialogResult values.</returns>
-    public DialogResult ShowDialog(IWin32Window? owner)
+    public DialogResult ShowDialog(INativeWindow? owner)
     {
         Form? ownerForm = null;
         if (owner is Form f)

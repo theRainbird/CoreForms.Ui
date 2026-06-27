@@ -149,9 +149,35 @@ public static class Platform
             }
             else if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
             {
+                // Silk.NET loads GLFW with RTLD_LOCAL (the default for dlopen),
+                // so the symbols are NOT in the global symbol table and
+                // dlsym(null, ...) would fail. Try multiple approaches:
+                //
+                // 1. Global symbol table (works if Silk.NET uses RTLD_GLOBAL)
                 var global = DlOpen(null, RTLD_LAZY);
                 if (global != IntPtr.Zero)
                     pFunc = DSym(global, "glfwSetWindowAttrib");
+
+                // 2. Find the loaded GLFW library via /proc/self/maps
+                if (pFunc == IntPtr.Zero)
+                    pFunc = ResolveGlfwByProcMaps();
+
+                // 3. Try loading by common SONAME (dlopen with a name reuses
+                //    the already-loaded library if the path matches)
+                if (pFunc == IntPtr.Zero)
+                {
+                    string[] libNames = { "libglfw.so.3", "libglfw.so", "libglfw.so.3.4" };
+                    foreach (var name in libNames)
+                    {
+                        var lib = DlOpen(name, RTLD_LAZY);
+                        if (lib != IntPtr.Zero)
+                        {
+                            pFunc = DSym(lib, "glfwSetWindowAttrib");
+                            if (pFunc != IntPtr.Zero)
+                                break;
+                        }
+                    }
+                }
             }
         }
         catch
@@ -162,6 +188,42 @@ public static class Platform
         if (pFunc != IntPtr.Zero)
             return Marshal.GetDelegateForFunctionPointer<GlfwSetWindowAttribDelegate>(pFunc);
         return null;
+    }
+
+    private static IntPtr ResolveGlfwByProcMaps()
+    {
+        try
+        {
+            var lines = File.ReadAllLines("/proc/self/maps");
+            foreach (var line in lines)
+            {
+                // Look for a mapped GLFW library — lines look like:
+                // 7f0000000000-7f0000001000 r-xp 00000000 08:01 12345 /usr/lib/libglfw.so.3
+                if (line.Contains("libglfw", StringComparison.OrdinalIgnoreCase))
+                {
+                    var parts = line.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+                    if (parts.Length >= 6)
+                    {
+                        var path = parts[5];
+                        if (File.Exists(path))
+                        {
+                            var lib = DlOpen(path, RTLD_LAZY);
+                            if (lib != IntPtr.Zero)
+                            {
+                                var sym = DSym(lib, "glfwSetWindowAttrib");
+                                if (sym != IntPtr.Zero)
+                                    return sym;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        catch
+        {
+            // Fall through
+        }
+        return IntPtr.Zero;
     }
 
     internal static void RegisterModal(Form modalForm, Form ownerForm)
@@ -441,7 +503,15 @@ public static class Platform
                         modalForm.Handle != IntPtr.Zero)
                     {
                         if (_contexts.TryGetValue(modalForm.WindowId, out var modalCtx))
+                        {
                             modalCtx.ForceRender = true;
+                            // Immediately raise the modal above the owner in Z-order.
+                            // This is safe here because on Wayland, DoEvents is skipped for
+                            // owner windows (see ProcessEvents), so this callback never fires
+                            // inside a DoEvents call on Wayland, avoiding the deadlock.
+                            // On X11 and Windows, Window.Focus() is safe to call during events.
+                            try { modalCtx.Window.Focus(); } catch { }
+                        }
                         _deferredFocusRedirect = modalForm;
                         _focusedWindow = modalForm;
                         modalForm.Focused = true;
@@ -926,10 +996,10 @@ public static class Platform
             }
         }
 
-        // Ensure modal dialogs retain focus when their owner windows gain focus.
-        // Since we skip DoEvents for owner windows, the FocusChanged handler never fires.
-        // This check ensures that if a modal dialog is open and _focusedWindow is NOT
-        // the modal, we redirect focus back to the modal.
+        // Safety net: if framework-level focus tracking got out of sync (e.g., FocusChanged
+        // callbacks fired in an unexpected order), re-sync _focusedWindow to the modal dialog.
+        // The GLFW_FLOATING hint was already set in RegisterModal — setting it every frame
+        // causes Wayland protocol round-trips that freeze the application, so we only set it once.
         if (_modalOwnerMap.Count > 0)
         {
             var modalForm = _modalOwnerMap.Values.First();
@@ -939,7 +1009,8 @@ public static class Platform
                 modalForm.Focused = true;
                 modalForm.OnGotFocus(EventArgs.Empty);
 
-                if (modalForm.Handle != IntPtr.Zero && _contexts.TryGetValue(modalForm.WindowId, out var modalCtx))
+                if (modalForm.Handle != IntPtr.Zero &&
+                    _contexts.TryGetValue(modalForm.WindowId, out var modalCtx))
                 {
                     try { modalCtx.Window.Focus(); } catch { }
                     try { modalCtx.Window.IsVisible = true; } catch { }

@@ -3,7 +3,7 @@ namespace CoreForms.Ui.Core;
 /// <summary>
 /// Provides access to the native window handle (HWND / X11 Window / wl_surface).
 /// </summary>
-public interface IWin32Window
+public interface INativeWindow
 {
     /// <summary>
     /// Gets the native platform-specific window handle.

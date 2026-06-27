@@ -1,11 +1,12 @@
 using System.Reflection;
 using CoreForms.Ui.Controls.Advanced;
-using CoreForms.Ui.Controls.Containers;
 using CoreForms.Ui.Controls.Basic;
+using CoreForms.Ui.Controls.Containers;
+using CoreForms.Ui.Core;
 using CoreForms.Ui.Layout;
 using CoreForms.Ui.Theming;
 
-namespace CoreForms.Ui.Core.Dialogs
+namespace CoreForms.Ui.Dialogs
 {
     /// <summary>
     /// A modal dialog that allows users to select a color from system colors or a custom palette.
@@ -75,7 +76,7 @@ namespace CoreForms.Ui.Core.Dialogs
             dialog.Text = LangRes.GetString("ColorPickerDialog_Title");
             dialog.FormBorderStyle = FormBorderStyle.FixedDialog;
 
-            return dialog.ShowDialog((IWin32Window?)owner);
+            return dialog.ShowDialog(owner);
         }
         
         /// <summary>
@@ -85,15 +86,17 @@ namespace CoreForms.Ui.Core.Dialogs
         {
             _currentSelectedColor = initialColor;
             _isSystemColor = isSystemColor;
+            
+            SetupDialog();
         }
 
-        protected internal override void OnShown(EventArgs e)
-        {
-            base.OnShown(e);
-            SetupDialog();
-            MarkLayoutDirty();
-            PerformLayout();
-        }
+        // protected internal override void OnShown(EventArgs e)
+        // {
+        //     base.OnShown(e);
+        //     
+        //     MarkLayoutDirty();
+        //     PerformLayout();
+        // }
 
         private void SetupDialog()
         {
@@ -173,7 +176,7 @@ namespace CoreForms.Ui.Core.Dialogs
             var btnCancel = new Button { Text = LangRes.GetString("Cancel"), Width = 75, Height = 30, X = 365, Y = 10 };
             btnOk.Click += (s, e) => CloseDialog(true);
             btnCancel.Click += (s, e) => CloseDialog(false);
-            buttonPanel.Controls.AddRange(new Control[] { btnOk, btnCancel });
+            buttonPanel.Controls.AddRange([btnOk, btnCancel]);
             Controls.Add(buttonPanel);
         }
 
@@ -196,6 +199,7 @@ namespace CoreForms.Ui.Core.Dialogs
                     HeaderText = LangRes.GetString("ColorPickerDialog_ColumnName"),
                     Width = 150
                 };
+            
             _systemColorsGrid!.Columns.Add(nameCol);
             
             var colorCol = 

@@ -182,7 +182,7 @@ public class MainForm : Form
             }
             
             _debugForm = new DebugForm();
-            _debugForm.Show();
+            _debugForm.ShowDialog(this);
         };
         toolStrip.Items.Add(newButton);
 

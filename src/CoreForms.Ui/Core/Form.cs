@@ -8,7 +8,7 @@ namespace CoreForms.Ui.Core;
 /// <summary>
 /// Represents a window or dialog in the application.
 /// </summary>
-public class Form : ContainerControl, IWin32Window
+public class Form : ContainerControl, INativeWindow
 {
     private string _title = string.Empty;
     protected internal bool _modal;
@@ -55,7 +55,7 @@ public class Form : ContainerControl, IWin32Window
     /// <summary>
     /// Gets the native platform window handle (HWND on Windows, X11 Window / wl_surface on Linux).
     /// </summary>
-    nint IWin32Window.Handle => Platform.Platform.GetNativeWindowHandle(this);
+    nint INativeWindow.Handle => Platform.Platform.GetNativeWindowHandle(this);
 
     /// <summary>
     /// Sets the native window handle. Called by the platform layer after window creation.
@@ -257,7 +257,7 @@ public class Form : ContainerControl, IWin32Window
     /// </summary>
     /// <param name="owner">The window that owns this dialog, or null.</param>
     /// <returns>One of the DialogResult values.</returns>
-    public DialogResult ShowDialog(IWin32Window? owner)
+    public DialogResult ShowDialog(INativeWindow? owner)
     {
         if (_handle != IntPtr.Zero)
             return _dialogResult;
@@ -266,7 +266,7 @@ public class Form : ContainerControl, IWin32Window
         {
             foreach (var f in Application.Instance.GetForms())
             {
-                if (f is IWin32Window w && w.Handle == owner.Handle)
+                if (f.Handle == owner.Handle)
                 {
                     _ownerForm = f;
                     if (!_zoomSet)
@@ -277,7 +277,12 @@ public class Form : ContainerControl, IWin32Window
         }
         else
         {
-            _ownerForm = Application.Instance.GetForms().LastOrDefault(f => f != this && f.Handle != IntPtr.Zero);
+            _ownerForm = 
+                Application
+                    .Instance
+                    .GetForms()
+                    .LastOrDefault(f => f != this && f.Handle != IntPtr.Zero);
+            
             if (!_zoomSet && _ownerForm != null)
                 _zoom = _ownerForm.Zoom;
         }
@@ -298,6 +303,7 @@ public class Form : ContainerControl, IWin32Window
         while (_modal && Application.Running)
         {
             Platform.Platform.ProcessEvents(Application.Instance);
+            
             if (Handle == IntPtr.Zero)
             {
                 if (_dialogResult == DialogResult.None)
@@ -310,7 +316,9 @@ public class Form : ContainerControl, IWin32Window
         {
             if (_ownerForm.Handle != IntPtr.Zero)
                 Platform.Platform.UnregisterModal(this, _ownerForm);
+            
             _ownerForm.Enabled = true;
+            
             if (_ownerForm.Handle != IntPtr.Zero)
                 Platform.Platform.BringToFront(_ownerForm.Handle);
         }
