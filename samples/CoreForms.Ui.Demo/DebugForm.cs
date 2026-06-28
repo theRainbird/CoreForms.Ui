@@ -13,6 +13,7 @@ public class DebugForm : Form
     {
         Size = new Size(800, 600);
         Text = "Debug Form";
+        FormBorderStyle = FormBorderStyle.Sizable;
 
         var page1 = new TabPage() { Text = "Tab1", Name = "page1" };
         

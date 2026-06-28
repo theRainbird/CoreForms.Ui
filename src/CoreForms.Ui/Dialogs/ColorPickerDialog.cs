@@ -75,7 +75,7 @@ namespace CoreForms.Ui.Dialogs
             _currentSelectedColor = initialColor;
             _isSystemColor = isSystemColor;
 
-            Size = new Size(450, 520);
+            Size = new Size(450, 570);
             FormBorderStyle = FormBorderStyle.Sizable;
             
             _tabControl = new TabControl { Dock = DockStyle.Fill, Name = nameof(_tabControl) };
