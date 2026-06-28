@@ -50,7 +50,11 @@ public class Button : Control
         var textHeight = measured.height / Math.Max(zoom, 0.001f);
         var x = (Width - textWidth) / 2;
         var y = (Height - textHeight) / 2;
-        g.DrawString(Text, font, textColor, x > 0 ? x : 3, y > 0 ? y : 3);
+
+        const int padding = 3;
+        g.SetClip(new Rectangle(padding, 0, Width - padding * 2, Height));
+        g.DrawString(Text, font, textColor, x > 0 ? x : padding, y > 0 ? y : padding);
+        g.ResetClip();
 
         base.Render(g);
     }
