@@ -287,6 +287,14 @@ public class Form : ContainerControl, INativeWindow
                 Zoom = _ownerForm.Zoom;
         }
 
+        if (Platform.Platform.ShouldUseOverlay())
+            return ShowDialogAsOverlay();
+
+        return ShowDialogAsNativeWindow();
+    }
+
+    private DialogResult ShowDialogAsNativeWindow()
+    {
         if (_ownerForm != null && _ownerForm != this)
             _ownerForm.Enabled = false;
 
@@ -310,7 +318,12 @@ public class Form : ContainerControl, INativeWindow
         OnShown(EventArgs.Empty);
 
         if (_ownerForm != null && _ownerForm != this)
-            Platform.Platform.RegisterModal(this, _ownerForm);
+        {
+            var dialogCtx = Platform.Platform.GetWindowContext(this);
+            var ownerCtx = Platform.Platform.GetWindowContext(_ownerForm);
+            if (dialogCtx != null && ownerCtx != null)
+                Platform.Platform.EstablishModalRelationship(this, _ownerForm, dialogCtx, ownerCtx);
+        }
 
         while (_modal && Application.Running)
         {
@@ -327,12 +340,61 @@ public class Form : ContainerControl, INativeWindow
         if (_ownerForm != null && _ownerForm != this)
         {
             if (_ownerForm.Handle != IntPtr.Zero)
-                Platform.Platform.UnregisterModal(this, _ownerForm);
+                Platform.Platform.BreakModalRelationship(this, _ownerForm);
 
             _ownerForm.Enabled = true;
 
             if (_ownerForm.Handle != IntPtr.Zero)
                 Platform.Platform.BringToFront(_ownerForm.Handle);
+        }
+
+        _ownerForm = null;
+        return _dialogResult;
+    }
+
+    private DialogResult ShowDialogAsOverlay()
+    {
+        _modal = true;
+        _dialogResult = DialogResult.None;
+
+        // Initialize child controls without creating a native GLFW window.
+        // base.Create() calls ContainerControl.Create() -> Control.Create()
+        // which recursively calls Create() on all child controls and performs layout.
+        base.Create();
+        PerformLayout();
+
+        var overlay = new Controls.Advanced.DialogOverlay(_ownerForm!, this);
+        _ownerForm?.Controls.Add(overlay);
+        _ownerForm?.PerformLayout();
+        overlay.Invalidate();
+
+        if (_ownerForm != null)
+            _ownerForm.ActiveControl = overlay;
+
+        // Set initial focus to the first focusable control in the dialog form.
+        // This prevents the user from having to click twice on a control like TextBox.
+        ActivateFirstFocusableControl(this);
+
+        OnShown(EventArgs.Empty);
+
+        while (_modal && Application.Running)
+        {
+            Platform.Platform.ProcessEvents(Application.Instance);
+
+            // If the owner's native window was destroyed while the overlay was active
+            // (e.g., via Alt+F4 or other OS close mechanisms), exit immediately.
+            if (_ownerForm == null || _ownerForm.Handle == IntPtr.Zero)
+            {
+                _modal = false;
+                break;
+            }
+        }
+
+        if (_ownerForm != null)
+        {
+            _ownerForm.Controls.Remove(overlay);
+            _ownerForm.PerformLayout();
+            _ownerForm.Invalidate();
         }
 
         _ownerForm = null;
@@ -381,7 +443,15 @@ public class Form : ContainerControl, INativeWindow
     {
         if (_handle == IntPtr.Zero)
         {
-            Console.WriteLine($"[Form.Close] handle is Zero, skipping. form='{Text}'");
+            // Overlay mode (Wayland): no native window to destroy.
+            // Still need to exit the modal loop by setting _modal = false.
+            if (_modal)
+            {
+                if (_dialogResult == DialogResult.None)
+                    _dialogResult = DialogResult.Cancel;
+                _modal = false;
+            }
+            Console.WriteLine($"[Form.Close] handle is Zero, closing overlay. form='{Text}'");
             return;
         }
 
@@ -569,7 +639,8 @@ public class Form : ContainerControl, INativeWindow
         for (int i = Controls.Count - 1; i >= 0; i--)
         {
             var child = Controls[i];
-            if (child.Visible && child is Controls.Advanced.MessageBoxOverlay)
+            if (child.Visible && (child is Controls.Advanced.MessageBoxOverlay ||
+                                  child is Controls.Advanced.DialogOverlay))
             {
                 return child;
             }
@@ -868,6 +939,44 @@ public class Form : ContainerControl, INativeWindow
         }
 
         TextInput?.Invoke(this, new TextInputEventArgs(text));
+    }
+
+    /// <summary>
+    /// Finds the first focusable control (TabStop=true, Enabled, Visible) in the form's
+    /// control hierarchy and sets it as the ActiveControl. Used by ShowDialogAsOverlay
+    /// to give the initial keyboard focus to the appropriate control.
+    /// </summary>
+    /// <param name="parent">The container to search within.</param>
+    private static void ActivateFirstFocusableControl(ContainerControl parent)
+    {
+        if (parent == null) return;
+        foreach (Control child in parent.Controls)
+        {
+            if (!child.Visible || !child.Enabled)
+                continue;
+
+            if (child.TabStop)
+            {
+                parent.ActiveControl = child;
+                return;
+            }
+
+            if (child is ContainerControl container)
+            {
+                ActivateFirstFocusableControl(container);
+                if (parent.ActiveControl != null)
+                    return;
+            }
+        }
+        // If no TabStop control found, try the first enabled, visible control
+        foreach (Control child in parent.Controls)
+        {
+            if (child.Visible && child.Enabled)
+            {
+                parent.ActiveControl = child;
+                return;
+            }
+        }
     }
 
     /// <summary>

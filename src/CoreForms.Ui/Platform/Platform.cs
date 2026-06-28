@@ -32,16 +32,6 @@ public static class Platform
 
     private static readonly Dictionary<uint, List<Action>> _windowCleanupActions = new();
 
-    private static readonly Dictionary<Form, Form> _modalOwnerMap = new();
-
-    /// <summary>
-    /// Stores the modal form that needs focus after the next DoEvents cycle.
-    /// Used to defer focus redirection until after DoEvents returns, avoiding
-    /// a deadlock on Wayland where Window.Focus() blocks waiting for the compositor
-    /// while the compositor is waiting for DoEvents to process its response.
-    /// </summary>
-    private static Form? _deferredFocusRedirect;
-
     [DllImport("kernel32.dll", SetLastError = true, CharSet = CharSet.Auto)]
     private static extern IntPtr GetModuleHandle(string lpModuleName);
 
@@ -52,11 +42,21 @@ public static class Platform
     private delegate IntPtr GlfwGetWin32WindowDelegate(IntPtr window);
 
     [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
-    private delegate void GlfwSetWindowAttribDelegate(IntPtr window, int attrib, int value);
+    private delegate IntPtr GlfwGetX11DisplayDelegate();
 
-    private const int GLFW_FLOATING = 0x00020007;
+    [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+    private delegate IntPtr GlfwGetX11WindowDelegate(IntPtr window);
 
-    private static readonly GlfwSetWindowAttribDelegate? _glfwSetWindowAttrib = ResolveGlfwSetWindowAttrib();
+    [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+    private delegate IntPtr GlfwGetWaylandDisplayDelegate();
+
+    [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+    private delegate IntPtr GlfwGetWaylandWindowDelegate(IntPtr window);
+
+    private static readonly GlfwGetX11DisplayDelegate? _glfwGetX11Display = ResolveGlfwFunc<GlfwGetX11DisplayDelegate>("glfwGetX11Display");
+    private static readonly GlfwGetX11WindowDelegate? _glfwGetX11Window = ResolveGlfwFunc<GlfwGetX11WindowDelegate>("glfwGetX11Window");
+    private static readonly GlfwGetWaylandDisplayDelegate? _glfwGetWaylandDisplay = ResolveGlfwFunc<GlfwGetWaylandDisplayDelegate>("glfwGetWaylandDisplay");
+    private static readonly GlfwGetWaylandWindowDelegate? _glfwGetWaylandWindow = ResolveGlfwFunc<GlfwGetWaylandWindowDelegate>("glfwGetWaylandWindow");
 
     [DllImport("libc", EntryPoint = "dlopen", ExactSpelling = true)]
     private static extern IntPtr DlOpen(string? filename, int flags);
@@ -131,12 +131,46 @@ public static class Platform
             }
         }
 
-        // On non-Windows platforms (X11, Wayland), the GLFW pointer is sufficient
-        // for most purposes since CEF and WebKit don't use this handle directly.
+        // On Linux, resolve the real native handle via GLFW platform functions.
+        // ctx.Window.Handle is the GLFW window pointer, not the X11 Window ID
+        // or Wayland wl_surface pointer.
+        if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
+        {
+            try
+            {
+                if (IsWayland())
+                {
+                    if (_glfwGetWaylandWindow != null)
+                    {
+                        var wlSurface = _glfwGetWaylandWindow(ctx.Window.Handle);
+                        if (wlSurface != IntPtr.Zero)
+                            return wlSurface;
+                    }
+                }
+                else
+                {
+                    if (_glfwGetX11Window != null)
+                    {
+                        var xid = _glfwGetX11Window(ctx.Window.Handle);
+                        if (xid != IntPtr.Zero)
+                            return xid;
+                    }
+                }
+            }
+            catch
+            {
+                // Fall through
+            }
+        }
+
+        // Fallback: return the raw GLFW window pointer
         return ctx.Window.Handle;
     }
 
-    private static GlfwSetWindowAttribDelegate? ResolveGlfwSetWindowAttrib()
+    // ResolveGlfwSetWindowAttrib and ResolveGlfwByProcMaps have been replaced
+    // by the generic ResolveGlfwFunc<T> below.
+
+    private static TDelegate? ResolveGlfwFunc<TDelegate>(string name) where TDelegate : class
     {
         IntPtr pFunc = IntPtr.Zero;
         try
@@ -145,34 +179,26 @@ public static class Platform
             {
                 var mod = GetModuleHandle("glfw3.dll");
                 if (mod != IntPtr.Zero)
-                    pFunc = GetProcAddress(mod, "glfwSetWindowAttrib");
+                    pFunc = GetProcAddress(mod, name);
             }
             else if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
             {
-                // Silk.NET loads GLFW with RTLD_LOCAL (the default for dlopen),
-                // so the symbols are NOT in the global symbol table and
-                // dlsym(null, ...) would fail. Try multiple approaches:
-                //
-                // 1. Global symbol table (works if Silk.NET uses RTLD_GLOBAL)
                 var global = DlOpen(null, RTLD_LAZY);
                 if (global != IntPtr.Zero)
-                    pFunc = DSym(global, "glfwSetWindowAttrib");
+                    pFunc = DSym(global, name);
 
-                // 2. Find the loaded GLFW library via /proc/self/maps
                 if (pFunc == IntPtr.Zero)
-                    pFunc = ResolveGlfwByProcMaps();
+                    pFunc = ResolveGlfwSymbolByProcMaps(name);
 
-                // 3. Try loading by common SONAME (dlopen with a name reuses
-                //    the already-loaded library if the path matches)
                 if (pFunc == IntPtr.Zero)
                 {
                     string[] libNames = { "libglfw.so.3", "libglfw.so", "libglfw.so.3.4" };
-                    foreach (var name in libNames)
+                    foreach (var libName in libNames)
                     {
-                        var lib = DlOpen(name, RTLD_LAZY);
+                        var lib = DlOpen(libName, RTLD_LAZY);
                         if (lib != IntPtr.Zero)
                         {
-                            pFunc = DSym(lib, "glfwSetWindowAttrib");
+                            pFunc = DSym(lib, name);
                             if (pFunc != IntPtr.Zero)
                                 break;
                         }
@@ -186,19 +212,17 @@ public static class Platform
         }
 
         if (pFunc != IntPtr.Zero)
-            return Marshal.GetDelegateForFunctionPointer<GlfwSetWindowAttribDelegate>(pFunc);
+            return Marshal.GetDelegateForFunctionPointer<TDelegate>(pFunc);
         return null;
     }
 
-    private static IntPtr ResolveGlfwByProcMaps()
+    private static IntPtr ResolveGlfwSymbolByProcMaps(string name)
     {
         try
         {
             var lines = File.ReadAllLines("/proc/self/maps");
             foreach (var line in lines)
             {
-                // Look for a mapped GLFW library — lines look like:
-                // 7f0000000000-7f0000001000 r-xp 00000000 08:01 12345 /usr/lib/libglfw.so.3
                 if (line.Contains("libglfw", StringComparison.OrdinalIgnoreCase))
                 {
                     var parts = line.Split(' ', StringSplitOptions.RemoveEmptyEntries);
@@ -210,7 +234,7 @@ public static class Platform
                             var lib = DlOpen(path, RTLD_LAZY);
                             if (lib != IntPtr.Zero)
                             {
-                                var sym = DSym(lib, "glfwSetWindowAttrib");
+                                var sym = DSym(lib, name);
                                 if (sym != IntPtr.Zero)
                                     return sym;
                             }
@@ -219,48 +243,269 @@ public static class Platform
                 }
             }
         }
-        catch
-        {
-            // Fall through
-        }
+        catch { }
         return IntPtr.Zero;
     }
 
-    internal static void RegisterModal(Form modalForm, Form ownerForm)
-    {
-        _modalOwnerMap[ownerForm] = modalForm;
-        SetModalFloating(modalForm, floating: true);
-    }
+    // ──────────────────────────────────────────────
+    // X11 native functions (resolved via dlopen/dlsym)
+    // ──────────────────────────────────────────────
 
-    internal static void UnregisterModal(Form modalForm, Form ownerForm)
-    {
-        _modalOwnerMap.Remove(ownerForm);
-        SetModalFloating(modalForm, floating: false);
-    }
+    [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+    private delegate int XSetTransientForHintDelegate(IntPtr display, IntPtr window, IntPtr transientForWindow);
 
-    private static void SetModalFloating(Form form, bool floating)
+    [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+    private delegate IntPtr XInternAtomDelegate(IntPtr display, IntPtr atomName, int onlyIfExists);
+
+    [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+    private delegate int XChangePropertyDelegate(IntPtr display, IntPtr window, IntPtr property, IntPtr type,
+        int format, int mode, IntPtr data, int nelements);
+
+    [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+    private delegate int XDeletePropertyDelegate(IntPtr display, IntPtr window, IntPtr property);
+
+    [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+    private delegate int XFlushDelegate(IntPtr display);
+
+    private static readonly XSetTransientForHintDelegate? _xSetTransientForHint = ResolveX11Func<XSetTransientForHintDelegate>("XSetTransientForHint");
+    private static readonly XInternAtomDelegate? _xInternAtom = ResolveX11Func<XInternAtomDelegate>("XInternAtom");
+    private static readonly XChangePropertyDelegate? _xChangeProperty = ResolveX11Func<XChangePropertyDelegate>("XChangeProperty");
+    private static readonly XDeletePropertyDelegate? _xDeleteProperty = ResolveX11Func<XDeletePropertyDelegate>("XDeleteProperty");
+    private static readonly XFlushDelegate? _xFlush = ResolveX11Func<XFlushDelegate>("XFlush");
+
+    private const int PropModeReplace = 0;
+    private const int NETWmStateModalAtomIndex = 0; // Index within _NET_WM_STATE
+
+    private static TDelegate? ResolveX11Func<TDelegate>(string name) where TDelegate : class
     {
-        if (_glfwSetWindowAttrib == null)
-            return;
-        if (!_contexts.TryGetValue(form.WindowId, out var ctx))
-            return;
+        IntPtr pFunc = IntPtr.Zero;
         try
         {
-            _glfwSetWindowAttrib(ctx.Window.Handle, GLFW_FLOATING, floating ? 1 : 0);
+            if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
+            {
+                string[] xlibNames = { "libX11.so.6", "libX11.so" };
+                foreach (var libName in xlibNames)
+                {
+                    var lib = DlOpen(libName, RTLD_LAZY);
+                    if (lib != IntPtr.Zero)
+                    {
+                        pFunc = DSym(lib, name);
+                        if (pFunc != IntPtr.Zero)
+                            break;
+                    }
+                }
+            }
         }
-        catch { }
+        catch
+        {
+            return null;
+        }
+        if (pFunc != IntPtr.Zero)
+            return Marshal.GetDelegateForFunctionPointer<TDelegate>(pFunc);
+        return null;
     }
 
-    internal static void CleanupModalMap(Form form)
+    // ──────────────────────────────────────────────
+    // Windows native functions
+    // ──────────────────────────────────────────────
+
+    [DllImport("user32.dll", SetLastError = true, CharSet = CharSet.Auto)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool EnableWindow(IntPtr hWnd, [MarshalAs(UnmanagedType.Bool)] bool enable);
+
+    [DllImport("user32.dll", SetLastError = true, CharSet = CharSet.Auto)]
+    private static extern IntPtr SetWindowLongPtrW(IntPtr hWnd, int nIndex, IntPtr dwNewLong);
+
+    [DllImport("user32.dll", SetLastError = true, CharSet = CharSet.Auto)]
+    private static extern IntPtr GetWindowLongPtrW(IntPtr hWnd, int nIndex);
+
+    private const int GWL_EXSTYLE = -20;
+    private static readonly IntPtr WS_EX_DLGMODALFRAME = new IntPtr(0x00000001);
+
+    // ──────────────────────────────────────────────
+    // Modal relationship API
+    // ──────────────────────────────────────────────
+
+    /// <summary>
+    /// Establishes a native modal relationship between a dialog and its owner.
+    /// On Windows: disables the owner via EnableWindow + sets WS_EX_DLGMODALFRAME.
+    /// On X11: sets XSetTransientForHint + _NET_WM_STATE_MODAL.
+    /// On Wayland: no-op (overlay mode is used instead).
+    /// </summary>
+    internal static void EstablishModalRelationship(Form dialogForm, Form ownerForm, WindowContext dialogCtx, WindowContext ownerCtx)
     {
-        var keysToRemove = new List<Form>();
-        foreach (var kvp in _modalOwnerMap)
+        if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
         {
-            if (kvp.Key == form || kvp.Value == form)
-                keysToRemove.Add(kvp.Key);
+            try
+            {
+                var ownerHwnd = GetNativeWindowHandle(ownerForm);
+                if (ownerHwnd != IntPtr.Zero)
+                    EnableWindow(ownerHwnd, false);
+
+                var dialogHwnd = GetNativeWindowHandle(dialogForm);
+                if (dialogHwnd != IntPtr.Zero)
+                {
+                    var exStyle = GetWindowLongPtrW(dialogHwnd, GWL_EXSTYLE);
+                    SetWindowLongPtrW(dialogHwnd, GWL_EXSTYLE, (IntPtr)((long)exStyle | (long)WS_EX_DLGMODALFRAME));
+                }
+            }
+            catch { }
         }
-        foreach (var key in keysToRemove)
-            _modalOwnerMap.Remove(key);
+        else if (IsX11())
+        {
+            try
+            {
+                if (_glfwGetX11Display == null || _glfwGetX11Window == null ||
+                    _xSetTransientForHint == null || _xInternAtom == null ||
+                    _xChangeProperty == null || _xFlush == null)
+                    return;
+
+                var display = _glfwGetX11Display();
+                if (display == IntPtr.Zero)
+                    return;
+
+                var dialogXid = _glfwGetX11Window(dialogCtx.Window.Handle);
+                var ownerXid = _glfwGetX11Window(ownerCtx.Window.Handle);
+                if (dialogXid == IntPtr.Zero || ownerXid == IntPtr.Zero)
+                    return;
+
+                _xSetTransientForHint(display, dialogXid, ownerXid);
+
+                // Set _NET_WM_STATE_MODAL
+                var netWmStateAtom = InternAtom(display, "_NET_WM_STATE");
+                var netWmStateModalAtom = InternAtom(display, "_NET_WM_STATE_MODAL");
+                var atomTypeAtom = InternAtom(display, "ATOM");
+                if (netWmStateAtom != IntPtr.Zero && netWmStateModalAtom != IntPtr.Zero && atomTypeAtom != IntPtr.Zero)
+                {
+                    // Allocate buffer for one Atom (8 bytes on 64-bit, format 32 = 4 bytes on wire)
+                    var buffer = Marshal.AllocHGlobal(8);
+                    try
+                    {
+                        Marshal.WriteIntPtr(buffer, netWmStateModalAtom);
+                        _xChangeProperty(display, dialogXid, netWmStateAtom, atomTypeAtom,
+                            32, PropModeReplace, buffer, 1);
+                    }
+                    finally
+                    {
+                        Marshal.FreeHGlobal(buffer);
+                    }
+                }
+
+                _xFlush(display);
+            }
+            catch { }
+        }
+    }
+
+    /// <summary>
+    /// Breaks a previously established modal relationship.
+    /// Re-enables the owner on Windows, removes _NET_WM_STATE_MODAL on X11.
+    /// </summary>
+    internal static void BreakModalRelationship(Form dialogForm, Form ownerForm)
+    {
+        if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+        {
+            try
+            {
+                var ownerHwnd = GetNativeWindowHandle(ownerForm);
+                if (ownerHwnd != IntPtr.Zero)
+                    EnableWindow(ownerHwnd, true);
+
+                var dialogHwnd = GetNativeWindowHandle(dialogForm);
+                if (dialogHwnd != IntPtr.Zero)
+                {
+                    var exStyle = GetWindowLongPtrW(dialogHwnd, GWL_EXSTYLE);
+                    SetWindowLongPtrW(dialogHwnd, GWL_EXSTYLE, (IntPtr)((long)exStyle & ~(long)WS_EX_DLGMODALFRAME));
+                }
+            }
+            catch { }
+        }
+        else if (IsX11())
+        {
+            try
+            {
+                if (_glfwGetX11Display == null || _glfwGetX11Window == null ||
+                    _xDeleteProperty == null || _xInternAtom == null ||
+                    _xFlush == null)
+                    return;
+
+                var display = _glfwGetX11Display();
+                if (display == IntPtr.Zero)
+                    return;
+
+                var dialogCtx = GetWindowContext(dialogForm);
+                if (dialogCtx == null)
+                    return;
+
+                var dialogXid = _glfwGetX11Window(dialogCtx.Window.Handle);
+                if (dialogXid == IntPtr.Zero)
+                    return;
+
+                var netWmStateAtom = InternAtom(display, "_NET_WM_STATE");
+                if (netWmStateAtom != IntPtr.Zero)
+                    _xDeleteProperty(display, dialogXid, netWmStateAtom);
+
+                _xFlush(display);
+            }
+            catch { }
+        }
+    }
+
+    private static IntPtr InternAtom(IntPtr display, string name)
+    {
+        if (_xInternAtom == null) return IntPtr.Zero;
+        var ptr = Marshal.StringToCoTaskMemAnsi(name);
+        try
+        {
+            return _xInternAtom(display, ptr, 0);
+        }
+        finally
+        {
+            Marshal.FreeCoTaskMem(ptr);
+        }
+    }
+
+    // RegisterModal, UnregisterModal, SetModalFloating, CleanupModalMap replaced
+    // by EstablishModalRelationship / BreakModalRelationship (above).
+    // GLFW_FLOATING is no longer used — modality is handled via native platform
+    // APIs (Windows: EnableWindow, X11: XSetTransientForHint + _NET_WM_STATE_MODAL,
+    // Wayland: in-window overlay).
+
+    /// <summary>
+    /// Determines whether the current Linux session uses Wayland.
+    /// </summary>
+    internal static bool IsWayland()
+    {
+        if (!RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
+            return false;
+        var session = Environment.GetEnvironmentVariable("XDG_SESSION_TYPE") ?? "";
+        return session.Equals("wayland", StringComparison.OrdinalIgnoreCase);
+    }
+
+    /// <summary>
+    /// Determines whether the current Linux session uses X11.
+    /// </summary>
+    internal static bool IsX11()
+    {
+        if (!RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
+            return false;
+        var session = Environment.GetEnvironmentVariable("XDG_SESSION_TYPE") ?? "";
+        return session.Equals("x11", StringComparison.OrdinalIgnoreCase) ||
+               session.Equals("tty", StringComparison.OrdinalIgnoreCase);
+    }
+
+    /// <summary>
+    /// Returns true when modal dialogs should use the in-window overlay approach
+    /// instead of separate native windows. Required on Wayland where GLFW cannot
+    /// programmatically manage focus or Z-order between windows.
+    /// </summary>
+    internal static bool ShouldUseOverlay()
+    {
+        // Wayland: GLFW's glfwFocusWindow is a no-op and GLFW_FLOATING only works
+        // on wlroots compositors. The overlay approach works reliably everywhere.
+        if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux) && IsWayland())
+            return true;
+        return false;
     }
 
     /// <summary>
@@ -341,17 +586,6 @@ public static class Platform
                 Action<IKeyboard, Key, int> keyDown = (kb, key, keyCode) =>
                 {
                     Log($"[Platform] KeyDown: key={key} focusedWindow='{_focusedWindow?.Text}' windowId={windowId}");
-                    // If this form is the owner of a modal dialog, route keyboard to the modal
-                    if (_modalOwnerMap.TryGetValue(form, out var modalForm) && modalForm.Handle != IntPtr.Zero)
-                    {
-                        var modalArgs = new KeyEventArgs
-                        {
-                            KeyCode = MapKeyCode(key),
-                            Modifiers = MapModifierKeys(keyboard)
-                        };
-                        modalForm.OnKeyDown(modalArgs);
-                        return;
-                    }
                     if (_focusedWindow == null) return;
                     var args = new KeyEventArgs
                     {
@@ -365,16 +599,6 @@ public static class Platform
 
                 Action<IKeyboard, Key, int> keyUp = (kb, key, keyCode) =>
                 {
-                    if (_modalOwnerMap.TryGetValue(form, out var modalForm) && modalForm.Handle != IntPtr.Zero)
-                    {
-                        var modalArgs = new KeyEventArgs
-                        {
-                            KeyCode = MapKeyCode(key),
-                            Modifiers = MapModifierKeys(keyboard)
-                        };
-                        modalForm.OnKeyUp(modalArgs);
-                        return;
-                    }
                     if (_focusedWindow == null) return;
                     var args = new KeyEventArgs
                     {
@@ -388,11 +612,6 @@ public static class Platform
 
                 Action<IKeyboard, char> keyChar = (kb, ch) =>
                 {
-                    if (_modalOwnerMap.TryGetValue(form, out var modalForm) && modalForm.Handle != IntPtr.Zero)
-                    {
-                        modalForm.OnTextInput(ch.ToString());
-                        return;
-                    }
                     if (_focusedWindow == null) return;
                     _focusedWindow.OnTextInput(ch.ToString());
                 };
@@ -408,19 +627,6 @@ public static class Platform
             {
                 Action<IMouse, MouseButton> mouseDown = (m, button) =>
                 {
-                    // Block input to forms that are owners of active modal dialogs,
-                    // and try to refocus the modal. Use deferred focus redirect to avoid
-                    // deadlock on Wayland where Window.Focus() blocks inside DoEvents.
-                    if (_modalOwnerMap.ContainsKey(form))
-                    {
-                        Log($"[Platform] MouseDown BLOCKED for owner form='{form.Text}'");
-                        if (_modalOwnerMap.TryGetValue(form, out var modalForm) &&
-                            modalForm.Handle != IntPtr.Zero)
-                        {
-                            _deferredFocusRedirect = modalForm;
-                        }
-                        return;
-                    }
                     // Use 'm' (the IMouse parameter) not the captured variable — Silk.NET may
                     // recreate the IMouse object after focus transitions (Wayland/GLFW).
                     var pos = m.Position;
@@ -494,30 +700,6 @@ public static class Platform
                     if (_contexts.TryGetValue(windowId, out var ctx))
                         ctx.ForceRender = true;
 
-                    // If this form is the owner of a modal dialog, redirect focus to the modal.
-                    // DO NOT call Window.Focus() here — on Wayland it blocks waiting for
-                    // the compositor while the compositor is waiting for DoEvents to process
-                    // its response, causing a deadlock. Instead, set _deferredFocusRedirect
-                    // so the redirect is processed after DoEvents returns.
-                    if (_modalOwnerMap.TryGetValue(form, out var modalForm) &&
-                        modalForm.Handle != IntPtr.Zero)
-                    {
-                        if (_contexts.TryGetValue(modalForm.WindowId, out var modalCtx))
-                        {
-                            modalCtx.ForceRender = true;
-                            // Immediately raise the modal above the owner in Z-order.
-                            // This is safe here because on Wayland, DoEvents is skipped for
-                            // owner windows (see ProcessEvents), so this callback never fires
-                            // inside a DoEvents call on Wayland, avoiding the deadlock.
-                            // On X11 and Windows, Window.Focus() is safe to call during events.
-                            try { modalCtx.Window.Focus(); } catch { }
-                        }
-                        _deferredFocusRedirect = modalForm;
-                        _focusedWindow = modalForm;
-                        modalForm.Focused = true;
-                        modalForm.OnGotFocus(EventArgs.Empty);
-                        return;
-                    }
                     _focusedWindow = form;
                     form.Focused = true;
                     form.OnGotFocus(EventArgs.Empty);
@@ -620,9 +802,6 @@ public static class Platform
                 ? _contexts.Values.FirstOrDefault()?.Form
                 : null;
         }
-
-        // If the closing form was a modal dialog or an owner, clean up the modal map
-        CleanupModalMap(form);
 
         Log($"[Platform] CleanupWindowOnClose: id={windowId} glCleanup={glCleanup} focusedWindow now='{_focusedWindow?.Text}'");
 
@@ -965,12 +1144,6 @@ public static class Platform
                     pendingCleanup.Add(ctx);
                 continue;
             }
-         // Skip DoEvents for owner windows that have an active modal dialog.
-            // On Wayland, DoEvents blocks indefinitely for background windows because
-            // the compositor doesn't send events. Focus redirect to the modal is handled
-            // via Window.Focus() after the DoEvents loop below.
-            if (_modalOwnerMap.ContainsKey(ctx.Form))
-                continue;
 
             try
             {
@@ -981,44 +1154,12 @@ public static class Platform
                 pendingCleanup.Add(ctx);
         }
 
-        // Process deferred focus redirect after DoEvents has completed.
-        // This avoids deadlock on Wayland where Window.Focus() blocks inside DoEvents.
-        if (_deferredFocusRedirect != null)
-        {
-            var target = _deferredFocusRedirect;
-            _deferredFocusRedirect = null;
-
-            if (target.Handle != IntPtr.Zero && _contexts.TryGetValue(target.WindowId, out var targetCtx))
-            {
-                try { targetCtx.Window.Focus(); } catch { }
-                try { targetCtx.Window.IsVisible = true; } catch { }
-                targetCtx.ForceRender = true;
-            }
-        }
-
-        // Safety net: if framework-level focus tracking got out of sync (e.g., FocusChanged
-        // callbacks fired in an unexpected order), re-sync _focusedWindow to the modal dialog.
-        // The GLFW_FLOATING hint was already set in RegisterModal — setting it every frame
-        // causes Wayland protocol round-trips that freeze the application, so we only set it once.
-        if (_modalOwnerMap.Count > 0)
-        {
-            var modalForm = _modalOwnerMap.Values.First();
-            if (_focusedWindow != modalForm)
-            {
-                _focusedWindow = modalForm;
-                modalForm.Focused = true;
-                modalForm.OnGotFocus(EventArgs.Empty);
-
-                if (modalForm.Handle != IntPtr.Zero &&
-                    _contexts.TryGetValue(modalForm.WindowId, out var modalCtx))
-                {
-                    try { modalCtx.Window.Focus(); } catch { }
-                    try { modalCtx.Window.IsVisible = true; } catch { }
-                    modalCtx.ForceRender = true;
-                }
-            }
-        }
-
+        // Note: Old modal workarounds (skip DoEvents for owners, deferred focus redirect,
+        // GLFW_FLOATING, _modalOwnerMap tracking) have been removed. Modal dialogs are now
+        // handled via native platform APIs on X11/Windows (EnableWindow, XSetTransientForHint +
+        // _NET_WM_STATE_MODAL) and via in-window overlay on Wayland (DialogOverlay). The WM/
+        // compositor manages window Z-order and event routing for native mode; the overlay
+        // intercepts all input for Wayland mode.
 
         foreach (var ctx in pendingCleanup)
         {
