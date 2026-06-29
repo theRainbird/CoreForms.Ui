@@ -11,7 +11,6 @@
   <ItemGroup>
     <ProjectReference Include="..\..\src\CoreForms.Ui\CoreForms.Ui.csproj" />
     <ProjectReference Include="..\..\src\CoreForms.Ui.WebBrowser\CoreForms.Ui.WebBrowser.csproj" />
-    <ProjectReference Include="..\..\src\CoreForms.Ui.WebBrowser.Helper\CoreForms.Ui.WebBrowser.Helper.csproj" ReferenceOutputAssembly="false" Condition="$([MSBuild]::IsOSPlatform('Linux'))" />
   </ItemGroup>
 
   <Target Name="CopyHelper" AfterTargets="Build" Condition="$([MSBuild]::IsOSPlatform('Linux'))">
