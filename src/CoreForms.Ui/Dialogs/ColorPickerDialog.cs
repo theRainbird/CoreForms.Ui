@@ -4,7 +4,9 @@ using CoreForms.Ui.Controls.Basic;
 using CoreForms.Ui.Controls.Containers;
 using CoreForms.Ui.Core;
 using CoreForms.Ui.Layout;
+using CoreForms.Ui.Rendering;
 using CoreForms.Ui.Theming;
+using Graphics = CoreForms.Ui.Rendering.Graphics;
 
 namespace CoreForms.Ui.Dialogs
 {
@@ -16,7 +18,7 @@ namespace CoreForms.Ui.Dialogs
     {
         private TabControl? _tabControl;
         private DataGridView? _systemColorsGrid;
-        private FlowLayoutPanel? _palettePanel;
+        private ScrollablePalettePanel? _scrollablePalette;
         private TextBox? _rBox;
         private TextBox? _gBox;
         private TextBox? _bBox;
@@ -102,29 +104,40 @@ namespace CoreForms.Ui.Dialogs
 
             // --- Tab 2: Palette & RGB ---
             var paletteTab = new TabPage { Text = LangRes.GetString("ColorPickerDialog_PaletteTab") };
-            var mainSplit = new SplitPanel { Dock = DockStyle.Fill, Orientation = SplitOrientation.Vertical, SplitterDistance = 300 };
-            paletteTab.Controls.Add(mainSplit);
 
-            _palettePanel = new FlowLayoutPanel
+            _scrollablePalette = new ScrollablePalettePanel
             {
-                Dock = DockStyle.Fill,
-                Padding = 5
+                Dock = DockStyle.Fill
             };
-            mainSplit.Panel1.Controls.Add(_palettePanel);
+            _scrollablePalette.ColorSelected += color => SelectColor(color, false);
+            paletteTab.Controls.Add(_scrollablePalette);
 
-            var rgbPanel = new Panel { Dock = DockStyle.Fill, Padding = new Padding(10) };
-            mainSplit.Panel2.Controls.Add(rgbPanel);
+            // RGB input area at bottom
+            var rgbPanel = new Panel
+            {
+                Dock = DockStyle.Bottom,
+                Height = 60,
+                BackColor = Core.Color.Transparent
+            };
 
-            _labelR = new Label { Text = LangRes.GetString("ColorPickerDialog_LabelR"), Width = 20, X = 10, Y = 10 };
-            _rBox = new TextBox { X = 35, Y = 10, Width = 40 };
-            _labelG = new Label { Text = LangRes.GetString("ColorPickerDialog_LabelG"), Width = 20, X = 10, Y = 40 };
-            _gBox = new TextBox { X = 35, Y = 40, Width = 40 };
-            _labelB = new Label { Text = LangRes.GetString("ColorPickerDialog_LabelB"), Width = 20, X = 10, Y = 70 };
-            _bBox = new TextBox { X = 35, Y = 70, Width = 40 };
-            _labelA = new Label { Text = LangRes.GetString("ColorPickerDialog_LabelA"), Width = 20, X = 10, Y = 100 };
-            _aBox = new TextBox { X = 35, Y = 100, Width = 40 };
+            const int textW = 40;
+            const int gap = 4;
+            int tX0 = 15;
+            int tX1 = tX0 + textW + gap;
+            int tX2 = tX1 + textW + gap;
+            int tX3 = tX2 + textW + gap;
+
+            _labelR = new Label { Text = LangRes.GetString("ColorPickerDialog_LabelR"), Width = 14, Height = 14, X = tX0 + (textW - 14) / 2, Y = 5 };
+            _rBox = new TextBox { X = tX0, Y = 22, Width = textW, Height = 24, Text = "0" };
+            _labelG = new Label { Text = LangRes.GetString("ColorPickerDialog_LabelG"), Width = 14, Height = 14, X = tX1 + (textW - 14) / 2, Y = 5 };
+            _gBox = new TextBox { X = tX1, Y = 22, Width = textW, Height = 24, Text = "0" };
+            _labelB = new Label { Text = LangRes.GetString("ColorPickerDialog_LabelB"), Width = 14, Height = 14, X = tX2 + (textW - 14) / 2, Y = 5 };
+            _bBox = new TextBox { X = tX2, Y = 22, Width = textW, Height = 24, Text = "0" };
+            _labelA = new Label { Text = LangRes.GetString("ColorPickerDialog_LabelA"), Width = 14, Height = 14, X = tX3 + (textW - 14) / 2, Y = 5 };
+            _aBox = new TextBox { X = tX3, Y = 22, Width = textW, Height = 24, Text = "255" };
 
             rgbPanel.Controls.AddRange([_labelR!, _rBox!, _labelG!, _gBox!, _labelB!, _bBox!, _labelA!, _aBox!]);
+            paletteTab.Controls.Add(rgbPanel);
 
             // RGB events
             _rBox.TextChanged += (s, e) => UpdateColorFromRGB();
@@ -221,49 +234,48 @@ namespace CoreForms.Ui.Dialogs
 
         private void PopulatePalette()
         {
-            string[] colorNames = { "Red", "Green", "Blue", "Yellow", "Cyan", "Magenta", "Black", "White", "Gray", "Silver", "Maroon", "Olive", "Purple", "Teal", "Navy", "Orange" };
-            foreach (var name in colorNames)
+            var type = typeof(CoreForms.Ui.Core.Color);
+            var fields = type.GetFields(BindingFlags.Public | BindingFlags.Static);
+
+            var colors = new List<Core.Color>();
+            foreach (var field in fields)
             {
-                var color = GetColorByName(name);
-                AddPaletteButton(color);
+                if (field.FieldType == typeof(Core.Color) && field.Name is not "Empty" and not "Transparent")
+                {
+                    try
+                    {
+                        var color = (Core.Color)field.GetValue(null)!;
+                        colors.Add(color);
+                    }
+                    catch { }
+                }
             }
+
+            colors.Sort((a, b) => GetHue(a).CompareTo(GetHue(b)));
+
+            foreach (var color in colors)
+                _scrollablePalette!.AddColor(color);
+
+            _scrollablePalette.Relayout();
         }
 
-        private void AddPaletteButton(Color color)
+        private static float GetHue(Core.Color color)
         {
-            var btn = new Button
-            {
-                Size = new Size(32, 32),
-                BackColor = color
-            };
-            btn.Click += (s, e) => SelectColor(color, false);
-            _palettePanel!.Controls.Add(btn);
+            float r = color.R / 255f;
+            float g = color.G / 255f;
+            float b = color.B / 255f;
+            float max = Math.Max(r, Math.Max(g, b));
+            float min = Math.Min(r, Math.Min(g, b));
+            float delta = max - min;
+            if (delta == 0) return 0;
+            float hue;
+            if (max == r) hue = 60 * (((g - b) / delta) % 6);
+            else if (max == g) hue = 60 * (((b - r) / delta) + 2);
+            else hue = 60 * (((r - g) / delta) + 4);
+            if (hue < 0) hue += 360;
+            return hue;
         }
         
-        private static Color GetColorByName(string name)
-        {
-            return name.ToLowerInvariant() switch
-            {
-                "red" => Color.FromArgb(255, 0, 0),
-                "green" => Color.FromArgb(0, 128, 0),
-                "blue" => Color.FromArgb(0, 0, 255),
-                "yellow" => Color.FromArgb(255, 255, 0),
-                "cyan" => Color.FromArgb(0, 255, 255),
-                "magenta" => Color.FromArgb(255, 0, 255),
-                "black" => Color.FromArgb(0, 0, 0),
-                "white" => Color.FromArgb(255, 255, 255),
-                "gray" => Color.FromArgb(128, 128, 128),
-                "silver" => Color.FromArgb(192, 192, 192),
-                "maroon" => Color.FromArgb(128, 0, 0),
-                "olive" => Color.FromArgb(128, 128, 0),
-                "purple" => Color.FromArgb(128, 0, 128),
-                "teal" => Color.FromArgb(0, 128, 128),
-                "navy" => Color.FromArgb(0, 0, 128),
-                "orange" => Color.FromArgb(255, 165, 0),
-                _ => Color.FromArgb(128, 128, 128)
-            };
-        }
-
         private void OnSystemColorsGridCellClick(object? sender, EventArgs e)
         {
             if (e is DataGridViewCellEventArgs cellArgs && cellArgs.RowIndex >= 0 && cellArgs.RowIndex < _systemColors.Count)
@@ -384,6 +396,220 @@ namespace CoreForms.Ui.Dialogs
                 SelectColor(Color.FromArgb(a, r, g, b), false);
             }
             catch { }
+        }
+
+        /// <summary>
+        /// A scrollable panel that displays color swatches arranged in a grid,
+        /// sorted by hue. Supports vertical scrolling via ScrollBarEngine.
+        /// Mouse hit-testing is handled directly without relying on child-button dispatch.
+        /// </summary>
+        private sealed class ScrollablePalettePanel : ContainerControl
+        {
+            private readonly ScrollBarEngine _scrollBar = new();
+            private int _scrollOffset;
+            private readonly List<(Rectangle Bounds, Core.Color Color)> _entries = new();
+            private bool _captured;
+            private const int SwatchSize = 28;
+            private const int Gap = 3;
+            private int _cachedContentHeight;
+
+            /// <summary>
+            /// Occurs when a color swatch is clicked.
+            /// </summary>
+            public event Action<Core.Color>? ColorSelected;
+
+            /// <summary>
+            /// Initializes a new instance of <see cref="ScrollablePalettePanel"/>.
+            /// </summary>
+            public ScrollablePalettePanel()
+            {
+                TabStop = false;
+                _scrollBar.Orientation = ScrollBarEngine.ScrollBarOrientation.Vertical;
+                _scrollBar.Scroll += (s, e) =>
+                {
+                    _scrollOffset = _scrollBar.Value;
+                    Invalidate();
+                };
+            }
+
+            /// <summary>
+            /// Adds a color swatch to the palette.
+            /// </summary>
+            /// <param name="color">The color to add.</param>
+            public void AddColor(Core.Color color)
+            {
+                _entries.Add((default, color));
+            }
+
+            /// <summary>
+            /// Removes all color swatches.
+            /// </summary>
+            public void Clear()
+            {
+                _entries.Clear();
+                _scrollOffset = 0;
+                _scrollBar.ScrollTo(0);
+                Invalidate();
+            }
+
+            /// <summary>
+            /// Recalculates the grid layout and scroll bar parameters.
+            /// </summary>
+            public void Relayout()
+            {
+                int cols = Math.Max(1, (Width - ScrollBarEngine.DefaultScrollBarSize - Gap) / (SwatchSize + Gap));
+
+                for (int i = 0; i < _entries.Count; i++)
+                {
+                    int col = i % cols;
+                    int row = i / cols;
+                    int x = Gap + col * (SwatchSize + Gap);
+                    int y = Gap + row * (SwatchSize + Gap);
+                    _entries[i] = (new Rectangle(x, y, SwatchSize, SwatchSize), _entries[i].Color);
+                }
+
+                int rows = (_entries.Count + cols - 1) / cols;
+                _cachedContentHeight = Gap + rows * (SwatchSize + Gap);
+
+                _scrollBar.SmallChange = SwatchSize + Gap;
+                _scrollBar.LargeChange = Height;
+                _scrollBar.ViewSize = Height;
+                _scrollBar.ContentSize = _cachedContentHeight;
+
+                int maxOffset = _scrollBar.MaxScroll;
+                if (_scrollOffset > maxOffset)
+                {
+                    _scrollOffset = maxOffset;
+                    _scrollBar.ScrollTo(maxOffset);
+                }
+                Invalidate();
+            }
+
+            /// <summary>
+            /// Renders the palette panel, applying scroll offset and drawing the scrollbar.
+            /// </summary>
+            public override void Render(Graphics g)
+            {
+                if (!Visible) return;
+
+                g.Zoom = EffectiveZoom;
+                var theme = ThemeManager.CurrentTheme;
+                g.FillRectangle(theme.TabContentBackground, 0, 0, Width, Height);
+
+                int sbw = ScrollBarEngine.DefaultScrollBarSize;
+                int contentWidth = Width - sbw;
+                g.SetClip(new Rectangle(0, 0, contentWidth, Height));
+
+                g.Save();
+                g.TranslateTransform(0, -_scrollOffset);
+
+                bool needsScrollbar = _scrollBar.NeedsScrollbar;
+                for (int i = 0; i < _entries.Count; i++)
+                {
+                    var (rect, color) = _entries[i];
+                    if (rect.Bottom <= _scrollOffset) continue;
+                    if (rect.Y >= _scrollOffset + Height) break;
+
+                    g.FillRectangle(color, rect.X, rect.Y, rect.Width, rect.Height);
+                    g.DrawRectangle(theme.ButtonBorder, rect.X, rect.Y, rect.Width, rect.Height, 1);
+                }
+
+                g.Restore();
+                g.ResetClip();
+
+                if (needsScrollbar)
+                {
+                    var sbBounds = new Rectangle(Width - sbw, 0, sbw, Height);
+                    _scrollBar.Render(g, sbBounds, theme);
+                }
+            }
+
+            /// <summary>
+            /// Handles mouse down events. Intercepts scrollbar clicks; finds palette color
+            /// at the click position directly.
+            /// </summary>
+            protected internal override void OnMouseDown(EventArgs e)
+            {
+                if (e is MouseEventArgs args)
+                {
+                    int sbw = ScrollBarEngine.DefaultScrollBarSize;
+                    if (_scrollBar.NeedsScrollbar && args.X >= Width - sbw)
+                    {
+                        var sbBounds = new Rectangle(Width - sbw, 0, sbw, Height);
+                        _scrollBar.HandleMouseDown(new Point(args.X, args.Y), sbBounds, new PaletteScrollBarContext(this));
+                        return;
+                    }
+
+                    var contentPt = new Point(args.X, args.Y + _scrollOffset);
+                    for (int i = _entries.Count - 1; i >= 0; i--)
+                    {
+                        var (rect, color) = _entries[i];
+                        if (rect.Contains(contentPt.X, contentPt.Y))
+                        {
+                            ColorSelected?.Invoke(color);
+                            return;
+                        }
+                    }
+                }
+                base.OnMouseDown(e);
+            }
+
+            /// <summary>
+            /// Handles mouse up events for the scrollbar.
+            /// </summary>
+            protected internal override void OnMouseUp(EventArgs e)
+            {
+                if (_scrollBar.IsDragging || _scrollBar.IsUpButtonPressed || _scrollBar.IsDownButtonPressed)
+                {
+                    _scrollBar.HandleMouseUp(new PaletteScrollBarContext(this));
+                    return;
+                }
+                base.OnMouseUp(e);
+            }
+
+            /// <summary>
+            /// Handles mouse move events for scrollbar hover and drag.
+            /// </summary>
+            protected internal override void OnMouseMove(EventArgs e)
+            {
+                if (e is MouseEventArgs args && _scrollBar.NeedsScrollbar)
+                {
+                    var sbBounds = new Rectangle(Width - ScrollBarEngine.DefaultScrollBarSize, 0, ScrollBarEngine.DefaultScrollBarSize, Height);
+                    _scrollBar.HandleMouseMove(new Point(args.X, args.Y), sbBounds, new PaletteScrollBarContext(this));
+                }
+                base.OnMouseMove(e);
+            }
+
+            /// <summary>
+            /// Handles mouse wheel events for scrolling.
+            /// </summary>
+            protected internal override void OnMouseWheel(EventArgs e)
+            {
+                if (e is MouseEventArgs args && _scrollBar.NeedsScrollbar)
+                {
+                    _scrollBar.HandleMouseWheel(args.Delta, new PaletteScrollBarContext(this));
+                    return;
+                }
+                base.OnMouseWheel(e);
+            }
+
+            /// <summary>
+            /// Handles mouse leave events, resetting scrollbar hover states.
+            /// </summary>
+            protected override void OnMouseLeave(EventArgs e)
+            {
+                _scrollBar.HandleMouseLeave(new PaletteScrollBarContext(this));
+                base.OnMouseLeave(e);
+            }
+
+            private sealed class PaletteScrollBarContext : IScrollBarContext
+            {
+                private readonly ScrollablePalettePanel _owner;
+                public PaletteScrollBarContext(ScrollablePalettePanel owner) => _owner = owner;
+                public float Zoom => _owner.EffectiveZoom;
+                public void Invalidate() => _owner.Invalidate();
+                public void CaptureMouse(bool capture) => _owner._captured = capture;
+            }
         }
     }
 }

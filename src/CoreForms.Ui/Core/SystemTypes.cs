@@ -116,6 +116,277 @@ public readonly struct Color
     /// </summary>
     public static readonly Color Transparent = new(0, 0, 0, 0);
 
+    /// <summary>AliceBlue (240,248,255)</summary>
+    public static readonly Color AliceBlue = new(240, 248, 255);
+    /// <summary>AntiqueWhite (250,235,215)</summary>
+    public static readonly Color AntiqueWhite = new(250, 235, 215);
+    /// <summary>Aqua (0,255,255)</summary>
+    public static readonly Color Aqua = new(0, 255, 255);
+    /// <summary>Aquamarine (127,255,212)</summary>
+    public static readonly Color Aquamarine = new(127, 255, 212);
+    /// <summary>Azure (240,255,255)</summary>
+    public static readonly Color Azure = new(240, 255, 255);
+    /// <summary>Beige (245,245,220)</summary>
+    public static readonly Color Beige = new(245, 245, 220);
+    /// <summary>Bisque (255,228,196)</summary>
+    public static readonly Color Bisque = new(255, 228, 196);
+    /// <summary>BlanchedAlmond (255,235,205)</summary>
+    public static readonly Color BlanchedAlmond = new(255, 235, 205);
+    /// <summary>BlueViolet (138,43,226)</summary>
+    public static readonly Color BlueViolet = new(138, 43, 226);
+    /// <summary>Brown (165,42,42)</summary>
+    public static readonly Color Brown = new(165, 42, 42);
+    /// <summary>BurlyWood (222,184,135)</summary>
+    public static readonly Color BurlyWood = new(222, 184, 135);
+    /// <summary>CadetBlue (95,158,160)</summary>
+    public static readonly Color CadetBlue = new(95, 158, 160);
+    /// <summary>Chartreuse (127,255,0)</summary>
+    public static readonly Color Chartreuse = new(127, 255, 0);
+    /// <summary>Chocolate (210,105,30)</summary>
+    public static readonly Color Chocolate = new(210, 105, 30);
+    /// <summary>Coral (255,127,80)</summary>
+    public static readonly Color Coral = new(255, 127, 80);
+    /// <summary>CornflowerBlue (100,149,237)</summary>
+    public static readonly Color CornflowerBlue = new(100, 149, 237);
+    /// <summary>Cornsilk (255,248,220)</summary>
+    public static readonly Color Cornsilk = new(255, 248, 220);
+    /// <summary>Crimson (220,20,60)</summary>
+    public static readonly Color Crimson = new(220, 20, 60);
+    /// <summary>Cyan (0,255,255)</summary>
+    public static readonly Color Cyan = new(0, 255, 255);
+    /// <summary>DarkBlue (0,0,139)</summary>
+    public static readonly Color DarkBlue = new(0, 0, 139);
+    /// <summary>DarkCyan (0,139,139)</summary>
+    public static readonly Color DarkCyan = new(0, 139, 139);
+    /// <summary>DarkGoldenrod (184,134,11)</summary>
+    public static readonly Color DarkGoldenrod = new(184, 134, 11);
+    /// <summary>DarkGray (169,169,169)</summary>
+    public static readonly Color DarkGray = new(169, 169, 169);
+    /// <summary>DarkGreen (0,100,0)</summary>
+    public static readonly Color DarkGreen = new(0, 100, 0);
+    /// <summary>DarkKhaki (189,183,107)</summary>
+    public static readonly Color DarkKhaki = new(189, 183, 107);
+    /// <summary>DarkMagenta (139,0,139)</summary>
+    public static readonly Color DarkMagenta = new(139, 0, 139);
+    /// <summary>DarkOliveGreen (85,107,47)</summary>
+    public static readonly Color DarkOliveGreen = new(85, 107, 47);
+    /// <summary>DarkOrange (255,140,0)</summary>
+    public static readonly Color DarkOrange = new(255, 140, 0);
+    /// <summary>DarkOrchid (153,50,204)</summary>
+    public static readonly Color DarkOrchid = new(153, 50, 204);
+    /// <summary>DarkRed (139,0,0)</summary>
+    public static readonly Color DarkRed = new(139, 0, 0);
+    /// <summary>DarkSalmon (233,150,122)</summary>
+    public static readonly Color DarkSalmon = new(233, 150, 122);
+    /// <summary>DarkSeaGreen (143,188,143)</summary>
+    public static readonly Color DarkSeaGreen = new(143, 188, 143);
+    /// <summary>DarkSlateBlue (72,61,139)</summary>
+    public static readonly Color DarkSlateBlue = new(72, 61, 139);
+    /// <summary>DarkSlateGray (47,79,79)</summary>
+    public static readonly Color DarkSlateGray = new(47, 79, 79);
+    /// <summary>DarkTurquoise (0,206,209)</summary>
+    public static readonly Color DarkTurquoise = new(0, 206, 209);
+    /// <summary>DarkViolet (148,0,211)</summary>
+    public static readonly Color DarkViolet = new(148, 0, 211);
+    /// <summary>DeepPink (255,20,147)</summary>
+    public static readonly Color DeepPink = new(255, 20, 147);
+    /// <summary>DeepSkyBlue (0,191,255)</summary>
+    public static readonly Color DeepSkyBlue = new(0, 191, 255);
+    /// <summary>DimGray (105,105,105)</summary>
+    public static readonly Color DimGray = new(105, 105, 105);
+    /// <summary>DodgerBlue (30,144,255)</summary>
+    public static readonly Color DodgerBlue = new(30, 144, 255);
+    /// <summary>Firebrick (178,34,34)</summary>
+    public static readonly Color Firebrick = new(178, 34, 34);
+    /// <summary>FloralWhite (255,250,240)</summary>
+    public static readonly Color FloralWhite = new(255, 250, 240);
+    /// <summary>ForestGreen (34,139,34)</summary>
+    public static readonly Color ForestGreen = new(34, 139, 34);
+    /// <summary>Fuchsia (255,0,255)</summary>
+    public static readonly Color Fuchsia = new(255, 0, 255);
+    /// <summary>Gainsboro (220,220,220)</summary>
+    public static readonly Color Gainsboro = new(220, 220, 220);
+    /// <summary>GhostWhite (248,248,255)</summary>
+    public static readonly Color GhostWhite = new(248, 248, 255);
+    /// <summary>Gold (255,215,0)</summary>
+    public static readonly Color Gold = new(255, 215, 0);
+    /// <summary>Goldenrod (218,165,32)</summary>
+    public static readonly Color Goldenrod = new(218, 165, 32);
+    /// <summary>Gray (128,128,128)</summary>
+    public static readonly Color Gray = new(128, 128, 128);
+    /// <summary>GreenYellow (173,255,47)</summary>
+    public static readonly Color GreenYellow = new(173, 255, 47);
+    /// <summary>Honeydew (240,255,240)</summary>
+    public static readonly Color Honeydew = new(240, 255, 240);
+    /// <summary>HotPink (255,105,180)</summary>
+    public static readonly Color HotPink = new(255, 105, 180);
+    /// <summary>IndianRed (205,92,92)</summary>
+    public static readonly Color IndianRed = new(205, 92, 92);
+    /// <summary>Indigo (75,0,130)</summary>
+    public static readonly Color Indigo = new(75, 0, 130);
+    /// <summary>Ivory (255,255,240)</summary>
+    public static readonly Color Ivory = new(255, 255, 240);
+    /// <summary>Khaki (240,230,140)</summary>
+    public static readonly Color Khaki = new(240, 230, 140);
+    /// <summary>Lavender (230,230,250)</summary>
+    public static readonly Color Lavender = new(230, 230, 250);
+    /// <summary>LavenderBlush (255,240,245)</summary>
+    public static readonly Color LavenderBlush = new(255, 240, 245);
+    /// <summary>LawnGreen (124,252,0)</summary>
+    public static readonly Color LawnGreen = new(124, 252, 0);
+    /// <summary>LemonChiffon (255,250,205)</summary>
+    public static readonly Color LemonChiffon = new(255, 250, 205);
+    /// <summary>LightBlue (173,216,230)</summary>
+    public static readonly Color LightBlue = new(173, 216, 230);
+    /// <summary>LightCoral (240,128,128)</summary>
+    public static readonly Color LightCoral = new(240, 128, 128);
+    /// <summary>LightCyan (224,255,255)</summary>
+    public static readonly Color LightCyan = new(224, 255, 255);
+    /// <summary>LightGoldenrodYellow (250,250,210)</summary>
+    public static readonly Color LightGoldenrodYellow = new(250, 250, 210);
+    /// <summary>LightGray (211,211,211)</summary>
+    public static readonly Color LightGray = new(211, 211, 211);
+    /// <summary>LightGreen (144,238,144)</summary>
+    public static readonly Color LightGreen = new(144, 238, 144);
+    /// <summary>LightPink (255,182,193)</summary>
+    public static readonly Color LightPink = new(255, 182, 193);
+    /// <summary>LightSalmon (255,160,122)</summary>
+    public static readonly Color LightSalmon = new(255, 160, 122);
+    /// <summary>LightSeaGreen (32,178,170)</summary>
+    public static readonly Color LightSeaGreen = new(32, 178, 170);
+    /// <summary>LightSkyBlue (135,206,250)</summary>
+    public static readonly Color LightSkyBlue = new(135, 206, 250);
+    /// <summary>LightSlateGray (119,136,153)</summary>
+    public static readonly Color LightSlateGray = new(119, 136, 153);
+    /// <summary>LightSteelBlue (176,196,222)</summary>
+    public static readonly Color LightSteelBlue = new(176, 196, 222);
+    /// <summary>LightYellow (255,255,224)</summary>
+    public static readonly Color LightYellow = new(255, 255, 224);
+    /// <summary>Lime (0,255,0)</summary>
+    public static readonly Color Lime = new(0, 255, 0);
+    /// <summary>LimeGreen (50,205,50)</summary>
+    public static readonly Color LimeGreen = new(50, 205, 50);
+    /// <summary>Linen (250,240,230)</summary>
+    public static readonly Color Linen = new(250, 240, 230);
+    /// <summary>Magenta (255,0,255)</summary>
+    public static readonly Color Magenta = new(255, 0, 255);
+    /// <summary>Maroon (128,0,0)</summary>
+    public static readonly Color Maroon = new(128, 0, 0);
+    /// <summary>MediumAquamarine (102,205,170)</summary>
+    public static readonly Color MediumAquamarine = new(102, 205, 170);
+    /// <summary>MediumBlue (0,0,205)</summary>
+    public static readonly Color MediumBlue = new(0, 0, 205);
+    /// <summary>MediumOrchid (186,85,211)</summary>
+    public static readonly Color MediumOrchid = new(186, 85, 211);
+    /// <summary>MediumPurple (147,112,219)</summary>
+    public static readonly Color MediumPurple = new(147, 112, 219);
+    /// <summary>MediumSeaGreen (60,179,113)</summary>
+    public static readonly Color MediumSeaGreen = new(60, 179, 113);
+    /// <summary>MediumSlateBlue (123,104,238)</summary>
+    public static readonly Color MediumSlateBlue = new(123, 104, 238);
+    /// <summary>MediumSpringGreen (0,250,154)</summary>
+    public static readonly Color MediumSpringGreen = new(0, 250, 154);
+    /// <summary>MediumTurquoise (72,209,204)</summary>
+    public static readonly Color MediumTurquoise = new(72, 209, 204);
+    /// <summary>MediumVioletRed (199,21,133)</summary>
+    public static readonly Color MediumVioletRed = new(199, 21, 133);
+    /// <summary>MidnightBlue (25,25,112)</summary>
+    public static readonly Color MidnightBlue = new(25, 25, 112);
+    /// <summary>MintCream (245,255,250)</summary>
+    public static readonly Color MintCream = new(245, 255, 250);
+    /// <summary>MistyRose (255,228,225)</summary>
+    public static readonly Color MistyRose = new(255, 228, 225);
+    /// <summary>Moccasin (255,228,181)</summary>
+    public static readonly Color Moccasin = new(255, 228, 181);
+    /// <summary>NavajoWhite (255,222,173)</summary>
+    public static readonly Color NavajoWhite = new(255, 222, 173);
+    /// <summary>Navy (0,0,128)</summary>
+    public static readonly Color Navy = new(0, 0, 128);
+    /// <summary>OldLace (253,245,230)</summary>
+    public static readonly Color OldLace = new(253, 245, 230);
+    /// <summary>Olive (128,128,0)</summary>
+    public static readonly Color Olive = new(128, 128, 0);
+    /// <summary>OliveDrab (107,142,35)</summary>
+    public static readonly Color OliveDrab = new(107, 142, 35);
+    /// <summary>Orange (255,165,0)</summary>
+    public static readonly Color Orange = new(255, 165, 0);
+    /// <summary>OrangeRed (255,69,0)</summary>
+    public static readonly Color OrangeRed = new(255, 69, 0);
+    /// <summary>Orchid (218,112,214)</summary>
+    public static readonly Color Orchid = new(218, 112, 214);
+    /// <summary>PaleGoldenrod (238,232,170)</summary>
+    public static readonly Color PaleGoldenrod = new(238, 232, 170);
+    /// <summary>PaleGreen (152,251,152)</summary>
+    public static readonly Color PaleGreen = new(152, 251, 152);
+    /// <summary>PaleTurquoise (175,238,238)</summary>
+    public static readonly Color PaleTurquoise = new(175, 238, 238);
+    /// <summary>PaleVioletRed (219,112,147)</summary>
+    public static readonly Color PaleVioletRed = new(219, 112, 147);
+    /// <summary>PapayaWhip (255,239,213)</summary>
+    public static readonly Color PapayaWhip = new(255, 239, 213);
+    /// <summary>PeachPuff (255,218,185)</summary>
+    public static readonly Color PeachPuff = new(255, 218, 185);
+    /// <summary>Peru (205,133,63)</summary>
+    public static readonly Color Peru = new(205, 133, 63);
+    /// <summary>Pink (255,192,203)</summary>
+    public static readonly Color Pink = new(255, 192, 203);
+    /// <summary>Plum (221,160,221)</summary>
+    public static readonly Color Plum = new(221, 160, 221);
+    /// <summary>PowderBlue (176,224,230)</summary>
+    public static readonly Color PowderBlue = new(176, 224, 230);
+    /// <summary>Purple (128,0,128)</summary>
+    public static readonly Color Purple = new(128, 0, 128);
+    /// <summary>RebeccaPurple (102,51,153)</summary>
+    public static readonly Color RebeccaPurple = new(102, 51, 153);
+    /// <summary>RosyBrown (188,143,143)</summary>
+    public static readonly Color RosyBrown = new(188, 143, 143);
+    /// <summary>RoyalBlue (65,105,225)</summary>
+    public static readonly Color RoyalBlue = new(65, 105, 225);
+    /// <summary>SaddleBrown (139,69,19)</summary>
+    public static readonly Color SaddleBrown = new(139, 69, 19);
+    /// <summary>Salmon (250,128,114)</summary>
+    public static readonly Color Salmon = new(250, 128, 114);
+    /// <summary>SandyBrown (244,164,96)</summary>
+    public static readonly Color SandyBrown = new(244, 164, 96);
+    /// <summary>SeaGreen (46,139,87)</summary>
+    public static readonly Color SeaGreen = new(46, 139, 87);
+    /// <summary>SeaShell (255,245,238)</summary>
+    public static readonly Color SeaShell = new(255, 245, 238);
+    /// <summary>Sienna (160,82,45)</summary>
+    public static readonly Color Sienna = new(160, 82, 45);
+    /// <summary>Silver (192,192,192)</summary>
+    public static readonly Color Silver = new(192, 192, 192);
+    /// <summary>SkyBlue (135,206,235)</summary>
+    public static readonly Color SkyBlue = new(135, 206, 235);
+    /// <summary>SlateBlue (106,90,205)</summary>
+    public static readonly Color SlateBlue = new(106, 90, 205);
+    /// <summary>SlateGray (112,128,144)</summary>
+    public static readonly Color SlateGray = new(112, 128, 144);
+    /// <summary>Snow (255,250,250)</summary>
+    public static readonly Color Snow = new(255, 250, 250);
+    /// <summary>SpringGreen (0,255,127)</summary>
+    public static readonly Color SpringGreen = new(0, 255, 127);
+    /// <summary>SteelBlue (70,130,180)</summary>
+    public static readonly Color SteelBlue = new(70, 130, 180);
+    /// <summary>Tan (210,180,140)</summary>
+    public static readonly Color Tan = new(210, 180, 140);
+    /// <summary>Teal (0,128,128)</summary>
+    public static readonly Color Teal = new(0, 128, 128);
+    /// <summary>Thistle (216,191,216)</summary>
+    public static readonly Color Thistle = new(216, 191, 216);
+    /// <summary>Tomato (255,99,71)</summary>
+    public static readonly Color Tomato = new(255, 99, 71);
+    /// <summary>Turquoise (64,224,208)</summary>
+    public static readonly Color Turquoise = new(64, 224, 208);
+    /// <summary>Violet (238,130,238)</summary>
+    public static readonly Color Violet = new(238, 130, 238);
+    /// <summary>Wheat (245,222,179)</summary>
+    public static readonly Color Wheat = new(245, 222, 179);
+    /// <summary>WhiteSmoke (245,245,245)</summary>
+    public static readonly Color WhiteSmoke = new(245, 245, 245);
+    /// <summary>YellowGreen (154,205,50)</summary>
+    public static readonly Color YellowGreen = new(154, 205, 50);
+
     /// <summary>
     /// Converts this Color to a 32-bit ARGB integer.
     /// </summary>
