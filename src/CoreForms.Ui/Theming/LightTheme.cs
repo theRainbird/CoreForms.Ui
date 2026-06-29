@@ -191,6 +191,24 @@ public class LightTheme : Theme
     public override Color DataGridViewGroupingBarPillBackground => Color.FromArgb(200, 200, 210);
 
     /// <inheritdoc />
+    public override Color PivotTableHeaderBackground => Color.FromArgb(240, 240, 240);
+
+    /// <inheritdoc />
+    public override Color PivotTableHeaderText => Color.FromArgb(0, 0, 0);
+
+    /// <inheritdoc />
+    public override Color PivotTableTotalBackground => Color.FromArgb(230, 235, 245);
+
+    /// <inheritdoc />
+    public override Color PivotTableAlternateRow => Color.FromArgb(245, 245, 250);
+
+    /// <inheritdoc />
+    public override Color PivotTableGridLine => Color.FromArgb(200, 200, 200);
+
+    /// <inheritdoc />
+    public override Color PivotTableSelection => Color.FromArgb(200, 220, 255);
+
+    /// <inheritdoc />
     public override Color TableLayoutGridLine => Color.FromArgb(180, 180, 180);
 
     /// <inheritdoc />

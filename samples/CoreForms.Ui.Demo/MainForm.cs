@@ -306,6 +306,7 @@ public class MainForm : Form
 
         tabControl.AddTabPage(CreateTabPage(SR.GetString("TabBasicControls"), CreateBasicControlsPage()));
         tabControl.AddTabPage(CreateTabPage(SR.GetString("TabDataGrid"), CreateDataGridPage()));
+        tabControl.AddTabPage(CreateTabPage("PivotTable", CreatePivotTablePage()));
         tabControl.AddTabPage(CreateTabPage(SR.GetString("TabDataBinding"), CreateDataBindingPage()));
         tabControl.AddTabPage(CreateTabPage(SR.GetString("TabMessageBoxes"), CreateMessageBoxPage()));
         tabControl.AddTabPage(CreateTabPage(SR.GetString("TabFileDialogs"), CreateFileDialogPage()));
@@ -347,6 +348,11 @@ public class MainForm : Form
         var page = new DataGridPage();
         page.StatusTextChanged += (s, e) => _statusLabel!.Text = e.Text;
         return page;
+    }
+
+    private PivotTablePage CreatePivotTablePage()
+    {
+        return new PivotTablePage();
     }
 
     private DataBindingPage CreateDataBindingPage()

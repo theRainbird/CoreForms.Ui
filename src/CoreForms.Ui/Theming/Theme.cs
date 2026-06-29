@@ -298,6 +298,36 @@ public abstract class Theme
     public abstract Color DataGridViewGroupingBarPillBackground { get; }
 
     /// <summary>
+    /// Gets the PivotTable header background color.
+    /// </summary>
+    public abstract Color PivotTableHeaderBackground { get; }
+
+    /// <summary>
+    /// Gets the PivotTable header text color.
+    /// </summary>
+    public abstract Color PivotTableHeaderText { get; }
+
+    /// <summary>
+    /// Gets the PivotTable total row/column background color.
+    /// </summary>
+    public abstract Color PivotTableTotalBackground { get; }
+
+    /// <summary>
+    /// Gets the PivotTable alternating row background color.
+    /// </summary>
+    public abstract Color PivotTableAlternateRow { get; }
+
+    /// <summary>
+    /// Gets the PivotTable grid line color.
+    /// </summary>
+    public abstract Color PivotTableGridLine { get; }
+
+    /// <summary>
+    /// Gets the PivotTable selected cell background color.
+    /// </summary>
+    public abstract Color PivotTableSelection { get; }
+
+    /// <summary>
     /// Gets the TableLayoutPanel grid line color.
     /// </summary>
     public abstract Color TableLayoutGridLine { get; }

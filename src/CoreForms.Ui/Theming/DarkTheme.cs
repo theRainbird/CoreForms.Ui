@@ -191,6 +191,24 @@ public class DarkTheme : Theme
     public override Color DataGridViewGroupingBarPillBackground => Color.FromArgb(70, 70, 75);
 
     /// <inheritdoc />
+    public override Color PivotTableHeaderBackground => Color.FromArgb(55, 55, 58);
+
+    /// <inheritdoc />
+    public override Color PivotTableHeaderText => Color.FromArgb(200, 200, 200);
+
+    /// <inheritdoc />
+    public override Color PivotTableTotalBackground => Color.FromArgb(50, 55, 65);
+
+    /// <inheritdoc />
+    public override Color PivotTableAlternateRow => Color.FromArgb(38, 38, 42);
+
+    /// <inheritdoc />
+    public override Color PivotTableGridLine => Color.FromArgb(65, 65, 68);
+
+    /// <inheritdoc />
+    public override Color PivotTableSelection => Color.FromArgb(50, 70, 100);
+
+    /// <inheritdoc />
     public override Color TableLayoutGridLine => Color.FromArgb(70, 70, 73);
 
     /// <inheritdoc />
