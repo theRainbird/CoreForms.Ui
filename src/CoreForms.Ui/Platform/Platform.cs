@@ -1253,7 +1253,7 @@ public static class Platform
 
     private static void ExecuteDrawCommand(DrawCommand cmd, SkiaRenderer renderer, SkiaFontRenderer fontRenderer)
     {
-        renderer.SetClipRect(cmd.ClipBounds);
+        renderer.SetClipRect(GetCommandClip(cmd));
 
         switch (cmd.Type)
         {
@@ -1324,6 +1324,30 @@ public static class Platform
                 break;
         }
     }
+
+    private static Core.Rectangle? GetCommandClip(DrawCommand cmd)
+    {
+        if (!cmd.ClipBounds.HasValue) return null;
+
+        if (IsStrokeCommand(cmd.Type))
+        {
+            int inflate = (int)Math.Ceiling(cmd.LineWidth / 2f);
+            var r = cmd.ClipBounds.Value;
+            return new Core.Rectangle(r.X - inflate, r.Y - inflate, r.Width + 2 * inflate, r.Height + 2 * inflate);
+        }
+
+        return cmd.ClipBounds;
+    }
+
+    private static bool IsStrokeCommand(DrawCommandType type) => type switch
+    {
+        DrawCommandType.DrawRectangle => true,
+        DrawCommandType.DrawLine => true,
+        DrawCommandType.DrawArc => true,
+        DrawCommandType.DrawPolygon => true,
+        DrawCommandType.DrawEllipse => true,
+        _ => false
+    };
 
     private static Core.Keys MapKeyCode(Key key)
     {
