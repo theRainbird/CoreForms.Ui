@@ -306,7 +306,7 @@ public class MainForm : Form
 
         tabControl.AddTabPage(CreateTabPage(SR.GetString("TabBasicControls"), CreateBasicControlsPage()));
         tabControl.AddTabPage(CreateTabPage(SR.GetString("TabDataGrid"), CreateDataGridPage()));
-        tabControl.AddTabPage(CreateTabPage("PivotTable", CreatePivotTablePage()));
+        tabControl.AddTabPage(CreateTabPage(SR.GetString("TabPivotTable"), CreatePivotTablePage()));
         tabControl.AddTabPage(CreateTabPage(SR.GetString("TabDataBinding"), CreateDataBindingPage()));
         tabControl.AddTabPage(CreateTabPage(SR.GetString("TabMessageBoxes"), CreateMessageBoxPage()));
         tabControl.AddTabPage(CreateTabPage(SR.GetString("TabFileDialogs"), CreateFileDialogPage()));

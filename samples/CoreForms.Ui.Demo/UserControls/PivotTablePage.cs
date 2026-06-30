@@ -59,20 +59,20 @@ public class PivotTablePage : UserControl
             }
         }
 
-        _pivotTable.Fields.Add(new PivotTableField("Category", PivotTableFieldUsage.RowField));
-        _pivotTable.Fields.Add(new PivotTableField("SubCategory", PivotTableFieldUsage.RowField));
-        _pivotTable.Fields.Add(new PivotTableField("Region", PivotTableFieldUsage.ColumnField));
-        _pivotTable.Fields.Add(new PivotTableField("Revenue", PivotTableFieldUsage.ValueField)
+        _pivotTable.Fields.Add(new PivotTableField(SR.GetString("PtCategory"), "Category", PivotTableFieldUsage.RowField));
+        _pivotTable.Fields.Add(new PivotTableField(SR.GetString("PtSubCategory"), "SubCategory", PivotTableFieldUsage.RowField));
+        _pivotTable.Fields.Add(new PivotTableField(SR.GetString("PtRegion"), "Region", PivotTableFieldUsage.ColumnField));
+        _pivotTable.Fields.Add(new PivotTableField(SR.GetString("PtRevenue"), "Revenue", PivotTableFieldUsage.ValueField)
         {
             Aggregation = PivotTableAggregation.Sum,
             FormatString = "C0"
         });
-        _pivotTable.Fields.Add(new PivotTableField("Quantity", PivotTableFieldUsage.ValueField)
+        _pivotTable.Fields.Add(new PivotTableField(SR.GetString("PtQuantity"), "Quantity", PivotTableFieldUsage.ValueField)
         {
             Aggregation = PivotTableAggregation.Sum,
             FormatString = "N0"
         });
-        _pivotTable.Fields.Add(new PivotTableField("Quarter", PivotTableFieldUsage.FilterField));
+        _pivotTable.Fields.Add(new PivotTableField(SR.GetString("PtQuarter"), "Quarter", PivotTableFieldUsage.FilterField));
 
         _pivotTable.DataSource = data;
         _pivotTable.ExpandAll();

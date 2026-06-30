@@ -70,6 +70,7 @@
   <data name="TabCalendar"><value>Calendar</value></data>
   <data name="TabMultiWindows"><value>Multiple Windows</value></data>
   <data name="TabDateTimePicker"><value>Date/Time Picker</value></data>
+  <data name="TabPivotTable"><value>Pivot Table</value></data>
   <data name="TabDiagram"><value>Diagrams</value></data>
   <!-- DiagramView page -->
   <data name="DgControlPanel"><value>Diagram Controls</value></data>
@@ -369,4 +370,11 @@
   <data name="FontPickerLabel"><value>Choose a font</value></data>
   <data name="BtnColorPicker"><value>Color Picker</value></data>
   <data name="StatusColorPickerResult"><value>Dialog result: {0}</value></data>
+  <!-- PivotTable field names -->
+  <data name="PtCategory"><value>Category</value></data>
+  <data name="PtSubCategory"><value>Subcategory</value></data>
+  <data name="PtRegion"><value>Region</value></data>
+  <data name="PtRevenue"><value>Revenue</value></data>
+  <data name="PtQuantity"><value>Quantity</value></data>
+  <data name="PtQuarter"><value>Quarter</value></data>
 </root>
