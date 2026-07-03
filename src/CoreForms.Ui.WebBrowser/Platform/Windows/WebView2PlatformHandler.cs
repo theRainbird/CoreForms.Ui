@@ -2,6 +2,7 @@
 using System;
 using System.Runtime.InteropServices;
 using System.Threading.Tasks;
+using CoreForms.Ui.Core;
 using CoreForms.Ui.WebBrowser.Controls;
 using CoreForms.Ui.WebBrowser.Events;
 using Microsoft.Web.WebView2.Core;
@@ -23,6 +24,23 @@ public class WebView2PlatformHandler : IWebViewPlatformHandler
     private string? _pendingNavigationHtml;
     private string? _initError;
     private Rectangle _pendingBounds;
+    private CoreForms.Ui.Controls.Advanced.TabControl? _parentTabControl;
+    private System.Threading.SynchronizationContext? _uiContext;
+
+    [DllImport("user32.dll", SetLastError = true)]
+    private static extern IntPtr FindWindowEx(IntPtr hwndParent, IntPtr hwndChildAfter, string? lpszClass, string? lpszWindow);
+
+    [DllImport("user32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool GetWindowRect(IntPtr hWnd, out RECT lpRect);
+
+    private struct RECT
+    {
+        public int Left;
+        public int Top;
+        public int Right;
+        public int Bottom;
+    }
 
     /// <inheritdoc/>
     public bool CanGoBack { get; private set; }
@@ -55,6 +73,8 @@ public class WebView2PlatformHandler : IWebViewPlatformHandler
     public void Initialize(uint parentWindowId, IntPtr nativeWindowHandle)
     {
         _parentHwnd = nativeWindowHandle;
+        _uiContext = System.Threading.SynchronizationContext.Current;
+        Console.WriteLine($"[WebView2] Initialize: hwnd=0x{nativeWindowHandle:X8} ctx={_uiContext?.GetType().Name ?? "null"}");
 
         try
         {
@@ -62,37 +82,91 @@ public class WebView2PlatformHandler : IWebViewPlatformHandler
             {
                 _initError = "WebView2: No valid parent HWND";
                 System.Diagnostics.Debug.WriteLine($"[WebView2] {_initError}");
+                Console.WriteLine($"[WebView2] {_initError}");
                 return;
             }
 
+            Console.WriteLine("[WebView2] Starting InitializeAsync...");
             _ = InitializeAsync();
         }
         catch (Exception ex)
         {
             _initError = $"WebView2 init failed: {ex.Message}";
             System.Diagnostics.Debug.WriteLine($"[WebView2] {_initError}");
+            Console.WriteLine($"[WebView2] {_initError}");
         }
     }
 
     private async Task InitializeAsync()
     {
+        var tid1 = Environment.CurrentManagedThreadId;
+        Console.WriteLine($"[WebView2] InitializeAsync start: thread={tid1}");
         try
         {
             var env = await CoreWebView2Environment.CreateAsync();
+            var tid2 = Environment.CurrentManagedThreadId;
+            Console.WriteLine($"[WebView2] Environment created: thread={tid2}");
+
+            Console.WriteLine("[WebView2] Creating controller...");
             _controller = await env.CreateCoreWebView2ControllerAsync(_parentHwnd);
+            var tid3 = Environment.CurrentManagedThreadId;
+            Console.WriteLine($"[WebView2] Controller created: thread={tid3}");
 
             _controller.CoreWebView2.NavigationStarting += OnNavigationStarting;
             _controller.CoreWebView2.NavigationCompleted += OnNavigationCompleted;
 
-            var b = _pendingBounds.Width > 0 ? _pendingBounds : _webView.Bounds;
+            Rectangle initBounds;
+            if (_pendingBounds.Width > 0)
+            {
+                initBounds = _pendingBounds;
+            }
+            else
+            {
+                // Fallback: compute position relative to the Form's client area
+                // by walking the parent chain and including render offsets.
+                var form = _webView.FindForm();
+                if (form != null)
+                {
+                    var origin = _webView.PointToScreen(CoreForms.Ui.Core.Point.Empty);
+                    var formOrigin = form.PointToScreen(CoreForms.Ui.Core.Point.Empty);
+                    initBounds = new Rectangle(
+                        origin.X - formOrigin.X,
+                        origin.Y - formOrigin.Y,
+                        _webView.Width,
+                        _webView.Height);
+                }
+                else
+                {
+                    initBounds = _webView.Bounds;
+                }
+            }
+            Console.WriteLine($"[WebView2] Init bounds: ({initBounds.X},{initBounds.Y},{initBounds.Width},{initBounds.Height})");
+            float zoom = _webView.EffectiveZoom;
             _controller.Bounds = new System.Drawing.Rectangle(
-                b.X, b.Y,
-                Math.Max(b.Width, 1),
-                Math.Max(b.Height, 1));
+                (int)(initBounds.X * zoom),
+                (int)(initBounds.Y * zoom),
+                Math.Max((int)(initBounds.Width * zoom), 1),
+                Math.Max((int)(initBounds.Height * zoom), 1));
+            var actualBounds = _controller.Bounds;
+            Console.WriteLine($"[WebView2] Controller Bounds after set: ({actualBounds.X},{actualBounds.Y},{actualBounds.Width},{actualBounds.Height})");
+            // Verify actual child HWND position
+            try
+            {
+                var child = FindWindowEx(_parentHwnd, IntPtr.Zero, null, null);
+                Console.WriteLine($"[WebView2] First child HWND: 0x{child:X8}");
+                if (child != IntPtr.Zero && GetWindowRect(child, out var childRect))
+                {
+                    Console.WriteLine($"[WebView2] Child HWND rect: ({childRect.Left},{childRect.Top},{childRect.Right},{childRect.Bottom}) " +
+                        $"size=({childRect.Right - childRect.Left},{childRect.Bottom - childRect.Top})");
+                }
+            }
+            catch (Exception ex) { Console.WriteLine($"[WebView2] Child HWND check error: {ex.Message}"); }
             _controller.IsVisible = _webView.Visible;
 
+            SubscribeToTabChanges();
+
             _isInitialized = true;
-            System.Diagnostics.Debug.WriteLine("[WebView2] Initialized successfully");
+            Console.WriteLine("[WebView2] Setup complete");
 
             if (!string.IsNullOrEmpty(_pendingNavigationUrl))
             {
@@ -111,24 +185,32 @@ public class WebView2PlatformHandler : IWebViewPlatformHandler
         {
             _initError = $"WebView2 async init failed: {ex.Message}";
             System.Diagnostics.Debug.WriteLine($"[WebView2] {_initError}");
+            Console.WriteLine($"[WebView2] ERROR: {_initError}");
         }
     }
 
     /// <inheritdoc/>
     public void Navigate(string url)
     {
+        Console.WriteLine($"[WebView2] Navigate: url='{url}' disposed={_disposed} init={_isInitialized} err={_initError}");
         if (_disposed) return;
 
         if (_isInitialized && _controller?.CoreWebView2 != null)
         {
             System.Diagnostics.Debug.WriteLine($"[WebView2] Navigate immediate: {url}");
+            Console.WriteLine($"[WebView2] Navigate IMMEDIATE: {url}");
             _controller.CoreWebView2.Navigate(url);
         }
         else if (_initError == null)
         {
             System.Diagnostics.Debug.WriteLine($"[WebView2] Navigate pending (init={_isInitialized}): {url}");
+            Console.WriteLine($"[WebView2] Navigate PENDING: {url}");
             _pendingNavigationUrl = url;
             _pendingNavigationHtml = null;
+        }
+        else
+        {
+            Console.WriteLine($"[WebView2] Navigate SKIPPED: _initError='{_initError}'");
         }
     }
 
@@ -193,22 +275,56 @@ public class WebView2PlatformHandler : IWebViewPlatformHandler
     /// <inheritdoc/>
     public void UpdateBounds(Rectangle bounds)
     {
+        Console.WriteLine($"[WebView2] UpdateBounds: incoming=({bounds.X},{bounds.Y},{bounds.Width},{bounds.Height})");
+
+        // Bounds from WebView.OnBoundsChanged are relative to the WebView's parent
+        // (e.g. TabPage). WebView2's child HWND is positioned relative to the form,
+        // so convert to form-absolute coordinates.
+        var form = _webView.FindForm();
+        if (form != null)
+        {
+            var origin = _webView.PointToScreen(CoreForms.Ui.Core.Point.Empty);
+            var formOrigin = form.PointToScreen(CoreForms.Ui.Core.Point.Empty);
+            bounds = new Rectangle(
+                origin.X - formOrigin.X,
+                origin.Y - formOrigin.Y,
+                bounds.Width,
+                bounds.Height);
+            Console.WriteLine($"[WebView2] UpdateBounds: converted to absolute=({bounds.X},{bounds.Y},{bounds.Width},{bounds.Height})");
+        }
+
         _pendingBounds = bounds;
 
         if (_controller != null)
         {
+            float zoom = _webView.EffectiveZoom;
             _controller.Bounds = new System.Drawing.Rectangle(
-                bounds.X, bounds.Y,
-                Math.Max(bounds.Width, 1),
-                Math.Max(bounds.Height, 1));
+                (int)(bounds.X * zoom),
+                (int)(bounds.Y * zoom),
+                Math.Max((int)(bounds.Width * zoom), 1),
+                Math.Max((int)(bounds.Height * zoom), 1));
+            Console.WriteLine($"[WebView2] UpdateBounds: set on controller (zoom={zoom})");
         }
     }
 
     /// <inheritdoc/>
     public void SetVisible(bool visible)
     {
-        if (_controller != null)
-            _controller.IsVisible = visible;
+        if (_controller == null) return;
+        // Only show if both the WebView is visible AND its parent tab is selected
+        _controller.IsVisible = visible && IsWebViewTabSelected();
+    }
+
+    private bool IsWebViewTabSelected()
+    {
+        if (_parentTabControl == null) return true;
+        Control? current = _webView;
+        while (current != null && current.Parent != _parentTabControl)
+        {
+            current = current.Parent;
+        }
+        var ourTabPage = current as CoreForms.Ui.Controls.Advanced.TabPage;
+        return ourTabPage != null && _parentTabControl.SelectedTab == ourTabPage;
     }
 
     /// <inheritdoc/>
@@ -224,6 +340,11 @@ public class WebView2PlatformHandler : IWebViewPlatformHandler
 
         try
         {
+            if (_parentTabControl != null)
+            {
+                _parentTabControl.SelectedIndexChanged -= OnTabSelectedIndexChanged;
+                _parentTabControl = null;
+            }
             _pendingNavigationUrl = null;
             _pendingNavigationHtml = null;
             _controller?.Close();
@@ -232,6 +353,34 @@ public class WebView2PlatformHandler : IWebViewPlatformHandler
         catch
         {
         }
+    }
+
+    private void SubscribeToTabChanges()
+    {
+        Control? parent = _webView.Parent;
+        while (parent != null)
+        {
+            if (parent is CoreForms.Ui.Controls.Advanced.TabControl tabControl)
+            {
+                _parentTabControl = tabControl;
+                tabControl.SelectedIndexChanged += OnTabSelectedIndexChanged;
+                // Set initial visibility based on whether our parent TabPage is selected
+                UpdateVisibilityFromTab();
+                break;
+            }
+            parent = parent.Parent;
+        }
+    }
+
+    private void OnTabSelectedIndexChanged(object? sender, EventArgs e)
+    {
+        UpdateVisibilityFromTab();
+    }
+
+    private void UpdateVisibilityFromTab()
+    {
+        if (_controller == null) return;
+        _controller.IsVisible = _webView.Visible && IsWebViewTabSelected();
     }
 
     private void OnNavigationStarting(object? sender, CoreWebView2NavigationStartingEventArgs e)

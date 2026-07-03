@@ -98,11 +98,17 @@ public class WebView : Control
     /// <param name="url">The URL to navigate to.</param>
     public void Navigate(string url)
     {
+        Console.WriteLine($"[WebView] Navigate: url='{url}' loaded={_isLoaded}");
         _source = url;
         EnsureInitialized();
         if (_platformHandler != null)
         {
+            Console.WriteLine($"[WebView] NavigateInternal: handler={_platformHandler.GetType().Name}");
             NavigateInternal(url);
+        }
+        else
+        {
+            Console.WriteLine("[WebView] _platformHandler is NULL after EnsureInitialized");
         }
     }
 
@@ -387,21 +393,27 @@ public class WebView : Control
     {
         if (_isLoaded) return;
 
+        Console.WriteLine("[WebView] EnsureInitialized: creating handler...");
         try
         {
             _platformHandler = WebViewPlatformHandlerFactory.Create(this);
+            Console.WriteLine($"[WebView] Handler created: {_platformHandler.GetType().Name}");
 
             _platformHandler.Navigating += OnPlatformNavigating;
             _platformHandler.Navigated += OnPlatformNavigated;
 
             var form = FindForm();
+            Console.WriteLine($"[WebView] Form: {form?.GetType().Name ?? "null"}");
             IntPtr nativeHandle = form != null ? CoreForms.Ui.Platform.Platform.GetNativeWindowHandle(form) : IntPtr.Zero;
+            Console.WriteLine($"[WebView] Native HWND: 0x{nativeHandle:X8}");
             _platformHandler.Initialize(form?.WindowId ?? 0, nativeHandle);
 
             _isLoaded = true;
+            Console.WriteLine("[WebView] Initialized OK");
         }
         catch (Exception ex)
         {
+            Console.WriteLine($"[WebView] ERROR in EnsureInitialized: {ex.GetType().Name}: {ex.Message}");
             _initFailed = true;
             _initError = ex.Message;
             _isLoaded = true;
@@ -410,6 +422,10 @@ public class WebView : Control
 
     private void NavigateInternal(string url)
     {
+        // Ensure the URL has a scheme; WebView2 requires an absolute URI
+        if (!string.IsNullOrEmpty(url) && !url.Contains("://"))
+            url = "https://" + url;
+
         var args = new WebNavigatingEventArgs(url);
         OnNavigating(args);
 
