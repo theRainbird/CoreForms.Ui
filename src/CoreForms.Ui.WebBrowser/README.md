@@ -1,19 +1,19 @@
 # CoreForms.Ui.WebBrowser
 
-Ein Webbrowser-View-Control für CoreForms.Ui-Anwendungen. Ermöglicht die Einbettung von Webinhalten (Webseiten, HTML) in eine CoreForms.Ui-Anwendung.
+A web browser view control for CoreForms.Ui applications. Enables embedding web content (web pages, HTML) into a CoreForms.Ui application.
 
-## Unterstützte Plattformen
+## Supported Platforms
 
-| Plattform | Browser-Engine | Systemanforderungen |
-|-----------|---------------|---------------------|
-| Windows 10/11 | WebView2 | WebView2 Runtime (vorinstalliert oder herunterladbar) |
-| Linux | WebKitGTK | libwebkit2gtk-4.1-0 |
+| Platform | Browser Engine | Rendering |
+|----------|---------------|-----------|
+| Windows 10/11 | WebView2 (Chromium) | HWND child embedding |
+| Linux | CefGlue (Chromium Embedded Framework) | Off-Screen Rendering (OSR) |
 
 ## Installation
 
-### Projekt-Referenz hinzufügen
+### Add Project Reference
 
-Fügen Sie in Ihrer Anwendung eine Referenz zum `CoreForms.Ui.WebBrowser`-Projekt hinzu:
+Add a reference to the `CoreForms.Ui.WebBrowser` project in your application:
 
 ```xml
 <ItemGroup>
@@ -21,30 +21,24 @@ Fügen Sie in Ihrer Anwendung eine Referenz zum `CoreForms.Ui.WebBrowser`-Projek
 </ItemGroup>
 ```
 
-### Systemabhängigkeiten
+### System Dependencies
+
+#### Windows
+
+The WebView2 Runtime is required. It is pre-installed on most Windows 10/11 systems. If not available, download it from:
+https://developer.microsoft.com/en-us/microsoft-edge/webview2/
 
 #### Linux
 
-Installieren Sie die erforderlichen GTK- und WebKit-Bibliotheken:
+CefGlue bundles its own Chromium runtime, so no additional system packages are required beyond a basic X11/Wayland environment. The CEF runtime includes all necessary libraries (Vulkan, ICU, etc.) and is included in the NuGet package.
 
-**Ubuntu/Debian:**
-```bash
-sudo apt install libwebkit2gtk-4.1-0 libgtk-4-1 libglib2.0-0
-```
+Ensure a graphical environment is running:
+- X11: `export DISPLAY=:0`
+- Wayland: Works with Wayland-compliant applications
 
-**Fedora:**
-```bash
-sudo dnf install webkit2gtk4.1 libgtk-4.1
-```
+## Usage
 
-**Arch Linux:**
-```bash
-sudo pacman -S webkit2gtk-4.1 gtk4
-```
-
-## Verwendung
-
-### Grundlegende Verwendung
+### Basic Usage
 
 ```csharp
 using CoreForms.Ui;
@@ -68,13 +62,13 @@ public class MainForm : Form
 
         Controls.Add(_webView);
 
-        // URL laden
+        // Load URL
         _webView.Navigate("https://example.com");
     }
 }
 ```
 
-### HTML-Inhalt anzeigen
+### Display HTML Content
 
 ```csharp
 _webView.NavigateToString(@"
@@ -87,8 +81,8 @@ _webView.NavigateToString(@"
     </style>
 </head>
 <body>
-    <h1>Hallo CoreForms.Ui!</h1>
-    <p>Dies ist eingebetteter HTML-Inhalt.</p>
+    <h1>Hello CoreForms.Ui!</h1>
+    <p>This is embedded HTML content.</p>
 </body>
 </html>");
 ```
@@ -96,30 +90,46 @@ _webView.NavigateToString(@"
 ### Navigation
 
 ```csharp
-// Zurück
+// Go back
 if (_webView.CanGoBack)
 {
     _webView.GoBack();
 }
 
-// Vorwärts
+// Go forward
 if (_webView.CanGoForward)
 {
     _webView.GoForward();
 }
 
-// Aktualisieren
+// Refresh
 _webView.Refresh();
+
+// Stop
+_webView.Stop();
 ```
 
-### JavaScript ausführen
+### Zoom (Linux/CefGlue only)
 
 ```csharp
-// JavaScript im Kontext der Seite ausführen
-var result = await _webView.EvaluateScriptAsync("document.title");
-Console.WriteLine($"Seitentitel: {result}");
+// Increase zoom
+_webView.ZoomIn();
 
-// DOM-Manipulation
+// Decrease zoom
+_webView.ZoomOut();
+
+// Reset zoom to 100%
+_webView.ResetZoom();
+```
+
+### Execute JavaScript
+
+```csharp
+// Execute JavaScript in the page context
+var result = await _webView.EvaluateScriptAsync("document.title");
+Console.WriteLine($"Page title: {result}");
+
+// DOM manipulation
 await _webView.EvaluateScriptAsync("document.body.style.backgroundColor = 'lightblue'");
 ```
 
@@ -128,21 +138,21 @@ await _webView.EvaluateScriptAsync("document.body.style.backgroundColor = 'light
 ```csharp
 _webView.Navigating += (sender, e) =>
 {
-    Console.WriteLine($"Navigiere zu: {e.Url}");
-    // Navigation abbrechen: e.Cancel = true;
+    Console.WriteLine($"Navigating to: {e.Url}");
+    // Cancel navigation: e.Cancel = true;
 };
 
 _webView.Navigated += (sender, e) =>
 {
-    Console.WriteLine($"Navigation abgeschlossen: {e.Result}");
+    Console.WriteLine($"Navigation completed: {e.Result}");
     if (e.Result == WebNavigationResult.Success)
     {
-        Console.WriteLine("Seite erfolgreich geladen!");
+        Console.WriteLine("Page loaded successfully!");
     }
 };
 ```
 
-### Vollständiges Beispiel
+### Complete Example
 
 ```csharp
 using System;
@@ -178,9 +188,9 @@ public class MainForm : Form
             Size = new Size(1024, 40)
         };
 
-        _backButton = new Button { Text = "Zurück", Location = new Point(10, 5), Size = new Size(80, 30) };
-        _forwardButton = new Button { Text = "Vorwärts", Location = new Point(100, 5), Size = new Size(80, 30) };
-        _refreshButton = new Button { Text = "Aktualisieren", Location = new Point(190, 5), Size = new Size(100, 30) };
+        _backButton = new Button { Text = "Back", Location = new Point(10, 5), Size = new Size(80, 30) };
+        _forwardButton = new Button { Text = "Forward", Location = new Point(100, 5), Size = new Size(80, 30) };
+        _refreshButton = new Button { Text = "Refresh", Location = new Point(190, 5), Size = new Size(100, 30) };
 
         _backButton.Click += (s, e) => _webView.GoBack();
         _forwardButton.Click += (s, e) => _webView.GoForward();
@@ -219,58 +229,75 @@ public class MainForm : Form
 }
 ```
 
-## API-Referenz
+## Architecture
 
-### WebView-Eigenschaften
+The WebView control uses a platform-abstracted approach with different browser engines per platform:
 
-| Eigenschaft | Typ | Beschreibung |
-|-------------|-----|---------------|
-| `Url` | `string?` | Die anzuzeigende URL |
-| `CanGoBack` | `bool` | Ob eine vorherige Seite im Verlauf ist |
-| `CanGoForward` | `bool` | Ob eine nächste Seite im Verlauf ist |
-| `IsScriptEnabled` | `bool` | JavaScript aktiviert (Standard: true) |
-| `Visible` | `bool` | Sichtbarkeit des Controls |
-| `Enabled` | `bool` | Aktiviert/Deaktiviert |
+### Windows: WebView2 (HWND Embedding)
 
-### WebView-Methoden
+On Windows, the control uses Microsoft WebView2 which creates a real child HWND inside the parent form's client area. The OS compositor handles rendering the child HWND on top of the parent surface. Bounds are converted from control-relative to form-absolute coordinates.
 
-| Methode | Beschreibung |
-|---------|-------------|
-| `Navigate(string url)` | Navigiert zur angegebenen URL |
-| `NavigateToString(string html)` | Zeigt HTML-Inhalt an |
-| `GoBack()` | Navigiert zur vorherigen Seite |
-| `GoForward()` | Navigiert zur nächsten Seite |
-| `Refresh()` | Lädt die aktuelle Seite neu |
-| `Stop()` | Stoppt die aktuelle Navigation |
-| `EvaluateScriptAsync(string script)` | Führt JavaScript aus |
+### Linux: CefGlue (Off-Screen Rendering)
 
-### WebView-Events
+On Linux, the control uses CefGlue (Chromium Embedded Framework) in Off-Screen Rendering (OSR) mode. CEF renders to a BGRA pixel buffer, which is then drawn via the CoreForms.Ui graphics system (`g.DrawImage()`). All mouse, keyboard, and text input is forwarded manually through CefGlue's input API. Popup overlays (e.g., `<select>` dropdowns) are rendered as a second pixel buffer overlay.
 
-| Event | Beschreibung |
+## API Reference
+
+### WebView Properties
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `Url` | `string?` | The URL to display |
+| `CanGoBack` | `bool` | Whether there is a previous page in the history |
+| `CanGoForward` | `bool` | Whether there is a next page in the history |
+| `IsScriptEnabled` | `bool` | JavaScript enabled (default: true) |
+
+### WebView Methods
+
+| Method | Description |
+|--------|-------------|
+| `Navigate(string url)` | Navigates to the specified URL |
+| `NavigateToString(string html)` | Displays HTML content |
+| `GoBack()` | Navigates to the previous page |
+| `GoForward()` | Navigates to the next page |
+| `Refresh()` | Reloads the current page |
+| `Stop()` | Stops the current navigation |
+| `EvaluateScriptAsync(string script)` | Executes JavaScript, returns result as string |
+| `ZoomIn()` | Increases zoom level (Linux/CefGlue only) |
+| `ZoomOut()` | Decreases zoom level (Linux/CefGlue only) |
+| `ResetZoom()` | Resets zoom to 100% (Linux/CefGlue only) |
+
+### WebView Events
+
+| Event | Description |
 |-------|-------------|
-| `Navigating` | Wird vor einer Navigation ausgelöst |
-| `Navigated` | Wird nach Abschluss einer Navigation ausgelöst |
+| `Navigating` | Raised before navigation. Contains `Url` and `Cancel` properties. |
+| `Navigated` | Raised after navigation completes. Contains `Url` and `Result` (`WebNavigationResult` enum). |
 
-## Bekannte Einschränkungen
+## Known Limitations
 
-1. **Windows:** WebView2 muss installiert sein. Die Runtime ist auf Windows 10/11 meist vorinstalliert.
+1. **Windows:** WebView2 Runtime must be installed. It is usually pre-installed on Windows 10/11.
 
-2. **Linux:** Das WebView-Fenster wird als separates GTK-Window erstellt und über Socket-Embedding eingebettet. Dies erfordert eine funktionierende GTK-Umgebung.
+2. **Linux:** CefGlue bundles its own Chromium runtime, which increases the application size. The first launch may take longer as CEF initializes.
 
-3. **CoreForms.Ui-Integration:** Das WebView-Control nutzt die Handle-Architektur von CoreForms.Ui. Die Fenster-ID wird aus dem übergeordneten Form ermittelt.
+3. **Linux:** OSR rendering may have slightly different performance characteristics compared to native window embedding. GPU acceleration depends on Vulkan driver availability.
 
-## Fehlerbehebung
+4. **CoreForms.Ui Integration:** The WebView control inherits from `Control` and integrates with the CoreForms.Ui handle architecture, event forwarding, and rendering pipeline.
+
+## Troubleshooting
 
 ### Windows: "WebView2 not found"
-- WebView2 Runtime installieren: https://developer.microsoft.com/de-de/microsoft-edge/webview2/
+- Install WebView2 Runtime: https://developer.microsoft.com/en-us/microsoft-edge/webview2/
 
-### Linux: "libwebkit2gtk not found"
-- Systempakete installieren (siehe oben)
+### Linux: No browser content displayed
+- Ensure a graphical environment (X11/Wayland) is running
+- Check that Vulkan drivers are available for GPU acceleration
+- Set display variable: `export DISPLAY=:0`
 
-### Linux: "gtk_init_check failed"
-- Stellen Sie sicher, dass eine grafische Umgebung (X11/Wayland) läuft
-- Display-Variable setzen: `export DISPLAY=:0`
+### Linux: CEF initialization fails
+- Ensure required X11 libraries are installed (typically pre-installed on desktop Linux)
+- Check application logs for CEF-specific error messages
 
-## Lizenz
+## License
 
-Dieses Projekt ist Teil von CoreForms.Ui und unterliegt den gleichen Lizenzbedingungen.
+This project is part of CoreForms.Ui and is subject to the same license terms.

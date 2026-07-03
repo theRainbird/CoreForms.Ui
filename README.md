@@ -2,6 +2,8 @@
 
 A cross-platform .NET UI framework for Linux and Windows. Provides a WinFomrs-inspired API and uses **Silk.NET** (OpenGL 3.3) for windowing and input, **SkiaSharp** for hardware-accelerated 2D graphics, and **Svg.Skia** for resolution-independent SVG icon rendering.
 
+![CoreForms.Ui Demo](docs/coreforms-ui-demo.png)
+
 ## Features
 
 - **Cross-Platform** – Runs on Linux and Windows with .NET 10+
@@ -17,7 +19,7 @@ A cross-platform .NET UI framework for Linux and Windows. Provides a WinFomrs-in
 - **MessageBox** – Modal dialogs with standard button combinations, icons, and localization (EN/DE)
 - **Multi-Window** – Any number of windows, each with its own renderer context
 - **DPI Awareness** – Automatic scaling per platform (Windows: system DPI, Linux: 96)
-- **WebView** – Optional Chromium-based WebView control (separate package)
+- **WebView** – Optional Chromium-based WebView control (separate package, cross-platform)
 - **DataGridView** – Automatic column mapping, sorting, BindingList support
 
 _CoreForms.Ui has also a Forms-Designer, but it is still under heavy development and not ready for production use, yet!_
@@ -30,7 +32,7 @@ _CoreForms.Ui has also a Forms-Designer, but it is still under heavy development
 | **Container** | Panel, SplitPanel, GroupBox, UserControl, TabControl, TabPage |
 | **Menus/Toolbars** | MenuStrip, ToolStrip, ToolStripButton, ToolStripLabel, ToolStripTextBox, ToolStripSeparator, ToolStripMenuItem |
 | **Advanced** | DataGridView, TreeView (with ImageList), HtmlBox (WYSIWYG HTML editor) |
-| **Web** | WebView (Chromium via CefGlue, separate package) |
+| **Web** | WebView (Chromium via WebView2/CefGlue, separate package) |
 | **Dialogs** | MessageBox (modal, button combinations, icons, EN/DE localization) |
 
 ## Requirements
@@ -38,7 +40,7 @@ _CoreForms.Ui has also a Forms-Designer, but it is still under heavy development
 - .NET 10.0 SDK or later
 - Linux: OpenGL 3.3 drivers (typically pre-installed on desktop systems)
 - Windows: No additional system dependencies
-- Optional for WebView: `webkit2gtk-4.1` (Linux) / Chromium (Windows)
+- Optional for WebView: CefGlue bundled Chromium (Linux) / WebView2 Runtime (Windows)
 
 ## Build & Run
 
@@ -209,7 +211,7 @@ xvfb-run dotnet run --project samples/CoreForms.Ui.Demo
 
 ## Related Projects
 
-- [CoreForms.Ui.WebBrowser](src/CoreForms.Ui.WebBrowser/) – Chromium-based WebView (CefGlue)
+- [CoreForms.Ui.WebBrowser](src/CoreForms.Ui.WebBrowser/) – Chromium-based WebView (WebView2 on Windows, CefGlue on Linux)
 
 ## License
 
