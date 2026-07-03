@@ -4,12 +4,19 @@ A cross-platform .NET UI framework for Linux and Windows. Provides a WinFomrs-in
 
 ![CoreForms.Ui Demo](docs/coreforms-ui-demo.png)
 
+### Why I created an other Forms UI library
+- Because I like the classic approach that uses code instead of markup to create UI
+- Because I want all controls I need included (also the advanced ones, like DataGridView or PivotTable) and not the hot stuff behind a paywall
+- Because I want as less dependencies as possible
+- Because I want the best possible Linux support
+- Because I don't want to rewrite half of my UI applications after a new major version of the UI framework was released
+
 ## Features
 
 - **Cross-Platform** – Runs on Linux and Windows with .NET 10+
 - **WinForms-like API** – Familiar programming model with `Form`, `Control`, `Application.Run()`, event handlers
 - **GPU-Accelerated Rendering** – SkiaSharp with OpenGL context; automatic software fallback
-- **25+ Controls** – From Label, Button, TextBox to DataGridView, TreeView, TabControl, HtmlBox
+- **40+ Controls** – From Label, Button, TextBox to DataGridView, TreeView, TabControl, HtmlBox, PivotTable, and more
 - **SVG Icons** – 890+ Fluent UI Color SVGs as embedded resources, resolution-independent via Svg.Skia
 - **Data Binding** – Full BindingSource / CurrencyManager system with INotifyPropertyChanged support
 - **HTML Rendering** – Built-in HTML parser (HtmlAgilityPack), CSS parser, and WYSIWYG editor (HtmlBox)
@@ -26,14 +33,79 @@ _CoreForms.Ui has also a Forms-Designer, but it is still under heavy development
 
 ## Controls
 
-| Category | Controls |
-|----------|----------|
-| **Basic** | Label, Button, TextBox, CheckBox, RadioButton, ListBox, ComboBox, ProgressBar, PictureBox, Spinner, GroupBox |
-| **Container** | Panel, SplitPanel, GroupBox, UserControl, TabControl, TabPage |
-| **Menus/Toolbars** | MenuStrip, ToolStrip, ToolStripButton, ToolStripLabel, ToolStripTextBox, ToolStripSeparator, ToolStripMenuItem |
-| **Advanced** | DataGridView, TreeView (with ImageList), HtmlBox (WYSIWYG HTML editor) |
-| **Web** | WebView (Chromium via WebView2/CefGlue, separate package) |
-| **Dialogs** | MessageBox (modal, button combinations, icons, EN/DE localization) |
+### Basic Controls
+
+| Control | Description |
+|---------|-------------|
+| `Label` | Displays static text with transparent background and theme-aware coloring |
+| `Button` | Clickable button with hover/pressed states and keyboard activation |
+| `TextBox` | Single-line text input with cursor, selection, clipboard, and password mode |
+| `CheckBox` | Binary toggle with checked/unchecked states and keyboard activation |
+| `RadioButton` | Mutual-exclusive selection within parent containers |
+| `ListBox` | Scrollable list with selection, data binding, and scrollbar |
+| `ComboBox` | Drop-down list with multiple styles, auto-complete, and data binding |
+| `ProgressBar` | Visual progress indicator with configurable min/max/value and orientation |
+| `PictureBox` | Image display with Normal, StretchImage, CenterImage, and Zoom modes |
+| `MemoBox` | Multi-line text editor with word wrap, cursor navigation, and clipboard |
+| `FontPicker` | Font selection with live preview and keyboard filtering |
+| `Spinner` | Animated loading indicator with configurable speed and color |
+| `GroupBox` | Bordered frame with title for grouping related controls |
+
+### Container Controls
+
+| Control | Description |
+|---------|-------------|
+| `Panel` | Generic container with optional single-line or 3D border styles |
+| `SplitPanel` | Two-panel container with draggable splitter (horizontal/vertical) |
+| `TabControl` | Tabbed interface with header navigation and overflow scrolling |
+| `TabPage` | Individual tab page acting as a container for controls |
+| `UserControl` | Reusable composite control base class for custom controls |
+| `FlowLayoutPanel` | Arranges controls in a flow direction with automatic wrapping |
+| `TableLayoutPanel` | Arranges controls in a grid of rows and columns |
+
+### Menus & Toolbars
+
+| Control | Description |
+|---------|-------------|
+| `MenuStrip` | Menu bar with dropdown menus, keyboard navigation, and Alt+mnemonic support |
+| `ToolStripMenuItem` | Menu item with nested dropdown items and mnemonic support |
+| `ToolStrip` | Toolbar with grip handle, overflow behavior, and item support |
+| `ToolStripButton` | Toolbar button with text/image and dropdown menus |
+| `ToolStripLabel` | Non-interactive toolbar label with optional link styling |
+| `ToolStripTextBox` | Editable text box within a toolbar |
+| `ToolStripSeparator` | Vertical divider line for grouping toolbar items |
+| `StatusStrip` | Status bar at the bottom of a form |
+| `ToolStripStatusLabel` | Label component within a StatusStrip |
+
+### Advanced Controls
+
+| Control | Description |
+|---------|-------------|
+| `DataGridView` | Data grid with sorting, grouping, column resizing, selection, and data binding |
+| `TreeView` | Hierarchical node display with expand/collapse, icons, and keyboard navigation |
+| `HtmlBox` | WYSIWYG HTML editor with rich text formatting (bold, italic, lists, tables, images) |
+| `CalendarView` | Outlook-like calendar with Month/Week/Day views, appointments, and mini-calendar |
+| `DateTimePicker` | Date/time selection with calendar dropdown and multiple display formats |
+| `DiagramView` | Business charts (bar, pie, line, area, gauge) with axes, legends, and zoom |
+| `KanbanBoardView` | Kanban board with draggable cards, configurable columns, and data binding |
+| `PivotTable` | Cross-tabulated data with dimensions, aggregated values, and drill-through |
+| `SeperatorControl` | Horizontal or vertical separator line with etched appearance |
+
+### Dialogs & File Pickers
+
+| Control | Description |
+|---------|-------------|
+| `MessageBox` | Modal message dialogs with standard button combinations, icons, and localization |
+| `ColorPickerDialog` | Color selection with system colors, custom palette, and RGB/Alpha input |
+| `OpenFileDialog` | File open dialog with multi-select and filter support |
+| `SaveFileDialog` | File save dialog with overwrite confirmation |
+| `PrintDialog` | Print settings dialog for printer and range selection |
+
+### Web
+
+| Control | Description |
+|---------|-------------|
+| `WebView` | Chromium-based web view (separate package, WebView2 on Windows, CefGlue on Linux) |
 
 ## Requirements
 
@@ -156,8 +228,12 @@ form.Controls.Add(button);
 ### MessageBox
 
 ```csharp
-var result = MessageBox.Show("Are you sure?", "Confirm",
-    MessageBoxButtons.YesNo, MessageBoxIcon.Warning);
+var result = 
+    MessageBox.Show(
+        "Are you sure?", 
+        "Confirm",
+        MessageBoxButtons.YesNo, 
+        MessageBoxIcon.Warning);
 
 if (result == DialogResult.Yes) { /* ... */ }
 ```
@@ -203,7 +279,7 @@ On virtual machines or headless systems, use software rendering or `xvfb-run`.
 
 ### Demo doesn't show a window
 
-The demo requires an X11 display server. On headless systems, use Xvfb:
+The demo requires an X11/Wayland display server on Linux. On headless systems, use Xvfb:
 
 ```bash
 xvfb-run dotnet run --project samples/CoreForms.Ui.Demo
