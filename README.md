@@ -107,6 +107,13 @@ _CoreForms.Ui has also a Forms-Designer, but it is still under heavy development
 |---------|-------------|
 | `WebView` | Chromium-based web view (separate package, WebView2 on Windows, CefGlue on Linux) |
 
+## Documentation
+
+- [DataGridView](docs/DataGridView.md) – Detailed guide on data binding, sorting, grouping, and inline editing
+- [PivotTable](docs/PivotTable.md) – Cross-tabulation with hierarchical drilldown, aggregations, and drill-through
+- [KanbanBoardView](docs/KanbanBoardView.md) – Drag-and-drop kanban boards with configurable columns and state transitions
+- [Banded Reports](docs/banded-reports.md) – Report engine with bands, grouping, pagination, preview, print, and PDF export
+
 ## Requirements
 
 - .NET 10.0 SDK or later
