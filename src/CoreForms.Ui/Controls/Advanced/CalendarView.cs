@@ -8,7 +8,7 @@ namespace CoreForms.Ui.Controls.Advanced;
 
 /// <summary>
 /// A calendar control supporting Month, Week, and Day views with appointment display,
-/// navigation, and an appointment editing dialog. Similar in appearance to Microsoft Outlook.
+/// navigation, and an appointment editing dialog. Similar in appearance to common Groupware.
 /// </summary>
 public class CalendarView : ContainerControl
 {

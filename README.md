@@ -79,17 +79,17 @@ _CoreForms.Ui has also a Forms-Designer, but it is still under heavy development
 
 ### Advanced Controls
 
-| Control | Description |
-|---------|-------------|
-| `DataGridView` | Data grid with sorting, grouping, column resizing, selection, and data binding |
-| `TreeView` | Hierarchical node display with expand/collapse, icons, and keyboard navigation |
+| Control | Description                                                                         |
+|---------|-------------------------------------------------------------------------------------|
+| `DataGridView` | Data grid with sorting, grouping, column resizing, selection, and data binding      |
+| `TreeView` | Hierarchical node display with expand/collapse, icons, and keyboard navigation      |
 | `HtmlBox` | WYSIWYG HTML editor with rich text formatting (bold, italic, lists, tables, images) |
-| `CalendarView` | Outlook-like calendar with Month/Week/Day views, appointments, and mini-calendar |
-| `DateTimePicker` | Date/time selection with calendar dropdown and multiple display formats |
-| `DiagramView` | Business charts (bar, pie, line, area, gauge) with axes, legends, and zoom |
-| `KanbanBoardView` | Kanban board with draggable cards, configurable columns, and data binding |
-| `PivotTable` | Cross-tabulated data with dimensions, aggregated values, and drill-through |
-| `SeperatorControl` | Horizontal or vertical separator line with etched appearance |
+| `CalendarView` | Groupware-like calendar with Month/Week/Day views, appointments, and mini-calendar  |
+| `DateTimePicker` | Date/time selection with calendar dropdown and multiple display formats             |
+| `DiagramView` | Business charts (bar, pie, line, area, gauge) with axes, legends, and zoom          |
+| `KanbanBoardView` | Kanban board with draggable cards, configurable columns, and data binding           |
+| `PivotTable` | Cross-tabulated data with dimensions, aggregated values, and drill-through          |
+| `SeperatorControl` | Horizontal or vertical separator line with etched appearance                        |
 
 ### Dialogs & File Pickers
 
