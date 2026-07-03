@@ -20,6 +20,8 @@ A cross-platform .NET UI framework for Linux and Windows. Provides a WinFomrs-in
 - **WebView** – Optional Chromium-based WebView control (separate package)
 - **DataGridView** – Automatic column mapping, sorting, BindingList support
 
+_CoreForms.Ui has also a Forms-Designer, but it is still under heavy development and not ready for production use, yet!_
+
 ## Controls
 
 | Category | Controls |
@@ -95,30 +97,6 @@ form.Controls.Add(label);
 form.Controls.Add(button);
 
 Application.Run(form);
-```
-
-## Project Structure
-
-```
-CoreForms.Ui/
-├── src/
-│   ├── CoreForms.Ui/                  # Main framework
-│   │   ├── Core/                      # Base classes (Control, Form, Application)
-│   │   ├── Controls/                  # Controls (Basic, Advanced, Container)
-│   │   ├── Rendering/                 # Graphics engine (SkiaSharp, HTML)
-│   │   ├── Platform/                  # Platform abstraction (Silk.NET)
-│   │   ├── Theming/                   # Theme system (Light, Dark)
-│   │   ├── Data/                      # Data binding (BindingSource, CurrencyManager)
-│   │   ├── Layout/                    # Layout managers (FlowLayout, TableLayout)
-│   │   ├── Html/                      # HTML DOM, CSS parser, RichTextEngine
-│   │   └── Resources/                 # SVG icons, localization (.resx)
-│   ├── CoreForms.Ui.WebBrowser/       # WebView control (CefGlue)
-│   └── CoreForms.Ui.WebBrowser.Helper/# Native helper process for WebKit
-├── samples/
-│   └── CoreForms.Ui.Demo/             # Demo application
-├── tests/
-│   └── CoreForms.Ui.Tests/            # Unit tests (xUnit)
-└── README.md
 ```
 
 ## Architecture
