@@ -2,6 +2,8 @@
 
 A cross-platform .NET UI framework for Linux and Windows. Provides a WinFomrs-inspired API and uses **Silk.NET** (OpenGL 3.3) for windowing and input, **SkiaSharp** for hardware-accelerated 2D graphics, and **Svg.Skia** for resolution-independent SVG icon rendering.
 
+_**The project is still in development and not all controls are ready for production (e.g. HtmlBox control).**_
+
 ![OldSchoolForms.Ui Demo](docs/coreforms-ui-demo.png)
 
 ### Why I created an other Forms UI library
