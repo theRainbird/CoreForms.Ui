@@ -1,0 +1,31 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <PackageType>Template</PackageType>
+    <TargetFramework>net10.0</TargetFramework>
+    <IncludeContentInPack>true</IncludeContentInPack>
+    <IncludeSourceInPack>false</IncludeSourceInPack>
+    <ContentTargetFolders>content</ContentTargetFolders>
+    <PackageVersion>0.1.0</PackageVersion>
+    <PackageId>OldSchoolFormsUi.Templates</PackageId>
+    <Title>OldSchoolForms.Ui Project Templates</Title>
+    <Authors>Hagen Siegel</Authors>
+    <Description>dotnet new templates for OldSchoolForms.Ui applications</Description>
+    <PackageProjectUrl>https://github.com/theRainbird/OldSchoolForms</PackageProjectUrl>
+    <PackageLicenseUrl>https://github.com/theRainbird/OldSchoolForms/blob/silk/LICENSE</PackageLicenseUrl>
+    <PackageTags>template;oldschoolforms;forms;desktop;gui</PackageTags>
+    <Version>0.1.0</Version>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Content Include="templates\**\*">
+      <Pack>true</Pack>
+      <TargetPath>content</TargetPath>
+    </Content>
+  </ItemGroup>
+
+  <ItemGroup>
+    <Compile Remove="templates\**\*.cs" />
+  </ItemGroup>
+
+</Project>

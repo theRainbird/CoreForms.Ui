@@ -1,0 +1,34 @@
+{
+  "$schema": "http://json.schemastore.org/template",
+  "author": "Hagen Siegel",
+  "classifications": ["Desktop", "GUI", "Forms"],
+  "name": "OldSchoolForms Ui Application",
+  "groupIdentity": "OldSchoolForms.Ui.Application",
+  "identity": "OldSchoolForms.Ui.Application",
+  "shortName": "oldschoolforms-app",
+  "sourceName": "OldSchoolFormsUiApp",
+  "tags": [
+    { "language": "C#", "type": "project" },
+    { "type": "item" }
+  ],
+  "symbols": {
+    "framework": {
+      "type": "parameter",
+      "description": "Target framework",
+      "replaces": "net10.0",
+      "defaultValue": "net10.0",
+      "allowedValues": ["net10.0"]
+    },
+    "useWebBrowser": {
+      "type": "parameter",
+      "description": "Include OldSchoolForms.Ui.WebBrowser package",
+      "defaultValue": "false"
+    }
+  },
+  "sources": [],
+  "primaryOutputs": [
+    { "path": "OldSchoolFormsUiApp.csproj" },
+    { "path": "Program.cs" },
+    { "path": "MainForm.cs" }
+  ]
+}
