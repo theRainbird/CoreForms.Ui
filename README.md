@@ -6,7 +6,7 @@ _**The project is still in development and not all controls are ready for produc
 
 ![OldSchoolForms.Ui Demo](docs/coreforms-ui-demo.png)
 
-### Why I created an other Forms UI library
+### Why I created another Forms UI library
 - Because I like the classic approach that uses code instead of markup to create UI
 - Because I want all controls I need included (also the advanced ones, like DataGridView or PivotTable) and not the hot stuff behind a paywall
 - Because I want as less dependencies as possible
