@@ -1,0 +1,105 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <!-- Win95 3D shadow for the window -->
+    <filter id="win95shadow" x="-5%" y="-5%" width="115%" height="115%">
+      <feDropShadow dx="4" dy="4" stdDeviation="4" flood-color="#000" flood-opacity="0.4"/>
+    </filter>
+  </defs>
+
+  <!-- Transparent background (no circle) -->
+
+  <!-- Win95 Main Window -->
+  <g filter="url(#win95shadow)">
+    <!-- Window 3D border (raised) -->
+    <!-- Top light edge -->
+    <rect x="40" y="40" width="432" height="2" fill="#FFFFFF"/>
+    <!-- Left light edge -->
+    <rect x="40" y="40" width="2" height="432" fill="#FFFFFF"/>
+    <!-- Bottom dark edge -->
+    <rect x="40" y="470" width="432" height="2" fill="#808080"/>
+    <!-- Right dark edge -->
+    <rect x="470" y="40" width="2" height="432" fill="#808080"/>
+    <!-- Inner dark shadow (right/bottom inner) -->
+    <rect x="42" y="42" width="428" height="428" fill="none" stroke="#404040" stroke-width="1"/>
+
+    <!-- Window client area -->
+    <rect x="44" y="44" width="424" height="424" fill="#C0C0C0"/>
+
+    <!-- Title bar -->
+    <rect x="44" y="44" width="424" height="28" fill="#000080"/>
+    <!-- Title bar bottom separator -->
+    <line x1="44" y1="72" x2="468" y2="72" stroke="#808080" stroke-width="1"/>
+
+    <!-- ===== TOP ROW: TextBox + Button ===== -->
+
+    <!-- TextBox (sunken 3D) -->
+    <!-- TextBox background -->
+    <rect x="56" y="84" width="210" height="24" fill="#FFFFFF"/>
+    <!-- TextBox top shadow edge -->
+    <rect x="56" y="84" width="210" height="1" fill="#808080"/>
+    <!-- TextBox left shadow edge -->
+    <rect x="56" y="84" width="1" height="24" fill="#808080"/>
+    <!-- TextBox bottom light edge -->
+    <rect x="56" y="107" width="210" height="1" fill="#FFFFFF"/>
+    <!-- TextBox right light edge -->
+    <rect x="265" y="84" width="1" height="24" fill="#FFFFFF"/>
+
+    <!-- Button (raised 3D) -->
+    <!-- Button base -->
+    <rect x="276" y="84" width="84" height="24" fill="#C0C0C0"/>
+    <!-- Button top light edge -->
+    <rect x="276" y="84" width="84" height="1" fill="#FFFFFF"/>
+    <!-- Button left light edge -->
+    <rect x="276" y="84" width="1" height="24" fill="#FFFFFF"/>
+    <!-- Button bottom dark edge -->
+    <rect x="276" y="107" width="84" height="1" fill="#808080"/>
+    <!-- Button right dark edge -->
+    <rect x="359" y="84" width="1" height="24" fill="#808080"/>
+
+    <!-- ===== CHECKBOXES ===== -->
+
+    <!-- Checkbox 1 (checked) -->
+    <!-- Box -->
+    <rect x="56" y="124" width="14" height="14" fill="#FFFFFF"/>
+    <rect x="56" y="124" width="14" height="1" fill="#FFFFFF"/>
+    <rect x="56" y="124" width="1" height="14" fill="#FFFFFF"/>
+    <rect x="56" y="137" width="14" height="1" fill="#808080"/>
+    <rect x="69" y="124" width="1" height="14" fill="#808080"/>
+    <!-- Check indicator (filled square) -->
+    <rect x="59" y="127" width="8" height="8" fill="#000080"/>
+
+    <!-- Checkbox 2 (unchecked) -->
+    <rect x="56" y="148" width="14" height="14" fill="#FFFFFF"/>
+    <rect x="56" y="148" width="14" height="1" fill="#FFFFFF"/>
+    <rect x="56" y="148" width="1" height="14" fill="#FFFFFF"/>
+    <rect x="56" y="161" width="14" height="1" fill="#808080"/>
+    <rect x="69" y="148" width="1" height="14" fill="#808080"/>
+
+    <!-- ===== RADIO BUTTONS (bottom left) ===== -->
+
+    <!-- Radio 1 (unchecked) -->
+    <circle cx="63" cy="200" r="8" fill="#FFFFFF"/>
+    <circle cx="63" cy="200" r="7" fill="none" stroke="#808080" stroke-width="1"/>
+    <circle cx="63" cy="200" r="7" fill="none" stroke="#FFFFFF" stroke-width="0.5"/>
+
+    <!-- Radio 2 (checked) -->
+    <circle cx="63" cy="230" r="8" fill="#FFFFFF"/>
+    <circle cx="63" cy="230" r="7" fill="none" stroke="#808080" stroke-width="1"/>
+    <circle cx="63" cy="230" r="7" fill="none" stroke="#FFFFFF" stroke-width="0.5"/>
+    <circle cx="63" cy="230" r="4" fill="#000080"/>
+
+    <!-- ===== OK BUTTON (bottom right, raised 3D) ===== -->
+    <!-- Button base -->
+    <rect x="340" y="370" width="100" height="36" fill="#C0C0C0"/>
+    <!-- Top light edge -->
+    <rect x="340" y="370" width="100" height="2" fill="#FFFFFF"/>
+    <!-- Left light edge -->
+    <rect x="340" y="370" width="2" height="36" fill="#FFFFFF"/>
+    <!-- Bottom dark edge -->
+    <rect x="340" y="404" width="100" height="2" fill="#808080"/>
+    <!-- Right dark edge -->
+    <rect x="438" y="370" width="2" height="36" fill="#808080"/>
+    <!-- Inner highlight -->
+    <rect x="343" y="373" width="94" height="30" fill="none" stroke="#DFDFDF" stroke-width="1"/>
+  </g>
+</svg>
