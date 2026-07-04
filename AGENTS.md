@@ -1,16 +1,16 @@
-# CoreForms.Ui - Cross-Platform UI Framework
+# OldSchoolForms.Ui - Cross-Platform UI Framework
 
 ## Build & Run
 ```bash
 dotnet build                    # Build all projects
 dotnet test                     # Run tests (89 passing)
-dotnet run --project samples/CoreForms.Ui.Demo  # Run demo (requires X11/display)
+dotnet run --project samples/OldSchoolForms.Ui.Demo  # Run demo (requires X11/display)
 ```
 
 ## Project Structure
-- `src/CoreForms.Ui/` - Main framework (net10.0)
-- `samples/CoreForms.Ui.Demo/` - Demo app
-- `tests/CoreForms.Ui.Tests/` - Unit tests
+- `src/OldSchoolForms.Ui/` - Main framework (net10.0)
+- `samples/OldSchoolForms.Ui.Demo/` - Demo app
+- `tests/OldSchoolForms.Ui.Tests/` - Unit tests
 
 ## Implemented Features
 
@@ -58,7 +58,7 @@ dotnet run --project samples/CoreForms.Ui.Demo  # Run demo (requires X11/display
 
 **Custom type dependencies** - Avoids System.Drawing conflicts:
 - Custom `Color`, `Font`, `Point`, `Size`, `Rectangle` in `Core/SystemTypes.cs`
-- Custom `Graphics` in `Rendering/Graphics.cs` (use alias: `using Graphics = CoreForms.Ui.Rendering.Graphics`)
+- Custom `Graphics` in `Rendering/Graphics.cs` (use alias: `using Graphics = OldSchoolForms.Ui.Rendering.Graphics`)
 - Custom `SkiaRenderer` in `Rendering/SkiaRenderer.cs`
 - `FontManager` in `Core/FontManager.cs` (uses `SKFontManager` for RAM-efficient font enumeration)
 
@@ -71,7 +71,7 @@ dotnet run --project samples/CoreForms.Ui.Demo  # Run demo (requires X11/display
 - File paths, directory separators, and line endings must be cross-platform compatible
 
 ## Architecture
-- Controls inherit from `CoreForms.Ui.Core.Control`
+- Controls inherit from `OldSchoolForms.Ui.Core.Control`
 - Graphics uses command-list pattern for platform-independent rendering
 - Platform abstraction with Silk.NET (windowing, input, OpenGL context)
 - SVG icons: embedded resources → Svg.Skia parse/rasterize → RGBA pixels → SkiaSharp textures

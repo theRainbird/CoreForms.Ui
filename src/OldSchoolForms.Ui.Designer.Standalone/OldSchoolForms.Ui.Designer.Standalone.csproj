@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <RootNamespace>OldSchoolForms.Ui.Designer.Standalone</RootNamespace>
+    <AssemblyName>OldSchoolForms.Ui.Designer.Standalone</AssemblyName>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\OldSchoolForms.Ui\OldSchoolForms.Ui.csproj" />
+    <ProjectReference Include="..\OldSchoolForms.Ui.Designer\OldSchoolForms.Ui.Designer.csproj" />
+    <ProjectReference Include="..\OldSchoolForms.Ui.Designer.Roslyn\OldSchoolForms.Ui.Designer.Roslyn.csproj" />
+  </ItemGroup>
+</Project>

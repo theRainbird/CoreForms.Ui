@@ -4,7 +4,7 @@ The `PivotTable` control provides an interactive cross-tabulation (pivot) grid t
 
 ## Namespace
 
-`CoreForms.Ui.Controls.Advanced`
+`OldSchoolForms.Ui.Controls.Advanced`
 
 ## Basic Usage
 

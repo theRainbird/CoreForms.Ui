@@ -4,7 +4,7 @@ The `KanbanBoardView` control displays data items as cards organized in configur
 
 ## Namespace
 
-`CoreForms.Ui.Controls.Advanced`
+`OldSchoolForms.Ui.Controls.Advanced`
 
 ## Basic Usage
 
@@ -172,7 +172,7 @@ kanban.CardMoved += (s, e) =>
 
 ## EventArgs Types
 
-All event arg types are in `CoreForms.Ui.Controls.Advanced`:
+All event arg types are in `OldSchoolForms.Ui.Controls.Advanced`:
 
 | Type | Properties |
 |------|-----------|

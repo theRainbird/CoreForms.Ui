@@ -4,7 +4,7 @@ The `DataGridView` control provides a flexible, high-performance grid for displa
 
 ## Namespace
 
-`CoreForms.Ui.Controls.Advanced`
+`OldSchoolForms.Ui.Controls.Advanced`
 
 ## Basic Usage
 

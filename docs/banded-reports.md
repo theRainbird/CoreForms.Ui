@@ -1,6 +1,6 @@
 # Banded Reports
 
-CoreForms.Ui includes a banded report engine. Reports are built programmatically in C# using bands (headers, detail, footers), support data binding, grouping, pagination, and can be previewed, printed, or exported to PDF.
+OldSchoolForms.Ui includes a banded report engine. Reports are built programmatically in C# using bands (headers, detail, footers), support data binding, grouping, pagination, and can be previewed, printed, or exported to PDF.
 
 All measurements use **centimeters** (`Cm` struct) — a metric unit system independent of screen DPI.
 
@@ -9,7 +9,7 @@ All measurements use **centimeters** (`Cm` struct) — a metric unit system inde
 ## Quick Start
 
 ```csharp
-using CoreForms.Ui.Reports;
+using OldSchoolForms.Ui.Reports;
 
 // 1. Create a report
 var report = new Report("Employee List");
@@ -521,7 +521,7 @@ The cross-tab reads data from `report.DataSource`, groups by row fields, compute
 Reuses the same types as `DiagramView`:
 
 ```csharp
-using CoreForms.Ui.Controls.Advanced;
+using OldSchoolForms.Ui.Controls.Advanced;
 
 // Series with points
 var series = new DiagramViewSeries
@@ -596,7 +596,7 @@ chart.TrendLine.LineWidth = 2;
 
 ## Architecture Notes
 
-- All report controls live in the `CoreForms.Ui.Reports` namespace
+- All report controls live in the `OldSchoolForms.Ui.Reports` namespace
 - `Cm` struct is the unit for all measurements (converts to pixels at render time)
 - Rendering uses the command-list pattern (`Graphics` + `SkiaRenderer`)
 - The engine offsets all content by `LeftMargin` and `TopMargin` to keep content within the printable area

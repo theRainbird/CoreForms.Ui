@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <RootNamespace>OldSchoolForms.Ui.Designer.Roslyn</RootNamespace>
+    <AssemblyName>OldSchoolForms.Ui.Designer.Roslyn</AssemblyName>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="4.11.0" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\OldSchoolForms.Ui\OldSchoolForms.Ui.csproj" />
+    <ProjectReference Include="..\OldSchoolForms.Ui.Designer\OldSchoolForms.Ui.Designer.csproj" />
+  </ItemGroup>
+</Project>

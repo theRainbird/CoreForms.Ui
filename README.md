@@ -1,8 +1,8 @@
-# CoreForms.Ui
+# OldSchoolForms.Ui
 
 A cross-platform .NET UI framework for Linux and Windows. Provides a WinFomrs-inspired API and uses **Silk.NET** (OpenGL 3.3) for windowing and input, **SkiaSharp** for hardware-accelerated 2D graphics, and **Svg.Skia** for resolution-independent SVG icon rendering.
 
-![CoreForms.Ui Demo](docs/coreforms-ui-demo.png)
+![OldSchoolForms.Ui Demo](docs/coreforms-ui-demo.png)
 
 ### Why I created an other Forms UI library
 - Because I like the classic approach that uses code instead of markup to create UI
@@ -29,7 +29,7 @@ A cross-platform .NET UI framework for Linux and Windows. Provides a WinFomrs-in
 - **WebView** – Optional Chromium-based WebView control (separate package, cross-platform)
 - **DataGridView** – Automatic column mapping, sorting, BindingList support
 
-_CoreForms.Ui has also a Forms-Designer, but it is still under heavy development and not ready for production use, yet!_
+_OldSchoolForms.Ui has also a Forms-Designer, but it is still under heavy development and not ready for production use, yet!_
 
 ## Controls
 
@@ -131,21 +131,21 @@ dotnet build
 dotnet test
 
 # Run demo (requires X11/display server)
-dotnet run --project samples/CoreForms.Ui.Demo
+dotnet run --project samples/OldSchoolForms.Ui.Demo
 ```
 
 On headless systems, use Xvfb:
 
 ```bash
-xvfb-run dotnet run --project samples/CoreForms.Ui.Demo
+xvfb-run dotnet run --project samples/OldSchoolForms.Ui.Demo
 ```
 
 ## Hello World
 
 ```csharp
-using CoreForms.Ui.Core;
-using CoreForms.Ui.Controls.Basic;
-using CoreForms.Ui.Theming;
+using OldSchoolForms.Ui.Core;
+using OldSchoolForms.Ui.Controls.Basic;
+using OldSchoolForms.Ui.Theming;
 
 var form = new Form
 {
@@ -156,7 +156,7 @@ var form = new Form
 
 var label = new Label
 {
-    Text = "Welcome to CoreForms.Ui!",
+    Text = "Welcome to OldSchoolForms.Ui!",
     Location = new Point(50, 50),
     Size = new Size(300, 30)
 };
@@ -193,14 +193,14 @@ Application.Run(form);
 
 | Namespace | Description |
 |-----------|-------------|
-| `CoreForms.Ui.Core` | Base classes: `Control`, `Form`, `Application`, `ContainerControl`, system types (`Color`, `Point`, `Size`, etc.) |
-| `CoreForms.Ui.Controls.Basic` | Standard controls: `Button`, `TextBox`, `Label`, `CheckBox`, `RadioButton`, `ListBox`, `ComboBox`, `ProgressBar`, `Spinner`, `PictureBox` |
-| `CoreForms.Ui.Controls.Advanced` | Advanced controls: `DataGridView`, `TabControl`, `HtmlBox` |
-| `CoreForms.Ui.Controls.Containers` | Containers: `Panel`, `SplitPanel`, `MenuStrip`, `ToolStrip` |
-| `CoreForms.Ui.Rendering` | Graphics: `Graphics` (command list), `SkiaRenderer`, `SkiaFontRenderer`, `HtmlRenderer` |
-| `CoreForms.Ui.Theming` | Themes: `Theme`, `LightTheme`, `DarkTheme`, `ThemeManager` |
-| `CoreForms.Ui.Data` | Data binding: `BindingSource`, `BindingContext`, `CurrencyManager` |
-| `CoreForms.Ui.Layout` | Layout: `FlowLayoutPanel`, `TableLayoutPanel` |
+| `OldSchoolForms.Ui.Core` | Base classes: `Control`, `Form`, `Application`, `ContainerControl`, system types (`Color`, `Point`, `Size`, etc.) |
+| `OldSchoolForms.Ui.Controls.Basic` | Standard controls: `Button`, `TextBox`, `Label`, `CheckBox`, `RadioButton`, `ListBox`, `ComboBox`, `ProgressBar`, `Spinner`, `PictureBox` |
+| `OldSchoolForms.Ui.Controls.Advanced` | Advanced controls: `DataGridView`, `TabControl`, `HtmlBox` |
+| `OldSchoolForms.Ui.Controls.Containers` | Containers: `Panel`, `SplitPanel`, `MenuStrip`, `ToolStrip` |
+| `OldSchoolForms.Ui.Rendering` | Graphics: `Graphics` (command list), `SkiaRenderer`, `SkiaFontRenderer`, `HtmlRenderer` |
+| `OldSchoolForms.Ui.Theming` | Themes: `Theme`, `LightTheme`, `DarkTheme`, `ThemeManager` |
+| `OldSchoolForms.Ui.Data` | Data binding: `BindingSource`, `BindingContext`, `CurrencyManager` |
+| `OldSchoolForms.Ui.Layout` | Layout: `FlowLayoutPanel`, `TableLayoutPanel` |
 
 ## API Overview
 
@@ -289,12 +289,12 @@ On virtual machines or headless systems, use software rendering or `xvfb-run`.
 The demo requires an X11/Wayland display server on Linux. On headless systems, use Xvfb:
 
 ```bash
-xvfb-run dotnet run --project samples/CoreForms.Ui.Demo
+xvfb-run dotnet run --project samples/OldSchoolForms.Ui.Demo
 ```
 
 ## Related Projects
 
-- [CoreForms.Ui.WebBrowser](src/CoreForms.Ui.WebBrowser/) – Chromium-based WebView (WebView2 on Windows, CefGlue on Linux)
+- [OldSchoolForms.Ui.WebBrowser](src/OldSchoolForms.Ui.WebBrowser/) – Chromium-based WebView (WebView2 on Windows, CefGlue on Linux)
 
 ## License
 

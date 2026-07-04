@@ -1,0 +1,123 @@
+using OldSchoolForms.Ui.Core;
+using OldSchoolForms.Ui.Theming;
+using Graphics = OldSchoolForms.Ui.Rendering.Graphics;
+
+namespace OldSchoolForms.Ui.Controls.Basic;
+
+/// <summary>
+/// A control that allows selecting one option from a group of options.
+/// </summary>
+public class RadioButton : Control
+{
+    private bool _checked;
+
+    /// <summary>
+    /// Initializes a new instance of RadioButton.
+    /// </summary>
+    public RadioButton()
+    {
+        Size = new Size(200, 28);
+        TabStop = true;
+    }
+
+    /// <summary>
+    /// Gets or sets whether the radio button is checked.
+    /// </summary>
+    public bool Checked
+    {
+        get => _checked;
+        set
+        {
+            if (value)
+            {
+                UncheckOthers();
+            }
+
+            if (_checked != value)
+            {
+                _checked = value;
+                OnCheckedChanged();
+                OnPropertyChanged(nameof(Checked));
+                Invalidate();
+            }
+        }
+    }
+
+    private void UncheckOthers()
+    {
+        if (Parent is ContainerControl container)
+        {
+            foreach (var control in container.Controls)
+            {
+                if (control is RadioButton rb && rb != this && rb.Checked)
+                {
+                    rb.Checked = false;
+                }
+            }
+        }
+    }
+
+    /// <summary>
+    /// Renders the radio button with its circle and text.
+    /// </summary>
+    /// <param name="g">The Graphics object to use for rendering.</param>
+    public override void Render(Rendering.Graphics g)
+    {
+        if (!Visible) return;
+
+        var theme = ThemeManager.CurrentTheme;
+        var centerY = Height / 2;
+
+        g.FillRectangle(theme.CheckboxBackground, 0, centerY - 8, 16, 16);
+        g.DrawRectangle(theme.CheckboxBorder, 0, centerY - 8, 16, 16, 1);
+
+        if (_checked)
+        {
+            g.FillRectangle(theme.CheckboxCheck, 4, centerY - 4, 8, 8);
+        }
+
+        var textColor = Enabled ? ForeColor : theme.GrayText;
+        var font = EffectiveFont;
+        g.DrawString(Text, font, textColor, 20, CoordinateTransform.CenterVertically(Height, font, EffectiveZoom));
+
+        base.Render(g);
+    }
+
+    /// <summary>
+    /// Raises the Click event and sets the checked state.
+    /// </summary>
+    /// <param name="e">The event arguments.</param>
+    protected override void OnClick(EventArgs e)
+    {
+        if (!Enabled) return;
+        Checked = true;
+        base.OnClick(e);
+    }
+
+    /// <summary>
+    /// Raises the KeyDown event to handle Space key.
+    /// </summary>
+    /// <param name="e">A KeyEventArgs that contains the event data.</param>
+    protected internal override void OnKeyDown(KeyEventArgs e)
+    {
+        if (Enabled && e.KeyCode == Keys.Space)
+        {
+            Checked = true;
+            e.Handled = true;
+        }
+        base.OnKeyDown(e);
+    }
+
+    /// <summary>
+    /// Raises the CheckedChanged event.
+    /// </summary>
+    protected virtual void OnCheckedChanged()
+    {
+        CheckedChanged?.Invoke(this, EventArgs.Empty);
+    }
+
+    /// <summary>
+    /// Occurs when the checked state changes.
+    /// </summary>
+    public event EventHandler? CheckedChanged;
+}

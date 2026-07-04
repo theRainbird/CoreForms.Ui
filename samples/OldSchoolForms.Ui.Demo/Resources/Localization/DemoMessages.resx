@@ -1,0 +1,380 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <xsd:schema id="root" xmlns="" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:msdata="urn:schemas-microsoft-com:xml-msdata">
+    <xsd:element name="root" msdata:IsDataSet="true">
+      <xsd:complexType>
+        <xsd:choice maxOccurs="unbounded">
+          <xsd:element name="data">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
+              </xsd:sequence>
+              <xsd:attribute name="name" type="xsd:string" use="required" />
+            </xsd:complexType>
+          </xsd:element>
+        </xsd:choice>
+      </xsd:complexType>
+    </xsd:element>
+  </xsd:schema>
+  <!-- Form -->
+  <data name="FormTitle"><value>OldSchoolForms.Ui Demo</value></data>
+  <!-- Menu -->
+  <data name="MenuFile"><value>&amp;File</value></data>
+  <data name="MenuNew"><value>&amp;New</value></data>
+  <data name="MenuOpen"><value>&amp;Open</value></data>
+  <data name="MenuSave"><value>&amp;Save</value></data>
+  <data name="MenuExit"><value>E&amp;xit</value></data>
+  <data name="MenuEdit"><value>&amp;Edit</value></data>
+  <data name="MenuUndo"><value>&amp;Undo</value></data>
+  <data name="MenuRedo"><value>&amp;Redo</value></data>
+  <data name="MenuDelete"><value>&amp;Delete</value></data>
+  <data name="MenuCut"><value>Cu&amp;t</value></data>
+  <data name="MenuCopy"><value>&amp;Copy</value></data>
+  <data name="MenuPaste"><value>&amp;Paste</value></data>
+  <data name="MenuSelectAll"><value>Select &amp;All</value></data>
+  <data name="MenuView"><value>&amp;View</value></data>
+  <data name="MenuRefresh"><value>&amp;Refresh</value></data>
+  <data name="MenuFullscreen"><value>Fullscreen</value></data>
+  <data name="MenuHelp"><value>&amp;Help</value></data>
+  <data name="MenuAbout"><value>&amp;About</value></data>
+  <data name="MenuLicense"><value>License</value></data>
+  <data name="MenuLanguage"><value>&amp;Language</value></data>
+  <!-- Toolbar -->
+  <data name="ToolNew"><value>New</value></data>
+  <data name="ToolOpen"><value>Open</value></data>
+  <data name="ToolSave"><value>Save</value></data>
+  <data name="ToolBold"><value>B</value></data>
+  <data name="ToolItalic"><value>I</value></data>
+  <data name="ToolSearch"><value>Search</value></data>
+  <data name="ToolZoomLabel"><value>Zoom</value></data>
+  <data name="ToolZoom100"><value>100%</value></data>
+  <data name="ToolLight"><value>Light</value></data>
+  <data name="ToolDark"><value>Dark</value></data>
+  <data name="ToolToggleEnabled"><value>Toggle Enabled</value></data>
+  <data name="ToolHelp"><value>Help</value></data>
+  <data name="ToolUnderline"><value>U</value></data>
+  <!-- Tab pages -->
+  <data name="TabBasicControls"><value>Basic Controls</value></data>
+  <data name="TabDataGrid"><value>Data Grid</value></data>
+  <data name="TabDataBinding"><value>Data Binding</value></data>
+  <data name="TabMessageBoxes"><value>Message Boxes</value></data>
+  <data name="TabFileDialogs"><value>File Dialogs</value></data>
+  <data name="TabPrintDialog"><value>Print Dialog</value></data>
+  <data name="TabDockAnchor"><value>Dock &amp; Anchor</value></data>
+  <data name="TabTreeView"><value>Tree View</value></data>
+  <data name="TabUserControl"><value>User Control</value></data>
+  <data name="TabImages"><value>Images</value></data>
+  <data name="TabSplitPanel"><value>Split Panel</value></data>
+  <data name="TabWebBrowser"><value>Web Browser</value></data>
+  <data name="TabHtmlEditor"><value>HTML Editor</value></data>
+  <data name="TabCalendar"><value>Calendar</value></data>
+  <data name="TabMultiWindows"><value>Multiple Windows</value></data>
+  <data name="TabDateTimePicker"><value>Date/Time Picker</value></data>
+  <data name="TabPivotTable"><value>Pivot Table</value></data>
+  <data name="TabDiagram"><value>Diagrams</value></data>
+  <!-- DiagramView page -->
+  <data name="DgControlPanel"><value>Diagram Controls</value></data>
+  <data name="DgChartType"><value>Chart Type</value></data>
+  <data name="DgShowLegend"><value>Show Legend</value></data>
+  <data name="DgDataLabels"><value>Data Labels</value></data>
+  <data name="DgTrendLine"><value>Trend Line</value></data>
+  <data name="DgResetView"><value>Reset View</value></data>
+  <data name="DgFitToBounds"><value>Fit to Bounds</value></data>
+  <data name="DgZoomIn"><value>Zoom +</value></data>
+  <data name="DgZoomOut"><value>Zoom -</value></data>
+  <data name="DgInteractionHint"><value>Hint: Middle-click drag to pan. Scroll wheel to scroll vertically.</value></data>
+  <data name="DgStatusReady"><value>Diagram ready</value></data>
+  <data name="DgStatusLegend"><value>Legend: {0}</value></data>
+  <data name="DgStatusDataLabels"><value>Data labels: {0}</value></data>
+  <data name="DgStatusTrendLine"><value>Trend line: {0}</value></data>
+  <data name="DgStatusChartType"><value>Chart type: {0}</value></data>
+  <data name="DgStatusReset"><value>View reset</value></data>
+  <data name="DgStatusFit"><value>Fitted to bounds</value></data>
+  <data name="DgStatusZoom"><value>Zoom: {0:F0}%</value></data>
+  <data name="DgProductA"><value>Product A</value></data>
+  <data name="DgProductB"><value>Product B</value></data>
+  <data name="DgProductC"><value>Product C</value></data>
+  <data name="DgQ1"><value>Q1</value></data>
+  <data name="DgQ2"><value>Q2</value></data>
+  <data name="DgQ3"><value>Q3</value></data>
+  <data name="DgQ4"><value>Q4</value></data>
+  <data name="DtpModes"><value>Format Modes</value></data>
+  <data name="DtpLong"><value>Long Date</value></data>
+  <data name="DtpShort"><value>Short Date</value></data>
+  <data name="DtpTime"><value>Time</value></data>
+  <data name="DtpCustom"><value>Custom</value></data>
+  <data name="DtpOptions"><value>Options</value></data>
+  <data name="DtpUpDown"><value>Up/Down Date</value></data>
+  <data name="DtpUpDownTime"><value>Up/Down Time</value></data>
+  <data name="DtpWithCheckBox"><value>With CheckBox</value></data>
+  <data name="DtpDataBinding"><value>Data Binding</value></data>
+  <data name="DtpSelected"><value>Selected: {0}</value></data>
+  <!-- GroupBox titles -->
+  <data name="GroupTextInput"><value>Text Input</value></data>
+  <data name="GroupSelection"><value>Selection</value></data>
+  <data name="GroupListsCombos"><value>Lists &amp; Combo Boxes</value></data>
+  <data name="GroupProgressButtons"><value>Progress &amp; Buttons</value></data>
+  <data name="GroupContactList"><value>Contact List (BindingSource)</value></data>
+  <data name="GroupContactDetails"><value>Contact Details (DataBindings)</value></data>
+  <data name="GroupComboDataSource"><value>ComboBox DataSource</value></data>
+  <data name="GroupOpenFileDialog"><value>OpenFileDialog</value></data>
+  <data name="GroupSaveFileDialog"><value>SaveFileDialog</value></data>
+  <data name="GroupSvgImages"><value>SVG Images</value></data>
+  <data name="GroupRasterImages"><value>Raster Images (PNG)</value></data>
+  <!-- Labels (no colon) -->
+  <data name="LabelName"><value>Name</value></data>
+  <data name="LabelEmail"><value>Email</value></data>
+  <data name="LabelPassword"><value>Password</value></data>
+  <data name="LabelMultiLine"><value>Multi-line</value></data>
+  <data name="LabelGender"><value>Gender</value></data>
+  <data name="LabelRole"><value>Role</value></data>
+  <data name="LabelListBox"><value>ListBox</value></data>
+  <data name="LabelComboBox"><value>ComboBox</value></data>
+  <data name="LabelSpinner"><value>Spinner</value></data>
+  <data name="LabelId"><value>ID</value></data>
+  <data name="LabelStatus"><value>Status</value></data>
+  <data name="LabelUsername"><value>Username</value></data>
+  <data name="LabelBindingFeedback"><value>Bindings push changes automatically.</value></data>
+  <data name="LabelResultInStatusBar"><value>Result will appear in the status bar.</value></data>
+  <data name="LabelDockTop"><value>Dock=Top</value></data>
+  <data name="LabelDockBottom"><value>Dock=Bottom</value></data>
+  <data name="LabelDockLeft"><value>L</value></data>
+  <data name="LabelDockFill"><value>Dock=Fill</value></data>
+  <data name="LabelAnchorAll"><value>Anchored to all sides (Anchor=All)</value></data>
+  <data name="LabelTopPanel"><value>Top Panel (Panel1)</value></data>
+  <data name="LabelBottomPanel"><value>Bottom Panel (Panel2)</value></data>
+  <data name="LabelLeftPanel"><value>Left Panel (Panel1)</value></data>
+  <data name="LabelRightPanel"><value>Right Panel (Panel2)</value></data>
+  <data name="LabelSvgModes"><value>Zoom | Stretch | Center</value></data>
+  <data name="LabelRasterModes"><value>Normal | Stretch | Zoom</value></data>
+  <!-- Buttons -->
+  <data name="OK"><value>OK</value></data>
+  <data name="Cancel"><value>Cancel</value></data>
+  <data name="BtnProgress10"><value>Progress +10</value></data>
+  <data name="BtnReset"><value>Reset</value></data>
+  <data name="BtnTestButton"><value>Test Button</value></data>
+  <data name="BtnDisabled"><value>Disabled</value></data>
+  <data name="BtnToggle"><value>Toggle</value></data>
+  <data name="BtnAddRow"><value>Add Row</value></data>
+  <data name="BtnRemoveLast"><value>Remove Last</value></data>
+  <data name="BtnInformation"><value>Information</value></data>
+  <data name="BtnWarning"><value>Warning</value></data>
+  <data name="BtnError"><value>Error</value></data>
+  <data name="BtnQuestionYesNo"><value>Question (Yes/No)</value></data>
+  <data name="BtnOKCancel"><value>OK / Cancel</value></data>
+  <data name="BtnYesNoCancel"><value>Yes / No / Cancel</value></data>
+  <data name="BtnRetryCancel"><value>Retry / Cancel</value></data>
+  <data name="BtnAbortRetryIgnore"><value>Abort / Retry / Ignore</value></data>
+  <data name="BtnTestDBus"><value>Test D-Bus Connection</value></data>
+  <data name="BtnOpenFile"><value>Open File...</value></data>
+  <data name="BtnOpenFilesMulti"><value>Open Files (Multi)...</value></data>
+  <data name="BtnOpenFromTemp"><value>Open from /tmp...</value></data>
+  <data name="BtnSaveFile"><value>Save File...</value></data>
+  <data name="BtnSaveToTemp"><value>Save to /tmp...</value></data>
+  <data name="BtnPrintSetup"><value>Print Setup...</value></data>
+  <data name="BtnPrinterList"><value>Printer List</value></data>
+  <data name="BtnQuickPrint"><value>Quick Print Test</value></data>
+  <data name="BtnSetDist200"><value>Set Dist 200</value></data>
+  <data name="BtnToggleOrientation"><value>Toggle Orientation</value></data>
+  <data name="BtnPanel1Min10"><value>Panel1 Min +10</value></data>
+  <data name="BtnButtonInTop"><value>Button in Top</value></data>
+  <data name="BtnButtonInRight"><value>Button in Right</value></data>
+  <data name="BtnFirst"><value>|&lt;</value></data>
+  <data name="BtnPrev"><value>&lt;</value></data>
+  <data name="BtnNext"><value>&gt;</value></data>
+  <data name="BtnLast"><value>&gt;|</value></data>
+  <data name="BtnAddContact"><value>Add Contact</value></data>
+  <data name="BtnRemove"><value>Remove</value></data>
+  <data name="BtnWebBack"><value>← Back</value></data>
+  <data name="BtnWebForward"><value>Forward →</value></data>
+  <data name="BtnLogin"><value>Login</value></data>
+  <!-- Radio buttons -->
+  <data name="RadioMale"><value>Male</value></data>
+  <data name="RadioFemale"><value>Female</value></data>
+  <data name="RadioOther"><value>Other</value></data>
+  <data name="RadioAdmin"><value>Admin</value></data>
+  <data name="RadioUser"><value>User</value></data>
+  <data name="RadioGuest"><value>Guest</value></data>
+  <!-- Checkboxes -->
+  <data name="ChkOptionA"><value>Option A</value></data>
+  <data name="ChkOptionB"><value>Option B</value></data>
+  <data name="ChkOptionC"><value>Option C</value></data>
+  <data name="ChkIsActive"><value>Is Active</value></data>
+  <data name="ChkRememberMe"><value>Remember me</value></data>
+  <!-- List items -->
+  <data name="ListItem1"><value>Item 1</value></data>
+  <data name="ListItem2"><value>Item 2</value></data>
+  <data name="ListItem3"><value>Item 3</value></data>
+  <data name="ListItem4"><value>Item 4</value></data>
+  <data name="ListItem5"><value>Item 5</value></data>
+  <!-- Combo items -->
+  <data name="ComboActive"><value>Active</value></data>
+  <data name="ComboInactive"><value>Inactive</value></data>
+  <data name="ComboPending"><value>Pending</value></data>
+  <!-- Default values -->
+  <data name="DefaultName"><value>John Doe</value></data>
+  <data name="DefaultEmail"><value>john@example.com</value></data>
+  <data name="DefaultPassword"><value>secret</value></data>
+  <data name="DefaultMultiLine"><value>Line 1{0}Line 2{0}Line 3{0}Line 4{0}Line 5{0}Line 6</value></data>
+  <data name="DefaultLoginUsername"><value>admin</value></data>
+  <data name="DefaultLoginPassword"><value>password</value></data>
+  <data name="DefaultSaveFileName"><value>document.txt</value></data>
+  <data name="DefaultSaveFileNameCs"><value>output.cs</value></data>
+  <!-- Column headers -->
+  <data name="ColId"><value>ID</value></data>
+  <data name="ColName"><value>Name</value></data>
+  <data name="ColEmail"><value>Email</value></data>
+  <data name="ColStatus"><value>Status</value></data>
+  <data name="ColSalary"><value>Salary</value></data>
+  <!-- Tree nodes -->
+  <data name="TreeNodeRoot1"><value>Root 1</value></data>
+  <data name="TreeNodeChild1"><value>Child 1</value></data>
+  <data name="TreeNodeChild2"><value>Child 2</value></data>
+  <data name="TreeNodeRoot2"><value>Root 2</value></data>
+  <data name="TreeNodeSubRoot"><value>Sub Root</value></data>
+  <data name="TreeNodeLeafA"><value>Leaf A</value></data>
+  <data name="TreeNodeLeafB"><value>Leaf B</value></data>
+  <!-- MessageBox titles -->
+  <data name="MsgTitleNewFile"><value>New File</value></data>
+  <data name="MsgTitleOpen"><value>Open</value></data>
+  <data name="MsgTitleSave"><value>Save</value></data>
+  <data name="MsgTitleExit"><value>Exit</value></data>
+  <data name="MsgTitleUndo"><value>Undo</value></data>
+  <data name="MsgTitleRedo"><value>Redo</value></data>
+  <data name="MsgTitleDelete"><value>Delete</value></data>
+  <data name="MsgTitleError"><value>Error</value></data>
+  <data name="MsgTitleRefresh"><value>Refresh</value></data>
+  <data name="MsgTitleFullscreen"><value>Fullscreen</value></data>
+  <data name="MsgTitleAbout"><value>About</value></data>
+  <data name="MsgTitleLicenseError"><value>License Error</value></data>
+  <data name="MsgTitleHelp"><value>Help</value></data>
+  <data name="MsgTitleInformation"><value>Information</value></data>
+  <data name="MsgTitleWarning"><value>Warning</value></data>
+  <data name="MsgTitleQuestion"><value>Question</value></data>
+  <data name="MsgTitleConfirmation"><value>Confirmation</value></data>
+  <data name="MsgTitleConnection"><value>Connection</value></data>
+  <data name="MsgTitleOperation"><value>Operation</value></data>
+  <!-- MessageBox texts -->
+  <data name="MsgTextNewFile"><value>Create a new file?</value></data>
+  <data name="MsgTextOpen"><value>Open an existing file.</value></data>
+  <data name="MsgTextSaved"><value>File saved successfully!</value></data>
+  <data name="MsgTextExit"><value>Are you sure you want to exit?</value></data>
+  <data name="MsgTextUndo"><value>Undo last action?</value></data>
+  <data name="MsgTextRedo"><value>Redo last action?</value></data>
+  <data name="MsgTextDelete"><value>Delete this item? This cannot be undone.</value></data>
+  <data name="MsgTextClipboardError"><value>Clipboard error: {0}</value></data>
+  <data name="MsgTextRefreshed"><value>View refreshed.</value></data>
+  <data name="MsgTextFullscreen"><value>Toggle fullscreen mode is not yet implemented.</value></data>
+  <data name="MsgTextAbout"><value>OldSchoolForms.Ui Demo{0}Version 1.0{0}{0}A cross-platform UI framework.</value></data>
+  <data name="MsgTextLicense"><value>Retry loading the license?</value></data>
+  <data name="MsgTextToolStripDemo"><value>OldSchoolForms.Ui ToolStrip Demo{0}{0}Demonstrates all ToolStrip item types.</value></data>
+  <data name="MsgTextInformation"><value>This is an information message.</value></data>
+  <data name="MsgTextWarning"><value>Attention! A warning has been triggered.</value></data>
+  <data name="MsgTextError"><value>An error has occurred!</value></data>
+  <data name="MsgTextQuestion"><value>Do you want to continue?</value></data>
+  <data name="MsgTextConfirmCancel"><value>Confirm or cancel the operation.</value></data>
+  <data name="MsgTextSaveChanges"><value>Save changes?</value></data>
+  <data name="MsgTextConnectionFailed"><value>Connection failed. Try again?</value></data>
+  <data name="MsgTextOperation"><value>The operation can be aborted, retried, or ignored.</value></data>
+  <!-- Print document strings -->
+  <data name="PrintDocName"><value>Test Page</value></data>
+  <data name="PrintTestPageTitle"><value>OldSchoolForms.Ui Test Page</value></data>
+  <data name="PrintDateFormat"><value>Date: {0}</value></data>
+  <data name="PrintTestPageBody"><value>This is a test print page.</value></data>
+  <!-- Dialog strings -->
+  <data name="DlgTitleSelectTextFile"><value>Select a text file</value></data>
+  <data name="DlgTitleSelectMulti"><value>Select one or more files</value></data>
+  <data name="DlgTitleOpenTemp"><value>Open from temp directory</value></data>
+  <data name="DlgTitleSaveAs"><value>Save file as</value></data>
+  <data name="DlgTitleSaveTemp"><value>Save to temp directory</value></data>
+  <data name="DlgFilterTextAndAll"><value>Text files|*.txt|All files|*.*</value></data>
+  <data name="DlgFilterAllCSharpText"><value>All files|*.*|C# files|*.cs|Text files|*.txt</value></data>
+  <data name="DlgFilterAll"><value>All files|*.*</value></data>
+  <data name="DlgFilterCSharpAll"><value>C# files|*.cs|All files|*.*</value></data>
+  <!-- Status bar (static + format strings) -->
+  <data name="StatusReady"><value>Ready</value></data>
+  <data name="StatusNewClicked"><value>New clicked</value></data>
+  <data name="StatusOpenClicked"><value>Open clicked</value></data>
+  <data name="StatusSaveClicked"><value>Save clicked</value></data>
+  <data name="StatusBoldFormat"><value>Bold: {0}</value></data>
+  <data name="StatusItalicFormat"><value>Italic: {0}</value></data>
+  <data name="StatusSearchFormat"><value>Search: {0}</value></data>
+  <data name="StatusSearchingFormat"><value>Searching for: {0}</value></data>
+  <data name="StatusZoomFormat"><value>Zoom: {0}</value></data>
+  <data name="StatusThemeLight"><value>Theme: Light</value></data>
+  <data name="StatusThemeDark"><value>Theme: Dark</value></data>
+  <data name="StatusToggled"><value>Controls enabled state toggled</value></data>
+  <data name="StatusButtonClicked"><value>Button clicked!</value></data>
+  <data name="StatusResultFormat"><value>Result: {0}</value></data>
+  <data name="StatusListBoxFormat"><value>ListBox: {0}</value></data>
+  <data name="StatusComboBoxFormat"><value>ComboBox: {0}</value></data>
+  <data name="StatusOpenFormat"><value>Open: {0}</value></data>
+  <data name="StatusOpenCancelled"><value>Open cancelled</value></data>
+  <data name="StatusSaveFormat"><value>Save: {0}</value></data>
+  <data name="StatusSaveCancelled"><value>Save cancelled</value></data>
+  <data name="StatusPrintSetupFormat"><value>Printer: {0}, Copies: {1}, Range: {2}</value></data>
+  <data name="StatusPrintCancelled"><value>Print cancelled</value></data>
+  <data name="StatusPrintersFoundFormat"><value>{0} printers found</value></data>
+  <data name="StatusPrintSent"><value>Test page sent to printer</value></data>
+  <data name="StatusPrintErrorFormat"><value>Print error: {0}</value></data>
+  <data name="StatusTestDBus"><value>Click Open File to test D-Bus portal dialog</value></data>
+  <data name="StatusTopButtonClicked"><value>Top button clicked!</value></data>
+  <data name="StatusRightButtonClicked"><value>Right button clicked!</value></data>
+  <data name="StatusSplitterDistFormat"><value>SplitterDist: {0}</value></data>
+  <data name="StatusSplitterSet200"><value>Splitter distance set to 200</value></data>
+  <data name="StatusOrientationFormat"><value>Orientation: {0}</value></data>
+  <data name="StatusPanel1MinSizeFormat"><value>Panel1MinSize: {0}</value></data>
+  <data name="StatusSplitterMovedFormat"><value>Splitter moved to {0}</value></data>
+  <data name="StatusLoginFormat"><value>Login: {0}</value></data>
+  <data name="StatusPositionFormat"><value>Position: {0} / {1}</value></data>
+  <data name="StatusSelectedValueFormat"><value>SelectedValue: {0}</value></data>
+  <data name="StatusSelectedDateFormat"><value>Selected: {0}</value></data>
+  <data name="StatusViewFormat"><value>View: {0}</value></data>
+  <!-- Multi-Window page -->
+  <data name="GroupModeless"><value>Modeless Windows</value></data>
+  <data name="GroupModal"><value>Modal Dialogs</value></data>
+  <data name="GroupWindowStyles"><value>Window Styles</value></data>
+  <data name="BtnOpenSimpleWindow"><value>Open Simple Window</value></data>
+  <data name="BtnOpenWindowWithControls"><value>Open Window with Controls</value></data>
+  <data name="BtnOpenModalDialog"><value>Open Modal Dialog</value></data>
+  <data name="BtnOpenModalConfirm"><value>Open Modal (OK/Cancel)</value></data>
+  <data name="BtnOpenFixedDialog"><value>Open Fixed Border Dialog</value></data>
+  <data name="SimpleWindowTitle"><value>Simple Window</value></data>
+  <data name="SimpleWindowLabel"><value>This is a simple modeless window.</value></data>
+  <data name="ModalWindowTitle"><value>Modal Dialog</value></data>
+  <data name="ModalWindowLabel"><value>This is a modal dialog. Close it to continue.</value></data>
+  <data name="ConfirmTitle"><value>Confirm</value></data>
+  <data name="WindowControlsTitle"><value>Window with Controls</value></data>
+  <data name="FixedDialogTitle"><value>Fixed Dialog</value></data>
+  <data name="LabelClickCount"><value>Clicks: {0}</value></data>
+  <data name="StatusSimpleWindowOpened"><value>Simple window opened</value></data>
+  <data name="StatusWindowWithControlsOpened"><value>Window with controls opened</value></data>
+  <data name="StatusModalDialogOpened"><value>Modal dialog opened</value></data>
+  <data name="StatusModalClosed"><value>Modal dialog closed</value></data>
+  <data name="StatusModalConfirmed"><value>Modal dialog confirmed (OK)</value></data>
+  <data name="StatusModalCancelled"><value>Modal dialog cancelled</value></data>
+  <data name="StatusFixedDialogOpened"><value>Fixed border dialog opened</value></data>
+  <!-- Calendar appointments -->
+  <data name="AppointmentTeamMeeting"><value>Team Meeting</value></data>
+  <data name="AppointmentRoom101"><value>Room 101</value></data>
+  <data name="AppointmentLunch"><value>Lunch</value></data>
+  <data name="AppointmentCafeteria"><value>Cafeteria</value></data>
+  <data name="AppointmentProjectReview"><value>Project Review</value></data>
+  <data name="AppointmentConfRoom"><value>Conference Room</value></data>
+  <data name="AppointmentWorkshop"><value>Workshop: Cross-Platform UI</value></data>
+  <data name="AppointmentTrainingRoom"><value>Training Room</value></data>
+  <data name="AppointmentSprintPlanning"><value>Sprint Planning</value></data>
+  <data name="AppointmentRoom204"><value>Room 204</value></data>
+  <data name="AppointmentConference"><value>Conference</value></data>
+  <data name="GroupFontPicker"><value>Font Picker</value></data>
+  <data name="FontPickerLabel"><value>Choose a font</value></data>
+  <data name="BtnColorPicker"><value>Color Picker</value></data>
+  <data name="StatusColorPickerResult"><value>Dialog result: {0}</value></data>
+  <!-- PivotTable field names -->
+  <data name="PtCategory"><value>Category</value></data>
+  <data name="PtSubCategory"><value>Subcategory</value></data>
+  <data name="PtRegion"><value>Region</value></data>
+  <data name="PtRevenue"><value>Revenue</value></data>
+  <data name="PtQuantity"><value>Quantity</value></data>
+  <data name="PtQuarter"><value>Quarter</value></data>
+</root>
