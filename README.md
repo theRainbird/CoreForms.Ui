@@ -115,6 +115,7 @@ _OldSchoolForms.Ui has also a Forms-Designer, but it is still under heavy develo
 - [PivotTable](docs/PivotTable.md) – Cross-tabulation with hierarchical drilldown, aggregations, and drill-through
 - [KanbanBoardView](docs/KanbanBoardView.md) – Drag-and-drop kanban boards with configurable columns and state transitions
 - [Banded Reports](docs/banded-reports.md) – Report engine with bands, grouping, pagination, preview, print, and PDF export
+- [CLI Template](docs/cli-template.md) – Create a new OldSchoolForms.Ui application from a `dotnet new` template
 
 ## Requirements
 
