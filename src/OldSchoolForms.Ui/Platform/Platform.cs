@@ -1213,6 +1213,7 @@ public static class Platform
                 // Clear ForceRender even on error to avoid infinite forced renders.
                 ctx.ForceRender = false;
                 Console.WriteLine($"[Platform] Render error for '{form.Text}': {ex.GetType().Name} - {ex.Message}");
+                Console.WriteLine($"[Platform] Stack trace: {ex.StackTrace}");
             }
         }
 

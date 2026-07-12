@@ -157,23 +157,34 @@ public static class TextLayoutEngine
     /// </summary>
     public static int ToFlatIndex(RichTextDocument doc, int blockIndex, int contentIndex, int charOffset)
     {
+        if (blockIndex < 0 || blockIndex >= doc.Blocks.Count) return 0;
+        var block = doc.Blocks[blockIndex];
+        if (contentIndex < 0 || contentIndex >= block.Content.Count) return 0;
+
         int idx = 0;
-        for (int bi = 0; bi < blockIndex && bi < doc.Blocks.Count; bi++)
+        for (int bi = 0; bi < blockIndex; bi++)
             foreach (var c in doc.Blocks[bi].Content)
                 idx += c.Length;
 
-        if (blockIndex < doc.Blocks.Count)
+        for (int ci = 0; ci < contentIndex; ci++)
+            idx += block.Content[ci].Length;
+
+        var content = block.Content[contentIndex];
+        if (content is TextRun tr)
+            idx += Math.Max(0, Math.Min(charOffset, tr.Length));
+        else if (content is HyperlinkRun link)
         {
-            var block = doc.Blocks[blockIndex];
-            for (int ci = 0; ci < contentIndex && ci < block.Content.Count; ci++)
-                idx += block.Content[ci].Length;
-            if (contentIndex < block.Content.Count)
+            // charOffset is relative to the inner content, not the hyperlink wrapper
+            int accumulated = 0;
+            for (int i = 0; i < link.InnerContent.Count; i++)
             {
-                var content = block.Content[contentIndex];
-                if (content is TextRun tr)
-                    idx += Math.Min(charOffset, tr.Length);
-                else if (content is HyperlinkRun link)
-                    idx += Math.Min(charOffset, link.Length);
+                var inner = link.InnerContent[i];
+                if (charOffset <= accumulated + inner.Length)
+                {
+                    idx += Math.Max(0, charOffset - accumulated);
+                    break;
+                }
+                accumulated += inner.Length;
             }
         }
         return idx;
@@ -206,7 +217,20 @@ public static class TextLayoutEngine
                         if (content is TextRun tr)
                             offset = Math.Min(remaining, tr.Length);
                         else if (content is HyperlinkRun link)
-                            offset = Math.Min(remaining, link.Length);
+                        {
+                            // Find which inner content item contains this position
+                            int acc = 0;
+                            for (int i = 0; i < link.InnerContent.Count; i++)
+                            {
+                                var inner = link.InnerContent[i];
+                                if (remaining <= acc + inner.Length)
+                                {
+                                    offset = Math.Max(0, remaining - acc);
+                                    break;
+                                }
+                                acc += inner.Length;
+                            }
+                        }
                         return new DocumentPosition(bi, ci, offset);
                     }
                     remaining -= content.Length;
@@ -228,18 +252,32 @@ public static class TextLayoutEngine
     /// <summary>
     /// Hit-test: find the document position closest to the given pixel coordinates.
     /// </summary>
+    /// <param name="doc">The document being hit-tested.</param>
+    /// <param name="lines">The laid-out visual lines.</param>
+    /// <param name="px">The mouse X coordinate in control client area.</param>
+    /// <param name="py">The mouse Y coordinate in control client area.</param>
+    /// <param name="zoom">The current zoom factor.</param>
+    /// <param name="padding">The content area padding (typically 8).</param>
+    /// <returns>The document position closest to the given coordinates.</returns>
     public static DocumentPosition HitTest(
         RichTextDocument doc,
         List<VisualLine> lines,
         float px,
         float py,
-        float zoom)
+        float zoom,
+        out LayoutRun? hitRun,
+        float padding = 8)
     {
+        hitRun = null;
         float bestDist = float.MaxValue;
         int bestBlock = 0, bestContent = 0, bestOffset = 0;
 
+ // Convert control X coordinates to content-area coordinates
+        // (layout stores run X positions relative to content area, not control origin)
         foreach (var line in lines)
         {
+            float lineLeftMargin = GetLeftMargin(line.Block?.Type ?? RichTextBlockType.Paragraph);
+            float cx = px - padding - lineLeftMargin;
             float lineTop = line.Y;
             float lineBottom = lineTop + line.Height;
 
@@ -248,16 +286,18 @@ public static class TextLayoutEngine
                 // Find run by x
                 foreach (var run in line.Runs)
                 {
-                    if (px >= run.X && px < run.X + run.Width)
+                    if (cx >= run.X && cx < run.X + run.Width)
                     {
+                        hitRun = run;
                         if (run.Source is TextRun tr)
                         {
-                            float localX = px - run.X;
+                            float localX = cx - run.X;
                             int offset = FindOffsetAtX(run.DisplayText, tr.FontFamily, tr.FontSize, tr.Style, zoom, localX);
                             return new DocumentPosition(line.BlockIndex,
                                 line.Block!.Content.IndexOf(run.Source),
                                 run.StartOffset + offset);
                         }
+                        hitRun = run;
                         return new DocumentPosition(line.BlockIndex,
                             line.Block!.Content.IndexOf(run.Source), 0);
                     }
@@ -267,6 +307,7 @@ public static class TextLayoutEngine
                 if (line.Runs.Count > 0)
                 {
                     var last = line.Runs[^1];
+                    hitRun = last;
                     if (last.Source is TextRun tr2)
                     {
                         int fullOff = last.StartOffset + last.DisplayText.Length;
@@ -281,7 +322,7 @@ public static class TextLayoutEngine
                 return new DocumentPosition(line.BlockIndex, 0, 0);
             }
 
-            // Track closest line for fallback
+           // Track closest line for fallback
             float dist = Math.Abs(py - (lineTop + line.Height / 2));
             if (dist < bestDist)
             {
@@ -292,12 +333,14 @@ public static class TextLayoutEngine
                     bestBlock = line.BlockIndex;
                     bestContent = line.Block!.Content.IndexOf(last2.Source);
                     bestOffset = tr3.Length;
+                    hitRun = last2;
                 }
                 else if (line.Runs.Count > 0)
                 {
                     bestBlock = line.BlockIndex;
                     bestContent = line.Block!.Content.IndexOf(line.Runs[0].Source);
                     bestOffset = 0;
+                    hitRun = line.Runs[0];
                 }
             }
         }
@@ -305,19 +348,21 @@ public static class TextLayoutEngine
         return new DocumentPosition(bestBlock, bestContent, bestOffset);
     }
 
-    private static int FindOffsetAtX(string text, string fontFamily, float fontSize, FontStyle style, float zoom, float targetX)
+   private static int FindOffsetAtX(string text, string fontFamily, float fontSize, FontStyle style, float zoom, float targetX)
     {
-        if (string.IsNullOrEmpty(text) || targetX <= 0) return 0;
-        int bestPos = 0;
-        int bestDist = int.MaxValue;
-        for (int i = 0; i <= text.Length; i++)
+        if (string.IsNullOrEmpty(text)) return 0;
+        if (targetX <= 0) return 0;
+
+        for (int i = 1; i <= text.Length; i++)
         {
             string sub = text[..i];
-            int w = (int)(MeasureText(sub, fontFamily, fontSize, style, zoom).width / zoom);
-            int dist = (int)Math.Abs(targetX - w);
-            if (dist < bestDist) { bestDist = dist; bestPos = i; }
+            float w = MeasureText(sub, fontFamily, fontSize, style, zoom).width / zoom;
+            if (w >= targetX)
+            {
+                return i;
+            }
         }
-        return bestPos;
+        return text.Length;
     }
 
     private static VisualLine NewLine(RichTextBlock block, int blockIndex, float y, float leftMargin, float markerWidth = 0)

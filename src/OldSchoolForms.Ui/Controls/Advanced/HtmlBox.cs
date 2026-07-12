@@ -33,6 +33,10 @@ public class HtmlBox : Control
     private bool _cursorScreenValid;
     private int _preferredX = -1;
 
+    // Ctrl key state for link activation
+    private bool _ctrlPressed;
+    private bool _lastWasLink;
+
     /// <summary>
     /// Initializes a new instance of the <see cref="HtmlBox"/> class.
     /// </summary>
@@ -423,9 +427,10 @@ public class HtmlBox : Control
 
             if (_cachedLines != null && _cachedLines.Count > 0)
             {
-                var pos = TextLayoutEngine.HitTest(
+              var pos = TextLayoutEngine.HitTest(
                     _engine.Document, _cachedLines,
-                    mouseArgs.X, mouseArgs.Y, zoom);
+                    mouseArgs.X, mouseArgs.Y, zoom,
+                    out var hitRun, 8);
 
                 _engine.CursorBlock = pos.BlockIndex;
                 _engine.CursorContent = pos.ContentIndex;
@@ -434,7 +439,12 @@ public class HtmlBox : Control
                 _engine.SelectionContent = _engine.CursorContent;
                 _engine.SelectionOffset = _engine.CursorOffset;
                 _preferredX = -1;
+
+                _lastWasLink = hitRun != null && hitRun.ContentIndex >= 0 && hitRun.ContentIndex < _engine.Document.Blocks[pos.BlockIndex].Content.Count
+                    && _engine.Document.Blocks[pos.BlockIndex].Content[hitRun.ContentIndex] is HyperlinkRun;
             }
+
+            UpdateLinkCursor();
 
             CapturingMouse = true;
             Invalidate();
@@ -448,7 +458,7 @@ public class HtmlBox : Control
     /// <inheritdoc/>
     protected internal override void OnMouseMove(EventArgs e)
     {
-        if (e is MouseEventArgs mouseArgs && IsPressed && _cachedLines != null)
+        if (e is MouseEventArgs mouseArgs && _cachedLines != null)
         {
             float zoom = EffectiveZoom;
             EnsureLayout(Width, zoom);
@@ -457,23 +467,59 @@ public class HtmlBox : Control
             {
                 var pos = TextLayoutEngine.HitTest(
                     _engine.Document, _cachedLines,
-                    mouseArgs.X, mouseArgs.Y, zoom);
+                    mouseArgs.X, mouseArgs.Y, zoom,
+                    out var hitRun, 8);
 
-                _engine.CursorBlock = pos.BlockIndex;
-                _engine.CursorContent = pos.ContentIndex;
-                _engine.CursorOffset = pos.CharOffset;
+                if (IsPressed)
+                {
+                    _engine.CursorBlock = pos.BlockIndex;
+                    _engine.CursorContent = pos.ContentIndex;
+                    _engine.CursorOffset = pos.CharOffset;
+                    Invalidate();
+                }
+
+                _lastWasLink = hitRun != null && hitRun.ContentIndex >= 0 && hitRun.ContentIndex < _engine.Document.Blocks[pos.BlockIndex].Content.Count
+                    && _engine.Document.Blocks[pos.BlockIndex].Content[hitRun.ContentIndex] is HyperlinkRun;
+
+                UpdateLinkCursor();
             }
-
-            Invalidate();
         }
 
         base.OnMouseMove(e);
     }
 
-    /// <inheritdoc/>
+     /// <inheritdoc/>
     protected internal override void OnMouseUp(EventArgs e)
     {
         CapturingMouse = false;
+
+        if (e is MouseEventArgs mouseArgs && _cachedLines != null)
+        {
+            float zoom = EffectiveZoom;
+            EnsureLayout(Width, zoom);
+
+            if (_cachedLines != null && _cachedLines.Count > 0)
+            {
+                var pos = TextLayoutEngine.HitTest(
+                    _engine.Document, _cachedLines,
+                    mouseArgs.X, mouseArgs.Y, zoom,
+                    out var hitRun, 8);
+
+                if (hitRun != null && hitRun.ContentIndex >= 0 && hitRun.ContentIndex < _engine.Document.Blocks[pos.BlockIndex].Content.Count
+                    && _engine.Document.Blocks[pos.BlockIndex].Content[hitRun.ContentIndex] is HyperlinkRun linkRun
+                    && mouseArgs.Button == MouseButtons.Left)
+                {
+                    System.Console.WriteLine($"[HtmlBox] Link clicked: {linkRun.Url} (ContentIndex={hitRun.ContentIndex}, Button={mouseArgs.Button}, LinkBehavior={LinkBehavior}, _ctrlPressed={_ctrlPressed})");
+                    bool ctrlOrOpen = _ctrlPressed || LinkBehavior == LinkBehavior.OpenInBrowser;
+                    if (ctrlOrOpen)
+                    {
+                        System.Console.WriteLine($"[HtmlBox] Opening link: {linkRun.Url}");
+                        OnLinkClick(linkRun.Url, linkRun);
+                    }
+                }
+            }
+        }
+
         Invalidate();
         ContentChanged?.Invoke(this, EventArgs.Empty);
 
@@ -485,6 +531,7 @@ public class HtmlBox : Control
     {
         if (_readOnly) { base.OnKeyDown(e); return; }
 
+        _ctrlPressed = e.Modifiers.HasFlag(ModifierKeys.Control);
         bool shift = e.Modifiers.HasFlag(ModifierKeys.Shift);
         bool ctrl = e.Modifiers.HasFlag(ModifierKeys.Control);
 
@@ -616,6 +663,14 @@ public class HtmlBox : Control
         Invalidate();
         ContentChanged?.Invoke(this, EventArgs.Empty);
         base.OnKeyDown(e);
+    }
+
+    /// <inheritdoc/>
+    protected internal override void OnKeyUp(KeyEventArgs e)
+    {
+        if (_readOnly) { base.OnKeyUp(e); return; }
+        _ctrlPressed = e.Modifiers.HasFlag(ModifierKeys.Control);
+        base.OnKeyUp(e);
     }
 
     /// <summary>Handles text input from keyboard.</summary>
@@ -791,8 +846,7 @@ public class HtmlBox : Control
                     continue;
                 }
 
-                float blockFontSize = GetBlockFontSize(line.Block?.Type ?? RichTextBlockType.Paragraph);
-                var measFont = new Font(tr.FontFamily, blockFontSize, tr.Style);
+                var measFont = new Font(tr.FontFamily, tr.FontSize, tr.Style);
 
                 if (prefX <= runX)
                 {
@@ -910,6 +964,21 @@ public class HtmlBox : Control
     private static float GetLeftMargin(RichTextBlockType type) =>
         type is RichTextBlockType.BulletItem or RichTextBlockType.NumberItem ? 30 : 0;
 
+    /// <summary>
+    /// Updates the cursor to a hand cursor when Ctrl is held and the mouse is over a hyperlink.
+    /// </summary>
+    private void UpdateLinkCursor()
+    {
+        if (_lastWasLink)
+        {
+            FindForm()?.Cursor = SystemCursorType.Hand;
+        }
+        else
+        {
+            FindForm()?.Cursor = null;
+        }
+    }
+
     private static float GetBlockFontSize(RichTextBlockType type) => type switch
     {
         RichTextBlockType.Heading1 => 24,
@@ -920,6 +989,45 @@ public class HtmlBox : Control
         RichTextBlockType.Heading6 => 12,
         _ => 12
     };
+
+    /// <summary>
+    /// Raises the <see cref="LinkClick"/> event and optionally opens the URL in the default application.
+    /// </summary>
+    /// <param name="url">The URL of the clicked hyperlink.</param>
+    /// <param name="link">The <see cref="HyperlinkRun"/> that was clicked, or null.</param>
+    protected virtual void OnLinkClick(string url, HyperlinkRun? link)
+    {
+        var args = new HtmlLinkEventArgs(url, link);
+        LinkClick?.Invoke(this, args);
+
+        if (!args.Handled && LinkBehavior == LinkBehavior.OpenInBrowser)
+        {
+            OpenUrl(url);
+        }
+    }
+
+    /// <summary>
+    /// Opens the specified URL in the default application (e.g. web browser).
+    /// Works cross-platform on Linux, Windows, and macOS.
+    /// </summary>
+    /// <param name="url">The URL to open.</param>
+    private static void OpenUrl(string url)
+    {
+        System.Console.WriteLine($"[HtmlBox] OpenUrl called: {url}");
+        try
+        {
+            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+            {
+                FileName = url,
+                UseShellExecute = true
+            });
+            System.Console.WriteLine($"[HtmlBox] OpenUrl success: {url}");
+        }
+        catch (Exception ex)
+        {
+            System.Console.WriteLine($"[HtmlBox] OpenUrl failed: {ex.Message}");
+        }
+    }
 }
 
 /// <summary>
@@ -935,7 +1043,7 @@ public enum LinkBehavior
     OpenInBrowser
 }
 
-/// <summary>
+ /// <summary>
 /// Provides data for the <see cref="HtmlBox.LinkClick"/> event.
 /// </summary>
 public class HtmlLinkEventArgs : EventArgs
@@ -943,13 +1051,19 @@ public class HtmlLinkEventArgs : EventArgs
     /// <summary>The URL of the clicked link.</summary>
     public string Url { get; }
 
+    /// <summary>Gets the <see cref="HyperlinkRun"/> that was clicked, or null.</summary>
+    public HyperlinkRun? Link { get; }
+
     /// <summary>Gets or sets whether the link click has been handled.</summary>
     public bool Handled { get; set; }
 
     /// <summary>Initializes a new instance of <see cref="HtmlLinkEventArgs"/>.</summary>
-    public HtmlLinkEventArgs(string url)
+    /// <param name="url">The URL of the clicked hyperlink.</param>
+    /// <param name="link">The <see cref="HyperlinkRun"/> that was clicked, or null.</param>
+    public HtmlLinkEventArgs(string url, HyperlinkRun? link)
     {
         Url = url;
+        Link = link;
     }
 }
 

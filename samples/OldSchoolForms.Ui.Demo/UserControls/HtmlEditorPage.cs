@@ -39,6 +39,7 @@ public class HtmlEditorPage : UserControl
         {
             Dock = DockStyle.Fill,
             ReadOnly = false,
+            LinkBehavior = LinkBehavior.OpenInBrowser,
             Html = @"<h1>HTML Editor</h1>
 <p>Welcome to the <b>OldSchoolForms</b> HTML editor!</p>
 <p>This is a <a href=""https://example.com"">link</a> example.</p>
