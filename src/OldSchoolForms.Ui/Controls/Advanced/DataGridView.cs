@@ -883,7 +883,7 @@ public class DataGridView : ContainerControl
                         Console.WriteLine($"[DataGridView] Selected cell col={col} row={row} _columns.Count={_columns.Count}");
                         if (col >= 0 && _columns != null && col < _columns.Count)
                         {
-                            var cellRect = GetCellBounds(col, row);
+                            var cellRect = GetCellBounds(row, col);
                             Console.WriteLine($"[DataGridView] Cell bounds=({cellRect.X},{cellRect.Y},{cellRect.Width},{cellRect.Height})");
                         }
                     }
