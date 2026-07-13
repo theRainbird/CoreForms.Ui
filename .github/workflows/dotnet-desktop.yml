@@ -16,25 +16,25 @@ jobs:
       matrix:
         configuration: [Debug, Release]
 
-    env:
-      Solution_Path: OldSchoolForms.Ui.sln
-
     steps:
     - name: Checkout
       uses: actions/checkout@v4
       with:
         fetch-depth: 0
 
-    - name: Install .NET Core
+    - name: Setup .NET
       uses: actions/setup-dotnet@v4
       with:
         dotnet-version: 10.0.x
 
-    - name: Restore dependencies
-      run: dotnet restore $env:Solution_Path
+    - name: Restore core library
+      run: dotnet restore src/OldSchoolForms.Ui/OldSchoolForms.Ui.csproj
 
-    - name: Build
-      run: dotnet build $env:Solution_Path --no-restore
+    - name: Build core library
+      run: dotnet build src/OldSchoolForms.Ui/OldSchoolForms.Ui.csproj --no-restore -c ${{ matrix.configuration }}
 
-    - name: Test
-      run: dotnet test --no-build --verbosity normal
+    - name: Restore tests
+      run: dotnet restore tests/OldSchoolForms.Ui.Tests/OldSchoolForms.Ui.Tests.csproj
+
+    - name: Build and run tests
+      run: dotnet test tests/OldSchoolForms.Ui.Tests/OldSchoolForms.Ui.Tests.csproj --no-build -c ${{ matrix.configuration }} --verbosity normal
