@@ -1,3 +1,4 @@
+using System.Globalization;
 using OldSchoolForms.Ui.Controls.Advanced;
 using OldSchoolForms.Ui.Core;
 using OldSchoolForms.Ui.Rendering;
@@ -107,8 +108,8 @@ public class ReportTests
     public void Cm_ToString_FormatsCorrectly()
     {
         var cm = new Cm(5.5);
-        var formatted = cm.ToString();
-        Assert.True(formatted == "5,50 cm" || formatted == "5.50 cm", $"Unexpected format: {formatted}");
+        var expected = string.Format(CultureInfo.CurrentCulture, "{0:F2} cm", 5.5);
+        Assert.Equal(expected, cm.ToString());
     }
 
     [Fact]

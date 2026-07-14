@@ -1,3 +1,5 @@
+using System.Globalization;
+
 namespace OldSchoolForms.Ui.Reports;
 
 /// <summary>
@@ -74,7 +76,7 @@ public readonly struct Cm : IComparable<Cm>, IEquatable<Cm>
 
     public override int GetHashCode() => Value.GetHashCode();
 
-    public override string ToString() => $"{Value:F2} cm";
+    public override string ToString() => $"{Value.ToString("F2", CultureInfo.CurrentCulture)} cm";
 
     public static implicit operator Cm(double value) => new(value);
 
