@@ -37,4 +37,4 @@ jobs:
       run: dotnet restore tests/OldSchoolForms.Ui.Tests/OldSchoolForms.Ui.Tests.csproj
 
     - name: Build and run tests
-      run: dotnet test tests/OldSchoolForms.Ui.Tests/OldSchoolForms.Ui.Tests.csproj -c ${{ matrix.configuration }} --verbosity normal
+      run: dotnet test tests/OldSchoolForms.Ui.Tests/OldSchoolForms.Ui.Tests.csproj -c ${{ matrix.configuration }} --logger "trx;LogFileName=test.trx"
