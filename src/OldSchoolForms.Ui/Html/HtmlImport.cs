@@ -65,6 +65,13 @@ public static class HtmlImport
             return;
         }
 
+        // <table> handling
+        if (tag == "table")
+        {
+            ConvertTable(node, doc);
+            return;
+        }
+
         RichTextBlockType blockType = tag switch
         {
             "h1" => RichTextBlockType.Heading1,
@@ -112,6 +119,49 @@ public static class HtmlImport
 
             doc.Blocks.Add(block);
         }
+    }
+
+    private static void ConvertTable(HtmlNode tableNode, RichTextDocument doc)
+    {
+        var block = new RichTextBlock { Type = RichTextBlockType.Table };
+        block.Rows = new List<TableRow>();
+        int colCount = 0;
+
+        var rowNodes = tableNode.SelectNodes(".//tr");
+        if (rowNodes == null) return;
+
+        foreach (var rowNode in rowNodes)
+        {
+            var row = new TableRow();
+            var cellNodes = rowNode.SelectNodes("./td | ./th");
+            if (cellNodes == null) continue;
+
+            foreach (var cellNode in cellNodes)
+            {
+                var cell = new TableCell();
+                var style = new TextStyleInfo();
+                ExtractStyleFromAttributes(cellNode, style);
+                ExtractInlineContent(cellNode, cell.Content, style);
+                if (cell.Content.Count == 0)
+                    cell.Content.Add(new TextRun());
+                row.Cells.Add(cell);
+            }
+
+            if (row.Cells.Count > colCount) colCount = row.Cells.Count;
+            block.Rows.Add(row);
+        }
+
+        block.ColCount = colCount;
+
+        // Pad rows to uniform column count
+        foreach (var row in block.Rows)
+        {
+            while (row.Cells.Count < colCount)
+                row.Cells.Add(new TableCell { Content = { new TextRun() } });
+        }
+
+        if (block.Rows.Count > 0)
+            doc.Blocks.Add(block);
     }
 
     private static void ExtractStyleFromAttributes(HtmlNode node, TextStyleInfo style)

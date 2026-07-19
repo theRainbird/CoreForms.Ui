@@ -22,6 +22,30 @@ public static class HtmlExport
         for (int bi = 0; bi < doc.Blocks.Count; bi++)
         {
             var block = doc.Blocks[bi];
+
+            // Table block serialization
+            if (block.Type == RichTextBlockType.Table && block.Rows != null)
+            {
+                if (sb.Length > 6) sb.AppendLine();
+                sb.Append("<table>");
+                foreach (var row in block.Rows)
+                {
+                    sb.AppendLine();
+                    sb.Append("<tr>");
+                    foreach (var cell in row.Cells)
+                    {
+                        string cellInner = RenderContent(cell.Content);
+                        sb.AppendLine();
+                        sb.Append($"<td>{cellInner}</td>");
+                    }
+                    sb.AppendLine();
+                    sb.Append("</tr>");
+                }
+                sb.AppendLine();
+                sb.Append("</table>");
+                continue;
+            }
+
             string tag = GetTag(block.Type);
             string listTag = block.Type is RichTextBlockType.BulletItem ? "ul"
                 : block.Type is RichTextBlockType.NumberItem ? "ol" : null!;

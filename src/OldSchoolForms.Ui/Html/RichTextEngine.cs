@@ -19,13 +19,18 @@ public class RichTextEngine
     public int SelectionContent { get; set; }
     public int SelectionOffset { get; set; }
 
+    /// <summary>For table blocks, the cell index (row*ColCount+col) the cursor is in. -1 means not in a table cell.</summary>
+    public int CursorCell { get; set; } = -1;
+    /// <summary>For table blocks, the selection anchor cell index. -1 means not in a table cell.</summary>
+    public int SelectionCell { get; set; } = -1;
+
     /// <summary>Convenience alias for test compatibility.</summary>
     public int CursorRun { get => CursorContent; set => CursorContent = value; }
     /// <summary>Convenience alias for test compatibility.</summary>
     public int SelectionRun { get => SelectionContent; set => SelectionContent = value; }
 
-    public int CursorFlatIndex => TextLayoutEngine.ToFlatIndex(Document, CursorBlock, CursorContent, CursorOffset);
-    public int SelectionFlatIndex => TextLayoutEngine.ToFlatIndex(Document, SelectionBlock, SelectionContent, SelectionOffset);
+    public int CursorFlatIndex => TextLayoutEngine.ToFlatIndex(Document, CursorBlock, CursorContent, CursorOffset, CursorCell);
+    public int SelectionFlatIndex => TextLayoutEngine.ToFlatIndex(Document, SelectionBlock, SelectionContent, SelectionOffset, SelectionCell);
     public bool HasSelection => CursorFlatIndex != SelectionFlatIndex;
 
     /// <summary>
@@ -53,6 +58,8 @@ public class RichTextEngine
         SelectionBlock = 0;
         SelectionContent = 0;
         SelectionOffset = 0;
+        CursorCell = -1;
+        SelectionCell = -1;
     }
 
     public void InsertText(string text)
@@ -62,6 +69,16 @@ public class RichTextEngine
         EnsureValidPosition();
 
         var block = Document.Blocks[CursorBlock];
+
+        // Table cell editing
+        if (block.Type == RichTextBlockType.Table && block.Rows != null && CursorCell >= 0)
+        {
+            var cell = GetCell(block);
+            if (cell == null) return;
+            // Use same logic as block content editing on cell.Content
+            InsertTextIntoContent(cell.Content, text);
+            return;
+        }
 
         if (block.Content.Count == 0)
         {
@@ -105,6 +122,18 @@ public class RichTextEngine
         EnsureValidPosition();
 
         var oldBlock = Document.Blocks[CursorBlock];
+
+        // Table cell enter — insert line break within cell
+        if (oldBlock.Type == RichTextBlockType.Table && oldBlock.Rows != null && CursorCell >= 0)
+        {
+            var cell = GetCell(oldBlock);
+            if (cell == null) return;
+            cell.Content.Insert(CursorContent + 1, new LineBreakRun());
+            CursorContent++;
+            CursorOffset = 0;
+            SyncSelection();
+            return;
+        }
 
         // Split content at cursor
         string beforeText = "", afterText = "";
@@ -167,6 +196,15 @@ public class RichTextEngine
 
         var block = Document.Blocks[CursorBlock];
 
+        // Table cell backspace
+        if (block.Type == RichTextBlockType.Table && block.Rows != null && CursorCell >= 0)
+        {
+            var cell = GetCell(block);
+            if (cell == null) return;
+            HandleBackspaceInContent(cell.Content);
+            return;
+        }
+
         if (CursorContent < block.Content.Count && block.Content[CursorContent] is TextRun run && CursorOffset > 0)
         {
             run.Text = run.Text.Remove(CursorOffset - 1, 1);
@@ -207,6 +245,15 @@ public class RichTextEngine
 
         var block = Document.Blocks[CursorBlock];
 
+        // Table cell delete
+        if (block.Type == RichTextBlockType.Table && block.Rows != null && CursorCell >= 0)
+        {
+            var cell = GetCell(block);
+            if (cell == null) return;
+            HandleDeleteInContent(cell.Content);
+            return;
+        }
+
         if (CursorContent < block.Content.Count && block.Content[CursorContent] is TextRun run && CursorOffset < run.Length)
         {
             run.Text = run.Text.Remove(CursorOffset, 1);
@@ -236,6 +283,50 @@ public class RichTextEngine
         EnsureValidPosition();
         var block = Document.Blocks[CursorBlock];
 
+        // Table cell navigation
+        if (block.Type == RichTextBlockType.Table && block.Rows != null && CursorCell >= 0)
+        {
+            var cell = GetCell(block);
+            if (cell == null) { if (!HasSelection) SyncSelection(); return; }
+
+            if (CursorOffset > 0)
+            {
+                CursorOffset--;
+                if (!HasSelection) SyncSelection();
+                return;
+            }
+            if (CursorContent > 0)
+            {
+                CursorContent--;
+                CursorOffset = cell.Content[CursorContent] is TextRun tr ? tr.Length : 0;
+                if (!HasSelection) SyncSelection();
+                return;
+            }
+            // Move to previous cell or exit table
+            if (CursorCell > 0)
+            {
+                CursorCell--;
+                var prevCell = GetCell(block);
+                if (prevCell != null)
+                {
+                    CursorContent = prevCell.Content.Count - 1;
+                    CursorOffset = CursorContent >= 0 && prevCell.Content[CursorContent] is TextRun ptr ? ptr.Length : 0;
+                }
+            }
+            else if (CursorBlock > 0)
+            {
+                // Exit table to previous block
+                CursorCell = -1;
+                CursorBlock--;
+                var prevBlock = Document.Blocks[CursorBlock];
+                CursorContent = prevBlock.Content.Count - 1;
+                if (CursorContent < 0) { CursorContent = 0; CursorOffset = 0; }
+                else CursorOffset = prevBlock.Content[CursorContent] is TextRun tr2 ? tr2.Length : 0;
+            }
+            if (!HasSelection) SyncSelection();
+            return;
+        }
+
         if (CursorOffset > 0)
         {
             CursorOffset--;
@@ -249,6 +340,30 @@ public class RichTextEngine
         {
             CursorBlock--;
             var prevBlock = Document.Blocks[CursorBlock];
+
+            // If previous block is a table, enter its last cell
+            if (prevBlock.Type == RichTextBlockType.Table && prevBlock.Rows != null)
+            {
+                int totalCells = prevBlock.Rows.Count * prevBlock.ColCount;
+                if (totalCells > 0)
+                {
+                    CursorCell = totalCells - 1;
+                    var lastCell = GetCell(prevBlock);
+                    if (lastCell != null)
+                    {
+                        CursorContent = lastCell.Content.Count - 1;
+                        CursorOffset = CursorContent >= 0 && lastCell.Content[CursorContent] is TextRun ptr ? ptr.Length : 0;
+                    }
+                    else
+                    {
+                        CursorContent = 0;
+                        CursorOffset = 0;
+                    }
+                    if (!HasSelection) SyncSelection();
+                    return;
+                }
+            }
+
             CursorContent = prevBlock.Content.Count - 1;
             if (CursorContent < 0) { CursorContent = 0; CursorOffset = 0; }
             else CursorOffset = prevBlock.Content[CursorContent] is TextRun tr2 ? tr2.Length : 0;
@@ -261,6 +376,45 @@ public class RichTextEngine
         if (Document.Blocks.Count == 0) return;
         EnsureValidPosition();
         var block = Document.Blocks[CursorBlock];
+
+        // Table cell navigation
+        if (block.Type == RichTextBlockType.Table && block.Rows != null && CursorCell >= 0)
+        {
+            var cell = GetCell(block);
+            if (cell == null) { if (!HasSelection) SyncSelection(); return; }
+
+            if (CursorContent < cell.Content.Count && cell.Content[CursorContent] is TextRun cellRun && CursorOffset < cellRun.Length)
+            {
+                CursorOffset++;
+                if (!HasSelection) SyncSelection();
+                return;
+            }
+            if (CursorContent + 1 < cell.Content.Count)
+            {
+                CursorContent++;
+                CursorOffset = 0;
+                if (!HasSelection) SyncSelection();
+                return;
+            }
+            // Move to next cell or exit table
+            int totalCells = block.Rows.Count * block.ColCount;
+            if (CursorCell + 1 < totalCells)
+            {
+                CursorCell++;
+                CursorContent = 0;
+                CursorOffset = 0;
+            }
+            else if (CursorBlock + 1 < Document.Blocks.Count)
+            {
+                // Exit table to next block
+                CursorCell = -1;
+                CursorBlock++;
+                CursorContent = 0;
+                CursorOffset = 0;
+            }
+            if (!HasSelection) SyncSelection();
+            return;
+        }
 
         if (CursorContent < block.Content.Count && block.Content[CursorContent] is TextRun run && CursorOffset < run.Length)
         {
@@ -283,6 +437,12 @@ public class RichTextEngine
                 else
                 {
                     CursorBlock++;
+                    var nextBlock = Document.Blocks[CursorBlock];
+                    // If next block is a table, enter its first cell
+                    if (nextBlock.Type == RichTextBlockType.Table && nextBlock.Rows != null && nextBlock.Rows.Count > 0)
+                    {
+                        CursorCell = 0;
+                    }
                     CursorContent = 0;
                     CursorOffset = 0;
                 }
@@ -290,6 +450,12 @@ public class RichTextEngine
             else
             {
                 CursorBlock++;
+                var nextBlock = Document.Blocks[CursorBlock];
+                // If next block is a table, enter its first cell
+                if (nextBlock.Type == RichTextBlockType.Table && nextBlock.Rows != null && nextBlock.Rows.Count > 0)
+                {
+                    CursorCell = 0;
+                }
                 CursorContent = 0;
                 CursorOffset = 0;
             }
@@ -305,6 +471,24 @@ public class RichTextEngine
 
     public void MoveUp()
     {
+        var block = Document.Blocks.Count > 0 && CursorBlock >= 0 && CursorBlock < Document.Blocks.Count
+            ? Document.Blocks[CursorBlock] : null;
+
+        // Table cell: move to same column in previous row
+        if (block != null && block.Type == RichTextBlockType.Table && block.Rows != null && CursorCell >= 0)
+        {
+            int colIdx = CursorCell % block.ColCount;
+            if (CursorCell >= block.ColCount) // not in first row
+            {
+                CursorCell -= block.ColCount;
+                CursorContent = 0;
+                CursorOffset = 0;
+            }
+            // else: at first row, stay
+            if (!HasSelection) SyncSelection();
+            return;
+        }
+
         if (CursorBlock > 0)
         {
             CursorBlock--;
@@ -318,6 +502,26 @@ public class RichTextEngine
 
     public void MoveDown()
     {
+        var block = Document.Blocks.Count > 0 && CursorBlock >= 0 && CursorBlock < Document.Blocks.Count
+            ? Document.Blocks[CursorBlock] : null;
+
+        // Table cell: move to same column in next row
+        if (block != null && block.Type == RichTextBlockType.Table && block.Rows != null && CursorCell >= 0)
+        {
+            int colIdx = CursorCell % block.ColCount;
+            int nextRowStart = CursorCell + block.ColCount;
+            int totalCells = block.Rows.Count * block.ColCount;
+            if (nextRowStart < totalCells)
+            {
+                CursorCell = nextRowStart;
+                CursorContent = 0;
+                CursorOffset = 0;
+            }
+            // else: at last row, stay
+            if (!HasSelection) SyncSelection();
+            return;
+        }
+
         if (CursorBlock + 1 < Document.Blocks.Count)
         {
             CursorBlock++;
@@ -331,6 +535,17 @@ public class RichTextEngine
     {
         if (CursorBlock < 0 || CursorBlock >= Document.Blocks.Count) return;
         var block = Document.Blocks[CursorBlock];
+
+        // Table cell: go to first cell of table
+        if (block.Type == RichTextBlockType.Table && block.Rows != null && CursorCell >= 0)
+        {
+            CursorCell = 0;
+            CursorContent = 0;
+            CursorOffset = 0;
+            if (!HasSelection) SyncSelection();
+            return;
+        }
+
         CursorContent = block.Content.Count > 0 ? 0 : 0;
         CursorOffset = 0;
         if (!HasSelection) SyncSelection();
@@ -340,6 +555,18 @@ public class RichTextEngine
     {
         if (CursorBlock < 0 || CursorBlock >= Document.Blocks.Count) return;
         var block = Document.Blocks[CursorBlock];
+
+        // Table cell: go to last cell of table
+        if (block.Type == RichTextBlockType.Table && block.Rows != null && CursorCell >= 0)
+        {
+            int totalCells = block.Rows.Count * block.ColCount;
+            CursorCell = totalCells - 1;
+            CursorContent = 0;
+            CursorOffset = 0;
+            if (!HasSelection) SyncSelection();
+            return;
+        }
+
         if (block.Content.Count > 0)
         {
             CursorContent = block.Content.Count - 1;
@@ -357,6 +584,17 @@ public class RichTextEngine
     {
         if (!IsValidPosition()) return FontStyle.Regular;
         var block = Document.Blocks[CursorBlock];
+
+        // Table cell: use cell content
+        if (block.Type == RichTextBlockType.Table && block.Rows != null && CursorCell >= 0)
+        {
+            var cell = GetCell(block);
+            if (cell == null) return FontStyle.Regular;
+            if (CursorContent >= 0 && CursorContent < cell.Content.Count && cell.Content[CursorContent] is TextRun cellRun)
+                return cellRun.Style;
+            return FontStyle.Regular;
+        }
+
         if (CursorContent < 0 || CursorContent >= block.Content.Count) return FontStyle.Regular;
         if (block.Content[CursorContent] is TextRun run)
             return run.Style;
@@ -367,6 +605,16 @@ public class RichTextEngine
     {
         if (!IsValidPosition()) return "Arial";
         var block = Document.Blocks[CursorBlock];
+
+        if (block.Type == RichTextBlockType.Table && block.Rows != null && CursorCell >= 0)
+        {
+            var cell = GetCell(block);
+            if (cell == null) return "Arial";
+            if (CursorContent >= 0 && CursorContent < cell.Content.Count && cell.Content[CursorContent] is TextRun cellRun)
+                return cellRun.FontFamily;
+            return "Arial";
+        }
+
         if (CursorContent < 0 || CursorContent >= block.Content.Count) return "Arial";
         if (block.Content[CursorContent] is TextRun run)
             return run.FontFamily;
@@ -377,6 +625,16 @@ public class RichTextEngine
     {
         if (!IsValidPosition()) return 12;
         var block = Document.Blocks[CursorBlock];
+
+        if (block.Type == RichTextBlockType.Table && block.Rows != null && CursorCell >= 0)
+        {
+            var cell = GetCell(block);
+            if (cell == null) return 12;
+            if (CursorContent >= 0 && CursorContent < cell.Content.Count && cell.Content[CursorContent] is TextRun cellRun)
+                return cellRun.FontSize;
+            return 12;
+        }
+
         if (CursorContent < 0 || CursorContent >= block.Content.Count) return 12;
         if (block.Content[CursorContent] is TextRun run)
             return run.FontSize;
@@ -387,6 +645,16 @@ public class RichTextEngine
     {
         if (!IsValidPosition()) return Color.Empty;
         var block = Document.Blocks[CursorBlock];
+
+        if (block.Type == RichTextBlockType.Table && block.Rows != null && CursorCell >= 0)
+        {
+            var cell = GetCell(block);
+            if (cell == null) return Color.Empty;
+            if (CursorContent >= 0 && CursorContent < cell.Content.Count && cell.Content[CursorContent] is TextRun cellRun)
+                return cellRun.ForeColor;
+            return Color.Empty;
+        }
+
         if (CursorContent < 0 || CursorContent >= block.Content.Count) return Color.Empty;
         if (block.Content[CursorContent] is TextRun run)
             return run.ForeColor;
@@ -445,6 +713,16 @@ public class RichTextEngine
         else if (IsValidPosition())
         {
             var block = Document.Blocks[CursorBlock];
+
+            if (block.Type == RichTextBlockType.Table && block.Rows != null && CursorCell >= 0)
+            {
+                var cell = GetCell(block);
+                if (cell == null) return;
+                if (CursorContent >= 0 && CursorContent < cell.Content.Count && cell.Content[CursorContent] is TextRun cellRun)
+                    action(cellRun);
+                return;
+            }
+
             if (CursorContent < block.Content.Count && block.Content[CursorContent] is TextRun run)
                 action(run);
         }
@@ -454,6 +732,16 @@ public class RichTextEngine
     {
         if (!IsValidPosition()) return;
         var block = Document.Blocks[CursorBlock];
+
+        if (block.Type == RichTextBlockType.Table && block.Rows != null && CursorCell >= 0)
+        {
+            var cell = GetCell(block);
+            if (cell == null) return;
+            if (CursorContent >= 0 && CursorContent < cell.Content.Count && cell.Content[CursorContent] is TextRun cellRun)
+                cellRun.Style ^= style;
+            return;
+        }
+
         if (CursorContent < block.Content.Count && block.Content[CursorContent] is TextRun run)
             run.Style ^= style;
     }
@@ -627,6 +915,120 @@ public class RichTextEngine
         SyncSelection();
     }
 
+    /// <summary>Inserts a table with the specified number of rows and columns at the cursor position.</summary>
+    /// <param name="rows">The number of rows.</param>
+    /// <param name="cols">The number of columns.</param>
+    public void InsertTable(int rows, int cols)
+    {
+        if (HasSelection) DeleteSelection();
+        if (rows < 1) rows = 1;
+        if (cols < 1) cols = 1;
+
+        var block = new RichTextBlock { Type = RichTextBlockType.Table, ColCount = cols };
+        block.Rows = new List<TableRow>();
+        for (int r = 0; r < rows; r++)
+        {
+            var row = new TableRow();
+            for (int c = 0; c < cols; c++)
+                row.Cells.Add(new TableCell { Content = { new TextRun() } });
+            block.Rows.Add(row);
+        }
+
+        Document.Blocks.Insert(CursorBlock + 1, block);
+        CursorBlock++;
+        CursorCell = 0;
+        CursorContent = 0;
+        CursorOffset = 0;
+        SyncSelection();
+    }
+
+    /// <summary>Adds a new row after the current cursor row in the table.</summary>
+    public void AddRow()
+    {
+        if (CursorBlock < 0 || CursorBlock >= Document.Blocks.Count) return;
+        var block = Document.Blocks[CursorBlock];
+        if (block.Type != RichTextBlockType.Table || block.Rows == null || CursorCell < 0) return;
+
+        int colCount = block.ColCount;
+        int rowIdx = CursorCell / colCount;
+
+        var newRow = new TableRow();
+        for (int c = 0; c < colCount; c++)
+            newRow.Cells.Add(new TableCell { Content = { new TextRun() } });
+
+        block.Rows.Insert(rowIdx + 1, newRow);
+
+        // Advance cursor to first cell of new row
+        CursorCell = (rowIdx + 1) * colCount;
+        CursorContent = 0;
+        CursorOffset = 0;
+        SyncSelection();
+    }
+
+    /// <summary>Removes the row at the current cursor position in the table.</summary>
+    public void RemoveRow()
+    {
+        if (CursorBlock < 0 || CursorBlock >= Document.Blocks.Count) return;
+        var block = Document.Blocks[CursorBlock];
+        if (block.Type != RichTextBlockType.Table || block.Rows == null || CursorCell < 0) return;
+        if (block.Rows.Count <= 1) return;
+
+        int colCount = block.ColCount;
+        int rowIdx = CursorCell / colCount;
+
+        block.Rows.RemoveAt(rowIdx);
+
+        // Move cursor to nearest valid row
+        if (rowIdx >= block.Rows.Count) rowIdx = block.Rows.Count - 1;
+        CursorCell = rowIdx * colCount;
+        CursorContent = 0;
+        CursorOffset = 0;
+        SyncSelection();
+    }
+
+    /// <summary>Adds a new column after the current cursor column in the table.</summary>
+    public void AddColumn()
+    {
+        if (CursorBlock < 0 || CursorBlock >= Document.Blocks.Count) return;
+        var block = Document.Blocks[CursorBlock];
+        if (block.Type != RichTextBlockType.Table || block.Rows == null || CursorCell < 0) return;
+
+        int colIdx = (CursorCell % block.ColCount) + 1; // after current column
+        foreach (var row in block.Rows)
+            row.Cells.Insert(colIdx, new TableCell { Content = { new TextRun() } });
+        block.ColCount++;
+
+        // Advance cursor to new column in same row
+        int rowIdx = CursorCell / (block.ColCount - 1);
+        CursorCell = rowIdx * block.ColCount + colIdx;
+        CursorContent = 0;
+        CursorOffset = 0;
+        SyncSelection();
+    }
+
+    /// <summary>Removes the column at the current cursor position in the table.</summary>
+    public void RemoveColumn()
+    {
+        if (CursorBlock < 0 || CursorBlock >= Document.Blocks.Count) return;
+        var block = Document.Blocks[CursorBlock];
+        if (block.Type != RichTextBlockType.Table || block.Rows == null || CursorCell < 0) return;
+        if (block.ColCount <= 1) return;
+
+        int colIdx = CursorCell % block.ColCount;
+        foreach (var row in block.Rows)
+            row.Cells.RemoveAt(colIdx);
+        block.ColCount--;
+
+        // Clamp cursor to valid column
+        int oldColCount = block.ColCount + 1;
+        int rowIdx = CursorCell / oldColCount;
+        if (colIdx >= block.ColCount) colIdx = block.ColCount - 1;
+        CursorCell = rowIdx * block.ColCount + colIdx;
+        CursorContent = 0;
+        CursorOffset = 0;
+        SyncSelection();
+    }
+
     public void InsertLineBreak()
     {
         if (HasSelection) DeleteSelection();
@@ -738,6 +1140,99 @@ public class RichTextEngine
         SelectionBlock = CursorBlock;
         SelectionContent = CursorContent;
         SelectionOffset = CursorOffset;
+        SelectionCell = CursorCell;
+    }
+
+    private TableCell? GetCell(RichTextBlock block)
+    {
+        if (block.Rows == null || block.ColCount <= 0 || CursorCell < 0) return null;
+        int rowIdx = CursorCell / block.ColCount;
+        int colIdx = CursorCell % block.ColCount;
+        if (rowIdx >= block.Rows.Count) return null;
+        var row = block.Rows[rowIdx];
+        if (colIdx >= row.Cells.Count) return null;
+        return row.Cells[colIdx];
+    }
+
+    private void HandleBackspaceInContent(List<InlineContent> content)
+    {
+        if (content.Count == 0) return;
+
+        if (CursorContent < content.Count && content[CursorContent] is TextRun backRun && CursorOffset > 0)
+        {
+            backRun.Text = backRun.Text.Remove(CursorOffset - 1, 1);
+            CursorOffset--;
+            if (string.IsNullOrEmpty(backRun.Text) && content.Count > 1)
+            {
+                content.RemoveAt(CursorContent);
+                if (CursorContent >= content.Count) CursorContent = content.Count - 1;
+                CursorOffset = content[CursorContent] is TextRun tr2 ? tr2.Length : 0;
+            }
+            SyncSelection();
+            return;
+        }
+
+        // Cannot merge cells across table boundaries — just clamp
+        if (CursorContent == 0 && CursorOffset == 0)
+            return;
+    }
+
+    private void HandleDeleteInContent(List<InlineContent> content)
+    {
+        if (content.Count == 0) return;
+
+        if (CursorContent < content.Count && content[CursorContent] is TextRun delRun && CursorOffset < delRun.Length)
+        {
+            delRun.Text = delRun.Text.Remove(CursorOffset, 1);
+            if (string.IsNullOrEmpty(delRun.Text) && content.Count > 1)
+            {
+                content.RemoveAt(CursorContent);
+                if (CursorContent >= content.Count) CursorContent = content.Count - 1;
+                CursorOffset = content[CursorContent] is TextRun tr2 ? 0 : 0;
+            }
+            SyncSelection();
+            return;
+        }
+
+        // Cannot merge cells — just clamp
+        if (CursorContent >= content.Count - 1)
+            return;
+    }
+
+    private void InsertTextIntoContent(List<InlineContent> content, string text)
+    {
+        if (content.Count == 0)
+        {
+            content.Add(new TextRun { Text = text });
+            CursorContent = 0;
+            CursorOffset = text.Length;
+            SyncSelection();
+            return;
+        }
+
+        if (CursorContent >= content.Count)
+        {
+            content.Add(new TextRun { Text = text });
+            CursorContent = content.Count - 1;
+            CursorOffset = content[CursorContent] is TextRun tr ? tr.Length : 0;
+            SyncSelection();
+            return;
+        }
+
+        if (content[CursorContent] is TextRun insRun)
+        {
+            insRun.Text = insRun.Text.Insert(CursorOffset, text);
+            CursorOffset += text.Length;
+            SyncSelection();
+        }
+        else
+        {
+            var newRun = new TextRun { Text = text };
+            content.Insert(CursorContent + 1, newRun);
+            CursorContent++;
+            CursorOffset = text.Length;
+            SyncSelection();
+        }
     }
 
     private void EnsureValidPosition()
@@ -746,12 +1241,58 @@ public class RichTextEngine
             CursorBlock = Document.Blocks.Count - 1;
         if (CursorBlock < 0)
             CursorBlock = 0;
+
+        var block = Document.Blocks.Count > 0 && CursorBlock >= 0 && CursorBlock < Document.Blocks.Count
+            ? Document.Blocks[CursorBlock] : null;
+
+        if (block != null && block.Type == RichTextBlockType.Table && block.Rows != null && CursorCell >= 0)
+        {
+            // Clamp cell to valid range
+            int totalCells = block.Rows.Count * block.ColCount;
+            if (totalCells <= 0) { CursorCell = -1; return; }
+            if (CursorCell >= totalCells) CursorCell = totalCells - 1;
+            if (CursorCell < 0) CursorCell = 0;
+
+            var cell = GetCell(block);
+            if (cell == null) return;
+
+            if (CursorContent >= cell.Content.Count) CursorContent = cell.Content.Count - 1;
+            if (CursorContent < 0) CursorContent = 0;
+
+            if (CursorContent < cell.Content.Count && cell.Content[CursorContent] is TextRun tr)
+            {
+                if (CursorOffset > tr.Length) CursorOffset = tr.Length;
+                if (CursorOffset < 0) CursorOffset = 0;
+            }
+            else
+            {
+                CursorOffset = 0;
+            }
+            return;
+        }
+
+        if (block != null && block.Type == RichTextBlockType.Table)
+        {
+            // Not in a table cell — clamp content to block
+            if (CursorContent >= block.Content.Count) CursorContent = block.Content.Count - 1;
+            if (CursorContent < 0) CursorContent = 0;
+            CursorOffset = 0;
+        }
     }
 
     private bool IsValidPosition()
     {
         if (CursorBlock < 0 || CursorBlock >= Document.Blocks.Count) return false;
         var block = Document.Blocks[CursorBlock];
+
+        if (block.Type == RichTextBlockType.Table && block.Rows != null && CursorCell >= 0)
+        {
+            var cell = GetCell(block);
+            if (cell == null) return false;
+            if (CursorContent < 0 || CursorContent >= cell.Content.Count) return false;
+            return true;
+        }
+
         if (CursorContent < 0 || CursorContent >= block.Content.Count) return false;
         return true;
     }

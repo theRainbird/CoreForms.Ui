@@ -100,7 +100,9 @@ public class HtmlBox : Control
     public event EventHandler<HtmlLinkEventArgs>? LinkClick;
 
     /// <summary>Occurs when HTML parsing encounters errors.</summary>
+#pragma warning disable CS0067
     public event EventHandler<HtmlErrorEventArgs>? ParseError;
+#pragma warning restore CS0067
 
     // --- Formatting state queries ---
 
@@ -124,7 +126,8 @@ public class HtmlBox : Control
 
     /// <summary>Gets debug info about the cursor position.</summary>
     public string CursorDebug =>
-        $"B:{_engine.CursorBlock} C:{_engine.CursorContent} O:{_engine.CursorOffset}";
+        $"B:{_engine.CursorBlock} C:{_engine.CursorContent} O:{_engine.CursorOffset}" +
+        (_engine.CursorCell >= 0 ? $" Cell:{_engine.CursorCell}" : "");
 
     /// <summary>
     /// Applies a formatting command.
@@ -172,6 +175,53 @@ public class HtmlBox : Control
                 break;
         }
 
+        InvalidateLayout();
+        Invalidate();
+        ContentChanged?.Invoke(this, EventArgs.Empty);
+    }
+
+    /// <summary>Inserts a table with the specified number of rows and columns at the cursor position.</summary>
+    /// <param name="rows">The number of rows.</param>
+    /// <param name="cols">The number of columns.</param>
+    public void InsertTable(int rows, int cols)
+    {
+        _engine.InsertTable(rows, cols);
+        InvalidateLayout();
+        Invalidate();
+        ContentChanged?.Invoke(this, EventArgs.Empty);
+    }
+
+    /// <summary>Adds a new row after the current cursor row in the table.</summary>
+    public void AddTableRow()
+    {
+        _engine.AddRow();
+        InvalidateLayout();
+        Invalidate();
+        ContentChanged?.Invoke(this, EventArgs.Empty);
+    }
+
+    /// <summary>Removes the row at the current cursor position in the table.</summary>
+    public void RemoveTableRow()
+    {
+        _engine.RemoveRow();
+        InvalidateLayout();
+        Invalidate();
+        ContentChanged?.Invoke(this, EventArgs.Empty);
+    }
+
+    /// <summary>Adds a new column after the current cursor column in the table.</summary>
+    public void AddTableColumn()
+    {
+        _engine.AddColumn();
+        InvalidateLayout();
+        Invalidate();
+        ContentChanged?.Invoke(this, EventArgs.Empty);
+    }
+
+    /// <summary>Removes the column at the current cursor position in the table.</summary>
+    public void RemoveTableColumn()
+    {
+        _engine.RemoveColumn();
         InvalidateLayout();
         Invalidate();
         ContentChanged?.Invoke(this, EventArgs.Empty);
@@ -230,7 +280,6 @@ public class HtmlBox : Control
             var block = line.Block;
             if (block == null) continue;
 
-            // Count list numbers only when block changes
             int bi = line.BlockIndex;
             if (bi != lastBlockIndex)
             {
@@ -247,104 +296,12 @@ public class HtmlBox : Control
 
             float leftMargin = GetLeftMargin(line.Block!.Type);
             float fontSize = GetBlockFontSize(line.Block.Type);
-            float markerX = padding;
 
-            // Draw list marker on first line of each list item
-            if (block.Type is RichTextBlockType.BulletItem or RichTextBlockType.NumberItem
-                && (li == 0 || _cachedLines[li - 1].BlockIndex != bi))
-            {
-                if (block.Type == RichTextBlockType.BulletItem)
-                {
-                    float dotSize = fontSize * 0.4f;
-                    float dotY = line.Y + (fontSize * 0.4f);
-                    g.FillEllipse(ForeColor, markerX + 2, dotY, dotSize, dotSize);
-                }
-                else
-                {
-                    g.DrawString($"{numberCounter}.", new Font("Arial", fontSize, FontStyle.Regular), ForeColor, markerX, line.Y);
-                }
-            }
+            RenderListMarker(g, line, li, bi, fontSize, padding);
 
             foreach (var run in line.Runs)
             {
-                float runX = padding + leftMargin + run.X;
-                float runY = line.Y;
-                var source = run.Source;
-
-                if (run.Source is TextRun tr)
-                {
-                    // Compute effective style: add bold for headings and underline for hyperlinks
-                    var effectiveStyle = tr.Style;
-                    if (block.Type is RichTextBlockType.Heading1 or RichTextBlockType.Heading2
-                        or RichTextBlockType.Heading3 or RichTextBlockType.Heading4
-                        or RichTextBlockType.Heading5 or RichTextBlockType.Heading6)
-                        effectiveStyle |= FontStyle.Bold;
-
-                    // Check if this run is inside a HyperlinkRun
-                    bool isLink = false;
-                    if (run.ContentIndex >= 0 && run.ContentIndex < block.Content.Count
-                        && block.Content[run.ContentIndex] is HyperlinkRun)
-                    {
-                        isLink = true;
-                        effectiveStyle |= FontStyle.Underline;
-                    }
-
-                    var font = new Font(tr.FontFamily, fontSize, effectiveStyle);
-                    var textColor = isLink ? Color.FromArgb(0, 0, 238)
-                        : (tr.ForeColor.Equals(Color.Empty) ? ForeColor : tr.ForeColor);
-                    var measured = Platform.Platform.MeasureText(run.DisplayText, font, zoom);
-                    float runHeight = (float)measured.height / zoom;
-
-                    // Draw text
-                    g.DrawString(run.DisplayText, font, textColor, runX, runY);
-
-                    // Draw selection
-                    if (hasSel)
-                    {
-                        int runStartFlat = TextLayoutEngine.ToFlatIndex(_engine.Document, line.BlockIndex,
-                            run.ContentIndex, run.StartOffset);
-                        int runEndFlat = runStartFlat + run.Length;
-
-                        if (selStart < runEndFlat && selEnd > runStartFlat)
-                        {
-                            int localSelStart = Math.Max(0, selStart - runStartFlat);
-                            int localSelEnd = Math.Min(run.Length, selEnd - runStartFlat);
-
-                            string beforeSel = run.DisplayText[..localSelStart];
-                            string selText = run.DisplayText[localSelStart..localSelEnd];
-                            float selBeforeWidth = Platform.Platform.MeasureText(beforeSel, font, zoom).width / zoom;
-                            float selTextWidth = Platform.Platform.MeasureText(selText, font, zoom).width / zoom;
-
-                            int selX = (int)(runX + selBeforeWidth);
-                            int selW = (int)Math.Max(selTextWidth, 2);
-                            g.FillRectangle(ThemeManager.CurrentTheme.Highlight, selX, runY, selW, runHeight);
-                            g.DrawString(selText, font, ThemeManager.CurrentTheme.HighlightText, selX, runY);
-                        }
-                    }
-
-                    // Cursor positioning — use model position, not flat index
-                    // This avoids ambiguity at block boundaries (both blocks have the same flat index)
-                    if (!_cursorScreenValid)
-                    {
-                        if (line.BlockIndex == _engine.CursorBlock &&
-                            run.ContentIndex == _engine.CursorContent &&
-                            run.StartOffset <= _engine.CursorOffset &&
-                            _engine.CursorOffset <= run.StartOffset + run.Length)
-                        {
-                            int localOff = _engine.CursorOffset - run.StartOffset;
-                            string beforeCursor = run.DisplayText[..Math.Min(localOff, run.DisplayText.Length)];
-                            float measuredWidth = Platform.Platform.MeasureText(beforeCursor, font, zoom).width;
-                            _cursorScreenX = (int)(runX + measuredWidth / zoom);
-                            _cursorScreenY = (int)runY;
-                            _cursorScreenValid = true;
-                        }
-                    }
-                }
-                else if (source is ImageRun image)
-                {
-                    // Draw image placeholder
-                    g.FillRectangle(ThemeManager.CurrentTheme.TextBoxText, runX, runY, 32, 32);
-                }
+                RenderRun(g, run, line, padding, leftMargin, zoom, hasSel, selStart, selEnd, cursorFlat);
             }
 
             if (!_cursorScreenValid && line.BlockIndex == _engine.CursorBlock && line.Runs.Count == 0)
@@ -355,7 +312,183 @@ public class HtmlBox : Control
             }
         }
 
-        // End-of-document fallback: cursor at total length
+        PositionEndOfDocumentCursor(padding, cursorFlat);
+
+        DrawCursor(g);
+        base.Render(g);
+    }
+
+    private void RenderListMarker(Graphics g, VisualLine line, int lineIndex, int blockIndex, float fontSize, float padding)
+    {
+        if (line.Block?.Type is not (RichTextBlockType.BulletItem or RichTextBlockType.NumberItem)) return;
+        if (lineIndex > 0 && _cachedLines![lineIndex - 1].BlockIndex == blockIndex) return;
+
+        float markerX = padding;
+        if (line.Block.Type == RichTextBlockType.BulletItem)
+        {
+            float dotSize = fontSize * 0.4f;
+            float dotY = line.Y + (fontSize * 0.4f);
+            g.FillEllipse(ForeColor, markerX + 2, dotY, dotSize, dotSize);
+        }
+        else
+        {
+            // Count list numbers only when block changes — reuse the counter from Render loop
+            int numberCounter = 0;
+            for (int i = 0; i <= lineIndex; i++)
+            {
+                var b = _cachedLines![i].Block;
+                if (b == null) continue;
+                if (_cachedLines[i].BlockIndex != blockIndex)
+                {
+                    if (b.Type == RichTextBlockType.NumberItem)
+                        numberCounter++;
+                    else if (b.Type != RichTextBlockType.BulletItem)
+                        numberCounter = 0;
+                }
+            }
+            g.DrawString($"{numberCounter}.", new Font("Arial", fontSize, FontStyle.Regular), ForeColor, markerX, line.Y);
+        }
+    }
+
+    private void RenderRun(Graphics g, LayoutRun run, VisualLine line, float padding, float leftMargin, float zoom,
+        bool hasSel, int selStart, int selEnd, int cursorFlat)
+    {
+        float runX = padding + leftMargin + run.X;
+        float runY = line.Y;
+        var source = run.Source;
+
+        if (run.Source is TextRun tr)
+        {
+            RenderTextRun(g, run, line, runX, runY, tr, zoom, hasSel, selStart, selEnd);
+        }
+        else if (source is ImageRun)
+        {
+            g.FillRectangle(ThemeManager.CurrentTheme.TextBoxText, runX, runY, 32, 32);
+        }
+
+        RenderTableGrid(g, run, line, runX, runY);
+    }
+
+    private void RenderTextRun(Graphics g, LayoutRun run, VisualLine line, float runX, float runY, TextRun tr, float zoom,
+        bool hasSel, int selStart, int selEnd)
+    {
+        var block = line.Block;
+
+        var effectiveStyle = tr.Style;
+        if (block?.Type is RichTextBlockType.Heading1 or RichTextBlockType.Heading2
+            or RichTextBlockType.Heading3 or RichTextBlockType.Heading4
+            or RichTextBlockType.Heading5 or RichTextBlockType.Heading6)
+            effectiveStyle |= FontStyle.Bold;
+
+        bool isLink = run.ContentIndex >= 0 && run.ContentIndex < block!.Content.Count
+            && block.Content[run.ContentIndex] is HyperlinkRun;
+        if (isLink) effectiveStyle |= FontStyle.Underline;
+
+        var font = new Font(tr.FontFamily, GetBlockFontSize(line.Block!.Type), effectiveStyle);
+        var textColor = isLink ? Color.FromArgb(0, 0, 238)
+            : (tr.ForeColor.Equals(Color.Empty) ? ForeColor : tr.ForeColor);
+        var measured = Platform.Platform.MeasureText(run.DisplayText, font, zoom);
+        float runHeight = (float)measured.height / zoom;
+
+        g.DrawString(run.DisplayText, font, textColor, runX, runY);
+
+        if (hasSel) RenderSelection(g, run, line, runX, runY, font, zoom, selStart, selEnd);
+        if (!_cursorScreenValid) PositionCursor(run, line, runX, runY, font, zoom);
+    }
+
+    private void RenderSelection(Graphics g, LayoutRun run, VisualLine line, float runX, float runY, Font font, float zoom,
+        int selStart, int selEnd)
+    {
+        int runStartFlat = TextLayoutEngine.ToFlatIndex(_engine.Document, line.BlockIndex,
+            run.ContentIndex, run.StartOffset, run.CellIndex);
+        int runEndFlat = runStartFlat + Math.Max(run.Length, 1);
+
+        if (selStart < runEndFlat && selEnd > runStartFlat)
+        {
+            int localSelStart = Math.Max(0, selStart - runStartFlat);
+            int localSelEnd = Math.Min(run.Length, selEnd - runStartFlat);
+
+            string beforeSel = run.DisplayText[..Math.Min(localSelStart, run.DisplayText.Length)];
+            string selText = localSelEnd > localSelStart && localSelStart < run.DisplayText.Length
+                ? run.DisplayText[localSelStart..Math.Min(localSelEnd, run.DisplayText.Length)]
+                : "";
+            float selBeforeWidth = Platform.Platform.MeasureText(beforeSel, font, zoom).width / zoom;
+            float selTextWidth = Platform.Platform.MeasureText(selText, font, zoom).width / zoom;
+
+            int selX = (int)(runX + selBeforeWidth);
+            int selW = (int)Math.Max(selTextWidth, 2);
+            g.FillRectangle(ThemeManager.CurrentTheme.Highlight, selX, runY, selW, run.Height);
+            if (!string.IsNullOrEmpty(selText))
+                g.DrawString(selText, font, ThemeManager.CurrentTheme.HighlightText, selX, runY);
+        }
+    }
+
+    private void PositionCursor(LayoutRun run, VisualLine line, float runX, float runY, Font font, float zoom)
+    {
+        if (line.BlockIndex != _engine.CursorBlock) return;
+
+        bool cursorMatch = false;
+        int localOff = 0;
+
+        if (run.CellIndex >= 0 && line.Block?.Type == RichTextBlockType.Table &&
+            line.Block.Rows != null && run.CellIndex == _engine.CursorCell)
+        {
+            int totalCols = line.Block.ColCount;
+            int totalRows = line.Block.Rows.Count;
+            int targetRow = run.CellIndex / totalCols;
+            int targetCol = run.CellIndex % totalCols;
+            if (targetRow < totalRows && targetCol < line.Block.Rows[targetRow].Cells.Count)
+            {
+                var targetCell = line.Block.Rows[targetRow].Cells[targetCol];
+                int totalCellLen = targetCell.Content.Sum(c => c.Length);
+                if (_engine.CursorOffset >= 0 && _engine.CursorOffset <= totalCellLen)
+                {
+                    cursorMatch = true;
+                    localOff = _engine.CursorOffset;
+                }
+            }
+        }
+        else if (run.ContentIndex == _engine.CursorContent &&
+            run.StartOffset <= _engine.CursorOffset &&
+            _engine.CursorOffset <= run.StartOffset + run.Length)
+        {
+            cursorMatch = true;
+            localOff = _engine.CursorOffset - run.StartOffset;
+        }
+
+        if (cursorMatch)
+        {
+            string beforeCursor = run.DisplayText[..Math.Min(localOff, run.DisplayText.Length)];
+            float measuredWidth = Platform.Platform.MeasureText(beforeCursor, font, zoom).width;
+            _cursorScreenX = (int)(runX + measuredWidth / zoom);
+            _cursorScreenY = (int)runY;
+            _cursorScreenValid = true;
+        }
+    }
+
+    private void RenderTableGrid(Graphics g, LayoutRun run, VisualLine line, float runX, float runY)
+    {
+        if (run.CellIndex < 0 || line.Block?.Type != RichTextBlockType.Table || line.Block?.Rows == null) return;
+
+        float cellLeft = runX;
+        float cellTop = runY;
+        float cellRight = runX + run.Width;
+        float cellBottom = runY + run.Height;
+        int totalCols = line.Block!.ColCount;
+        int totalRows = line.Block.Rows.Count;
+        int colIdx = run.CellIndex % totalCols;
+        int rowIdx = run.CellIndex / totalCols;
+
+        g.DrawLine(Color.Gray, cellLeft, cellTop, cellLeft, cellBottom, 1);
+        g.DrawLine(Color.Gray, cellLeft, cellTop, cellRight, cellTop, 1);
+        if (colIdx == totalCols - 1)
+            g.DrawLine(Color.Gray, cellRight, cellTop, cellRight, cellBottom, 1);
+        if (rowIdx == totalRows - 1)
+            g.DrawLine(Color.Gray, cellLeft, cellBottom, cellRight, cellBottom, 1);
+    }
+
+   private void PositionEndOfDocumentCursor(float padding, int cursorFlat)
+    {
         if (!_cursorScreenValid && _cachedLines != null && _cachedLines.Count > 0)
         {
             int totalLen = _engine.Document.TotalLength;
@@ -372,9 +505,6 @@ public class HtmlBox : Control
                 }
             }
         }
-
-        DrawCursor(g);
-        base.Render(g);
     }
 
     private void InvalidateLayout()
@@ -433,11 +563,26 @@ public class HtmlBox : Control
                     out var hitRun, 8);
 
                 _engine.CursorBlock = pos.BlockIndex;
-                _engine.CursorContent = pos.ContentIndex;
                 _engine.CursorOffset = pos.CharOffset;
                 _engine.SelectionBlock = _engine.CursorBlock;
-                _engine.SelectionContent = _engine.CursorContent;
                 _engine.SelectionOffset = _engine.CursorOffset;
+
+                // Table cell click: set CursorCell and CursorContent from hit run
+                if (hitRun != null && hitRun.CellIndex >= 0)
+                {
+                    _engine.CursorCell = hitRun.CellIndex;
+                    _engine.SelectionCell = hitRun.CellIndex;
+                    _engine.CursorContent = 0;
+                    _engine.SelectionContent = 0;
+                }
+                else
+                {
+                    _engine.CursorCell = -1;
+                    _engine.SelectionCell = -1;
+                    _engine.CursorContent = pos.ContentIndex;
+                    _engine.SelectionContent = pos.ContentIndex;
+                }
+
                 _preferredX = -1;
 
                 _lastWasLink = hitRun != null && hitRun.ContentIndex >= 0 && hitRun.ContentIndex < _engine.Document.Blocks[pos.BlockIndex].Content.Count
@@ -473,8 +618,20 @@ public class HtmlBox : Control
                 if (IsPressed)
                 {
                     _engine.CursorBlock = pos.BlockIndex;
-                    _engine.CursorContent = pos.ContentIndex;
                     _engine.CursorOffset = pos.CharOffset;
+
+                    // Table cell drag selection
+                    if (hitRun != null && hitRun.CellIndex >= 0)
+                    {
+                        _engine.CursorCell = hitRun.CellIndex;
+                        _engine.CursorContent = 0;
+                    }
+                    else
+                    {
+                        _engine.CursorCell = -1;
+                        _engine.CursorContent = pos.ContentIndex;
+                    }
+
                     Invalidate();
                 }
 
@@ -535,120 +692,18 @@ public class HtmlBox : Control
         bool shift = e.Modifiers.HasFlag(ModifierKeys.Shift);
         bool ctrl = e.Modifiers.HasFlag(ModifierKeys.Control);
 
-        // Ctrl+ shortcuts
-        if (ctrl)
-        {
-            switch (e.KeyCode)
-            {
-                case Keys.B: ApplyFormat("bold"); e.Handled = true; return;
-                case Keys.I: ApplyFormat("italic"); e.Handled = true; return;
-                case Keys.U: ApplyFormat("underline"); e.Handled = true; return;
-                case Keys.S: ApplyFormat("strikethrough"); e.Handled = true; return;
-                case Keys.Home:
-                    _engine.CursorBlock = 0;
-                    _engine.CursorContent = 0;
-                    _engine.CursorOffset = 0;
-                    _engine.SelectionBlock = 0;
-                    _engine.SelectionContent = 0;
-                    _engine.SelectionOffset = 0;
-                    e.Handled = true; return;
-                case Keys.End:
-                    {
-                        int lastB = _engine.Document.Blocks.Count - 1;
-                        if (lastB >= 0)
-                        {
-                            var blk = _engine.Document.Blocks[lastB];
-                            int lastC = blk.Content.Count - 1;
-                            int lastOff = lastC >= 0 && blk.Content[lastC] is TextRun tr ? tr.Length : 0;
-                            _engine.CursorBlock = lastB;
-                            _engine.CursorContent = Math.Max(0, lastC);
-                            _engine.CursorOffset = lastOff;
-                            _engine.SelectionBlock = lastB;
-                            _engine.SelectionContent = Math.Max(0, lastC);
-                            _engine.SelectionOffset = lastOff;
-                        }
-                        e.Handled = true; return;
-                    }
-            }
-        }
+        if (ctrl && HandleCtrlShortcut(e.KeyCode)) return;
+        if (HandleCharacterNavigation(e.KeyCode, shift)) return;
+        if (HandleVisualNavigation(e.KeyCode, shift)) return;
+        if (e.KeyCode == Keys.Tab && HandleTableTab(shift)) return;
 
         switch (e.KeyCode)
         {
-            case Keys.Back:
-                _engine.HandleBackspace();
-                break;
-            case Keys.Delete:
-                _engine.HandleDelete();
-                break;
+            case Keys.Back: _engine.HandleBackspace(); break;
+            case Keys.Delete: _engine.HandleDelete(); break;
             case Keys.Enter:
                 if (shift) _engine.InsertLineBreak();
                 else _engine.HandleEnter();
-                break;
-            case Keys.Left:
-                if (shift && !_engine.HasSelection)
-                    SyncSelectionAnchor();
-                _engine.MoveLeft();
-                if (!shift)
-                {
-                    _engine.SelectionBlock = _engine.CursorBlock;
-                    _engine.SelectionContent = _engine.CursorContent;
-                    _engine.SelectionOffset = _engine.CursorOffset;
-                }
-                break;
-            case Keys.Right:
-                if (shift && !_engine.HasSelection)
-                    SyncSelectionAnchor();
-                _engine.MoveRight();
-                if (!shift)
-                {
-                    _engine.SelectionBlock = _engine.CursorBlock;
-                    _engine.SelectionContent = _engine.CursorContent;
-                    _engine.SelectionOffset = _engine.CursorOffset;
-                }
-                break;
-            case Keys.Up:
-                if (shift && !_engine.HasSelection)
-                    SyncSelectionAnchor();
-                MoveVisualLineUp();
-                if (!shift)
-                {
-                    _engine.SelectionBlock = _engine.CursorBlock;
-                    _engine.SelectionContent = _engine.CursorContent;
-                    _engine.SelectionOffset = _engine.CursorOffset;
-                }
-                break;
-            case Keys.Down:
-                if (shift && !_engine.HasSelection)
-                    SyncSelectionAnchor();
-                MoveVisualLineDown();
-                if (!shift)
-                {
-                    _engine.SelectionBlock = _engine.CursorBlock;
-                    _engine.SelectionContent = _engine.CursorContent;
-                    _engine.SelectionOffset = _engine.CursorOffset;
-                }
-                break;
-            case Keys.Home:
-                if (shift && !_engine.HasSelection)
-                    SyncSelectionAnchor();
-                MoveToVisualLineStart();
-                if (!shift)
-                {
-                    _engine.SelectionBlock = _engine.CursorBlock;
-                    _engine.SelectionContent = _engine.CursorContent;
-                    _engine.SelectionOffset = _engine.CursorOffset;
-                }
-                break;
-            case Keys.End:
-                if (shift && !_engine.HasSelection)
-                    SyncSelectionAnchor();
-                MoveToVisualLineEnd();
-                if (!shift)
-                {
-                    _engine.SelectionBlock = _engine.CursorBlock;
-                    _engine.SelectionContent = _engine.CursorContent;
-                    _engine.SelectionOffset = _engine.CursorOffset;
-                }
                 break;
             default:
                 base.OnKeyDown(e);
@@ -656,13 +711,111 @@ public class HtmlBox : Control
         }
 
         e.Handled = true;
-
-        bool textModified = e.KeyCode is Keys.Back or Keys.Delete or Keys.Enter;
-        if (textModified)
-            InvalidateLayout();
+        if (e.KeyCode is Keys.Back or Keys.Delete or Keys.Enter) InvalidateLayout();
         Invalidate();
         ContentChanged?.Invoke(this, EventArgs.Empty);
         base.OnKeyDown(e);
+    }
+
+    private bool HandleCtrlShortcut(Keys keyCode)
+    {
+        switch (keyCode)
+        {
+            case Keys.B: ApplyFormat("bold"); return true;
+            case Keys.I: ApplyFormat("italic"); return true;
+            case Keys.U: ApplyFormat("underline"); return true;
+            case Keys.S: ApplyFormat("strikethrough"); return true;
+            case Keys.Home: GoToDocumentBoundary(true); return true;
+            case Keys.End: GoToDocumentBoundary(false); return true;
+        }
+        return false;
+    }
+
+    private bool HandleCharacterNavigation(Keys keyCode, bool shift)
+    {
+        if (keyCode != Keys.Left && keyCode != Keys.Right) return false;
+        if (shift && !_engine.HasSelection) ResetSelection();
+        if (keyCode == Keys.Left) _engine.MoveLeft(); else _engine.MoveRight();
+        if (!shift) ResetSelection();
+        return true;
+    }
+
+    private bool HandleVisualNavigation(Keys keyCode, bool shift)
+    {
+        if (keyCode is not (Keys.Up or Keys.Down or Keys.Home or Keys.End)) return false;
+        if (shift && !_engine.HasSelection) ResetSelection();
+        if (keyCode is Keys.Up) MoveVisualLine(-1);
+        else if (keyCode is Keys.Down) MoveVisualLine(1);
+        else MoveToVisualLineBoundary(keyCode == Keys.Home);
+        if (!shift) ResetSelection();
+        return true;
+    }
+
+    private bool HandleTableTab(bool shift)
+    {
+        var blk = _engine.CursorBlock >= 0 && _engine.CursorBlock < _engine.Document.Blocks.Count
+            ? _engine.Document.Blocks[_engine.CursorBlock] : null;
+        if (blk?.Type == RichTextBlockType.Table && blk.Rows != null && _engine.CursorCell >= 0)
+        {
+            int totalCells = blk.Rows.Count * blk.ColCount;
+            if (shift)
+            {
+                _engine.CursorCell = _engine.CursorCell > 0 ? _engine.CursorCell - 1 : 0;
+            }
+            else
+            {
+                if (_engine.CursorCell + 1 >= totalCells)
+                {
+                    _engine.AddRow();
+                    InvalidateLayout();
+                }
+                else
+                {
+                    _engine.CursorCell++;
+                }
+            }
+            _engine.CursorContent = 0;
+            _engine.CursorOffset = 0;
+            _engine.SelectionBlock = _engine.CursorBlock;
+            _engine.SelectionContent = 0;
+            _engine.SelectionOffset = 0;
+            _engine.SelectionCell = _engine.CursorCell;
+            return true;
+        }
+        return false;
+    }
+
+    private void GoToDocumentBoundary(bool atStart)
+    {
+        if (atStart)
+        {
+            _engine.CursorBlock = 0;
+            _engine.CursorContent = 0;
+            _engine.CursorOffset = 0;
+        }
+        else
+        {
+            int lastB = _engine.Document.Blocks.Count - 1;
+            if (lastB >= 0)
+            {
+                var blk = _engine.Document.Blocks[lastB];
+                int lastC = blk.Content.Count - 1;
+                int lastOff = lastC >= 0 && blk.Content[lastC] is TextRun tr ? tr.Length : 0;
+                _engine.CursorBlock = lastB;
+                _engine.CursorContent = Math.Max(0, lastC);
+                _engine.CursorOffset = lastOff;
+            }
+        }
+        _engine.SelectionBlock = _engine.CursorBlock;
+        _engine.SelectionContent = _engine.CursorContent;
+        _engine.SelectionOffset = _engine.CursorOffset;
+    }
+
+    private void ResetSelection()
+    {
+        _engine.SelectionBlock = _engine.CursorBlock;
+        _engine.SelectionContent = _engine.CursorContent;
+        _engine.SelectionOffset = _engine.CursorOffset;
     }
 
     /// <inheritdoc/>
@@ -683,26 +836,72 @@ public class HtmlBox : Control
         ContentChanged?.Invoke(this, EventArgs.Empty);
     }
 
-    private void SyncSelectionAnchor()
-    {
-        _engine.SelectionBlock = _engine.CursorBlock;
-        _engine.SelectionContent = _engine.CursorContent;
-        _engine.SelectionOffset = _engine.CursorOffset;
-    }
+    private void MoveVisualLineUp() => MoveVisualLine(-1);
+    private void MoveVisualLineDown() => MoveVisualLine(1);
 
-    private void MoveVisualLineUp()
+    private void MoveVisualLine(int direction)
     {
         EnsureLayout(Width, EffectiveZoom);
         if (_cachedLines == null || _cachedLines.Count == 0)
         {
-            _engine.MoveUp();
+            if (direction < 0) _engine.MoveUp(); else _engine.MoveDown();
+            return;
+        }
+
+        // Table cell: move to same column in previous/next row
+        var block = _engine.Document.Blocks.Count > 0 && _engine.CursorBlock >= 0 &&
+            _engine.CursorBlock < _engine.Document.Blocks.Count
+            ? _engine.Document.Blocks[_engine.CursorBlock] : null;
+        if (block?.Type == RichTextBlockType.Table && block.Rows != null && _engine.CursorCell >= 0)
+        {
+            if (direction < 0)
+            {
+                if (_engine.CursorCell >= block.ColCount)
+                {
+                    _engine.CursorCell -= block.ColCount;
+                    _engine.CursorContent = 0;
+                    _engine.CursorOffset = 0;
+                }
+            }
+            else
+            {
+                int nextRowStart = _engine.CursorCell + block.ColCount;
+                int totalCells = block.Rows.Count * block.ColCount;
+                if (nextRowStart < totalCells)
+                {
+                    _engine.CursorCell = nextRowStart;
+                    _engine.CursorContent = 0;
+                    _engine.CursorOffset = 0;
+                }
+            }
+            Invalidate();
             return;
         }
 
         _preferredX = _cursorScreenX;
         int cursorFlat = _engine.CursorFlatIndex;
 
-        for (int li = 0; li < _cachedLines.Count; li++)
+        int currentLineIndex = FindCurrentRunIndex();
+        if (currentLineIndex < 0) { if (direction < 0) _engine.MoveUp(); else _engine.MoveDown(); return; }
+
+        VisualLine? targetLine = FindTargetLine(currentLineIndex, direction);
+        if (targetLine != null)
+        {
+            var pos = FindPositionAtXInLine(targetLine, _preferredX, EffectiveZoom);
+            _engine.CursorBlock = pos.BlockIndex;
+            _engine.CursorContent = pos.ContentIndex;
+            _engine.CursorOffset = pos.CharOffset;
+        }
+        else
+        {
+            if (direction < 0) _engine.MoveUp(); else _engine.MoveDown();
+        }
+    }
+
+    private int FindCurrentRunIndex()
+    {
+        int cursorFlat = _engine.CursorFlatIndex;
+        for (int li = 0; li < _cachedLines!.Count; li++)
         {
             var line = _cachedLines[li];
             if (line.BlockIndex != _engine.CursorBlock) continue;
@@ -711,7 +910,7 @@ public class HtmlBox : Control
             foreach (var run in line.Runs)
             {
                 int runStart = TextLayoutEngine.ToFlatIndex(_engine.Document,
-                    line.BlockIndex, run.ContentIndex, run.StartOffset);
+                    line.BlockIndex, run.ContentIndex, run.StartOffset, run.CellIndex);
                 int runEnd = runStart + run.Length;
                 if (cursorFlat >= runStart && cursorFlat <= runEnd)
                 {
@@ -720,110 +919,35 @@ public class HtmlBox : Control
                 }
             }
 
-            if (!found && !(line.BlockIndex == _engine.CursorBlock && line.Runs.Count == 0))
-                continue;
-
-            // Find target visual line (previous in same block, or last of previous block)
-            VisualLine? targetLine = null;
-            if (li > 0 && _cachedLines[li - 1].BlockIndex == _engine.CursorBlock)
-            {
-                targetLine = _cachedLines[li - 1];
-            }
-            else
-            {
-                for (int nl = li - 1; nl >= 0; nl--)
-                {
-                    if (_cachedLines[nl].BlockIndex != _engine.CursorBlock)
-                    {
-                        targetLine = _cachedLines[nl];
-                        break;
-                    }
-                }
-            }
-
-            if (targetLine != null)
-            {
-                var pos = FindPositionAtXInLine(targetLine, _preferredX, EffectiveZoom);
-                _engine.CursorBlock = pos.BlockIndex;
-                _engine.CursorContent = pos.ContentIndex;
-                _engine.CursorOffset = pos.CharOffset;
-            }
-            else
-            {
-                _engine.MoveUp();
-            }
-            return;
+            if (found || (line.BlockIndex == _engine.CursorBlock && line.Runs.Count == 0))
+                return li;
         }
-        // Fallback: no visual line found in layout — use block-level navigation
-        _engine.MoveUp();
+        return -1;
     }
 
-    private void MoveVisualLineDown()
+    private VisualLine? FindTargetLine(int currentIndex, int direction)
     {
-        EnsureLayout(Width, EffectiveZoom);
-        if (_cachedLines == null || _cachedLines.Count == 0)
+        if (direction < 0)
         {
-            _engine.MoveDown();
-            return;
+            if (currentIndex > 0 && _cachedLines![currentIndex - 1].BlockIndex == _engine.CursorBlock)
+                return _cachedLines[currentIndex - 1];
+            for (int nl = currentIndex - 1; nl >= 0; nl--)
+            {
+                if (_cachedLines[nl].BlockIndex != _engine.CursorBlock)
+                    return _cachedLines[nl];
+            }
         }
-
-        _preferredX = _cursorScreenX;
-        int cursorFlat = _engine.CursorFlatIndex;
-
-        for (int li = 0; li < _cachedLines.Count; li++)
+        else
         {
-            var line = _cachedLines[li];
-            if (line.BlockIndex != _engine.CursorBlock) continue;
-
-            bool found = false;
-            foreach (var run in line.Runs)
+            if (currentIndex + 1 < _cachedLines!.Count && _cachedLines[currentIndex + 1].BlockIndex == _engine.CursorBlock)
+                return _cachedLines[currentIndex + 1];
+            for (int nl = currentIndex + 1; nl < _cachedLines.Count; nl++)
             {
-                int runStart = TextLayoutEngine.ToFlatIndex(_engine.Document,
-                    line.BlockIndex, run.ContentIndex, run.StartOffset);
-                int runEnd = runStart + run.Length;
-                if (cursorFlat >= runStart && cursorFlat <= runEnd)
-                {
-                    found = true;
-                    break;
-                }
+                if (_cachedLines[nl].BlockIndex != _engine.CursorBlock)
+                    return _cachedLines[nl];
             }
-
-            if (!found && !(line.BlockIndex == _engine.CursorBlock && line.Runs.Count == 0))
-                continue;
-
-            // Find target visual line (next in same block, or first of next block)
-            VisualLine? targetLine = null;
-            if (li + 1 < _cachedLines.Count && _cachedLines[li + 1].BlockIndex == _engine.CursorBlock)
-            {
-                targetLine = _cachedLines[li + 1];
-            }
-            else
-            {
-                for (int nl = li + 1; nl < _cachedLines.Count; nl++)
-                {
-                    if (_cachedLines[nl].BlockIndex != _engine.CursorBlock)
-                    {
-                        targetLine = _cachedLines[nl];
-                        break;
-                    }
-                }
-            }
-
-            if (targetLine != null)
-            {
-                var pos = FindPositionAtXInLine(targetLine, _preferredX, EffectiveZoom);
-                _engine.CursorBlock = pos.BlockIndex;
-                _engine.CursorContent = pos.ContentIndex;
-                _engine.CursorOffset = pos.CharOffset;
-            }
-            else
-            {
-                _engine.MoveDown();
-            }
-            return;
         }
-        // Fallback: no visual line found in layout — use block-level navigation
-        _engine.MoveDown();
+        return null;
     }
 
     private DocumentPosition FindPositionAtXInLine(VisualLine line, int prefX, float zoom)
@@ -891,7 +1015,10 @@ public class HtmlBox : Control
         return new DocumentPosition(line.BlockIndex, 0, 0);
     }
 
-    private void MoveToVisualLineStart()
+    private void MoveToVisualLineStart() => MoveToVisualLineBoundary(true);
+    private void MoveToVisualLineEnd() => MoveToVisualLineBoundary(false);
+
+    private void MoveToVisualLineBoundary(bool atStart)
     {
         EnsureLayout(Width, EffectiveZoom);
         if (_cachedLines == null || _cachedLines.Count == 0) return;
@@ -904,14 +1031,14 @@ public class HtmlBox : Control
             foreach (var run in line.Runs)
             {
                 int runStart = TextLayoutEngine.ToFlatIndex(_engine.Document,
-                    line.BlockIndex, run.ContentIndex, run.StartOffset);
+                    line.BlockIndex, run.ContentIndex, run.StartOffset, run.CellIndex);
                 int runEnd = runStart + run.Length;
                 if (cursorFlat >= runStart && cursorFlat <= runEnd)
                 {
-                    var first = line.Runs[0];
+                    var targetRun = atStart ? line.Runs[0] : line.Runs[^1];
                     _engine.CursorBlock = line.BlockIndex;
-                    _engine.CursorContent = first.ContentIndex;
-                    _engine.CursorOffset = first.StartOffset;
+                    _engine.CursorContent = targetRun.ContentIndex;
+                    _engine.CursorOffset = atStart ? targetRun.StartOffset : targetRun.StartOffset + targetRun.Length;
                     return;
                 }
             }
@@ -923,42 +1050,8 @@ public class HtmlBox : Control
             }
         }
         // No matching line found — fallback: go to block start
-        var b = _engine.Document.Blocks[_engine.CursorBlock];
         _engine.CursorContent = 0;
         _engine.CursorOffset = 0;
-    }
-
-    private void MoveToVisualLineEnd()
-    {
-        EnsureLayout(Width, EffectiveZoom);
-        if (_cachedLines == null || _cachedLines.Count == 0) return;
-
-        int cursorFlat = _engine.CursorFlatIndex;
-
-        foreach (var line in _cachedLines)
-        {
-            if (line.BlockIndex != _engine.CursorBlock) continue;
-            foreach (var run in line.Runs)
-            {
-                int runStart = TextLayoutEngine.ToFlatIndex(_engine.Document,
-                    line.BlockIndex, run.ContentIndex, run.StartOffset);
-                int runEnd = runStart + run.Length;
-                if (cursorFlat >= runStart && cursorFlat <= runEnd)
-                {
-                    var last = line.Runs[^1];
-                    _engine.CursorBlock = line.BlockIndex;
-                    _engine.CursorContent = last.ContentIndex;
-                    _engine.CursorOffset = last.StartOffset + last.Length;
-                    return;
-                }
-            }
-            if (line.BlockIndex == _engine.CursorBlock && line.Runs.Count == 0)
-            {
-                _engine.CursorContent = 0;
-                _engine.CursorOffset = 0;
-                return;
-            }
-        }
     }
 
     private static float GetLeftMargin(RichTextBlockType type) =>

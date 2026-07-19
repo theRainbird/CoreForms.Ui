@@ -24,7 +24,9 @@ public enum RichTextBlockType
     /// <summary>An item in an unordered (bulleted) list.</summary>
     BulletItem,
     /// <summary>An item in an ordered (numbered) list.</summary>
-    NumberItem
+    NumberItem,
+    /// <summary>A table block containing rows and cells.</summary>
+    Table
 }
 
 /// <summary>
@@ -103,15 +105,45 @@ public class HyperlinkRun : InlineContent
 }
 
 /// <summary>
+/// Represents a single row in a table, containing a list of cells.
+/// </summary>
+public class TableRow
+{
+    /// <summary>The cells in this row.</summary>
+    public List<TableCell> Cells { get; } = new();
+}
+
+/// <summary>
+/// Represents a single cell in a table row, containing inline content.
+/// </summary>
+public class TableCell
+{
+    /// <summary>The inline content elements in this cell.</summary>
+    public List<InlineContent> Content { get; } = new();
+}
+
+/// <summary>
 /// A block of rich text content with a specific type and a list of inline content elements.
 /// </summary>
 public class RichTextBlock
 {
-    /// <summary>The block type (paragraph, heading, list item, etc.).</summary>
+    /// <summary>The block type (paragraph, heading, list item, table, etc.).</summary>
     public RichTextBlockType Type { get; set; } = RichTextBlockType.Paragraph;
 
     /// <summary>The inline content elements in this block.</summary>
     public List<InlineContent> Content { get; } = new();
+
+    /// <summary>
+    /// For table blocks (<see cref="RichTextBlockType.Table"/>), contains the table rows.
+    /// Null for non-table blocks.
+    /// </summary>
+    public List<TableRow>? Rows { get; set; }
+
+    /// <summary>
+    /// For table blocks, the number of columns in the table.
+    /// Zero for non-table blocks.
+    /// </summary>
+    public int ColCount { get; set; }
 }
 
 /// <summary>
@@ -122,8 +154,28 @@ public class RichTextDocument
     /// <summary>The blocks in the document.</summary>
     public List<RichTextBlock> Blocks { get; } = new();
 
-    /// <summary>Total character count across all blocks.</summary>
-    public int TotalLength => Blocks.Sum(b => b.Content.Sum(c => c.Length));
+    /// <summary>Total character count across all blocks and table cell content.</summary>
+    public int TotalLength
+    {
+        get
+        {
+            int total = 0;
+            foreach (var b in Blocks)
+            {
+                if (b.Type == RichTextBlockType.Table && b.Rows != null)
+                {
+                    foreach (var row in b.Rows)
+                        foreach (var cell in row.Cells)
+                            total += cell.Content.Sum(c => c.Length);
+                }
+                else
+                {
+                    total += b.Content.Sum(c => c.Length);
+                }
+            }
+            return total;
+        }
+    }
 }
 
 /// <summary>

@@ -17,6 +17,8 @@ public class LayoutRun
     public int Length { get; set; }
     /// <summary>Index of the source in the block's Content list.</summary>
     public int ContentIndex { get; set; }
+    /// <summary>For table cells, the cell index (row*colCount+col). -1 for non-table runs.</summary>
+    public int CellIndex { get; set; } = -1;
 }
 
 /// <summary>
@@ -70,6 +72,165 @@ public static class TextLayoutEngine
             float leftMargin = GetLeftMargin(block.Type);
             float blockTopY = y;
 
+            // --- Table block layout ---
+            if (block.Type == RichTextBlockType.Table && block.Rows != null && block.Rows.Count > 0)
+            {
+                float tablePadding = 4;
+                float availForTable = availableWidth - padding;
+
+                // Compute column widths (auto-fit)
+                int colCount = block.ColCount;
+                float[] colWidths = new float[colCount];
+                float totalContentWidth = 0;
+
+                for (int c = 0; c < colCount; c++)
+                {
+                    float maxColWidth = 0;
+                    foreach (var row in block.Rows)
+                    {
+                        if (c < row.Cells.Count)
+                        {
+                            var cell = row.Cells[c];
+                            float cellWidth = 0;
+                            foreach (var ci in cell.Content)
+                            {
+                                if (ci is TextRun tr)
+                                    cellWidth += MeasureText(tr.Text, tr.FontFamily, tr.FontSize, tr.Style, zoom).width / zoom;
+                                else if (ci is ImageRun)
+                                    cellWidth += 24;
+                            }
+                            if (cellWidth > maxColWidth) maxColWidth = cellWidth;
+                        }
+                    }
+                    colWidths[c] = Math.Max(maxColWidth, 20);
+                    totalContentWidth += colWidths[c];
+                }
+
+                // Distribute remaining space proportionally
+                float gridLineWidth = colCount + 1; // 1px per grid line
+                float totalNeeded = totalContentWidth + gridLineWidth;
+                if (totalNeeded > availForTable)
+                {
+                    float scale = availForTable / totalNeeded;
+                    for (int c = 0; c < colCount; c++)
+                        colWidths[c] = Math.Max(colWidths[c] * scale, 10);
+                }
+                else if (totalNeeded < availForTable)
+                {
+                    float extra = (availForTable - totalNeeded) / colCount;
+                    for (int c = 0; c < colCount; c++)
+                        colWidths[c] += extra;
+                }
+
+                // Layout each row
+                for (int ri = 0; ri < block.Rows.Count; ri++)
+                {
+                    var row = block.Rows[ri];
+                    float rowHeight = 0;
+                    float[] cellHeights = new float[colCount];
+
+                    // Layout each cell's content to determine height
+                    for (int c = 0; c < colCount && c < row.Cells.Count; c++)
+                    {
+                        var cell = row.Cells[c];
+                        float cellWidth = colWidths[c];
+                        float cellContentHeight = 0;
+
+                        foreach (var ci in cell.Content)
+                        {
+                            if (ci is TextRun tr)
+                            {
+                                float textWidth = MeasureText(tr.Text, tr.FontFamily, tr.FontSize, tr.Style, zoom).width / zoom;
+                                float lineCount = Math.Max(1, textWidth <= cellWidth ? 1 : (float)Math.Ceiling(textWidth / cellWidth));
+                                cellContentHeight += lineCount * (tr.FontSize * 1.4f);
+                            }
+                            else if (ci is LineBreakRun)
+                            {
+                                cellContentHeight += 12 * 1.4f;
+                            }
+                            else if (ci is ImageRun)
+                            {
+                                cellContentHeight += 24;
+                            }
+                            else if (ci is HyperlinkRun link)
+                            {
+                                foreach (var inner in link.InnerContent)
+                                {
+                                    if (inner is TextRun lt)
+                                    {
+                                        float tw = MeasureText(lt.Text, lt.FontFamily, lt.FontSize, lt.Style, zoom).width / zoom;
+                                        float lc = Math.Max(1, tw <= cellWidth ? 1 : (float)Math.Ceiling(tw / cellWidth));
+                                        cellContentHeight += lc * (lt.FontSize * 1.4f);
+                                    }
+                                }
+                            }
+                        }
+                        cellHeights[c] = Math.Max(cellContentHeight, 20);
+                        if (cellHeights[c] > rowHeight) rowHeight = cellHeights[c];
+                    }
+
+                    // Create visual line for this row
+                    var rowLine = new VisualLine
+                    {
+                        Block = block,
+                        BlockIndex = bi,
+                        Y = y,
+                        Height = rowHeight + 2
+                    };
+
+                    float cellX = 0;
+                    for (int c = 0; c < colCount && c < row.Cells.Count; c++)
+                    {
+                        var cell = row.Cells[c];
+                        int cellIdx = ri * colCount + c;
+
+                        // Build display text from cell content
+                        string cellText = "";
+                        foreach (var ci in cell.Content)
+                        {
+                            if (ci is TextRun tr)
+                                cellText += tr.Text;
+                            else if (ci is LineBreakRun)
+                                cellText += "\n";
+                            else if (ci is HyperlinkRun link)
+                                foreach (var inner in link.InnerContent)
+                                    if (inner is TextRun linkText)
+                                        cellText += linkText.Text;
+                        }
+
+                        // Add a layout run for the cell (for hit-testing and rendering)
+                        rowLine.Runs.Add(new LayoutRun
+                        {
+                            Source = cell.Content.Count > 0 ? cell.Content[0] : new TextRun(),
+                            ContentIndex = 0,
+                            CellIndex = cellIdx,
+                            X = cellX,
+                            Y = 0,
+                            Width = colWidths[c],
+                            Height = rowHeight,
+                            DisplayText = cellText,
+                            StartOffset = 0,
+                            Length = cellText.Length
+                        });
+
+                        cellX += colWidths[c] + 1; // 1px gap for grid line
+                    }
+
+                    lines.Add(rowLine);
+                    y += rowLine.Height;
+
+                    float rowWidth = cellX;
+                    if (rowWidth > maxLineWidth) maxLineWidth = rowWidth;
+                }
+
+                // Add spacing after table
+                y += 6;
+                continue;
+            }
+            // --- End table layout ---
+
+            // Add spacing between previous block and this block BEFORE creating the line,
+            // so line.Y includes the gap and y = line.Y + line.Height preserves it.
             if (bi > 0)
             {
                 var prev = doc.Blocks[bi - 1];
@@ -90,7 +251,7 @@ public static class TextLayoutEngine
                 }
                 else
                 {
-                    y += 6; // default between paragraphs
+                    y += 6;
                 }
             }
 
@@ -155,16 +316,66 @@ public static class TextLayoutEngine
     /// <summary>
     /// Convert a document position to a flat index.
     /// </summary>
-    public static int ToFlatIndex(RichTextDocument doc, int blockIndex, int contentIndex, int charOffset)
+    /// <param name="doc">The document.</param>
+    /// <param name="blockIndex">Block index.</param>
+    /// <param name="contentIndex">Index into block content list (or cell content list for table cells).</param>
+    /// <param name="charOffset">Character offset within a TextRun.</param>
+    /// <param name="cellIndex">For table blocks, the cell index (row*colCount+col). -1 for non-table or block-level queries.</param>
+    public static int ToFlatIndex(RichTextDocument doc, int blockIndex, int contentIndex, int charOffset, int cellIndex = -1)
     {
         if (blockIndex < 0 || blockIndex >= doc.Blocks.Count) return 0;
         var block = doc.Blocks[blockIndex];
-        if (contentIndex < 0 || contentIndex >= block.Content.Count) return 0;
 
         int idx = 0;
         for (int bi = 0; bi < blockIndex; bi++)
-            foreach (var c in doc.Blocks[bi].Content)
-                idx += c.Length;
+        {
+            var b = doc.Blocks[bi];
+            if (b.Type == RichTextBlockType.Table && b.Rows != null)
+            {
+                foreach (var row in b.Rows)
+                    foreach (var cell in row.Cells)
+                        idx += cell.Content.Sum(c => c.Length);
+            }
+            else
+            {
+                foreach (var c in b.Content)
+                    idx += c.Length;
+            }
+        }
+
+        if (block.Type == RichTextBlockType.Table && block.Rows != null)
+        {
+            if (cellIndex >= 0)
+            {
+                // Sum content of all cells before the target cell
+                int totalCells = block.Rows.Count * block.ColCount;
+                for (int i = 0; i < cellIndex && i < totalCells; i++)
+                {
+                    int r = i / block.ColCount;
+                    int c = i % block.ColCount;
+                    if (r < block.Rows.Count && c < block.Rows[r].Cells.Count)
+                        idx += block.Rows[r].Cells[c].Content.Sum(ci => ci.Length);
+                }
+
+                // Add content offset within the target cell
+                int targetRow = cellIndex / block.ColCount;
+                int tc = cellIndex % block.ColCount;
+                if (targetRow < block.Rows.Count && tc < block.Rows[targetRow].Cells.Count)
+                {
+                    var targetCell = block.Rows[targetRow].Cells[tc];
+                    for (int ci = 0; ci < contentIndex && ci < targetCell.Content.Count; ci++)
+                        idx += targetCell.Content[ci].Length;
+                    if (contentIndex >= 0 && contentIndex < targetCell.Content.Count && targetCell.Content[contentIndex] is TextRun tr2)
+                        idx += Math.Max(0, Math.Min(charOffset, tr2.Length));
+                }
+                return idx;
+            }
+
+            // Block-level query without cellIndex: return index before this table
+            return idx;
+        }
+
+        if (contentIndex < 0 || contentIndex >= block.Content.Count) return idx;
 
         for (int ci = 0; ci < contentIndex; ci++)
             idx += block.Content[ci].Length;
@@ -174,7 +385,6 @@ public static class TextLayoutEngine
             idx += Math.Max(0, Math.Min(charOffset, tr.Length));
         else if (content is HyperlinkRun link)
         {
-            // charOffset is relative to the inner content, not the hyperlink wrapper
             int accumulated = 0;
             for (int i = 0; i < link.InnerContent.Count; i++)
             {
@@ -199,7 +409,19 @@ public static class TextLayoutEngine
         for (int bi = 0; bi < doc.Blocks.Count; bi++)
         {
             var block = doc.Blocks[bi];
-            int blockLen = block.Content.Sum(c => c.Length);
+            int blockLen;
+
+            if (block.Type == RichTextBlockType.Table && block.Rows != null)
+            {
+                blockLen = 0;
+                foreach (var row in block.Rows)
+                    foreach (var cell in row.Cells)
+                        blockLen += cell.Content.Sum(c => c.Length);
+            }
+            else
+            {
+                blockLen = block.Content.Sum(c => c.Length);
+            }
 
             // Boundary between blocks: start of current block
             if (remaining == 0 && bi > 0)
@@ -208,6 +430,40 @@ public static class TextLayoutEngine
             if (remaining < blockLen || (remaining == blockLen && bi == doc.Blocks.Count - 1))
             {
                 // Inside this block or at its end
+                if (block.Type == RichTextBlockType.Table && block.Rows != null)
+                {
+                    // Find the cell containing this flat index
+                    int totalCells = block.Rows.Count * block.ColCount;
+                    for (int i = 0; i < totalCells; i++)
+                    {
+                        int r = i / block.ColCount;
+                        int c = i % block.ColCount;
+                        if (r < block.Rows.Count && c < block.Rows[r].Cells.Count)
+                        {
+                            var cell = block.Rows[r].Cells[c];
+                            int cellLen = cell.Content.Sum(ci => ci.Length);
+                            if (remaining < cellLen)
+                            {
+                                for (int ci = 0; ci < cell.Content.Count; ci++)
+                                {
+                                    var content = cell.Content[ci];
+                                    if (remaining <= content.Length)
+                                    {
+                                        int offset = 0;
+                                        if (content is TextRun tr)
+                                            offset = Math.Min(remaining, tr.Length);
+                                        return new DocumentPosition(bi, ci, offset);
+                                    }
+                                    remaining -= content.Length;
+                                }
+                                return new DocumentPosition(bi, 0, 0);
+                            }
+                            remaining -= cellLen;
+                        }
+                    }
+                    return new DocumentPosition(bi, 0, 0);
+                }
+
                 for (int ci = 0; ci < block.Content.Count; ci++)
                 {
                     var content = block.Content[ci];
@@ -218,7 +474,6 @@ public static class TextLayoutEngine
                             offset = Math.Min(remaining, tr.Length);
                         else if (content is HyperlinkRun link)
                         {
-                            // Find which inner content item contains this position
                             int acc = 0;
                             for (int i = 0; i < link.InnerContent.Count; i++)
                             {
@@ -289,6 +544,28 @@ public static class TextLayoutEngine
                     if (cx >= run.X && cx < run.X + run.Width)
                     {
                         hitRun = run;
+
+                        // Table cell hit — ContentIndex = 0, charOff = offset within cell
+                        if (run.CellIndex >= 0 && line.Block?.Type == RichTextBlockType.Table && line.Block.Rows != null)
+                        {
+                            int totalCols = line.Block.ColCount;
+                            int totalRows = line.Block.Rows.Count;
+                            int targetRow = run.CellIndex / totalCols;
+                            int targetCol = run.CellIndex % totalCols;
+                            if (targetRow < totalRows && targetCol < line.Block.Rows[targetRow].Cells.Count)
+                            {
+                                int charOff = run.StartOffset;
+                                if (run.Source is TextRun trCell)
+                                {
+                                    float localX = cx - run.X;
+                                    int offset = FindOffsetAtX(run.DisplayText, trCell.FontFamily, trCell.FontSize, trCell.Style, zoom, localX);
+                                    charOff = run.StartOffset + offset;
+                                }
+                                return new DocumentPosition(line.BlockIndex, 0, charOff);
+                            }
+                            return new DocumentPosition(line.BlockIndex, 0, 0);
+                        }
+
                         if (run.Source is TextRun tr)
                         {
                             float localX = cx - run.X;
@@ -308,6 +585,11 @@ public static class TextLayoutEngine
                 {
                     var last = line.Runs[^1];
                     hitRun = last;
+                    if (last.CellIndex >= 0 && line.Block?.Type == RichTextBlockType.Table && line.Block.Rows != null)
+                    {
+                        int fullOff = last.StartOffset + last.DisplayText.Length;
+                        return new DocumentPosition(line.BlockIndex, 0, fullOff);
+                    }
                     if (last.Source is TextRun tr2)
                     {
                         int fullOff = last.StartOffset + last.DisplayText.Length;
@@ -328,7 +610,15 @@ public static class TextLayoutEngine
             {
                 bestDist = dist;
                 var last2 = line.Runs.Count > 0 ? line.Runs[^1] : null;
-                if (last2?.Source is TextRun tr3)
+                if (last2 != null && last2.CellIndex >= 0 && line.Block?.Type == RichTextBlockType.Table && line.Block.Rows != null)
+                {
+                    bestBlock = line.BlockIndex;
+                    bestContent = 0;
+                    if (last2.Source is TextRun trfb) bestOffset = trfb.Length;
+                    else bestOffset = 0;
+                    hitRun = last2;
+                }
+                else if (last2?.Source is TextRun tr3)
                 {
                     bestBlock = line.BlockIndex;
                     bestContent = line.Block!.Content.IndexOf(last2.Source);
@@ -337,10 +627,21 @@ public static class TextLayoutEngine
                 }
                 else if (line.Runs.Count > 0)
                 {
-                    bestBlock = line.BlockIndex;
-                    bestContent = line.Block!.Content.IndexOf(line.Runs[0].Source);
-                    bestOffset = 0;
-                    hitRun = line.Runs[0];
+                    var first = line.Runs[0];
+                    if (first.CellIndex >= 0 && line.Block?.Type == RichTextBlockType.Table && line.Block.Rows != null)
+                    {
+                        bestBlock = line.BlockIndex;
+                        bestContent = 0;
+                        bestOffset = 0;
+                        hitRun = first;
+                    }
+                    else
+                    {
+                        bestBlock = line.BlockIndex;
+                        bestContent = line.Block!.Content.IndexOf(line.Runs[0].Source);
+                        bestOffset = 0;
+                        hitRun = line.Runs[0];
+                    }
                 }
             }
         }
