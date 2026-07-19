@@ -63,8 +63,6 @@ public class KanbanBoardView : Control
     private const int ColumnBodyPadding = 6;
     private const int ColumnGap = 8;
 
-    private long _lastDragRenderTicks;
-
     // Focus state
     private KanbanBoardCard? _focusedCard;
     private int _focusedCardColumnIndex = -1;

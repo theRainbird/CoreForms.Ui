@@ -891,11 +891,17 @@ public class DataGridView : ContainerControl
                     {
                         Console.WriteLine($"[DataGridView] Error in cell bounds logging: {ex.Message}");
                     }
-                    if (row >= 0 && row < _rows.Count && col >= 0 && col < _columns.Count && col < _rows[row].Cells.Count)
+   #pragma warning disable CS8602
+                  if (row >= 0 && row < _rows.Count && col >= 0 && col < _columns.Count)
                     {
-                        var val = _rows[row].Cells[col].Value;
-                        Console.WriteLine($"[DataGridView] Cell value='{val}'");
+                        var rowObj = _rows[row];
+                        if (rowObj != null && rowObj.Cells.Count > col)
+                        {
+                            var val = rowObj.Cells[col]?.Value;
+                            Console.WriteLine($"[DataGridView] Cell value='{val}'");
+                        }
                     }
+#pragma warning restore CS8602
                 }
                 else if (row >= _rows.Count && _allowUserToAddRows) AddRow();
             }
@@ -904,10 +910,19 @@ public class DataGridView : ContainerControl
 
         // After selection change, start editing if the clicked cell is editable
         bool justSelectedCell = _selectedRowIndex >= 0 && _selectedColumnIndex >= 0 && col >= 0;
-        if (justSelectedCell && !IsCurrentCellInEditMode && CanEditCurrentCell())
+       if (justSelectedCell && !IsCurrentCellInEditMode && CanEditCurrentCell())
         {
-            if (EditMode == DataGridViewEditMode.EditOnEnter ||
-                _columns[_selectedColumnIndex].CellEditType == DataGridViewColumnEditType.CheckBox)
+            bool shouldBeginEdit = EditMode == DataGridViewEditMode.EditOnEnter;
+            if (!shouldBeginEdit && _columns!.Count > _selectedColumnIndex)
+            {
+#pragma warning disable CS8602
+                var selectedCol = _columns[_selectedColumnIndex!];
+#pragma warning restore CS8602
+                if (selectedCol.CellEditType == DataGridViewColumnEditType.CheckBox)
+                    shouldBeginEdit = true;
+            }
+            
+            if (shouldBeginEdit)
             {
                 BeginEdit();
             }

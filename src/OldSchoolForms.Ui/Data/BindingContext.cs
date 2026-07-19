@@ -110,7 +110,9 @@ public class BindingContext
 
         public ListWrapper(IList list) => _list = list;
 
+ #pragma warning disable CS0067
         public event ListChangedEventHandler? ListChanged;
+#pragma warning restore CS0067
 
         public int Count => _list.Count;
         public bool IsReadOnly => _list.IsReadOnly;

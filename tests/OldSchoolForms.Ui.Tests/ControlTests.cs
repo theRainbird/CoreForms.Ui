@@ -1945,4 +1945,25 @@ public class ControlTests
         grid.OnMouseUp(new MouseEventArgs(MouseButtons.Left, 1, 50, 285, 0));
         Assert.Equal(3, grid.SelectedRowIndex);
     }
+
+    [Fact]
+    public void ToolStrip_ButtonClick_ReleasesCaptureOnMouseUp()
+    {
+        var toolStrip = new ToolStrip { Size = new Size(500, 28), GripStyle = ToolStripGripStyle.Hidden };
+        var button = new ToolStripButton("Test");
+        var clicked = false;
+        button.Click += (s, e) => clicked = true;
+        toolStrip.Items.Add(button);
+
+        // Simulate OnMouseDown on the ToolStrip button
+        // Use x=3 since button starts at x=0 (no grip) and is only ~10px wide
+        // in headless test environment (text measurement returns 0)
+        toolStrip.OnMouseDown(new MouseEventArgs(MouseButtons.Left, 1, 3, 10, 0));
+        Assert.True(clicked, "Button click should fire");
+        Assert.True(toolStrip.CapturingMouse, "CapturingMouse should be true during mouse down");
+
+        // CapturingMouse should be released after mouse up when no dropdown is open
+        toolStrip.OnMouseUp(new MouseEventArgs(MouseButtons.Left, 1, 3, 10, 0));
+        Assert.False(toolStrip.CapturingMouse, "CapturingMouse should be false after OnMouseUp when no dropdown is open");
+    }
 }

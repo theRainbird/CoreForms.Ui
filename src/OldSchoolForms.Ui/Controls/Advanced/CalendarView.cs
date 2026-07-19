@@ -92,12 +92,6 @@ public class CalendarView : ContainerControl
     private Rectangle _scrollBarBounds;
     private int _dayColWidth;
 
-    // Month view grid positions (for drag hit-testing)
-    private int _monthGridX;
-    private int _monthGridY;
-    private int _monthCellW;
-    private int _monthCellH;
-
     // Appointment selection, drag, and resize state
     private CalendarAppointment? _selectedAppointment;
     private bool _allowEdit = true;

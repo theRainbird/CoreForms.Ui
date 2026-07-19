@@ -298,6 +298,8 @@ public class ToolStrip : ContainerControl
                 item.IsPressed = false;
             }
         }
+        if (!_dropDownVisible)
+            CapturingMouse = false;
         base.OnMouseUp(e);
     }
 

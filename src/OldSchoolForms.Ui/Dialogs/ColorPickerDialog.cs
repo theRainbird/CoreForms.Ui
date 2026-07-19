@@ -256,7 +256,7 @@ namespace OldSchoolForms.Ui.Dialogs
             foreach (var color in colors)
                 _scrollablePalette!.AddColor(color);
 
-            _scrollablePalette.Relayout();
+            _scrollablePalette?.Relayout();
         }
 
         private static float GetHue(Core.Color color)

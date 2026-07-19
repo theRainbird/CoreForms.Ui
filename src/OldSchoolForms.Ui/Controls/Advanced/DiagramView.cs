@@ -727,26 +727,22 @@ public class DiagramView : ContainerControl
                 g.DrawLine(_diagramAxisLineColor, r.X, r.Y + r.Height, r.X + r.Width, r.Y + r.Height, 1f);
             }
 
-            if (maxPoints > 0 && _xAxis.ShowLabels)
+            if (maxPoints > 0 && _xAxis.ShowLabels && _series.Count > 0)
             {
                 float slotWidth = r.Width / (float)maxPoints;
+                var firstSeries = _series[0];
 
-                for (int i = 0; i < _series.Count; i++)
+                for (int j = 0; j < firstSeries.Points.Count; j++)
                 {
-                    var s = _series[i];
-                    for (int j = 0; j < s.Points.Count; j++)
-                    {
-                        var pt = s.Points[j];
-                        if (pt.Label == null) continue;
+                    var pt = firstSeries.Points[j];
+                    if (pt.Label == null) continue;
 
-                        float cx = r.X + j * slotWidth + slotWidth / 2f;
-                        float ly = r.Y + r.Height + 4;
+                    float cx = r.X + j * slotWidth + slotWidth / 2f;
+                    float ly = r.Y + r.Height + 4;
 
-                        var (tw, th) = CoordinateTransform.MeasureText(pt.Label, smallFont, g.Zoom);
-                        g.DrawString(pt.Label, smallFont, _diagramAxisLabelColor,
-                            cx - tw / 2f, ly);
-                    }
-                    break; // Only first series for category labels
+                    var (tw, th) = CoordinateTransform.MeasureText(pt.Label, smallFont, g.Zoom);
+                    g.DrawString(pt.Label, smallFont, _diagramAxisLabelColor,
+                        cx - tw / 2f, ly);
                 }
             }
 
