@@ -38,6 +38,9 @@ public class VisualLine
 /// </summary>
 public static class TextLayoutEngine
 {
+    /// <summary>Horizontal padding inside table cells, in pixels.</summary>
+    public const float CellPadding = 4;
+
     private static (int width, int height) MeasureText(string text, string fontFamily, float fontSize, FontStyle style, float zoom)
     {
         var font = new Font(fontFamily, fontSize, style);
@@ -204,7 +207,7 @@ public static class TextLayoutEngine
                             Source = cell.Content.Count > 0 ? cell.Content[0] : new TextRun(),
                             ContentIndex = 0,
                             CellIndex = cellIdx,
-                            X = cellX,
+                            X = cellX + CellPadding,
                             Y = 0,
                             Width = colWidths[c],
                             Height = rowHeight,

@@ -837,6 +837,68 @@ public class RichTextEngine
         int end = Math.Max(CursorFlatIndex, SelectionFlatIndex);
         if (start >= end) return;
 
+        // Table cell selection — content is in cell.Content, not block.Content
+        var selBlock = Document.Blocks[CursorBlock];
+        if (selBlock.Type == RichTextBlockType.Table && selBlock.Rows != null &&
+            CursorCell >= 0 && SelectionCell >= 0)
+        {
+            if (CursorCell == SelectionCell)
+            {
+                int cellStart = TextLayoutEngine.ToFlatIndex(Document, CursorBlock, 0, 0, CursorCell);
+                int localStart = Math.Max(0, start - cellStart);
+                int localEnd = Math.Max(0, end - cellStart);
+                if (localStart >= localEnd) return;
+
+                var cell = GetCell(selBlock);
+                if (cell == null) return;
+
+                int remaining = 0;
+                int removeStartItem = -1, removeEndItem = -1;
+                int removeStartOff = 0, removeEndOff = 0;
+
+                for (int ci = 0; ci < cell.Content.Count; ci++)
+                {
+                    int itemLen = cell.Content[ci].Length;
+                    if (removeStartItem < 0 && localStart >= remaining && localStart < remaining + itemLen)
+                    {
+                        removeStartItem = ci;
+                        removeStartOff = localStart - remaining;
+                    }
+                    if (removeEndItem < 0 && localEnd > remaining && localEnd <= remaining + itemLen)
+                    {
+                        removeEndItem = ci;
+                        removeEndOff = localEnd - remaining;
+                    }
+                    remaining += itemLen;
+                }
+
+                if (removeStartItem < 0) removeStartItem = 0;
+                if (removeEndItem < 0) removeEndItem = cell.Content.Count - 1;
+
+                if (removeStartItem == removeEndItem)
+                {
+                    if (cell.Content[removeStartItem] is TextRun tr)
+                        tr.Text = tr.Text.Remove(removeStartOff, removeEndOff - removeStartOff);
+                }
+                else
+                {
+                    if (cell.Content[removeStartItem] is TextRun firstTr)
+                        firstTr.Text = firstTr.Text[..removeStartOff];
+                    if (cell.Content[removeEndItem] is TextRun lastTr)
+                        lastTr.Text = lastTr.Text[removeEndOff..];
+                    for (int i = removeStartItem + 1; i <= removeEndItem; i++)
+                        if (removeStartItem + 1 < cell.Content.Count)
+                            cell.Content.RemoveAt(removeStartItem + 1);
+                }
+
+                CursorOffset = localStart;
+                SyncSelection();
+                return;
+            }
+            // Multi-cell selection — not handled yet, just skip deletion
+            return;
+        }
+
         var startPos = TextLayoutEngine.FromFlatIndex(Document, start);
         var endPos = TextLayoutEngine.FromFlatIndex(Document, end);
 

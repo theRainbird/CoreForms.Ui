@@ -448,7 +448,7 @@ public class HtmlBox : Control
                 }
             }
         }
-        else if (run.ContentIndex == _engine.CursorContent &&
+        else if (run.CellIndex < 0 && run.ContentIndex == _engine.CursorContent &&
             run.StartOffset <= _engine.CursorOffset &&
             _engine.CursorOffset <= run.StartOffset + run.Length)
         {
@@ -470,9 +470,9 @@ public class HtmlBox : Control
     {
         if (run.CellIndex < 0 || line.Block?.Type != RichTextBlockType.Table || line.Block?.Rows == null) return;
 
-        float cellLeft = runX;
+        float cellLeft = runX - TextLayoutEngine.CellPadding;
         float cellTop = runY;
-        float cellRight = runX + run.Width;
+        float cellRight = cellLeft + run.Width;
         float cellBottom = runY + run.Height;
         int totalCols = line.Block!.ColCount;
         int totalRows = line.Block.Rows.Count;
@@ -692,29 +692,39 @@ public class HtmlBox : Control
         bool shift = e.Modifiers.HasFlag(ModifierKeys.Shift);
         bool ctrl = e.Modifiers.HasFlag(ModifierKeys.Control);
 
-        if (ctrl && HandleCtrlShortcut(e.KeyCode)) return;
-        if (HandleCharacterNavigation(e.KeyCode, shift)) return;
-        if (HandleVisualNavigation(e.KeyCode, shift)) return;
-        if (e.KeyCode == Keys.Tab && HandleTableTab(shift)) return;
+        bool handled = false;
 
-        switch (e.KeyCode)
+        if (ctrl) handled = HandleCtrlShortcut(e.KeyCode);
+        if (!handled) handled = HandleCharacterNavigation(e.KeyCode, shift);
+        if (!handled) handled = HandleVisualNavigation(e.KeyCode, shift);
+        if (!handled && e.KeyCode == Keys.Tab) handled = HandleTableTab(shift);
+
+        if (!handled)
         {
-            case Keys.Back: _engine.HandleBackspace(); break;
-            case Keys.Delete: _engine.HandleDelete(); break;
-            case Keys.Enter:
-                if (shift) _engine.InsertLineBreak();
-                else _engine.HandleEnter();
-                break;
-            default:
-                base.OnKeyDown(e);
-                return;
+            switch (e.KeyCode)
+            {
+                case Keys.Back: _engine.HandleBackspace(); handled = true; break;
+                case Keys.Delete: _engine.HandleDelete(); handled = true; break;
+                case Keys.Enter:
+                    if (shift) _engine.InsertLineBreak();
+                    else _engine.HandleEnter();
+                    handled = true;
+                    break;
+            }
         }
 
-        e.Handled = true;
-        if (e.KeyCode is Keys.Back or Keys.Delete or Keys.Enter) InvalidateLayout();
-        Invalidate();
-        ContentChanged?.Invoke(this, EventArgs.Empty);
-        base.OnKeyDown(e);
+        if (handled)
+        {
+            e.Handled = true;
+            if (e.KeyCode is Keys.Back or Keys.Delete or Keys.Enter) InvalidateLayout();
+            Invalidate();
+            ContentChanged?.Invoke(this, EventArgs.Empty);
+            base.OnKeyDown(e);
+        }
+        else
+        {
+            base.OnKeyDown(e);
+        }
     }
 
     private bool HandleCtrlShortcut(Keys keyCode)
@@ -809,6 +819,8 @@ public class HtmlBox : Control
         _engine.SelectionBlock = _engine.CursorBlock;
         _engine.SelectionContent = _engine.CursorContent;
         _engine.SelectionOffset = _engine.CursorOffset;
+        _engine.CursorCell = -1;
+        _engine.SelectionCell = -1;
     }
 
     private void ResetSelection()
@@ -816,6 +828,7 @@ public class HtmlBox : Control
         _engine.SelectionBlock = _engine.CursorBlock;
         _engine.SelectionContent = _engine.CursorContent;
         _engine.SelectionOffset = _engine.CursorOffset;
+        _engine.SelectionCell = _engine.CursorCell;
     }
 
     /// <inheritdoc/>
@@ -891,6 +904,29 @@ public class HtmlBox : Control
             _engine.CursorBlock = pos.BlockIndex;
             _engine.CursorContent = pos.ContentIndex;
             _engine.CursorOffset = pos.CharOffset;
+
+            // Set CursorCell when entering/within a table block
+            if (targetLine.Block?.Type == RichTextBlockType.Table && targetLine.Block.Rows != null)
+            {
+                float padding = 8;
+                float leftMargin = GetLeftMargin(targetLine.Block.Type);
+                float contentX = _preferredX - padding - leftMargin;
+                _engine.CursorCell = -1;
+                foreach (var run in targetLine.Runs)
+                {
+                    if (contentX >= run.X && contentX <= run.X + run.Width)
+                    {
+                        _engine.CursorCell = run.CellIndex;
+                        break;
+                    }
+                }
+                if (_engine.CursorCell < 0 && targetLine.Runs.Count > 0)
+                    _engine.CursorCell = targetLine.Runs[0].CellIndex;
+            }
+            else
+            {
+                _engine.CursorCell = -1;
+            }
         }
         else
         {
@@ -1039,6 +1075,7 @@ public class HtmlBox : Control
                     _engine.CursorBlock = line.BlockIndex;
                     _engine.CursorContent = targetRun.ContentIndex;
                     _engine.CursorOffset = atStart ? targetRun.StartOffset : targetRun.StartOffset + targetRun.Length;
+                    _engine.CursorCell = targetRun.CellIndex >= 0 ? targetRun.CellIndex : -1;
                     return;
                 }
             }
