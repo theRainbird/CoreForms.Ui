@@ -15,6 +15,7 @@ public class HtmlBox : Control
 {
     private readonly RichTextEngine _engine = new();
     private string _htmlBacking = string.Empty;
+    private string _lastComputedHtml = string.Empty;
     private bool _readOnly;
     private LinkBehavior _linkBehavior = LinkBehavior.RaiseEvent;
     private static readonly int CursorBlinkInterval = 530;
@@ -55,12 +56,25 @@ public class HtmlBox : Control
     /// </summary>
     public string Html
     {
-        get => _engine.ToHtml();
+        get
+        {
+            var html = _engine.ToHtml();
+            System.Console.WriteLine($"[HtmlBox] Html get: htmlLen={html.Length}, lastComputedLen={_lastComputedHtml.Length}, changed={html != _lastComputedHtml}");
+            if (html != _lastComputedHtml)
+            {
+                _lastComputedHtml = html;
+                System.Console.WriteLine($"[HtmlBox] Html get: firing ContentChanged");
+                ContentChanged?.Invoke(this, EventArgs.Empty);
+            }
+            return html;
+        }
         set
         {
+            System.Console.WriteLine($"[HtmlBox] Html set: valueLen={value?.Length ?? 0}, backingLen={_htmlBacking.Length}, changed={value != _htmlBacking}");
             if (value != _htmlBacking)
             {
                 _htmlBacking = value ?? string.Empty;
+                _lastComputedHtml = string.Empty;
                 _engine.InitFromHtml(_htmlBacking);
                 InvalidateLayout();
                 Invalidate();
@@ -583,6 +597,33 @@ public class HtmlBox : Control
                     _engine.SelectionContent = pos.ContentIndex;
                 }
 
+                // Double-click word selection
+                if (mouseArgs.Clicks >= 2 && hitRun != null && hitRun.Source is TextRun tr)
+                {
+                    string text = hitRun.DisplayText;
+                    int localOffset = pos.CharOffset - hitRun.StartOffset;
+                    if (localOffset < 0) localOffset = 0;
+                    if (localOffset > text.Length) localOffset = text.Length;
+
+                    int start = localOffset;
+                    while (start > 0 && char.IsLetterOrDigit(text[start - 1])) start--;
+                    int end = localOffset;
+                    while (end < text.Length && char.IsLetterOrDigit(text[end])) end++;
+
+                    _engine.SelectionBlock = pos.BlockIndex;
+                    _engine.SelectionContent = pos.ContentIndex;
+                    _engine.SelectionOffset = hitRun.StartOffset + start;
+                    _engine.CursorBlock = pos.BlockIndex;
+                    _engine.CursorContent = pos.ContentIndex;
+                    _engine.CursorOffset = hitRun.StartOffset + end;
+
+                    if (hitRun.CellIndex >= 0)
+                    {
+                        _engine.SelectionCell = hitRun.CellIndex;
+                        _engine.CursorCell = hitRun.CellIndex;
+                    }
+                }
+
                 _preferredX = -1;
 
                 _lastWasLink = hitRun != null && hitRun.ContentIndex >= 0 && hitRun.ContentIndex < _engine.Document.Blocks[pos.BlockIndex].Content.Count
@@ -593,7 +634,7 @@ public class HtmlBox : Control
 
             CapturingMouse = true;
             Invalidate();
-            ContentChanged?.Invoke(this, EventArgs.Empty);
+            
         }
 
         base.OnMouseDown(e);
@@ -678,7 +719,7 @@ public class HtmlBox : Control
         }
 
         Invalidate();
-        ContentChanged?.Invoke(this, EventArgs.Empty);
+        
 
         base.OnMouseUp(e);
     }
@@ -716,9 +757,13 @@ public class HtmlBox : Control
         if (handled)
         {
             e.Handled = true;
-            if (e.KeyCode is Keys.Back or Keys.Delete or Keys.Enter) InvalidateLayout();
+            if (e.KeyCode is Keys.Back or Keys.Delete or Keys.Enter)
+            {
+                InvalidateLayout();
+                ContentChanged?.Invoke(this, EventArgs.Empty);
+            }
             Invalidate();
-            ContentChanged?.Invoke(this, EventArgs.Empty);
+            
             base.OnKeyDown(e);
         }
         else
@@ -847,6 +892,7 @@ public class HtmlBox : Control
         InvalidateLayout();
         Invalidate();
         ContentChanged?.Invoke(this, EventArgs.Empty);
+        System.Console.WriteLine($"[HtmlBox] OnTextInput: text='{text}', htmlLen={_htmlBacking.Length}");
     }
 
     private void MoveVisualLineUp() => MoveVisualLine(-1);

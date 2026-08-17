@@ -1172,6 +1172,10 @@ if (_controls == null || _controls.Count == 0) return;
             State |= ControlState.Pressed;
         }
         MouseDown?.Invoke(this, e);
+        if (e is MouseEventArgs me && me.Clicks >= 2)
+        {
+            OnDoubleClick(EventArgs.Empty);
+        }
     }
 
     /// <summary>

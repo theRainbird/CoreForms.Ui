@@ -185,13 +185,18 @@ public class ContainerControl : Control
     /// <param name="control">The control to activate.</param>
     private void SetActiveControlRecursive(Control control)
     {
-        if (control is ContainerControl container)
+        // Walk up the entire parent chain, setting ActiveControl on each ContainerControl ancestor.
+        // This ensures deeply nested controls (e.g., inside TabControl → TabPage → SplitPanel → Panel)
+        // have their keyboard routing updated at every level.
+        Control? current = control;
+        while (current != null)
         {
-            ActiveControl = container;
-        }
-        else
-        {
-            ActiveControl = control;
+            var parent = current.Parent;
+            if (parent is ContainerControl container)
+            {
+                container.ActiveControl = current;
+            }
+            current = parent;
         }
     }
 

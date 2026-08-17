@@ -38,6 +38,15 @@ public class MultiLineTextEditorEngine : TextEditorEngine
     public int ScrollOffsetY => _scrollOffsetY;
 
     /// <summary>
+    /// Resets both horizontal and vertical scroll offsets to zero.
+    /// </summary>
+    public void ResetScroll()
+    {
+        _scrollOffsetY = 0;
+        _scrollOffset = 0;
+    }
+
+    /// <summary>
     /// Sets the vertical scroll offset, clamped to valid range.
     /// </summary>
     public void ScrollTo(int value, int viewHeight)

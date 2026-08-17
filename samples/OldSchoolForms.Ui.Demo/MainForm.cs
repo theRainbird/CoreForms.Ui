@@ -319,7 +319,6 @@ public class MainForm : Form
         tabControl.AddTabPage(CreateTabPage(SR.GetString("TabSplitPanel"), CreateSplitPanelPage()));
         tabControl.AddTabPage(CreateTabPage(SR.GetString("TabWebBrowser"), CreateWebBrowserPage()));
         tabControl.AddTabPage(CreateTabPage(SR.GetString("TabHtmlEditor"), CreateHtmlEditorPage()));
-        tabControl.AddTabPage(CreateTabPage("HtmlBox Tables", CreateHtmlBoxTablePage()));
         tabControl.AddTabPage(CreateTabPage(SR.GetString("TabCalendar"), CreateCalendarPage()));
         tabControl.AddTabPage(CreateTabPage("Kanban Board", CreateKanbanBoardPage()));
         tabControl.AddTabPage(CreateTabPage(SR.GetString("TabDiagram"), CreateDiagramPage()));
@@ -420,13 +419,6 @@ public class MainForm : Form
     private HtmlEditorPage CreateHtmlEditorPage()
     {
         var page = new HtmlEditorPage();
-        page.StatusTextChanged += (s, e) => _statusLabel!.Text = e.Text;
-        return page;
-    }
-
-    private HtmlBoxTablePage CreateHtmlBoxTablePage()
-    {
-        var page = new HtmlBoxTablePage();
         page.StatusTextChanged += (s, e) => _statusLabel!.Text = e.Text;
         return page;
     }

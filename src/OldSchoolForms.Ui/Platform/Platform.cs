@@ -31,6 +31,16 @@ public static class Platform
     private static IKeyboard? _keyboard;
 
     private static readonly Dictionary<uint, List<Action>> _windowCleanupActions = new();
+    private static readonly Dictionary<uint, ClickInfo> _lastClickInfo = new();
+
+    private struct ClickInfo
+    {
+        public long Ticks;
+        public int X;
+        public int Y;
+        public MouseButtons Button;
+        public int Count;
+    }
 
     [DllImport("kernel32.dll", SetLastError = true, CharSet = CharSet.Auto)]
     private static extern IntPtr GetModuleHandle(string lpModuleName);
@@ -633,8 +643,22 @@ public static class Platform
                     float zoom = form.Zoom;
                     var point = new Point((int)(pos.X / zoom), (int)(pos.Y / zoom));
                     var btn = MapMouseButton(button);
-                    Log($"[Platform] MouseDown form='{form.Text}' btn={btn} native=({pos.X},{pos.Y}) zoom={zoom} logical=({point.X},{point.Y})");
-                    var args = new MouseEventArgs(btn, 1, point.X, point.Y, 0);
+                    int clicks = 1;
+                    long now = Environment.TickCount64;
+                    if (_lastClickInfo.TryGetValue(windowId, out var last))
+                    {
+                        int dx = point.X - last.X;
+                        int dy = point.Y - last.Y;
+                        double dist = Math.Sqrt(dx * dx + dy * dy);
+                        long dt = now - last.Ticks;
+                        if (btn == last.Button && dt <= SystemInformation.DoubleClickTime && dist <= SystemInformation.DoubleClickSize)
+                        {
+                            clicks = last.Count + 1;
+                        }
+                    }
+                    _lastClickInfo[windowId] = new ClickInfo { Ticks = now, X = point.X, Y = point.Y, Button = btn, Count = clicks };
+                    Log($"[Platform] MouseDown form='{form.Text}' btn={btn} native=({pos.X},{pos.Y}) zoom={zoom} logical=({point.X},{point.Y}) clicks={clicks}");
+                    var args = new MouseEventArgs(btn, clicks, point.X, point.Y, 0);
                     form.OnMouseDown(args);
                 };
                 mouse.MouseDown += mouseDown;
