@@ -248,11 +248,13 @@ public class MultiLineTextEditorEngine : TextEditorEngine
     /// <inheritdoc />
     public override void EnsureCursorVisible(ITextEditorContext context)
     {
-        // Horizontal: only needed when word wrap is off (long unwrapped lines)
+        // Horizontal: only needed when word wrap is off (long unwrapped lines).
+        // The base implementation measures the entire text before the cursor as one flat
+        // line, which scrolls multi-line documents far out of view; use line-based math instead.
         if (_wordWrap)
             _scrollOffset = 0;
         else
-            base.EnsureCursorVisible(context);
+            EnsureHorizontalCursorVisible(context);
 
         // Vertical: ensure cursor line is visible
         int lineHeight = GetLineHeight(context);
@@ -273,6 +275,34 @@ public class MultiLineTextEditorEngine : TextEditorEngine
         int maxScroll = Math.Max(0, contentHeight - viewHeight);
         _scrollOffsetY = Math.Max(0, Math.Min(_scrollOffsetY, maxScroll));
         ScrollOffsetYChanged?.Invoke(this, EventArgs.Empty);
+    }
+
+    /// <summary>
+    /// Adjusts the horizontal scroll offset so the cursor column on its visual line is visible.
+    /// Only measures text within the visual line containing the cursor, not the whole document.
+    /// </summary>
+    /// <param name="context">The editor context for font, zoom and viewport access.</param>
+    private void EnsureHorizontalCursorVisible(ITextEditorContext context)
+    {
+        int textAreaWidth = context.TextAreaWidth;
+        if (textAreaWidth <= 0 || string.IsNullOrEmpty(_text))
+        {
+            _scrollOffset = 0;
+            return;
+        }
+
+        int visualLine = GetVisualLineFromPosition(_cursorPosition, textAreaWidth, context);
+        var (lineText, _) = GetVisualLine(visualLine, textAreaWidth, context);
+        int col = Math.Min(GetColumnInVisualLine(_cursorPosition, textAreaWidth, context), lineText.Length);
+
+        int cursorX = MeasureTextWidth(lineText.Substring(0, col), context);
+        if (cursorX < _scrollOffset)
+            _scrollOffset = cursorX;
+        else if (cursorX > _scrollOffset + textAreaWidth)
+            _scrollOffset = cursorX - textAreaWidth;
+
+        int maxScroll = Math.Max(0, MeasureTextWidth(lineText, context) - textAreaWidth);
+        _scrollOffset = Math.Max(0, Math.Min(_scrollOffset, maxScroll));
     }
 
     /// <inheritdoc />

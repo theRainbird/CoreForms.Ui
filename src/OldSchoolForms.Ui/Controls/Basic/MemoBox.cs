@@ -251,6 +251,14 @@ public class MemoBox : Control
         int lastVisible = (_engine.ScrollOffsetY + _textAreaHeight) / lineHeight + 1;
         lastVisible = Math.Min(lastVisible, visualLines);
 
+        string dbgLine0 = "-";
+        if (visualLines > 0)
+        {
+            var (t0, s0) = _engine.GetVisualLine(0, _textAreaWidth, Context);
+            dbgLine0 = $"len={t0.Length},start={s0},txt='{(t0.Length > 40 ? t0[..40] : t0)}'";
+        }
+        System.Console.WriteLine($"[MemoBox.RENDER] geom: textW={_textAreaWidth} textH={_textAreaHeight} lh={lineHeight} visualLines={visualLines} first={firstVisible} last={lastVisible} scroll=({_engine.ScrollOffset},{_engine.ScrollOffsetY}) font={font.Name}/{font.Size} clip={g.ClipBounds} | line0[{dbgLine0}]");
+
         string firstLinePreview = string.Empty;
         if (visualLines > 0)
         {
