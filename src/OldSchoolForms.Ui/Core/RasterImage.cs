@@ -46,9 +46,8 @@ public class RasterImage : IGraphicsImage
                 return null;
             return FromStream(stream);
         }
-        catch (Exception ex)
+        catch
         {
-            Console.WriteLine($"[RasterImage] Failed to load resource '{resourceName}': {ex.Message}");
             return null;
         }
     }
@@ -84,9 +83,8 @@ public class RasterImage : IGraphicsImage
                 Height = codec.Info.Height
             };
         }
-        catch (Exception ex)
+        catch
         {
-            Console.WriteLine($"[RasterImage] Failed to load from stream: {ex.Message}");
             return null;
         }
     }
@@ -102,16 +100,14 @@ public class RasterImage : IGraphicsImage
         {
             if (!File.Exists(filePath))
             {
-                Console.WriteLine($"[RasterImage] File not found: {filePath}");
                 return null;
             }
 
             using var stream = File.OpenRead(filePath);
             return FromStream(stream);
         }
-        catch (Exception ex)
+        catch
         {
-            Console.WriteLine($"[RasterImage] Failed to load from file '{filePath}': {ex.Message}");
             return null;
         }
     }
@@ -128,9 +124,8 @@ public class RasterImage : IGraphicsImage
             using var stream = new MemoryStream(data);
             return FromStream(stream);
         }
-        catch (Exception ex)
+        catch
         {
-            Console.WriteLine($"[RasterImage] Failed to load from bytes: {ex.Message}");
             return null;
         }
     }

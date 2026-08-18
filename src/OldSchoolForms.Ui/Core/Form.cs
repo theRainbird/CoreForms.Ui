@@ -224,7 +224,6 @@ public class Form : ContainerControl, INativeWindow
     {
         if (_handle != IntPtr.Zero)
         {
-            Console.WriteLine($"[Form.Show] handle already set, skipping. form='{Text}'");
             return;
         }
 
@@ -451,7 +450,6 @@ public class Form : ContainerControl, INativeWindow
                     _dialogResult = DialogResult.Cancel;
                 _modal = false;
             }
-            Console.WriteLine($"[Form.Close] handle is Zero, closing overlay. form='{Text}'");
             return;
         }
 
@@ -459,7 +457,6 @@ public class Form : ContainerControl, INativeWindow
             _dialogResult = DialogResult.Cancel;
 
         _modal = false;
-        Console.WriteLine($"[Form.Close] form='{Text}' handle={_handle}");
         Platform.Platform.DestroyWindow(_handle);
     }
 

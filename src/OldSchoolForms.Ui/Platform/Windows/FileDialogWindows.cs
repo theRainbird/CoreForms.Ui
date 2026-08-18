@@ -135,9 +135,8 @@ internal static class FileDialogWindows
 
             return selectedFiles.Length > 0 ? DialogResult.OK : DialogResult.Cancel;
         }
-        catch (Exception ex)
+        catch
         {
-            Console.WriteLine($"[FileDialogWindows] OpenFile error: {ex.Message}");
             return DialogResult.Cancel;
         }
         finally
@@ -216,9 +215,8 @@ internal static class FileDialogWindows
             selectedFile = Marshal.PtrToStringUni(fileBuffer) ?? string.Empty;
             return !string.IsNullOrEmpty(selectedFile) ? DialogResult.OK : DialogResult.Cancel;
         }
-        catch (Exception ex)
+        catch
         {
-            Console.WriteLine($"[FileDialogWindows] SaveFile error: {ex.Message}");
             return DialogResult.Cancel;
         }
         finally

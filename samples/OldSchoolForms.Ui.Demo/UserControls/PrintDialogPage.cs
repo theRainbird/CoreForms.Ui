@@ -107,7 +107,6 @@ public class PrintDialogPage : UserControl
             catch (Exception ex)
             {
                 OnStatusTextChanged(string.Format(SR.GetString("StatusPrintErrorFormat"), ex.Message));
-                Console.WriteLine($"[Print] Error: {ex}");
             }
         };
 

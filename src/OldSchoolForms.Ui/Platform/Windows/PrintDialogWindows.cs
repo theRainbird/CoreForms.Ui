@@ -127,9 +127,6 @@ internal static class PrintDialogWindows
 
             if (!PrintDlg(ref pd))
             {
-                ushort err = CommDlgExtendedError();
-                if (err != PD_ERROR)
-                    Console.WriteLine($"[PrintDialogWindows] PrintDlg failed, extended error: {err}");
                 return DialogResult.Cancel;
             }
 
@@ -176,9 +173,8 @@ internal static class PrintDialogWindows
 
             return DialogResult.OK;
         }
-        catch (Exception ex)
+        catch
         {
-            Console.WriteLine($"[PrintDialogWindows] ShowDialog error: {ex.Message}");
             return DialogResult.Cancel;
         }
     }

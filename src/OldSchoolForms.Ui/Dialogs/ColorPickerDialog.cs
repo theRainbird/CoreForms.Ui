@@ -205,8 +205,6 @@ namespace OldSchoolForms.Ui.Dialogs
             
             _systemColorsGrid!.Columns.Add(colorCol);
 
-            int fieldIdx = 0;
-            
             foreach (var field in fields)
             {
                 if (field.FieldType == typeof(Color))
@@ -215,9 +213,7 @@ namespace OldSchoolForms.Ui.Dialogs
                     {
                         var color = (Color)field.GetValue(null)!;
                         var name = field.Name;
-                        Console.WriteLine($"[CPD] SystemColor idx={fieldIdx} name={name}");
                         _systemColors.Add(new SystemColorEntry { Name = name, Color = color });
-                        fieldIdx++;
                     }
                     catch { }
                 }

@@ -61,9 +61,8 @@ public class SkiaRenderer : IDisposable
         {
             _gl = window.CreateOpenGL();
         }
-        catch (Exception ex)
+        catch
         {
-            Console.WriteLine($"[SkiaRenderer] OpenGL init failed: {ex.Message}");
             _gl = null;
         }
 
@@ -74,7 +73,6 @@ public class SkiaRenderer : IDisposable
 
         if (!_useGpuRendering)
         {
-            Console.WriteLine("[SkiaRenderer] Using software rendering (offscreen SKSurface + GL blit)");
             _fallback = new SkiaRendererFallback(_gl, _window);
             var info = new SKImageInfo(_width, _height, SKColorType.Bgra8888, SKAlphaType.Premul);
             _surface = SKSurface.Create(info);
@@ -102,25 +100,21 @@ public class SkiaRenderer : IDisposable
 
             if (glInterface == null)
             {
-                Console.WriteLine("[SkiaRenderer] GRGlInterface.Create returned null, falling back to software");
                 return false;
             }
 
             _grContext = GRContext.CreateGl(glInterface);
             if (_grContext == null)
             {
-                Console.WriteLine("[SkiaRenderer] GRContext.CreateGl returned null, falling back to software");
                 return false;
             }
 
             CreateGpuSurface();
 
-            Console.WriteLine("[SkiaRenderer] GPU-accelerated rendering initialized successfully");
             return true;
         }
-        catch (Exception ex)
+        catch
         {
-            Console.WriteLine($"[SkiaRenderer] GPU init failed, falling back to software: {ex.Message}");
             _grContext?.Dispose();
             _grContext = null;
             _renderTarget?.Dispose();

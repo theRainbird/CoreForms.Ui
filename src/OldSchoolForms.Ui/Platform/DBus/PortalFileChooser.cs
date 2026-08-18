@@ -96,8 +96,6 @@ public static class PortalFileChooser
             if (reply.BodyValues != null && reply.BodyValues.Length > 0)
                 responsePath = reply.BodyValues[0] as string;
 
-            Console.WriteLine($"[Portal] Response path: {responsePath}");
-
             if (responsePath == null)
                 return DialogResult.Cancel;
 
@@ -112,18 +110,13 @@ public static class PortalFileChooser
 
             if (signal == null)
             {
-                Console.WriteLine("[Portal] No response signal received");
                 return DialogResult.Cancel;
             }
-
-            Console.WriteLine($"[Portal] Response signal received: type={signal.Type}");
 
             if (signal.BodyValues != null && signal.BodyValues.Length >= 2)
             {
                 uint responseCode = signal.BodyValues[0] is uint u ? u : 0;
                 var results = signal.BodyValues[1] as Dictionary<string, object?>;
-
-                Console.WriteLine($"[Portal] Response code: {responseCode}");
 
                 if (responseCode == 0 && results != null)
                 {
@@ -181,8 +174,7 @@ public static class PortalFileChooser
         if (multiSelect)
             AppendDictEntry(ref dictIter, "multiple", true);
 
-        if (!dbus_message_iter_close_container(ref iter, ref dictIter))
-            Console.WriteLine("[Portal] Failed to close dict container");
+        dbus_message_iter_close_container(ref iter, ref dictIter);
     }
 
     private static void AppendDictEntry(ref DBusMessageIter dictIter, string key, string value)

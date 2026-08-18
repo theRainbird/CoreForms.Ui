@@ -73,7 +73,6 @@ public class HtmlEditorPage : UserControl
         };
         _lastHtml = _htmlBox.Html;
 
-        System.Console.WriteLine($"[HEP-INIT] Creating sourceBox with _lastHtml len={_lastHtml.Length}");
         _sourceBox = new MemoBox
         {
             Dock = DockStyle.Fill,
@@ -81,7 +80,6 @@ public class HtmlEditorPage : UserControl
             Font = new Font("Arial", 10, FontStyle.Regular),
             Text = _lastHtml
         };
-        System.Console.WriteLine($"[HEP-INIT] sourceBox.Text after init: len={_sourceBox.Text.Length}");
 
         var splitPanel = new SplitPanel
         {
@@ -143,51 +141,32 @@ public class HtmlEditorPage : UserControl
 
         htmlBox.ContentChanged += (s, e) =>
         {
-            System.Console.WriteLine($"[HEP-CC] >>> ENTER: _updating={_updating}, _lastHtmlLen={_lastHtml.Length}, sourceBoxTextLen={sourceBox.Text.Length}");
             UpdateFormatButtons();
             OnStatusTextChanged(htmlBox.CursorDebug);
             string currentHtml = htmlBox.Html;
-            System.Console.WriteLine($"[HEP-CC] Html get: len={currentHtml.Length}, lastLen={_lastHtml.Length}, diff={currentHtml != _lastHtml}");
             if (currentHtml != _lastHtml && !_updating)
             {
                 _updating = true;
                 _lastHtml = currentHtml;
-                System.Console.WriteLine($"[HEP-CC] Setting sourceBox.Text len={currentHtml.Length}, content={currentHtml.Substring(0, Math.Min(50, currentHtml.Length))}...");
                 sourceBox.Text = currentHtml;
-                System.Console.WriteLine($"[HEP-CC] sourceBox.Text after set: len={sourceBox.Text.Length}");
                 _updating = false;
             }
-            else
-            {
-                System.Console.WriteLine($"[HEP-CC] SKIP: cond={currentHtml != _lastHtml}, upd={_updating}");
-            }
-            System.Console.WriteLine($"[HEP-CC] <<< EXIT: _updating={_updating}, _lastHtmlLen={_lastHtml.Length}");
         };
 
         sourceBox.TextChanged += (s, e) =>
         {
-            System.Console.WriteLine($"[HEP-TX] >>> ENTER: _updating={_updating}, sourceBoxTextLen={sourceBox.Text.Length}, _lastHtmlLen={_lastHtml.Length}");
             if (_updating)
             {
-                System.Console.WriteLine($"[HEP-TX] <<< SKIP (updating)");
                 return;
             }
             string currentText = sourceBox.Text;
-            System.Console.WriteLine($"[HEP-TX] currentText len={currentText.Length}, diff={currentText != _lastHtml}");
             if (currentText != _lastHtml)
             {
                 _updating = true;
                 _lastHtml = currentText;
-                System.Console.WriteLine($"[HEP-TX] Setting htmlBox.Html len={currentText.Length}");
                 htmlBox.Html = currentText;
-                System.Console.WriteLine($"[HEP-TX] htmlBox.Html after set: len={htmlBox.Html.Length}");
                 _updating = false;
             }
-            else
-            {
-                System.Console.WriteLine($"[HEP-TX] <<< SKIP (same as _lastHtml)");
-            }
-            System.Console.WriteLine($"[HEP-TX] <<< EXIT: _updating={_updating}, _lastHtmlLen={_lastHtml.Length}");
         };
 
         toolStrip.Items.Add(boldButton);

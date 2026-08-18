@@ -59,18 +59,15 @@ public class HtmlBox : Control
         get
         {
             var html = _engine.ToHtml();
-            System.Console.WriteLine($"[HtmlBox] Html get: htmlLen={html.Length}, lastComputedLen={_lastComputedHtml.Length}, changed={html != _lastComputedHtml}");
             if (html != _lastComputedHtml)
             {
                 _lastComputedHtml = html;
-                System.Console.WriteLine($"[HtmlBox] Html get: firing ContentChanged");
                 ContentChanged?.Invoke(this, EventArgs.Empty);
             }
             return html;
         }
         set
         {
-            System.Console.WriteLine($"[HtmlBox] Html set: valueLen={value?.Length ?? 0}, backingLen={_htmlBacking.Length}, changed={value != _htmlBacking}");
             if (value != _htmlBacking)
             {
                 _htmlBacking = value ?? string.Empty;
@@ -707,11 +704,9 @@ public class HtmlBox : Control
                     && _engine.Document.Blocks[pos.BlockIndex].Content[hitRun.ContentIndex] is HyperlinkRun linkRun
                     && mouseArgs.Button == MouseButtons.Left)
                 {
-                    System.Console.WriteLine($"[HtmlBox] Link clicked: {linkRun.Url} (ContentIndex={hitRun.ContentIndex}, Button={mouseArgs.Button}, LinkBehavior={LinkBehavior}, _ctrlPressed={_ctrlPressed})");
                     bool ctrlOrOpen = _ctrlPressed || LinkBehavior == LinkBehavior.OpenInBrowser;
                     if (ctrlOrOpen)
                     {
-                        System.Console.WriteLine($"[HtmlBox] Opening link: {linkRun.Url}");
                         OnLinkClick(linkRun.Url, linkRun);
                     }
                 }
@@ -892,7 +887,6 @@ public class HtmlBox : Control
         InvalidateLayout();
         Invalidate();
         ContentChanged?.Invoke(this, EventArgs.Empty);
-        System.Console.WriteLine($"[HtmlBox] OnTextInput: text='{text}', htmlLen={_htmlBacking.Length}");
     }
 
     private void MoveVisualLineUp() => MoveVisualLine(-1);
@@ -1189,7 +1183,6 @@ public class HtmlBox : Control
     /// <param name="url">The URL to open.</param>
     private static void OpenUrl(string url)
     {
-        System.Console.WriteLine($"[HtmlBox] OpenUrl called: {url}");
         try
         {
             System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
@@ -1197,11 +1190,9 @@ public class HtmlBox : Control
                 FileName = url,
                 UseShellExecute = true
             });
-            System.Console.WriteLine($"[HtmlBox] OpenUrl success: {url}");
         }
-        catch (Exception ex)
+        catch
         {
-            System.Console.WriteLine($"[HtmlBox] OpenUrl failed: {ex.Message}");
         }
     }
 }

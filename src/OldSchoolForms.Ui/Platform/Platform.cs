@@ -560,8 +560,6 @@ public static class Platform
         var handle = new IntPtr(windowId);
         form.SetHandle(handle);
 
-        Log($"[Platform] CreateWindow: id={windowId} form='{form.Text}' focusedWindow='{_focusedWindow?.Text}'");
-
         window.Load += () =>
         {
             var input = window.CreateInput();
@@ -576,13 +574,9 @@ public static class Platform
             {
                 if (size.X > 0 && size.Y > 0)
                 {
-                    Log($"[Platform] Resize: windowId={windowId} form='{form.Text}' nativeSize=({size.X},{size.Y}) zoom={form.Zoom}");
-                    var oldW = form.Width;
-                    var oldH = form.Height;
                     form.SuspendLayout();
                     form.Width = (int)MathF.Ceiling(size.X / form.Zoom);
                     form.Height = (int)MathF.Ceiling(size.Y / form.Zoom);
-                    Log($"[Platform] Resize result: form.Width={oldW}->{form.Width} form.Height={oldH}->{form.Height} clientPixels=({form.ClientSizePixels.Width},{form.ClientSizePixels.Height})");
                     form.ResumeLayout(true);
                     form.OnResize(EventArgs.Empty);
                     form.Invalidate();
@@ -595,7 +589,6 @@ public static class Platform
             {
                 Action<IKeyboard, Key, int> keyDown = (kb, key, keyCode) =>
                 {
-                    Log($"[Platform] KeyDown: key={key} focusedWindow='{_focusedWindow?.Text}' windowId={windowId}");
                     if (_focusedWindow == null) return;
                     var args = new KeyEventArgs
                     {
@@ -628,11 +621,6 @@ public static class Platform
                 keyboard.KeyChar += keyChar;
                 cleanup.Add(() => keyboard.KeyChar -= keyChar);
             }
-            else
-            {
-                Log($"[Platform] WARNING: No keyboard for window id={windowId}");
-            }
-
             if (mouse != null)
             {
                 Action<IMouse, MouseButton> mouseDown = (m, button) =>
@@ -657,7 +645,6 @@ public static class Platform
                         }
                     }
                     _lastClickInfo[windowId] = new ClickInfo { Ticks = now, X = point.X, Y = point.Y, Button = btn, Count = clicks };
-                    Log($"[Platform] MouseDown form='{form.Text}' btn={btn} native=({pos.X},{pos.Y}) zoom={zoom} logical=({point.X},{point.Y}) clicks={clicks}");
                     var args = new MouseEventArgs(btn, clicks, point.X, point.Y, 0);
                     form.OnMouseDown(args);
                 };
@@ -670,7 +657,6 @@ public static class Platform
                     float zoom = form.Zoom;
                     var point = new Point((int)(pos.X / zoom), (int)(pos.Y / zoom));
                     var btn = MapMouseButton(button);
-                    Log($"[Platform] MouseUp form='{form.Text}' btn={btn} native=({pos.X},{pos.Y}) zoom={zoom} logical=({point.X},{point.Y})");
                     var args = new MouseEventArgs(btn, 1, point.X, point.Y, 0);
                     form.OnMouseUp(args);
                 };
@@ -701,17 +687,12 @@ public static class Platform
                 cleanup.Add(() => mouse.Scroll -= scroll);
             }
 
-            Action closing = () =>
-            {
-                Log($"[Platform] Closing event for window id={windowId} form='{form.Text}'");
-                ctx.IsClosing = true;
-            };
+            Action closing = () => ctx.IsClosing = true;
             window.Closing += closing;
             cleanup.Add(() => window.Closing -= closing);
 
             Action<bool> focusChanged = focused =>
             {
-                Log($"[Platform] FocusChanged: focused={focused} windowId={windowId} form='{form.Text}'");
                 if (focused)
                 {
                     // Always trigger a re-render when focus is regained (Alt+Tab back, etc.)
@@ -762,15 +743,7 @@ public static class Platform
             window.StateChanged += stateChanged;
             cleanup.Add(() => window.StateChanged -= stateChanged);
 
-            try
-            {
-                ctx.InitializeRenderer();
-                Log($"[Platform] Renderer initialized for window id={windowId}");
-            }
-            catch (Exception ex)
-            {
-                Log($"[Platform] Failed to initialize renderer: {ex.Message}");
-            }
+            try { ctx.InitializeRenderer(); } catch { }
         };
 
         window.Initialize();
@@ -794,8 +767,6 @@ public static class Platform
         uint windowId = (uint)handle;
         if (!_contexts.TryGetValue(windowId, out var ctx))
             return;
-
-        Log($"[Platform] DestroyWindow: id={windowId} form='{ctx.Form.Text}'");
 
         CleanupWindowOnClose(windowId, ctx, ctx.Form, glCleanup: true);
 
@@ -826,8 +797,6 @@ public static class Platform
                 ? _contexts.Values.FirstOrDefault()?.Form
                 : null;
         }
-
-        Log($"[Platform] CleanupWindowOnClose: id={windowId} glCleanup={glCleanup} focusedWindow now='{_focusedWindow?.Text}'");
 
         CleanupIconImages(windowId);
 
@@ -1003,12 +972,6 @@ public static class Platform
     public static Form? FocusedWindow => _focusedWindow;
 
     /// <summary>
-    /// Logs a debug message. Calls are completely eliminated in Release builds.
-    /// </summary>
-    [Conditional("DEBUG")]
-    private static void Log(string message) => Console.WriteLine(message);
-
-    /// <summary>
     /// Measures the dimensions of text using the font renderer of the specified window.
     /// </summary>
     /// <param name="text">The text to measure.</param>
@@ -1097,9 +1060,8 @@ public static class Platform
                 return null;
             return SvgImage.FromSvgStream(stream, size);
         }
-        catch (Exception ex)
+        catch
         {
-            Log($"[SVG] EXCEPTION: {ex.GetType().Name}: {ex.Message}");
             return null;
         }
     }
@@ -1232,12 +1194,10 @@ public static class Platform
                 // Clear ForceRender after a successful render pass.
                 ctx.ForceRender = false;
             }
-            catch (Exception ex)
+            catch
             {
                 // Clear ForceRender even on error to avoid infinite forced renders.
                 ctx.ForceRender = false;
-                Console.WriteLine($"[Platform] Render error for '{form.Text}': {ex.GetType().Name} - {ex.Message}");
-                Console.WriteLine($"[Platform] Stack trace: {ex.StackTrace}");
             }
         }
 

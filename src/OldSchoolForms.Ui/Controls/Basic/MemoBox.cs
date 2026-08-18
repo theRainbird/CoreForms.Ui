@@ -67,10 +67,8 @@ public class MemoBox : Control
         get => _engine.Text;
         set
         {
-            System.Console.WriteLine($"[MemoBox.Text] SET: oldLen={_engine.Text.Length}, newLen={value?.Length ?? 0}");
             if (_engine.Text == value) return;
             _engine.Text = value;
-            System.Console.WriteLine($"[MemoBox.Text] SET done: engine.Text len={_engine.Text.Length}");
             _engine.EnsureCursorVisible(Context);
             OnTextChanged();
             OnPropertyChanged(nameof(Text));
@@ -251,21 +249,6 @@ public class MemoBox : Control
         int lastVisible = (_engine.ScrollOffsetY + _textAreaHeight) / lineHeight + 1;
         lastVisible = Math.Min(lastVisible, visualLines);
 
-        string dbgLine0 = "-";
-        if (visualLines > 0)
-        {
-            var (t0, s0) = _engine.GetVisualLine(0, _textAreaWidth, Context);
-            dbgLine0 = $"len={t0.Length},start={s0},txt='{(t0.Length > 40 ? t0[..40] : t0)}'";
-        }
-        System.Console.WriteLine($"[MemoBox.RENDER] geom: textW={_textAreaWidth} textH={_textAreaHeight} lh={lineHeight} visualLines={visualLines} first={firstVisible} last={lastVisible} scroll=({_engine.ScrollOffset},{_engine.ScrollOffsetY}) font={font.Name}/{font.Size} clip={g.ClipBounds} | line0[{dbgLine0}]");
-
-        string firstLinePreview = string.Empty;
-        if (visualLines > 0)
-        {
-            var (fl, _) = _engine.GetVisualLine(0, _textAreaWidth, Context);
-            firstLinePreview = fl.Length > 50 ? fl[..50] + "..." : fl;
-        }
-        
         for (int vi = firstVisible; vi < lastVisible; vi++)
         {
             var (lineText, lineStart) = _engine.GetVisualLine(vi, _textAreaWidth, Context);
@@ -476,7 +459,6 @@ public class MemoBox : Control
     /// <inheritdoc />
     protected internal override void OnFocused()
     {
-        System.Console.WriteLine($"[MemoBox.OnFocused] Focused={Focused}, Text len={Text.Length}, text='{Text.Substring(0, Math.Min(80, Text.Length))}'");
         base.OnFocused();
     }
 

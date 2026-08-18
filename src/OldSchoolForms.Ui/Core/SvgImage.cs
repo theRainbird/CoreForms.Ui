@@ -56,9 +56,8 @@ public class SvgImage : IGraphicsImage
                 return null;
             return FromSvgStream(stream, size);
         }
-        catch (Exception ex)
+        catch
         {
-            Console.WriteLine($"[SvgImage] Failed to load resource '{resourceName}': {ex.Message}");
             return null;
         }
     }
@@ -93,9 +92,8 @@ public class SvgImage : IGraphicsImage
             image._svgData = svgData;
             return image;
         }
-        catch (Exception ex)
+        catch
         {
-            Console.WriteLine($"[SvgImage] Failed to load from stream: {ex.Message}");
             return null;
         }
     }
@@ -113,9 +111,8 @@ public class SvgImage : IGraphicsImage
             using var stream = new MemoryStream(System.Text.Encoding.UTF8.GetBytes(svgContent));
             return FromSvgStream(stream, size);
         }
-        catch (Exception ex)
+        catch
         {
-            Console.WriteLine($"[SvgImage] Failed to load from string: {ex.Message}");
             return null;
         }
     }
@@ -165,9 +162,8 @@ public class SvgImage : IGraphicsImage
             AddToCache((width, height), rasterized);
             return rasterized;
         }
-        catch (Exception ex)
+        catch
         {
-            Console.WriteLine($"[SvgImage] Failed to rasterize at {width}x{height}: {ex.Message}");
             return null;
         }
     }

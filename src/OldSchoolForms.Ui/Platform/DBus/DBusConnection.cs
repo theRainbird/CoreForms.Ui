@@ -37,7 +37,6 @@ internal class DBusConnection : IDisposable
         }
         dbus_error_free(ref error);
 
-        Console.WriteLine("[DBus] Connected to session bus via libdbus-1");
         return new DBusConnection(conn);
     }
 
@@ -107,12 +106,6 @@ internal class DBusConnection : IDisposable
         dbus_error_init(out error);
 
         int result = dbus_bus_add_match(_connection, rule, ref error);
-        if (result != 0)
-        {
-            string msg = PtrToString(error.message) ?? "unknown";
-            dbus_error_free(ref error);
-            Console.WriteLine($"[DBus] AddMatch warning: {msg}");
-        }
         dbus_error_free(ref error);
     }
 

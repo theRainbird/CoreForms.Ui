@@ -103,11 +103,9 @@ public class ContainerControl : Control
         if (args != null)
         {
             var point = new Point(args.X, args.Y);
-            Console.WriteLine($"[ContainerControl] OnMouseDown this={GetType().Name} point=({point.X},{point.Y})");
             var target = GetDeepestChildAtPoint(point, out var localPoint);
             if (target != null)
             {
-                Console.WriteLine($"[ContainerControl] Dispatch this={GetType().Name} target={target.GetType().Name} localPoint=({localPoint.X},{localPoint.Y})");
                 var localArgs = new MouseEventArgs(args.Button, args.Clicks, localPoint.X, localPoint.Y, args.Delta);
                 SetActiveControlRecursive(target);
                 target.OnMouseDown(localArgs);

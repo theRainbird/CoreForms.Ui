@@ -76,7 +76,6 @@ internal static class PortalPrint
             if (reply.BodyValues != null && reply.BodyValues.Length > 0)
                 responsePath = reply.BodyValues[0] as string;
 
-            Console.WriteLine($"[PortalPrint] Response path: {responsePath}");
             if (responsePath == null)
                 return DialogResult.Cancel;
 

@@ -27,21 +27,6 @@ public class WebView2PlatformHandler : IWebViewPlatformHandler
     private OldSchoolForms.Ui.Controls.Advanced.TabControl? _parentTabControl;
     private System.Threading.SynchronizationContext? _uiContext;
 
-    [DllImport("user32.dll", SetLastError = true)]
-    private static extern IntPtr FindWindowEx(IntPtr hwndParent, IntPtr hwndChildAfter, string? lpszClass, string? lpszWindow);
-
-    [DllImport("user32.dll", SetLastError = true)]
-    [return: MarshalAs(UnmanagedType.Bool)]
-    private static extern bool GetWindowRect(IntPtr hWnd, out RECT lpRect);
-
-    private struct RECT
-    {
-        public int Left;
-        public int Top;
-        public int Right;
-        public int Bottom;
-    }
-
     /// <inheritdoc/>
     public bool CanGoBack { get; private set; }
 
@@ -74,43 +59,30 @@ public class WebView2PlatformHandler : IWebViewPlatformHandler
     {
         _parentHwnd = nativeWindowHandle;
         _uiContext = System.Threading.SynchronizationContext.Current;
-        Console.WriteLine($"[WebView2] Initialize: hwnd=0x{nativeWindowHandle:X8} ctx={_uiContext?.GetType().Name ?? "null"}");
 
         try
         {
             if (_parentHwnd == IntPtr.Zero)
             {
                 _initError = "WebView2: No valid parent HWND";
-                System.Diagnostics.Debug.WriteLine($"[WebView2] {_initError}");
-                Console.WriteLine($"[WebView2] {_initError}");
                 return;
             }
 
-            Console.WriteLine("[WebView2] Starting InitializeAsync...");
             _ = InitializeAsync();
         }
         catch (Exception ex)
         {
             _initError = $"WebView2 init failed: {ex.Message}";
-            System.Diagnostics.Debug.WriteLine($"[WebView2] {_initError}");
-            Console.WriteLine($"[WebView2] {_initError}");
         }
     }
 
     private async Task InitializeAsync()
     {
-        var tid1 = Environment.CurrentManagedThreadId;
-        Console.WriteLine($"[WebView2] InitializeAsync start: thread={tid1}");
         try
         {
             var env = await CoreWebView2Environment.CreateAsync();
-            var tid2 = Environment.CurrentManagedThreadId;
-            Console.WriteLine($"[WebView2] Environment created: thread={tid2}");
 
-            Console.WriteLine("[WebView2] Creating controller...");
             _controller = await env.CreateCoreWebView2ControllerAsync(_parentHwnd);
-            var tid3 = Environment.CurrentManagedThreadId;
-            Console.WriteLine($"[WebView2] Controller created: thread={tid3}");
 
             _controller.CoreWebView2.NavigationStarting += OnNavigationStarting;
             _controller.CoreWebView2.NavigationCompleted += OnNavigationCompleted;
@@ -140,43 +112,25 @@ public class WebView2PlatformHandler : IWebViewPlatformHandler
                     initBounds = _webView.Bounds;
                 }
             }
-            Console.WriteLine($"[WebView2] Init bounds: ({initBounds.X},{initBounds.Y},{initBounds.Width},{initBounds.Height})");
             float zoom = _webView.EffectiveZoom;
             _controller.Bounds = new System.Drawing.Rectangle(
                 (int)(initBounds.X * zoom),
                 (int)(initBounds.Y * zoom),
                 Math.Max((int)(initBounds.Width * zoom), 1),
                 Math.Max((int)(initBounds.Height * zoom), 1));
-            var actualBounds = _controller.Bounds;
-            Console.WriteLine($"[WebView2] Controller Bounds after set: ({actualBounds.X},{actualBounds.Y},{actualBounds.Width},{actualBounds.Height})");
-            // Verify actual child HWND position
-            try
-            {
-                var child = FindWindowEx(_parentHwnd, IntPtr.Zero, null, null);
-                Console.WriteLine($"[WebView2] First child HWND: 0x{child:X8}");
-                if (child != IntPtr.Zero && GetWindowRect(child, out var childRect))
-                {
-                    Console.WriteLine($"[WebView2] Child HWND rect: ({childRect.Left},{childRect.Top},{childRect.Right},{childRect.Bottom}) " +
-                        $"size=({childRect.Right - childRect.Left},{childRect.Bottom - childRect.Top})");
-                }
-            }
-            catch (Exception ex) { Console.WriteLine($"[WebView2] Child HWND check error: {ex.Message}"); }
             _controller.IsVisible = _webView.Visible;
 
             SubscribeToTabChanges();
 
             _isInitialized = true;
-            Console.WriteLine("[WebView2] Setup complete");
 
             if (!string.IsNullOrEmpty(_pendingNavigationUrl))
             {
-                System.Diagnostics.Debug.WriteLine($"[WebView2] Processing pending navigate: {_pendingNavigationUrl}");
                 _controller.CoreWebView2.Navigate(_pendingNavigationUrl);
                 _pendingNavigationUrl = null;
             }
             else if (!string.IsNullOrEmpty(_pendingNavigationHtml))
             {
-                System.Diagnostics.Debug.WriteLine($"[WebView2] Processing pending NavigateToString");
                 _controller.CoreWebView2.NavigateToString(_pendingNavigationHtml);
                 _pendingNavigationHtml = null;
             }
@@ -184,33 +138,22 @@ public class WebView2PlatformHandler : IWebViewPlatformHandler
         catch (Exception ex)
         {
             _initError = $"WebView2 async init failed: {ex.Message}";
-            System.Diagnostics.Debug.WriteLine($"[WebView2] {_initError}");
-            Console.WriteLine($"[WebView2] ERROR: {_initError}");
         }
     }
 
     /// <inheritdoc/>
     public void Navigate(string url)
     {
-        Console.WriteLine($"[WebView2] Navigate: url='{url}' disposed={_disposed} init={_isInitialized} err={_initError}");
         if (_disposed) return;
 
         if (_isInitialized && _controller?.CoreWebView2 != null)
         {
-            System.Diagnostics.Debug.WriteLine($"[WebView2] Navigate immediate: {url}");
-            Console.WriteLine($"[WebView2] Navigate IMMEDIATE: {url}");
             _controller.CoreWebView2.Navigate(url);
         }
         else if (_initError == null)
         {
-            System.Diagnostics.Debug.WriteLine($"[WebView2] Navigate pending (init={_isInitialized}): {url}");
-            Console.WriteLine($"[WebView2] Navigate PENDING: {url}");
             _pendingNavigationUrl = url;
             _pendingNavigationHtml = null;
-        }
-        else
-        {
-            Console.WriteLine($"[WebView2] Navigate SKIPPED: _initError='{_initError}'");
         }
     }
 
@@ -275,8 +218,6 @@ public class WebView2PlatformHandler : IWebViewPlatformHandler
     /// <inheritdoc/>
     public void UpdateBounds(Rectangle bounds)
     {
-        Console.WriteLine($"[WebView2] UpdateBounds: incoming=({bounds.X},{bounds.Y},{bounds.Width},{bounds.Height})");
-
         // Bounds from WebView.OnBoundsChanged are relative to the WebView's parent
         // (e.g. TabPage). WebView2's child HWND is positioned relative to the form,
         // so convert to form-absolute coordinates.
@@ -290,7 +231,6 @@ public class WebView2PlatformHandler : IWebViewPlatformHandler
                 origin.Y - formOrigin.Y,
                 bounds.Width,
                 bounds.Height);
-            Console.WriteLine($"[WebView2] UpdateBounds: converted to absolute=({bounds.X},{bounds.Y},{bounds.Width},{bounds.Height})");
         }
 
         _pendingBounds = bounds;
@@ -303,7 +243,6 @@ public class WebView2PlatformHandler : IWebViewPlatformHandler
                 (int)(bounds.Y * zoom),
                 Math.Max((int)(bounds.Width * zoom), 1),
                 Math.Max((int)(bounds.Height * zoom), 1));
-            Console.WriteLine($"[WebView2] UpdateBounds: set on controller (zoom={zoom})");
         }
     }
 
@@ -457,20 +396,17 @@ public class WebView2PlatformHandler : IWebViewPlatformHandler
     /// <inheritdoc/>
     public void Initialize(uint parentWindowId, IntPtr nativeWindowHandle)
     {
-        System.Diagnostics.Debug.WriteLine("[WebView2] Stub initialized - requires WebView2 package on Windows");
         _isInitialized = true;
     }
 
     /// <inheritdoc/>
     public void Navigate(string url)
     {
-        System.Diagnostics.Debug.WriteLine($"[WebView2] Navigate to: {url}");
     }
 
     /// <inheritdoc/>
     public void NavigateToString(string html)
     {
-        System.Diagnostics.Debug.WriteLine("[WebView2] NavigateToString");
     }
 
     /// <inheritdoc/>

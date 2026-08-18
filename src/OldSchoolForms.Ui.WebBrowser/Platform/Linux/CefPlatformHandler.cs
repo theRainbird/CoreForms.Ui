@@ -138,8 +138,7 @@ internal sealed class CefClientImpl : CefClient
 
 internal sealed class CefBrowserProcessHandlerImpl : CefBrowserProcessHandler
 {
-    protected override void OnContextInitialized() =>
-        Console.WriteLine("[CefPlatformHandler] CEF context initialized");
+    protected override void OnContextInitialized() { }
 }
 
 internal sealed class CefAppImpl : CefApp
@@ -237,7 +236,6 @@ public class CefPlatformHandler : IWebViewPlatformHandler
 
             CefRuntime.Initialize(mainArgs, settings, _cefApp, IntPtr.Zero);
             _cefInitialized = true;
-            Console.WriteLine("[CefPlatformHandler] CEF initialized");
         }
     }
 
@@ -264,8 +262,6 @@ public class CefPlatformHandler : IWebViewPlatformHandler
 
         _currentUrl = "about:blank";
         CefBrowserHost.CreateBrowser(windowInfo, client, settings, _currentUrl, null);
-
-        Console.WriteLine("[CefPlatformHandler] Browser created (OSR)");
     }
 
     public void Navigate(string url)
@@ -422,7 +418,6 @@ public class CefPlatformHandler : IWebViewPlatformHandler
     {
         _browser = browser;
         _browserHost = browser.GetHost();
-        Console.WriteLine("[CefPlatformHandler] Browser ready");
 
         // Navigate to pending URL if set before browser was ready
         if (_pendingUrl != null)
