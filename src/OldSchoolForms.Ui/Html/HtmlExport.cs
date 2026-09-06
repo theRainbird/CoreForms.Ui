@@ -67,18 +67,19 @@ public static class HtmlExport
             }
 
             string inner = RenderContent(block.Content);
+            string alignStyle = block.Alignment != BlockAlignment.Left ? $" style=\"text-align:{block.Alignment.ToString().ToLowerInvariant()}\"" : "";
 
             if (tag != null)
             {
                 if (listTag != null)
                 {
                     sb.AppendLine();
-                    sb.Append($"  <{tag}>{inner}</{tag}>");
+                    sb.Append($"  <{tag}{alignStyle}>{inner}</{tag}>");
                 }
                 else
                 {
                     if (sb.Length > 6) sb.AppendLine();
-                    sb.Append($"<{tag}>{inner}</{tag}>");
+                    sb.Append($"<{tag}{alignStyle}>{inner}</{tag}>");
                 }
             }
         }
@@ -105,7 +106,8 @@ public static class HtmlExport
             {
                 string t = HtmlEncode(run.Text);
                 bool hasStyle = run.FontFamily != "Arial" || Math.Abs(run.FontSize - 12) > 0.01f
-                    || !run.ForeColor.Equals(Color.Empty);
+                    || !run.ForeColor.Equals(Color.Empty)
+                    || !run.BackColor.Equals(Color.Empty);
                 string styleAttr = hasStyle ? BuildStyleAttr(run) : "";
 
                 if (run.Style.HasFlag(FontStyle.Bold)) t = $"<b>{t}</b>";
@@ -147,6 +149,8 @@ public static class HtmlExport
             parts.Add($"font-size:{run.FontSize}pt");
         if (!run.ForeColor.Equals(Color.Empty))
             parts.Add($"color:#{run.ForeColor.R:X2}{run.ForeColor.G:X2}{run.ForeColor.B:X2}");
+        if (!run.BackColor.Equals(Color.Empty))
+            parts.Add($"background-color:#{run.BackColor.R:X2}{run.BackColor.G:X2}{run.BackColor.B:X2}");
         return string.Join(";", parts);
     }
 

@@ -135,6 +135,12 @@ public class DesignSurface : ContainerControl
             ContentModified?.Invoke(this, e);
         };
 
+        _dragService.DragReparented += (_, _) =>
+        {
+            ContentModified?.Invoke(this, EventArgs.Empty);
+            Invalidate();
+        };
+
         BackColor = Color.White;
 
         _dragService.DragStarted += (_, _) => Invalidate();
@@ -142,19 +148,45 @@ public class DesignSurface : ContainerControl
 
     /// <summary>
     /// Adds a control to the design surface at the specified location.
-    /// The control is wrapped in a <see cref="DesignItem"/> and added as a child.
+    /// The control is wrapped in a <see cref="DesignItem"/> and added as a child of the surface.
     /// </summary>
     /// <param name="control">The control to add.</param>
     /// <param name="location">The location on the design surface.</param>
     /// <returns>The newly created DesignItem.</returns>
     public DesignItem AddControl(Control control, Point location)
     {
+        return RegisterItem(control, parent: null, location);
+    }
+
+    /// <summary>
+    /// Adds a control as a child of the specified container control.
+    /// The control is wrapped in a <see cref="DesignItem"/> and tracked on the surface regardless
+    /// of which container it belongs to, so selection, move and resize work uniformly.
+    /// Works with any <see cref="ContainerControl"/> derived type, including future ones.
+    /// </summary>
+    /// <param name="control">The control to add.</param>
+    /// <param name="parent">The container control to add the control to.</param>
+    /// <param name="localPoint">The location in the container's local coordinate space.</param>
+    /// <returns>The newly created DesignItem.</returns>
+    /// <exception cref="ArgumentNullException">Thrown when control or parent is null.</exception>
+    public DesignItem AddControl(Control control, ContainerControl parent, Point localPoint)
+    {
+        if (control == null) throw new ArgumentNullException(nameof(control));
+        if (parent == null) throw new ArgumentNullException(nameof(parent));
+        return RegisterItem(control, parent, localPoint);
+    }
+
+    private DesignItem RegisterItem(Control control, ContainerControl? parent, Point localPoint)
+    {
         if (control == null) throw new ArgumentNullException(nameof(control));
 
-        control.Location = SnapToGrid ? SnapPoint(location) : location;
-        Controls.Add(control);
+        // Surface-level controls are parented to the surface so they render through
+        // the normal control tree; controls given an explicit container are parented there.
+        control.Parent = parent ?? this;
+        control.Location = SnapToGrid ? SnapPoint(localPoint) : localPoint;
 
         var item = new DesignItem(control);
+        item.ParentItem = parent != null ? FindItem(parent) : null;
         _designItems.Add(item);
 
         _selectionService.Select(item);
@@ -187,7 +219,7 @@ public class DesignSurface : ContainerControl
 
         _undoService.PushSnapshot(item.Control);
         _selectionService.Deselect(item);
-        Controls.Remove(item.Control);
+        item.Control.Parent?.Controls.Remove(item.Control);
         _designItems.Remove(item);
         ContentModified?.Invoke(this, EventArgs.Empty);
         Invalidate();
@@ -206,7 +238,7 @@ public class DesignSurface : ContainerControl
 
         foreach (var item in items)
         {
-            Controls.Remove(item.Control);
+            item.Control.Parent?.Controls.Remove(item.Control);
             _designItems.Remove(item);
         }
 
@@ -279,6 +311,87 @@ public class DesignSurface : ContainerControl
     }
 
     /// <summary>
+    /// Recursively hit-tests the design surface and returns the topmost selectable
+    /// <see cref="DesignItem"/> at the given point (in surface coordinates).
+    /// Descends into nested containers so that controls placed inside a container
+    /// (Panel, GroupBox, TabControl, ...) are selectable by clicking them.
+    /// </summary>
+    /// <param name="point">The point in this surface's coordinates.</param>
+    /// <returns>The topmost DesignItem at the point, or null if none.</returns>
+    public DesignItem? FindItemAt(Point point)
+    {
+        for (int i = _designItems.Count - 1; i >= 0; i--)
+        {
+            var item = _designItems[i];
+            var ctrl = item.Control;
+            if (!ctrl.Visible) continue;
+
+            if (ctrl is ContainerControl container)
+            {
+                // `point` is in surface-local coordinates; convert it to form coordinates
+                // before PointToClient so the offset of this surface (and any ancestors)
+                // is accounted for. Otherwise nested containers would be hit-tested against
+                // a coordinate space shifted by the surface's own position.
+                var formPoint = this.PointToScreen(point);
+                var local = container.PointToClient(formPoint);
+                if (!new Rectangle(0, 0, container.Width, container.Height).Contains(local)) continue;
+
+                var deepest = container.GetDeepestChildAtPoint(local, out _);
+                if (deepest != null)
+                {
+                    var nested = FindItem(deepest);
+                    if (nested != null) return nested;
+                }
+
+                // Empty area of the container: the container itself is selectable.
+                return item;
+            }
+
+            if (ctrl.HitTest(point))
+                return item;
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    /// Finds the innermost container control that contains the given point (in surface
+    /// coordinates). Recurses through nested containers using
+    /// <see cref="ContainerControl.GetDeepestChildAtPoint"/> so that a point over a
+    /// container's content is attributed to the deepest container that can hold it.
+    /// </summary>
+    /// <param name="point">The point in this surface's coordinates.</param>
+    /// <param name="exclude">A control to skip (e.g. the control currently being dragged).</param>
+    /// <returns>The innermost containing container, or null if none contains the point.</returns>
+    public ContainerControl? FindDropContainerAt(Point point, Control? exclude = null)
+    {
+        for (int i = _designItems.Count - 1; i >= 0; i--)
+        {
+            var item = _designItems[i];
+            var ctrl = item.Control;
+            if (ctrl == exclude || !ctrl.Visible) continue;
+            if (ctrl is not ContainerControl container) continue;
+
+            // `point` is in surface-local coordinates; convert it to form coordinates
+            // before PointToClient so the offset of this surface (and any ancestors) is
+            // accounted for. Otherwise a container under the pointer would be missed
+            // whenever the surface carries a non-zero position.
+            var formPoint = this.PointToScreen(point);
+            var local = container.PointToClient(formPoint);
+            if (!new Rectangle(0, 0, container.Width, container.Height).Contains(local)) continue;
+
+            var deepest = container.GetDeepestChildAtPoint(local, out _);
+            if (deepest == null)
+                return container;                 // empty area of this container
+            if (deepest is ContainerControl deepestContainer)
+                return deepestContainer;          // deepest child is itself a container
+            return deepest.Parent as ContainerControl; // sibling of a leaf control
+        }
+
+        return null;
+    }
+
+    /// <summary>
     /// Creates a new control at the specified location by type name.
     /// </summary>
     /// <param name="typeName">The display name or type name of the control.</param>
@@ -344,15 +457,13 @@ public class DesignSurface : ContainerControl
     {
         if (_pendingDropItem == null) return;
 
-        // Check if dropping on a container
-        var hitItem = HitTestChild(dropPoint);
-        if (hitItem != null && hitItem.Control is ContainerControl container && container != this)
+        // Drop into the innermost container at the point, if any.
+        var container = FindDropContainerAt(dropPoint);
+        if (container != null)
         {
             var control = _toolboxService.CreateControl(_pendingDropItem);
             var localPoint = container.PointToClient(PointToScreen(dropPoint));
-            control.Location = _snapToGrid ? SnapPoint(localPoint) : localPoint;
-            container.Controls.Add(control);
-            AddControl(control, control.Location);
+            AddControl(control, container, localPoint);
         }
         else
         {
@@ -611,7 +722,12 @@ public class DesignSurface : ContainerControl
         {
             if (!item.Selected) continue;
 
-            var bounds = item.Control.Bounds;
+            // Bounds are expressed in the control's parent coordinate space, but the
+            // chrome is drawn in this surface's space, so convert the top-left to
+            // surface coordinates. This keeps the selection box and handles correct
+            // for controls nested inside a container (e.g. a button inside a panel).
+            var origin = this.PointToClient(item.Control.PointToScreen(Point.Empty));
+            var bounds = new Rectangle(origin.X, origin.Y, item.Control.Bounds.Width, item.Control.Bounds.Height);
             bool isPrimary = item == _selectionService.PrimarySelection;
 
             if (isPrimary)

@@ -86,6 +86,7 @@ public static class HtmlImport
         };
 
         var block = new RichTextBlock { Type = blockType };
+        block.Alignment = ParseAlignment(node);
         var style = new TextStyleInfo();
         ExtractStyleFromAttributes(node, style);
         ExtractInlineContent(node, block.Content, style);
@@ -188,6 +189,9 @@ public static class HtmlImport
                     case "color":
                         style.ForeColor = ParseColor(val);
                         break;
+                    case "background-color":
+                        style.BackColor = ParseColor(val);
+                        break;
                 }
             }
         }
@@ -211,6 +215,32 @@ public static class HtmlImport
         return Color.Empty;
     }
 
+    private static BlockAlignment ParseAlignment(HtmlNode node)
+    {
+        if (node.Attributes["style"] != null)
+        {
+            var styles = node.Attributes["style"].Value.Split(';', StringSplitOptions.RemoveEmptyEntries);
+            foreach (var s in styles)
+            {
+                var parts = s.Split(':', 2);
+                if (parts.Length != 2) continue;
+                var prop = parts[0].Trim().ToLowerInvariant();
+                var val = parts[1].Trim().ToLowerInvariant();
+                if (prop == "text-align")
+                {
+                    return val switch
+                    {
+                        "center" => BlockAlignment.Center,
+                        "right" => BlockAlignment.Right,
+                        "justify" => BlockAlignment.Justify,
+                        _ => BlockAlignment.Left
+                    };
+                }
+            }
+        }
+        return BlockAlignment.Left;
+    }
+
     private static void ExtractInlineContent(HtmlNode node, List<InlineContent> content, TextStyleInfo style)
     {
         foreach (var child in node.ChildNodes)
@@ -227,12 +257,14 @@ public static class HtmlImport
                         FontFamily = style.FontFamily,
                         FontSize = style.FontSize,
                         ForeColor = style.ForeColor,
+                        BackColor = style.BackColor,
                     };
                     if (content.Count > 0 && content[^1] is TextRun last
                         && last.Style == run.Style
                         && last.FontFamily == run.FontFamily
                         && last.FontSize == run.FontSize
-                        && last.ForeColor == run.ForeColor)
+                        && last.ForeColor == run.ForeColor
+                        && last.BackColor == run.BackColor)
                     {
                         last.Text += t;
                     }
@@ -305,6 +337,7 @@ public static class HtmlImport
         public string FontFamily = "Arial";
         public float FontSize = 12;
         public Color ForeColor = Color.Empty;
+        public Color BackColor = Color.Empty;
 
         public FontStyle ToFontStyle()
         {
@@ -325,6 +358,7 @@ public static class HtmlImport
             FontFamily = FontFamily,
             FontSize = FontSize,
             ForeColor = ForeColor,
+            BackColor = BackColor,
         };
     }
 }

@@ -2,14 +2,12 @@ using OldSchoolForms.Ui.Controls.Advanced;
 using OldSchoolForms.Ui.Controls.Basic;
 using OldSchoolForms.Ui.Controls.Containers;
 using OldSchoolForms.Ui.Controls;
-using OldSchoolForms.Ui.Resources;
-using Graphics = OldSchoolForms.Ui.Rendering.Graphics;
 using OldSchoolForms.Ui.Core;
 
 namespace OldSchoolForms.Ui.Demo.UserControls;
 
 /// <summary>
-/// Demonstrates the HtmlBox rich text editor with a formatting toolbar, table operations, and HTML source view.
+/// Demonstrates the HtmlBox rich text editor with an internal formatting toolbar and HTML source view.
 /// </summary>
 public class HtmlEditorPage : UserControl
 {
@@ -17,7 +15,6 @@ public class HtmlEditorPage : UserControl
     private bool _updating = false;
     private HtmlBox? _htmlBox;
     private MemoBox? _sourceBox;
-    private ToolStripButton? _boldButton;
 
     /// <summary>
     /// Occurs when the status text should be updated.
@@ -29,32 +26,12 @@ public class HtmlEditorPage : UserControl
     /// </summary>
     public HtmlEditorPage()
     {
-        var toolStrip = new ToolStrip { Dock = DockStyle.Top, GripStyle = ToolStripGripStyle.Hidden };
-
-        _boldButton = new ToolStripButton(SR.GetString("ToolBold"), Icons.TextEditStyle24!) { DisplayStyle = ToolStripItemDisplayStyle.ImageAndText };
-        var italicButton = new ToolStripButton(SR.GetString("ToolItalic")) { DisplayStyle = ToolStripItemDisplayStyle.Text };
-        var underlineButton = new ToolStripButton(SR.GetString("ToolUnderline")) { DisplayStyle = ToolStripItemDisplayStyle.Text };
-        var bulletListButton = new ToolStripButton("", Icons.TextBulletListSquare24!) { DisplayStyle = ToolStripItemDisplayStyle.Image };
-        var numberListButton = new ToolStripButton("", Icons.NumberSymbolSquare24!) { DisplayStyle = ToolStripItemDisplayStyle.Image };
-        var linkButton = new ToolStripButton("", Icons.Link24!) { DisplayStyle = ToolStripItemDisplayStyle.Image };
-        var imageButton = new ToolStripButton("", Icons.Image24!) { DisplayStyle = ToolStripItemDisplayStyle.Image };
-
-        var insertTableButton = new ToolStripButton("Insert Table", Icons.Table24!)
-            { DisplayStyle = ToolStripItemDisplayStyle.ImageAndText };
-        var addRowButton = new ToolStripButton("Add Row", Icons.AddCircle24!)
-            { DisplayStyle = ToolStripItemDisplayStyle.ImageAndText };
-        var removeRowButton = new ToolStripButton("Remove Row", Icons.Minus!)
-            { DisplayStyle = ToolStripItemDisplayStyle.ImageAndText };
-        var addColButton = new ToolStripButton("Add Column", Icons.AddCircle24!)
-            { DisplayStyle = ToolStripItemDisplayStyle.ImageAndText };
-        var removeColButton = new ToolStripButton("Remove Column", Icons.Minus!)
-            { DisplayStyle = ToolStripItemDisplayStyle.ImageAndText };
-
         _htmlBox = new HtmlBox
         {
             Dock = DockStyle.Fill,
             ReadOnly = false,
             LinkBehavior = LinkBehavior.OpenInBrowser,
+            ShowToolbar = true,
             Html = @"<h1>HTML Editor</h1>
 <p>Welcome to the <b>OldSchoolForms</b> HTML editor!</p>
 <p>This is a <a href=""https://example.com"">link</a> example.</p>
@@ -69,7 +46,7 @@ public class HtmlEditorPage : UserControl
 <li>Number three</li>
 </ol>
 <h2>Table Demo</h2>
-<p>Place the cursor here and click <b>Insert Table</b> to add a table, or use <b>Add Row</b>, <b>Remove Row</b>, <b>Add Column</b>, <b>Remove Column</b> to modify it.</p>"
+<p>Use the internal toolbar to format text, change alignment, and apply background color.</p>"
         };
         _lastHtml = _htmlBox.Html;
 
@@ -90,58 +67,9 @@ public class HtmlEditorPage : UserControl
 
         HtmlBox htmlBox = _htmlBox;
         MemoBox sourceBox = _sourceBox;
-        ToolStripButton boldButton = _boldButton;
-        ToolStripButton italicBtn = italicButton;
-        ToolStripButton underlineBtn = underlineButton;
-
-        void UpdateFormatButtons()
-        {
-            boldButton.Checked = htmlBox.IsBold;
-            italicBtn.Checked = htmlBox.IsItalic;
-            underlineBtn.Checked = htmlBox.IsUnderline;
-        }
-
-        boldButton.Click += (s, e) => { htmlBox.ApplyFormat("bold"); UpdateFormatButtons(); };
-        italicButton.Click += (s, e) => { htmlBox.ApplyFormat("italic"); UpdateFormatButtons(); };
-        underlineButton.Click += (s, e) => { htmlBox.ApplyFormat("underline"); UpdateFormatButtons(); };
-        bulletListButton.Click += (s, e) => { htmlBox.ApplyFormat("insertUnorderedList"); };
-        numberListButton.Click += (s, e) => { htmlBox.ApplyFormat("insertOrderedList"); };
-        linkButton.Click += (s, e) => { htmlBox.ApplyFormat("createLink"); };
-        imageButton.Click += (s, e) => { htmlBox.ApplyFormat("insertImage"); };
-
-        insertTableButton.Click += (s, e) =>
-        {
-            htmlBox.InsertTable(3, 3);
-            OnStatusTextChanged("Inserted 3x3 table");
-        };
-
-        addRowButton.Click += (s, e) =>
-        {
-            htmlBox.AddTableRow();
-            OnStatusTextChanged("Added row");
-        };
-
-        removeRowButton.Click += (s, e) =>
-        {
-            htmlBox.RemoveTableRow();
-            OnStatusTextChanged("Removed row");
-        };
-
-        addColButton.Click += (s, e) =>
-        {
-            htmlBox.AddTableColumn();
-            OnStatusTextChanged("Added column");
-        };
-
-        removeColButton.Click += (s, e) =>
-        {
-            htmlBox.RemoveTableColumn();
-            OnStatusTextChanged("Removed column");
-        };
 
         htmlBox.ContentChanged += (s, e) =>
         {
-            UpdateFormatButtons();
             OnStatusTextChanged(htmlBox.CursorDebug);
             string currentHtml = htmlBox.Html;
             if (currentHtml != _lastHtml && !_updating)
@@ -169,29 +97,10 @@ public class HtmlEditorPage : UserControl
             }
         };
 
-        toolStrip.Items.Add(boldButton);
-        toolStrip.Items.Add(italicButton);
-        toolStrip.Items.Add(underlineButton);
-        toolStrip.Items.Add(new ToolStripSeparator());
-        toolStrip.Items.Add(bulletListButton);
-        toolStrip.Items.Add(numberListButton);
-        toolStrip.Items.Add(new ToolStripSeparator());
-        toolStrip.Items.Add(linkButton);
-        toolStrip.Items.Add(imageButton);
-        toolStrip.Items.Add(new ToolStripSeparator());
-        toolStrip.Items.Add(insertTableButton);
-        toolStrip.Items.Add(new ToolStripSeparator());
-        toolStrip.Items.Add(addRowButton);
-        toolStrip.Items.Add(removeRowButton);
-        toolStrip.Items.Add(new ToolStripSeparator());
-        toolStrip.Items.Add(addColButton);
-        toolStrip.Items.Add(removeColButton);
-
         splitPanel.Panel1.Controls.Add(sourceBox);
         splitPanel.Panel2.Controls.Add(htmlBox);
 
         Controls.Add(splitPanel);
-        Controls.Add(toolStrip);
     }
 
     private void OnStatusTextChanged(string text)

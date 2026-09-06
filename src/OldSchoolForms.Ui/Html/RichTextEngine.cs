@@ -702,6 +702,32 @@ public class RichTextEngine
         ApplyPropertyToSelectionOrCursor(run => run.ForeColor = color);
     }
 
+    public void ApplyBackColor(Color color)
+    {
+        ApplyPropertyToSelectionOrCursor(run => run.BackColor = color);
+    }
+
+    public void ApplyAlignment(BlockAlignment alignment)
+    {
+        if (!IsValidPosition()) return;
+        var block = Document.Blocks[CursorBlock];
+        block.Alignment = alignment;
+    }
+
+    public void IndentBlock()
+    {
+        if (!IsValidPosition()) return;
+        var block = Document.Blocks[CursorBlock];
+        block.IndentLevel = Math.Min(block.IndentLevel + 1, 5);
+    }
+
+    public void OutdentBlock()
+    {
+        if (!IsValidPosition()) return;
+        var block = Document.Blocks[CursorBlock];
+        block.IndentLevel = Math.Max(block.IndentLevel - 1, 0);
+    }
+
     private void ApplyPropertyToSelectionOrCursor(Action<TextRun> action)
     {
         if (HasSelection)

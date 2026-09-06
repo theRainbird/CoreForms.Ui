@@ -100,4 +100,10 @@
   <data name="ColorPickerDialog_LabelA">
     <value>A</value>
   </data>
+  <data name="HtmlBox_Toolbar_FontFamily">
+    <value>Font Family</value>
+  </data>
+  <data name="HtmlBox_Toolbar_FontSize">
+    <value>Font Size</value>
+  </data>
 </root>

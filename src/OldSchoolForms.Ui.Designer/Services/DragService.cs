@@ -19,6 +19,9 @@ public class DragService
     private ResizeHandle _activeHandle = ResizeHandle.None;
     private Point _dragStart;
     private readonly List<DesignItem> _dragItems = new();
+    private readonly Dictionary<DesignItem, Point> _surfaceOrigins = new();
+
+    private ContainerControl? _dropTarget;
 
     private SnapResult _currentSnap = new();
 
@@ -33,6 +36,11 @@ public class DragService
     /// Raised when a drag operation completes (mouse up).
     /// </summary>
     public event EventHandler? DragCompleted;
+
+    /// <summary>
+    /// Raised when the dragged controls are reparented onto a different container (or back to the surface).
+    /// </summary>
+    public event EventHandler? DragReparented;
 
     /// <summary>
     /// Gets whether a drag operation is currently in progress.
@@ -77,11 +85,22 @@ public class DragService
         _currentSnap = new SnapResult();
 
         _dragItems.Clear();
+        _surfaceOrigins.Clear();
         foreach (var item in _selectionService.SelectedItems)
         {
             item.SnapshotBounds();
+            _surfaceOrigins[item] = item.Control.PointToScreen(Point.Empty);
             _dragItems.Add(item);
         }
+
+        // Start the drag inside the primary selection's current container, so that
+        // moving within it produces no reparent while dragging across reparents.
+        // The surface itself is normalised to null (its items are tracked on the flat
+        // design list, not inside a container).
+        var primaryParent = _selectionService.PrimarySelection?.Control?.Parent as ContainerControl;
+        _dropTarget = primaryParent != null && !ReferenceEquals(primaryParent, _surface)
+            ? primaryParent
+            : null;
 
         OnDragStarted();
     }
@@ -117,21 +136,23 @@ public class DragService
     {
         if (!_isDragging) return;
 
-        int dx = screenPoint.X - _dragStart.X;
-        int dy = screenPoint.Y - _dragStart.Y;
-
         if (_activeHandle == ResizeHandle.None)
         {
-            foreach (var item in _dragItems)
+            // Detect live reparenting onto a different container (or back to the surface).
+            var target = _surface.FindDropContainerAt(screenPoint, exclude: _selectionService.PrimarySelection?.Control);
+            if (!ReferenceEquals(target, _dropTarget))
             {
-                var ctrl = item.Control;
-                ctrl.Location = new Point(
-                    item.OriginalBounds.X + dx,
-                    item.OriginalBounds.Y + dy);
+                ReparentDragItems(target);
+                _dropTarget = target;
+                OnReparented();
             }
 
-            // Apply smart snap
-            if (_dragItems.Count == 1 && _surface.SnapToGrid)
+            // Move in surface coordinates so reparenting is seamless: PointToClient
+            // converts the desired surface position into whatever the current parent is.
+            MoveDragItems(screenPoint);
+
+            // Snap only applies to a single control moving on the surface itself.
+            if (_dragItems.Count == 1 && _dropTarget == null && _surface.SnapToGrid)
             {
                 ApplyMoveSnap();
             }
@@ -141,6 +162,9 @@ public class DragService
             var target = _dragItems[0];
             var ctrl = target.Control;
             var original = target.OriginalBounds;
+
+            int dx = screenPoint.X - _dragStart.X;
+            int dy = screenPoint.Y - _dragStart.Y;
 
             int newX = original.X, newY = original.Y;
             int newW = original.Width, newH = original.Height;
@@ -204,6 +228,54 @@ public class DragService
                 movingBounds.X + _currentSnap.SnapX,
                 movingBounds.Y + _currentSnap.SnapY);
         }
+    }
+
+    private void MoveDragItems(Point screenPoint)
+    {
+        int dx = screenPoint.X - _dragStart.X;
+        int dy = screenPoint.Y - _dragStart.Y;
+
+        foreach (var item in _dragItems)
+        {
+            var ctrl = item.Control;
+            var origin = _surfaceOrigins[item];
+            var desired = new Point(origin.X + dx, origin.Y + dy);
+
+            // Place the control so its top-left follows the mouse in surface coordinates.
+            // Subtract the current parent's screen origin so the location is expressed in
+            // the (possibly reparented) parent's coordinate space.
+            var parent = ctrl.Parent;
+            var parentOrigin = parent != null ? parent.PointToScreen(Point.Empty) : Point.Empty;
+            ctrl.Location = new Point(desired.X - parentOrigin.X, desired.Y - parentOrigin.Y);
+        }
+    }
+
+    private void ReparentDragItems(ContainerControl? target)
+    {
+        // A null target means the controls are being moved back onto the design
+        // surface itself, which is where surface-level controls are parented.
+        var actualParent = target ?? _surface;
+        foreach (var item in _dragItems)
+        {
+            var ctrl = item.Control;
+            if (ReferenceEquals(actualParent, ctrl) || IsAncestorOf(ctrl, actualParent))
+                continue;
+            ctrl.Parent = actualParent;
+            item.ParentItem = !ReferenceEquals(actualParent, _surface)
+                ? _surface.FindItem(actualParent)
+                : null;
+        }
+    }
+
+    private static bool IsAncestorOf(Control ancestor, Control descendant)
+    {
+        var current = descendant.Parent;
+        while (current != null)
+        {
+            if (ReferenceEquals(current, ancestor)) return true;
+            current = current.Parent;
+        }
+        return false;
     }
 
     /// <summary>
@@ -275,4 +347,5 @@ public class DragService
 
     private void OnDragStarted() => DragStarted?.Invoke(this, EventArgs.Empty);
     private void OnDragCompleted() => DragCompleted?.Invoke(this, EventArgs.Empty);
+    private void OnReparented() => DragReparented?.Invoke(this, EventArgs.Empty);
 }

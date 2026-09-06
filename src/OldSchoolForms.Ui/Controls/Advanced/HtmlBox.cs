@@ -38,6 +38,14 @@ public class HtmlBox : Control
     private bool _ctrlPressed;
     private bool _lastWasLink;
 
+    // Toolbar
+    private bool _showToolbar;
+    private bool _toolbarColorPickerOpen;
+    private int _toolbarColorPickerIndex = -1;
+    private bool _toolbarFontPopupOpen;
+    private bool _toolbarSizePopupOpen;
+    private int _toolbarHoverButton = -1;
+
     /// <summary>
     /// Initializes a new instance of the <see cref="HtmlBox"/> class.
     /// </summary>
@@ -90,6 +98,23 @@ public class HtmlBox : Control
             if (_readOnly != value)
             {
                 _readOnly = value;
+                Invalidate();
+            }
+        }
+    }
+
+    /// <summary>
+    /// Gets or sets whether the formatting toolbar is shown.
+    /// </summary>
+    public bool ShowToolbar
+    {
+        get => _showToolbar;
+        set
+        {
+            if (_showToolbar != value)
+            {
+                _showToolbar = value;
+                InvalidateLayout();
                 Invalidate();
             }
         }
@@ -158,6 +183,8 @@ public class HtmlBox : Control
             case "insertOrderedList": _engine.ToggleOrderedList(); break;
             case "createLink": _engine.CreateLink(); break;
             case "insertImage": _engine.InsertImage(); break;
+            case "indent": _engine.IndentBlock(); break;
+            case "outdent": _engine.OutdentBlock(); break;
         }
 
         InvalidateLayout();
@@ -183,6 +210,15 @@ public class HtmlBox : Control
                 var color = ParseColor(value);
                 if (!color.Equals(Color.Empty))
                     _engine.ApplyForeColor(color);
+                break;
+            case "backColor":
+                var bcolor = ParseColor(value);
+                if (!bcolor.Equals(Color.Empty))
+                    _engine.ApplyBackColor(bcolor);
+                break;
+            case "align":
+                if (Enum.TryParse<BlockAlignment>(value, true, out var align))
+                    _engine.ApplyAlignment(align);
                 break;
         }
 
@@ -271,7 +307,14 @@ public class HtmlBox : Control
             g.DrawRectangle(ThemeManager.CurrentTheme.TextBoxBorder, 0, 0, Width, Height, 1);
 
         float zoom = g.Zoom;
+        int toolbarHeight = ShowToolbar ? (int)(28 * zoom) : 0;
+        if (toolbarHeight > 0)
+        {
+            RenderToolbar(g, zoom, toolbarHeight);
+        }
         EnsureLayout(Width, zoom);
+
+        int contentOffsetY = toolbarHeight;
 
         if (_cachedLines == null) return;
 
@@ -305,20 +348,32 @@ public class HtmlBox : Control
                 }
             }
 
-            float leftMargin = GetLeftMargin(line.Block!.Type);
+            float leftMargin = GetLeftMargin(line.Block!.Type) + line.Block.IndentLevel * 16f;
             float fontSize = GetBlockFontSize(line.Block.Type);
 
-            RenderListMarker(g, line, li, bi, fontSize, padding);
+            // Compute alignment offset for the line
+            float lineWidth = 0;
+            foreach (var r in line.Runs)
+                lineWidth = Math.Max(lineWidth, r.X + r.Width);
+            float available = Width - padding * 2 - leftMargin;
+            float alignOffset = 0;
+            if (block.Alignment == BlockAlignment.Center)
+                alignOffset = Math.Max(0, (available - lineWidth) / 2f);
+            else if (block.Alignment == BlockAlignment.Right)
+                alignOffset = Math.Max(0, available - lineWidth);
+            // Justify not implemented
+
+            RenderListMarker(g, line, li, bi, fontSize, padding, contentOffsetY);
 
             foreach (var run in line.Runs)
             {
-                RenderRun(g, run, line, padding, leftMargin, zoom, hasSel, selStart, selEnd, cursorFlat);
+                RenderRun(g, run, line, padding, leftMargin + alignOffset, zoom, hasSel, selStart, selEnd, cursorFlat, contentOffsetY);
             }
 
             if (!_cursorScreenValid && line.BlockIndex == _engine.CursorBlock && line.Runs.Count == 0)
             {
                 _cursorScreenX = (int)(padding + GetLeftMargin(line.Block!.Type));
-                _cursorScreenY = (int)line.Y;
+                _cursorScreenY = (int)line.Y + contentOffsetY;
                 _cursorScreenValid = true;
             }
         }
@@ -329,7 +384,7 @@ public class HtmlBox : Control
         base.Render(g);
     }
 
-    private void RenderListMarker(Graphics g, VisualLine line, int lineIndex, int blockIndex, float fontSize, float padding)
+    private void RenderListMarker(Graphics g, VisualLine line, int lineIndex, int blockIndex, float fontSize, float padding, int offsetY)
     {
         if (line.Block?.Type is not (RichTextBlockType.BulletItem or RichTextBlockType.NumberItem)) return;
         if (lineIndex > 0 && _cachedLines![lineIndex - 1].BlockIndex == blockIndex) return;
@@ -338,7 +393,7 @@ public class HtmlBox : Control
         if (line.Block.Type == RichTextBlockType.BulletItem)
         {
             float dotSize = fontSize * 0.4f;
-            float dotY = line.Y + (fontSize * 0.4f);
+            float dotY = line.Y + (fontSize * 0.4f) + offsetY;
             g.FillEllipse(ForeColor, markerX + 2, dotY, dotSize, dotSize);
         }
         else
@@ -357,20 +412,20 @@ public class HtmlBox : Control
                         numberCounter = 0;
                 }
             }
-            g.DrawString($"{numberCounter}.", new Font("Arial", fontSize, FontStyle.Regular), ForeColor, markerX, line.Y);
+            g.DrawString($"{numberCounter}.", new Font("Arial", fontSize, FontStyle.Regular), ForeColor, markerX, line.Y + offsetY);
         }
     }
 
     private void RenderRun(Graphics g, LayoutRun run, VisualLine line, float padding, float leftMargin, float zoom,
-        bool hasSel, int selStart, int selEnd, int cursorFlat)
+        bool hasSel, int selStart, int selEnd, int cursorFlat, int offsetY)
     {
         float runX = padding + leftMargin + run.X;
-        float runY = line.Y;
+        float runY = line.Y + offsetY;
         var source = run.Source;
 
         if (run.Source is TextRun tr)
         {
-            RenderTextRun(g, run, line, runX, runY, tr, zoom, hasSel, selStart, selEnd);
+            RenderTextRun(g, run, line, runX, runY, tr, zoom, hasSel, selStart, selEnd, offsetY);
         }
         else if (source is ImageRun)
         {
@@ -381,7 +436,7 @@ public class HtmlBox : Control
     }
 
     private void RenderTextRun(Graphics g, LayoutRun run, VisualLine line, float runX, float runY, TextRun tr, float zoom,
-        bool hasSel, int selStart, int selEnd)
+        bool hasSel, int selStart, int selEnd, int offsetY)
     {
         var block = line.Block;
 
@@ -400,6 +455,9 @@ public class HtmlBox : Control
             : (tr.ForeColor.Equals(Color.Empty) ? ForeColor : tr.ForeColor);
         var measured = Platform.Platform.MeasureText(run.DisplayText, font, zoom);
         float runHeight = (float)measured.height / zoom;
+
+        if (!tr.BackColor.Equals(Color.Empty))
+            g.FillRectangle(tr.BackColor, runX, runY, measured.width / zoom, runHeight);
 
         g.DrawString(run.DisplayText, font, textColor, runX, runY);
 
@@ -564,13 +622,23 @@ public class HtmlBox : Control
         if (e is MouseEventArgs mouseArgs)
         {
             float zoom = EffectiveZoom;
+            int toolbarHeight = ShowToolbar ? (int)(28 * zoom) : 0;
+            if (ShowToolbar && mouseArgs.Y < toolbarHeight)
+            {
+                HandleToolbarMouseDown(mouseArgs.X, mouseArgs.Y, zoom, toolbarHeight);
+                Invalidate();
+                return;
+            }
             EnsureLayout(Width, zoom);
+
+            int contentY = mouseArgs.Y - toolbarHeight;
+            if (contentY < 0) contentY = 0;
 
             if (_cachedLines != null && _cachedLines.Count > 0)
             {
               var pos = TextLayoutEngine.HitTest(
                     _engine.Document, _cachedLines,
-                    mouseArgs.X, mouseArgs.Y, zoom,
+                    mouseArgs.X, contentY, zoom,
                     out var hitRun, 8);
 
                 _engine.CursorBlock = pos.BlockIndex;
@@ -641,16 +709,44 @@ public class HtmlBox : Control
     /// <inheritdoc/>
     protected internal override void OnMouseMove(EventArgs e)
     {
-        if (e is MouseEventArgs mouseArgs && _cachedLines != null)
+        if (e is MouseEventArgs mouseArgs)
         {
             float zoom = EffectiveZoom;
-            EnsureLayout(Width, zoom);
-
-            if (_cachedLines != null && _cachedLines.Count > 0)
+            int toolbarHeight = ShowToolbar ? (int)(28 * zoom) : 0;
+            if (ShowToolbar && mouseArgs.Y < toolbarHeight)
+            {
+                int btnSize = (int)(22 * zoom);
+                int dropdownW = (int)(80 * zoom);
+                int btnY = (toolbarHeight - btnSize) / 2;
+                int hover = -1;
+                int curX = 4;
+                for (int i = 0; i < 13; i++)
+                {
+                    int w = (i == 11 || i == 12) ? dropdownW : btnSize;
+                    if (mouseArgs.X >= curX && mouseArgs.X <= curX + w && mouseArgs.Y >= btnY && mouseArgs.Y <= btnY + btnSize)
+                    {
+                        hover = i;
+                        break;
+                    }
+                    curX += w + 2;
+                }
+                if (_toolbarHoverButton != hover)
+                {
+                    _toolbarHoverButton = hover;
+                    Invalidate();
+                }
+                return;
+            }
+            if (_cachedLines != null)
+            {
+                EnsureLayout(Width, zoom);
+                int contentY = mouseArgs.Y - toolbarHeight;
+                if (contentY < 0) contentY = 0;
+                if (_cachedLines.Count > 0)
             {
                 var pos = TextLayoutEngine.HitTest(
                     _engine.Document, _cachedLines,
-                    mouseArgs.X, mouseArgs.Y, zoom,
+                    mouseArgs.X, contentY, zoom,
                     out var hitRun, 8);
 
                 if (IsPressed)
@@ -679,6 +775,7 @@ public class HtmlBox : Control
                 UpdateLinkCursor();
             }
         }
+    }
 
         base.OnMouseMove(e);
     }
@@ -691,13 +788,16 @@ public class HtmlBox : Control
         if (e is MouseEventArgs mouseArgs && _cachedLines != null)
         {
             float zoom = EffectiveZoom;
+            int toolbarHeight = ShowToolbar ? (int)(28 * zoom) : 0;
             EnsureLayout(Width, zoom);
+            int contentY = mouseArgs.Y - toolbarHeight;
+            if (contentY < 0) contentY = 0;
 
             if (_cachedLines != null && _cachedLines.Count > 0)
             {
                 var pos = TextLayoutEngine.HitTest(
                     _engine.Document, _cachedLines,
-                    mouseArgs.X, mouseArgs.Y, zoom,
+                    mouseArgs.X, contentY, zoom,
                     out var hitRun, 8);
 
                 if (hitRun != null && hitRun.ContentIndex >= 0 && hitRun.ContentIndex < _engine.Document.Blocks[pos.BlockIndex].Content.Count
@@ -1193,6 +1293,315 @@ public class HtmlBox : Control
         }
         catch
         {
+        }
+    }
+
+    /// <summary>
+    /// Handles mouse down events within the toolbar area.
+    /// </summary>
+    /// <param name="x">Mouse X coordinate.</param>
+    /// <param name="y">Mouse Y coordinate.</param>
+    /// <param name="zoom">Current zoom factor.</param>
+    /// <param name="height">Toolbar height.</param>
+    private void HandleToolbarMouseDown(int x, int y, float zoom, int height)
+    {
+        int btnSize = (int)(22 * zoom);
+        int dropdownW = (int)(80 * zoom);
+        int btnY = (height - btnSize) / 2;
+        int curX = 4;
+        for (int i = 0; i < 13; i++)
+        {
+            int w = (i == 11 || i == 12) ? dropdownW : btnSize;
+            if (x >= curX && x <= curX + w && y >= btnY && y <= btnY + btnSize)
+            {
+                HandleToolbarButton(i);
+                return;
+            }
+            curX += w + 2;
+        }
+            // Check popups
+            if (_toolbarColorPickerOpen)
+            {
+                int popupW = 120;
+                int popupH = 4 * 22;
+                int px = 4 + 10 * btnSize;
+                int py = height;
+                if (x >= px && x <= px + popupW && y >= py && y <= py + popupH)
+                {
+                    int relX = x - px - 4;
+                    int relY = y - py - 4;
+                    int colIndex = (relY / 26) * 4 + (relX / 26);
+                    if (colIndex >= 0 && colIndex < 12)
+                    {
+                        _toolbarColorPickerIndex = colIndex;
+                        _toolbarColorPickerOpen = false;
+                        ApplyFormat("backColor", GetToolbarColor(colIndex));
+                        Invalidate();
+                        return;
+                    }
+                }
+            }
+            if (_toolbarFontPopupOpen)
+            {
+                int popupW = 150;
+                int popupH = 120;
+                int px = 4 + 11 * btnSize;
+                int py = height;
+                if (x >= px && x <= px + popupW && y >= py && y <= py + popupH)
+                {
+                    int relY = y - py - 4;
+                    int idx = relY / 18;
+                    string[] fonts = { "Arial", "Times New Roman", "Courier New", "Verdana", "Helvetica" };
+                    if (idx >= 0 && idx < fonts.Length)
+                    {
+                        ApplyFormat("fontFamily", fonts[idx]);
+                        _toolbarFontPopupOpen = false;
+                        Invalidate();
+                        return;
+                    }
+                }
+            }
+            if (_toolbarSizePopupOpen)
+            {
+                int popupW = 80;
+                int popupH = 150;
+                int px = 4 + 12 * btnSize;
+                int py = height;
+                if (x >= px && x <= px + popupW && y >= py && y <= py + popupH)
+                {
+                    int relY = y - py - 4;
+                    int idx = relY / 18;
+                    string[] sizes = { "8", "9", "10", "11", "12", "14", "16", "18", "20", "24", "28", "36" };
+                    if (idx >= 0 && idx < sizes.Length)
+                    {
+                        ApplyFormat("fontSize", sizes[idx]);
+                        _toolbarSizePopupOpen = false;
+                        Invalidate();
+                        return;
+                    }
+                }
+            }
+        // Click outside popups closes them
+        _toolbarColorPickerOpen = false;
+        _toolbarFontPopupOpen = false;
+        _toolbarSizePopupOpen = false;
+    }
+
+    /// <summary>
+    /// Returns the hex color string for the toolbar color picker index.
+    /// </summary>
+    /// <param name="index">Color index.</param>
+    /// <returns>Hex color string.</returns>
+    private string GetToolbarColor(int index)
+    {
+        var colors = new[] {
+            Color.FromArgb(0,0,0), Color.FromArgb(255,0,0), Color.FromArgb(0,128,0), Color.FromArgb(0,0,255),
+            Color.FromArgb(255,255,0), Color.FromArgb(255,165,0), Color.FromArgb(255,0,255), Color.FromArgb(0,255,255),
+            Color.FromArgb(128,128,128), Color.FromArgb(255,192,203), Color.FromArgb(173,216,230), Color.FromArgb(255,228,181)
+        };
+        var c = colors[index];
+        return $"#{c.R:X2}{c.G:X2}{c.B:X2}";
+    }
+
+    /// <summary>
+    /// Handles toolbar button clicks.
+    /// </summary>
+    /// <param name="id">Button identifier.</param>
+    private void HandleToolbarButton(int id)
+    {
+        switch (id)
+        {
+            case 0: ApplyFormat("bold"); break;
+            case 1: ApplyFormat("italic"); break;
+            case 2: ApplyFormat("underline"); break;
+            case 3: ApplyFormat("strike"); break;
+            case 4: ApplyFormat("align", "left"); break;
+            case 5: ApplyFormat("align", "center"); break;
+            case 6: ApplyFormat("align", "right"); break;
+            case 7: ApplyFormat("indent"); break;
+            case 8: ApplyFormat("outdent"); break;
+            case 9: _toolbarColorPickerOpen = !_toolbarColorPickerOpen; _toolbarFontPopupOpen = false; _toolbarSizePopupOpen = false; break;
+            case 10: _toolbarColorPickerOpen = !_toolbarColorPickerOpen; _toolbarFontPopupOpen = false; _toolbarSizePopupOpen = false; break;
+            case 11: _toolbarFontPopupOpen = !_toolbarFontPopupOpen; _toolbarColorPickerOpen = false; _toolbarSizePopupOpen = false; break;
+            case 12: _toolbarSizePopupOpen = !_toolbarSizePopupOpen; _toolbarColorPickerOpen = false; _toolbarFontPopupOpen = false; break;
+        }
+    }
+
+    /// <summary>
+    /// Renders the internal formatting toolbar.
+    /// </summary>
+    private void RenderToolbar(Graphics g, float zoom, int height)
+    {
+        var theme = ThemeManager.CurrentTheme;
+        g.FillRectangle(theme.ControlBackground, 0, 0, Width, height);
+        g.DrawLine(theme.MenuSeparator, 0, height - 1, Width, height - 1);
+
+        int btnSize = (int)(22 * zoom);
+        int dropdownW = (int)(80 * zoom);
+        int y = (height - btnSize) / 2;
+        int x = 4;
+
+        void DrawCenteredText(string text, Font font, Rectangle rect)
+        {
+            var sz = g.MeasureString(text, font, zoom);
+            int tx = rect.X + (rect.Width - sz.width) / 2;
+            int ty = rect.Y + (rect.Height - sz.height) / 2;
+            g.DrawString(text, font, theme.ControlText, tx, ty);
+        }
+
+        void DrawButton(int id, int w, Action<Graphics, Rectangle> draw)
+        {
+            var rect = new Rectangle(x, y, w, btnSize);
+            var isHover = _toolbarHoverButton == id;
+            if (isHover)
+                g.FillRectangle(Color.FromArgb(220, 220, 220), rect.X, rect.Y, rect.Width, rect.Height);
+            g.DrawRectangle(theme.MenuSeparator, rect.X, rect.Y, rect.Width - 1, rect.Height - 1);
+            draw(g, rect);
+            x += w + 2;
+        }
+
+        void DrawDropdown(int id, string label)
+        {
+            var rect = new Rectangle(x, y, dropdownW, btnSize);
+            var isHover = _toolbarHoverButton == id;
+            if (isHover)
+                g.FillRectangle(Color.FromArgb(220, 220, 220), rect.X, rect.Y, rect.Width, rect.Height);
+            g.DrawRectangle(theme.MenuSeparator, rect.X, rect.Y, rect.Width - 1, rect.Height - 1);
+            var f = new Font("Arial", 9, FontStyle.Regular);
+            DrawCenteredText(label, f, rect);
+            // Arrow on right
+            int arrowSize = (int)(6 * zoom);
+            int ax = rect.X + rect.Width - arrowSize - 8;
+            int ay = rect.Y + (btnSize - arrowSize) / 2;
+            g.DrawLine(theme.ControlText, ax, ay + arrowSize, ax + arrowSize, ay + arrowSize);
+            g.DrawLine(theme.ControlText, ax + arrowSize, ay + arrowSize, ax + arrowSize / 2, ay);
+            g.DrawLine(theme.ControlText, ax + arrowSize / 2, ay, ax, ay + arrowSize);
+            x += dropdownW + 2;
+        }
+
+        // Icons - centered and refined
+        var fontBase = new Font("Arial", 9, FontStyle.Regular);
+        DrawButton(0, btnSize, (gr, r) => { var ff = new Font("Arial", 10, FontStyle.Bold); DrawCenteredText("B", ff, r); });
+        DrawButton(1, btnSize, (gr, r) => { var ff = new Font("Arial", 10, FontStyle.Italic); DrawCenteredText("I", ff, r); });
+        DrawButton(2, btnSize, (gr, r) => { var ff = new Font("Arial", 10, FontStyle.Underline); DrawCenteredText("U", ff, r); });
+        DrawButton(3, btnSize, (gr, r) => { var ff = new Font("Arial", 10, FontStyle.Strikeout); DrawCenteredText("S", ff, r); });
+        // Bullet list
+        DrawButton(4, btnSize, (gr, r) => {
+            int cy = r.Y + r.Height / 2;
+            g.DrawString("•", fontBase, theme.ControlText, r.X + 4, r.Y + 3);
+            g.DrawLine(theme.ControlText, r.X + 12, cy - 3, r.X + r.Width - 4, cy - 3);
+            g.DrawLine(theme.ControlText, r.X + 12, cy, r.X + r.Width - 4, cy);
+            g.DrawLine(theme.ControlText, r.X + 12, cy + 3, r.X + r.Width - 4, cy + 3);
+        });
+        // Numbered list
+        DrawButton(5, btnSize, (gr, r) => {
+            int cy = r.Y + r.Height / 2;
+            g.DrawString("1.", fontBase, theme.ControlText, r.X + 4, r.Y + 3);
+            g.DrawLine(theme.ControlText, r.X + 18, cy - 3, r.X + r.Width - 4, cy - 3);
+            g.DrawLine(theme.ControlText, r.X + 18, cy, r.X + r.Width - 4, cy);
+            g.DrawLine(theme.ControlText, r.X + 18, cy + 3, r.X + r.Width - 4, cy + 3);
+        });
+        // Indent
+        DrawButton(6, btnSize, (gr, r) => {
+            int cx = r.X + r.Width / 2;
+            int cy = r.Y + r.Height / 2;
+            g.DrawLine(theme.ControlText, cx - 6, cy, cx + 4, cy);
+            g.DrawLine(theme.ControlText, cx - 6, cy - 3, cx - 6, cy + 3);
+            g.DrawLine(theme.ControlText, cx + 4, cy - 3, cx + 4, cy + 3);
+        });
+        // Outdent
+        DrawButton(7, btnSize, (gr, r) => {
+            int cx = r.X + r.Width / 2;
+            int cy = r.Y + r.Height / 2;
+            g.DrawLine(theme.ControlText, cx - 4, cy, cx + 6, cy);
+            g.DrawLine(theme.ControlText, cx - 4, cy - 3, cx - 4, cy + 3);
+            g.DrawLine(theme.ControlText, cx + 6, cy - 3, cx + 6, cy + 3);
+        });
+        // Left align
+        DrawButton(8, btnSize, (gr, r) => {
+            int y0 = r.Y + 6;
+            for (int i = 0; i < 3; i++)
+                g.DrawLine(theme.ControlText, r.X + 4, y0 + i * 4, r.X + r.Width - 4, y0 + i * 4);
+        });
+        // Center align
+        DrawButton(9, btnSize, (gr, r) => {
+            int y0 = r.Y + 6;
+            for (int i = 0; i < 3; i++) {
+                int w = r.Width - 16;
+                g.DrawLine(theme.ControlText, r.X + 8, y0 + i * 4, r.X + 8 + w, y0 + i * 4);
+            }
+        });
+        // Right align
+        DrawButton(10, btnSize, (gr, r) => {
+            int y0 = r.Y + 6;
+            for (int i = 0; i < 3; i++) {
+                int w = r.Width - 16;
+                g.DrawLine(theme.ControlText, r.X + 4, y0 + i * 4, r.X + 4 + w, y0 + i * 4);
+            }
+        });
+        // Dropdowns
+        DrawDropdown(11, LangRes.GetString("HtmlBox_Toolbar_FontFamily"));
+        DrawDropdown(12, LangRes.GetString("HtmlBox_Toolbar_FontSize"));
+
+        // Color picker popup
+        if (_toolbarColorPickerOpen)
+        {
+            int popupW = 120;
+            int popupH = 4 * 22;
+            int px = 4 + 10 * btnSize;
+            int py = height;
+            g.FillRectangle(theme.ControlBackground, px, py, popupW, popupH);
+            g.DrawRectangle(theme.MenuSeparator, px, py, popupW, popupH);
+            var colors = new[] {
+                Color.FromArgb(0,0,0), Color.FromArgb(255,0,0), Color.FromArgb(0,128,0), Color.FromArgb(0,0,255),
+                Color.FromArgb(255,255,0), Color.FromArgb(255,165,0), Color.FromArgb(255,0,255), Color.FromArgb(0,255,255),
+                Color.FromArgb(128,128,128), Color.FromArgb(255,192,203), Color.FromArgb(173,216,230), Color.FromArgb(255,228,181)
+            };
+            for (int i = 0; i < colors.Length; i++)
+            {
+                int cx = px + 4 + (i % 4) * 26;
+                int cy = py + 4 + (i / 4) * 26;
+                g.FillRectangle(colors[i], cx, cy, 20, 20);
+                g.DrawRectangle(theme.MenuSeparator, cx, cy, 20, 20);
+            }
+        }
+
+        // Font popup
+        if (_toolbarFontPopupOpen)
+        {
+            int popupW = 150;
+            int popupH = 120;
+            int px = 4 + 11 * btnSize;
+            int py = height;
+            g.FillRectangle(theme.ControlBackground, px, py, popupW, popupH);
+            g.DrawRectangle(theme.MenuSeparator, px, py, popupW, popupH);
+            var fonts = new[] { "Arial", "Times New Roman", "Courier New", "Verdana", "Helvetica" };
+            var font = new Font("Arial", 9, FontStyle.Regular);
+            int fy = py + 4;
+            foreach (var f in fonts)
+            {
+                g.DrawString(f, font, theme.ControlText, px + 4, fy);
+                fy += 18;
+            }
+        }
+
+        // Size popup
+        if (_toolbarSizePopupOpen)
+        {
+            int popupW = 80;
+            int popupH = 150;
+            int px = 4 + 12 * btnSize;
+            int py = height;
+            g.FillRectangle(theme.ControlBackground, px, py, popupW, popupH);
+            g.DrawRectangle(theme.MenuSeparator, px, py, popupW, popupH);
+            var sizes = new[] { "8", "9", "10", "11", "12", "14", "16", "18", "20", "24", "28", "36" };
+            var font = new Font("Arial", 9, FontStyle.Regular);
+            int sy = py + 4;
+            foreach (var s in sizes)
+            {
+                g.DrawString(s, font, theme.ControlText, px + 4, sy);
+                sy += 18;
+            }
         }
     }
 }

@@ -20,6 +20,13 @@ public class DesignItem
     public bool Selected { get; set; }
 
     /// <summary>
+    /// Gets or sets the design item that contains this item.
+    /// Null when the item is a direct child of the design surface.
+    /// Set when a control is added to a container or reparented during drag and drop.
+    /// </summary>
+    public DesignItem? ParentItem { get; set; }
+
+    /// <summary>
     /// Gets or sets the original bounds before a move/resize operation began.
     /// Used for undo snapshots.
     /// </summary>

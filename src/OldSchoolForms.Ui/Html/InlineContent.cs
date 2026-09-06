@@ -30,6 +30,21 @@ public enum RichTextBlockType
 }
 
 /// <summary>
+/// Defines the text alignment for a block.
+/// </summary>
+public enum BlockAlignment
+{
+    /// <summary>Align left.</summary>
+    Left,
+    /// <summary>Align center.</summary>
+    Center,
+    /// <summary>Align right.</summary>
+    Right,
+    /// <summary>Justify text.</summary>
+    Justify
+}
+
+/// <summary>
 /// Base class for all inline content elements within a rich text block.
 /// </summary>
 public abstract class InlineContent
@@ -63,6 +78,9 @@ public class TextRun : InlineContent
 
     /// <summary>The text color.</summary>
     public Color ForeColor { get; set; } = Color.Empty;
+
+    /// <summary>The background color.</summary>
+    public Color BackColor { get; set; } = Color.Empty;
 
     /// <summary>Gets the length of the text in this run.</summary>
     public override int Length => Text.Length;
@@ -144,6 +162,12 @@ public class RichTextBlock
     /// Zero for non-table blocks.
     /// </summary>
     public int ColCount { get; set; }
+
+    /// <summary>The text alignment for the block.</summary>
+    public BlockAlignment Alignment { get; set; } = BlockAlignment.Left;
+
+    /// <summary>The indent level for the block.</summary>
+    public int IndentLevel { get; set; } = 0;
 }
 
 /// <summary>

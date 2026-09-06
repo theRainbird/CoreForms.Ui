@@ -67,7 +67,7 @@ public class ContainerControl : Control
     /// <param name="point">The point in this container's coordinate space.</param>
     /// <param name="localPoint">The resulting point in the deepest child's coordinate space.</param>
     /// <returns>The deepest child control, or null if none found.</returns>
-    protected internal virtual Control? GetDeepestChildAtPoint(Point point, out Point localPoint)
+    public virtual Control? GetDeepestChildAtPoint(Point point, out Point localPoint)
     {
         localPoint = point;
         var child = GetChildAtPoint(point);
