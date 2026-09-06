@@ -182,8 +182,11 @@ public class DesignSurface : ContainerControl
 
         // Surface-level controls are parented to the surface so they render through
         // the normal control tree; controls given an explicit container are parented there.
-        control.Parent = parent ?? this;
+        // Location is assigned before parenting so an auto-layout container (e.g.
+        // FlowLayoutPanel) can override it during the PerformLayout triggered by the
+        // parent assignment; assigning it afterwards would clobber the computed layout.
         control.Location = SnapToGrid ? SnapPoint(localPoint) : localPoint;
+        control.Parent = parent ?? this;
 
         var item = new DesignItem(control);
         item.ParentItem = parent != null ? FindItem(parent) : null;
