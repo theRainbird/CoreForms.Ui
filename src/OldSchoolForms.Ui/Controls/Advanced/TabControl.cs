@@ -133,6 +133,14 @@ public class TabControl : ContainerControl
 
     private (int[] positions, int[] widths, int visibleCount) CalculateTabLayout()
     {
+        if (_tabPages.Count == 0)
+        {
+            _showOverflowButton = false;
+            _firstVisibleTab = 0;
+            _lastVisibleCount = 0;
+            return (Array.Empty<int>(), Array.Empty<int>(), 0);
+        }
+
         const int horizontalPadding = 16;
         const int minTabWidth = 40;
         float zoom = EffectiveZoom;

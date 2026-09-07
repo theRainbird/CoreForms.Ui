@@ -18,6 +18,8 @@ public class PropertyGrid : ContainerControl
     private readonly PropertyService _propertyService;
     private readonly SelectionService _selectionService;
     private readonly List<PropertyGridRow> _rows = new();
+    internal readonly ScrollBarEngine _vScrollBar = new();
+    private ScrollBarContext? _scrollBarContext;
 
     private const int HeaderHeight = 24;
     private const int RowHeight = 26;
@@ -63,6 +65,12 @@ public class PropertyGrid : ContainerControl
         _selectionService = selectionService ?? throw new ArgumentNullException(nameof(selectionService));
         BackColor = ThemeManager.CurrentTheme.ControlLight;
 
+        _vScrollBar.Orientation = ScrollBarEngine.ScrollBarOrientation.Vertical;
+        _vScrollBar.ScrollBarSize = ScrollBarEngine.DefaultScrollBarSize;
+        _vScrollBar.SmallChange = RowHeight;
+        _vScrollBar.LargeChange = RowHeight * 4;
+        _vScrollBar.Scroll += (_, _) => Invalidate();
+
         _selectionService.SelectionChanged += OnSelectionChanged;
     }
 
@@ -106,11 +114,60 @@ public class PropertyGrid : ContainerControl
                 continue;
             _rows.Add(new PropertyGridRow(prop, NameColumnWidth));
         }
+
+        UpdateScrollBar();
+        _vScrollBar.EnsureVisible(0, RowHeight);
     }
 
-   protected override void OnMouseDown(EventArgs e)
+    private int ContentHeight()
     {
-        if (e is not MouseEventArgs args) return;
+        int height = HeaderHeight + 4;
+        string? currentCat = null;
+        foreach (var row in _rows)
+        {
+            if (currentCat != row.Category)
+            {
+                currentCat = row.Category;
+                height += 20;
+            }
+            height += RowHeight;
+        }
+        return height;
+    }
+
+    private void UpdateScrollBar()
+    {
+        _vScrollBar.ViewSize = Height;
+        _vScrollBar.ContentSize = ContentHeight();
+    }
+
+    private ScrollBarContext VScrollBarContext => _scrollBarContext ??= new ScrollBarContext(this);
+
+    private sealed class ScrollBarContext : IScrollBarContext
+    {
+        private readonly PropertyGrid _owner;
+        public ScrollBarContext(PropertyGrid owner) => _owner = owner;
+        public float Zoom => _owner.EffectiveZoom;
+        public void Invalidate() => _owner.Invalidate();
+        public void CaptureMouse(bool capture) => _owner.CapturingMouse = capture;
+    }
+
+    protected override void OnMouseDown(EventArgs e)
+    {
+        if (e is MouseEventArgs args)
+        {
+            int sbw = _vScrollBar.ScrollBarSize;
+            if (args.X >= Width - sbw)
+            {
+                _vScrollBar.HandleMouseDown(new Point(args.X, args.Y), new Rectangle(Width - sbw, 0, sbw, Height), VScrollBarContext);
+                base.OnMouseDown(e);
+                return;
+            }
+        }
+        else
+        {
+            return;
+        }
 
         int rowIndex = HitTestRow(args.Y);
 
@@ -279,8 +336,9 @@ public class PropertyGrid : ContainerControl
         base.OnMouseDown(e);
     }
 
-    private int HitTestRow(int y)
+    internal int HitTestRow(int y)
     {
+        int contentY = y + _vScrollBar.Value;
         int drawY = HeaderHeight + 4;
 
         string? currentCat = null;
@@ -292,7 +350,7 @@ public class PropertyGrid : ContainerControl
                 drawY += 20; // category header
             }
 
-            if (y >= drawY && y < drawY + RowHeight)
+            if (contentY >= drawY && contentY < drawY + RowHeight)
                 return i;
 
             drawY += RowHeight;
@@ -301,8 +359,9 @@ public class PropertyGrid : ContainerControl
         return -1;
     }
 
-    private int GetRowY(int rowIndex)
+    internal int GetRowY(int rowIndex)
     {
+        int scroll = _vScrollBar.Value;
         int drawY = HeaderHeight + 4;
 
         string? currentCat = null;
@@ -315,7 +374,7 @@ public class PropertyGrid : ContainerControl
             }
 
             if (i == rowIndex)
-                return drawY;
+                return drawY - scroll;
 
             drawY += RowHeight;
         }
@@ -341,6 +400,8 @@ public class PropertyGrid : ContainerControl
         _dropdownValueX = valueX;
         _dropdownRowY = rowY;
         _dropdownItemCount = row.EnumValueCount;
+
+        _vScrollBar.EnsureVisible(rowY + _vScrollBar.Value, RowHeight);
 
         CapturingMouse = true;
         Invalidate();
@@ -593,8 +654,19 @@ public class PropertyGrid : ContainerControl
         base.OnKeyDown(e);
     }
 
-   protected override void OnMouseMove(EventArgs e)
+    protected override void OnMouseMove(EventArgs e)
     {
+        if (e is MouseEventArgs args)
+        {
+            int sbw = _vScrollBar.ScrollBarSize;
+            if (args.X >= Width - sbw)
+            {
+                _vScrollBar.HandleMouseMove(new Point(args.X, args.Y), new Rectangle(Width - sbw, 0, sbw, Height), VScrollBarContext);
+                base.OnMouseMove(e);
+                return;
+            }
+        }
+
         // Handle color picker hover
         if (_colorPickerRow != null && _colorPickerRow.IsColorPickerOpen && e is MouseEventArgs mouseArgs)
         {
@@ -709,6 +781,34 @@ public class PropertyGrid : ContainerControl
         base.OnMouseMove(e);
     }
 
+    protected override void OnMouseWheel(EventArgs e)
+    {
+        if (e is MouseEventArgs)
+        {
+            UpdateScrollBar();
+            if (_vScrollBar.NeedsScrollbar)
+            {
+                _vScrollBar.HandleMouseWheel(((MouseEventArgs)e).Delta, VScrollBarContext);
+            }
+        }
+        base.OnMouseWheel(e);
+    }
+
+    protected override void OnMouseUp(EventArgs e)
+    {
+        if (e is MouseEventArgs && (_vScrollBar.IsDragging || _vScrollBar.IsUpButtonPressed || _vScrollBar.IsDownButtonPressed))
+        {
+            _vScrollBar.HandleMouseUp(VScrollBarContext);
+        }
+        base.OnMouseUp(e);
+    }
+
+    protected override void OnMouseLeave(EventArgs e)
+    {
+        _vScrollBar.HandleMouseLeave(VScrollBarContext);
+        base.OnMouseLeave(e);
+    }
+
     protected override void OnKeyUp(KeyEventArgs e)
     {
         base.OnKeyUp(e);
@@ -742,6 +842,11 @@ public class PropertyGrid : ContainerControl
     {
         var theme = ThemeManager.CurrentTheme;
 
+        // Keep the scrollbar range in sync with the current content.
+        UpdateScrollBar();
+
+        int sbw = _vScrollBar.ScrollBarSize;
+
         // Background
         g.FillRectangle(theme.ControlLight, 0, 0, Width, Height);
 
@@ -752,11 +857,16 @@ public class PropertyGrid : ContainerControl
         if (TargetControl == null)
         {
             g.DrawString("Keine Auswahl", theme.DefaultFont, theme.GrayText, 10, HeaderHeight + 10);
+            _vScrollBar.Render(g, new Rectangle(Width - sbw, 0, sbw, Height), theme);
             return;
         }
 
-        // Draw rows
-        int drawY = HeaderHeight + 4;
+        // Clip the content area so rows never paint under the scrollbar.
+        g.SetClip(new Rectangle(0, HeaderHeight, Width - sbw, Height - HeaderHeight));
+
+        // Draw rows, shifted by the current scroll offset.
+        int scroll = _vScrollBar.Value;
+        int drawY = HeaderHeight + 4 - scroll;
         string? currentCat = null;
 
         foreach (var row in _rows)
@@ -765,7 +875,7 @@ public class PropertyGrid : ContainerControl
             if (currentCat != row.Category)
             {
                 currentCat = row.Category;
-                g.FillRectangle(theme.ControlDark, 0, drawY, Width, 20);
+                g.FillRectangle(theme.ControlDark, 0, drawY, Width - sbw, 20);
                 g.DrawString(currentCat, theme.SmallFont, theme.ControlText, 4, drawY + 2);
                 drawY += 20;
             }
@@ -774,13 +884,17 @@ public class PropertyGrid : ContainerControl
             var rowBack = _rows.IndexOf(row) % 2 == 0
                 ? theme.ControlLight
                 : theme.AlternateRow;
-            g.FillRectangle(rowBack, 0, drawY, Width, RowHeight);
+            g.FillRectangle(rowBack, 0, drawY, Width - sbw, RowHeight);
 
             // Row content
-            row.Render(g, drawY, Width, RowHeight, theme);
+            row.Render(g, drawY, Width - sbw, RowHeight, theme);
 
             drawY += RowHeight;
         }
+
+        g.ResetClip();
+
+        _vScrollBar.Render(g, new Rectangle(Width - sbw, 0, sbw, Height), theme);
     }
 
    public override void RenderOverlay(Graphics g)

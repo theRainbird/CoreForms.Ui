@@ -3,6 +3,7 @@ using OldSchoolForms.Ui.Controls.Basic;
 using OldSchoolForms.Ui.Controls.Advanced;
 using OldSchoolForms.Ui.Controls.Containers;
 using OldSchoolForms.Ui.Html;
+using OldSchoolForms.Ui.Rendering;
 using Xunit;
 
 namespace OldSchoolForms.Ui.Tests;
@@ -1054,6 +1055,18 @@ public class ControlTests
         // Left arrow -> moves back to col0 (readonly)
         grid.OnKeyDown(new KeyEventArgs { KeyCode = Keys.Left, Modifiers = ModifierKeys.None });
         Assert.Equal(0, grid.SelectedColumnIndex);
+    }
+
+    [Fact]
+    public void TabControl_Empty_TabPages_Render_DoesNotThrow()
+    {
+        var tabControl = new TabControl();
+        var g = new Graphics();
+        g.MeasureText = (text, font, zoom) => (text.Length * 8, 16);
+        tabControl.PerformLayout();
+        tabControl.Render(g);
+        Assert.Empty(tabControl.TabPages);
+        Assert.Null(tabControl.SelectedTab);
     }
 
     [Fact]
