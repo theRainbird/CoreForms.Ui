@@ -1,4 +1,5 @@
 using OldSchoolForms.Ui.Core;
+using OldSchoolForms.Ui.Design;
 using OldSchoolForms.Ui.Theming;
 using Graphics = OldSchoolForms.Ui.Rendering.Graphics;
 
@@ -58,19 +59,90 @@ public class TabControl : ContainerControl
     }
 
     /// <summary>
+    /// Gets the tab page at the given index.
+    /// </summary>
+    /// <param name="index">The zero-based index of the tab page.</param>
+    /// <returns>The tab page at the index.</returns>
+    /// <exception cref="System.IndexOutOfRangeException">Thrown when the index is out of range.</exception>
+    public TabPage this[int index] => _tabPages[index];
+
+    /// <summary>
     /// Gets the collection of tab pages.
     /// </summary>
+    [EditorButton]
     public List<TabPage> TabPages => _tabPages;
 
     /// <summary>
-    /// Adds a tab page to the collection.
+    /// Adds a tab page to the collection, keeping the tab pages and the internal
+    /// control collection in sync.
     /// </summary>
     /// <param name="page">The tab page to add.</param>
     public void AddTabPage(TabPage page)
     {
+        if (page == null) throw new System.ArgumentNullException(nameof(page));
+        if (_tabPages.Contains(page)) return;
+
         page.TabStop = false;
         _tabPages.Add(page);
         Controls.Add(page);
+        Invalidate();
+    }
+
+    /// <summary>
+    /// Removes a tab page from the collection, keeping the tab pages and the internal
+    /// control collection in sync.
+    /// </summary>
+    /// <param name="page">The tab page to remove.</param>
+    /// <returns>True if the page was removed; otherwise false.</returns>
+    public bool RemoveTabPage(TabPage page)
+    {
+        if (!_tabPages.Remove(page))
+            return false;
+
+        Controls.Remove(page);
+        if (_selectedIndex >= _tabPages.Count)
+            _selectedIndex = Math.Max(0, _tabPages.Count - 1);
+        Invalidate();
+        return true;
+    }
+
+    /// <summary>
+    /// Removes the tab page at the given index, keeping the tab pages and the internal
+    /// control collection in sync.
+    /// </summary>
+    /// <param name="index">The zero-based index of the tab page to remove.</param>
+    public void RemoveAt(int index)
+    {
+        if (index < 0 || index >= _tabPages.Count)
+            return;
+
+        var page = _tabPages[index];
+        _tabPages.RemoveAt(index);
+        Controls.Remove(page);
+        if (_selectedIndex >= _tabPages.Count)
+            _selectedIndex = Math.Max(0, _tabPages.Count - 1);
+        Invalidate();
+    }
+
+    /// <summary>
+    /// Inserts a tab page at the given index, keeping the tab pages and the internal
+    /// control collection in sync.
+    /// </summary>
+    /// <param name="index">The zero-based index at which to insert.</param>
+    /// <param name="page">The tab page to insert.</param>
+    public void Insert(int index, TabPage page)
+    {
+        if (page == null) throw new System.ArgumentNullException(nameof(page));
+        if (_tabPages.Contains(page)) return;
+        if (index < 0 || index > _tabPages.Count)
+            return;
+
+        page.TabStop = false;
+        _tabPages.Insert(index, page);
+        Controls.Insert(index, page);
+        if (_selectedIndex >= index)
+            _selectedIndex++;
+        Invalidate();
     }
 
     /// <summary>

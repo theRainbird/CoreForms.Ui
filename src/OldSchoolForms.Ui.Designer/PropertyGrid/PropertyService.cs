@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
 using OldSchoolForms.Ui.Core;
+using OldSchoolForms.Ui.Design;
 
 namespace OldSchoolForms.Ui.Designer.PropertyGrid;
 
@@ -28,6 +29,21 @@ public class PropertyService
         "IsDropDownVisible", "IsSelected", "PreferredSize"
     };
 
+    private static bool _editorsRegistered;
+
+    /// <summary>
+    /// Initializes a new instance of the <see cref="PropertyService"/> and registers
+    /// the built-in value editors.
+    /// </summary>
+    public PropertyService()
+    {
+        if (!_editorsRegistered)
+        {
+            ValueEditorRegistry.Register(new TabPagesEditor());
+            _editorsRegistered = true;
+        }
+    }
+
     private static readonly HashSet<Type> SupportedTypes = new()
     {
         typeof(string), typeof(int), typeof(float), typeof(bool),
@@ -52,8 +68,8 @@ public class PropertyService
             BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly)
             .Where(p => p.CanRead)
             .Where(p => !HiddenProperties.Contains(p.Name))
-            .Where(p => IsSupportedType(p.PropertyType))
-            .Select(p => new PropertyDescriptor(p, control))
+            .Where(p => IsSupportedType(p.PropertyType) || HasEditorButton(p))
+            .Select(p => new PropertyDescriptor(p, control, ResolveEditor(p)))
             .OrderBy(p => GetCategoryOrder(p.Category))
             .ThenBy(p => p.Name)
             .ToList();
@@ -63,8 +79,8 @@ public class PropertyService
             BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly)
             .Where(p => p.CanRead)
             .Where(p => !HiddenProperties.Contains(p.Name))
-            .Where(p => IsSupportedType(p.PropertyType))
-            .Select(p => new PropertyDescriptor(p, control))
+            .Where(p => IsSupportedType(p.PropertyType) || HasEditorButton(p))
+            .Select(p => new PropertyDescriptor(p, control, ResolveEditor(p)))
             .OrderBy(p => GetCategoryOrder(p.Category))
             .ThenBy(p => p.Name);
 
@@ -72,6 +88,12 @@ public class PropertyService
 
         return properties.DistinctBy(p => p.Name).ToList();
     }
+
+    private static bool HasEditorButton(PropertyInfo property)
+        => property.GetCustomAttribute<EditorButtonAttribute>() != null;
+
+    private static IValueEditor? ResolveEditor(PropertyInfo property)
+        => ValueEditorRegistry.Find(property);
 
     private static bool IsSupportedType(Type type)
     {

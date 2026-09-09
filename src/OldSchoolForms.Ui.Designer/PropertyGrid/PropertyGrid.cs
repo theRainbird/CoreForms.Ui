@@ -56,6 +56,13 @@ public class PropertyGrid : ContainerControl
     public Control? TargetControl { get; private set; }
 
     /// <summary>
+    /// Occurs after a dedicated value editor (opened via the ellipsis button) has been
+    /// closed and the underlying control was modified. Subscribers can react by
+    /// invalidating the design surface or pushing an undo entry.
+    /// </summary>
+    public event EventHandler? PropertyCommitted;
+
+    /// <summary>
     /// Initializes a new instance.
     /// </summary>
     /// <param name="selectionService">The selection service to observe.</param>
@@ -301,6 +308,19 @@ public class PropertyGrid : ContainerControl
             int rowY = GetRowY(rowIndex);
             int valueX = NameColumnWidth;
             int valueWidth = Width - valueX;
+
+            // The ellipsis button is drawn at the right edge of the row content (Width - sbw),
+            // so the click region must subtract the scrollbar width to match it exactly and
+            // let the whole button area respond, not just a shifted strip on the far right.
+            if (row.TryHandleEditorClick(args.X, args.Y, valueX, Width - _vScrollBar.ScrollBarSize - valueX))
+            {
+                RebuildRows();
+                Invalidate();
+                PropertyCommitted?.Invoke(this, EventArgs.Empty);
+                base.OnMouseDown(e);
+                return;
+            }
+
             bool dropdownOpened = row.HandleClick(args.X, args.Y, valueX, valueWidth);
 
             if (dropdownOpened)

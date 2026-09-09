@@ -295,25 +295,6 @@ public class DesignSurface : ContainerControl
     }
 
     /// <summary>
-    /// Hit-tests the children of this design surface and returns the topmost
-    /// <see cref="DesignItem"/> at the given point (in surface coordinates).
-    /// Iterates through _designItems in reverse z-order to find the deepest hit.
-    /// </summary>
-    /// <param name="point">The point in this surface's coordinates.</param>
-    /// <returns>The topmost DesignItem at the point, or null if none.</returns>
-    public DesignItem? HitTestChild(Point point)
-    {
-        for (int i = _designItems.Count - 1; i >= 0; i--)
-        {
-            var item = _designItems[i];
-            var ctrl = item.Control;
-            if (ctrl.Visible && ctrl.Bounds.Contains(point))
-                return item;
-        }
-        return null;
-    }
-
-    /// <summary>
     /// Recursively hit-tests the design surface and returns the topmost selectable
     /// <see cref="DesignItem"/> at the given point (in surface coordinates).
     /// Descends into nested containers so that controls placed inside a container
@@ -561,8 +542,9 @@ public class DesignSurface : ContainerControl
             // in OnMouseMove, and selecting here would override it.
             if (_pendingResizeHandle == ResizeHandle.None)
             {
-                // It was a click (not a drag)
-                var hitItem = HitTestChild(point);
+                // It was a click (not a drag). FindItemAt descends into containers so that
+                // controls placed inside a Panel, TabControl, etc. are selectable.
+                var hitItem = FindItemAt(point);
                 if (hitItem != null)
                 {
                     bool ctrlPressed = GetCurrentModifiers().HasFlag(ModifierKeys.Control);

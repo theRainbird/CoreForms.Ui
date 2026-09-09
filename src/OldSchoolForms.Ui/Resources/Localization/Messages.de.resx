@@ -85,9 +85,30 @@
   <data name="ColorPickerDialog_ColumnName">
     <value>Name</value>
   </data>
-  <data name="ColorPickerDialog_ColumnColor">
-    <value>Farbe</value>
-  </data>
+   <data name="ColorPickerDialog_ColumnColor">
+     <value>Farbe</value>
+   </data>
+   <data name="TabPagesDialog_Title">
+     <value>Tab-Seiten</value>
+   </data>
+   <data name="TabPagesDialog_Name">
+     <value>Name</value>
+   </data>
+   <data name="TabPagesDialog_Caption">
+     <value>Beschriftung</value>
+   </data>
+   <data name="TabPagesDialog_Add">
+     <value>Hinzufügen</value>
+   </data>
+   <data name="TabPagesDialog_Delete">
+     <value>Löschen</value>
+   </data>
+   <data name="TabPagesDialog_Ok">
+     <value>OK</value>
+   </data>
+   <data name="TabPagesDialog_Cancel">
+     <value>Abbrechen</value>
+   </data>
   <data name="ColorPickerDialog_LabelR">
     <value>R</value>
   </data>

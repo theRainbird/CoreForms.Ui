@@ -1404,6 +1404,30 @@ public class ControlCollection : IEnumerable<Control>
     }
 
     /// <summary>
+    /// Inserts a control into the collection at the specified index, keeping the
+    /// z-order in sync with the insertion position.
+    /// </summary>
+    /// <param name="index">The zero-based index at which to insert.</param>
+    /// <param name="control">The control to insert.</param>
+    public void Insert(int index, Control control)
+    {
+        if (control == null) return;
+        if (_controls.Contains(control)) return;
+        if (index < 0 || index > _controls.Count)
+            index = _controls.Count;
+
+        _controls.Insert(index, control);
+        control.Parent = _owner;
+        control.UpdateAnchorDistances();
+        _owner.MarkLayoutDirty();
+        if (_updateSuspendCount == 0)
+        {
+            _owner.Invalidate();
+            _owner.PerformLayout();
+        }
+    }
+
+    /// <summary>
     /// Adds multiple controls to the collection in a single operation.
     /// Triggers only one invalidate and layout pass for all controls.
     /// </summary>

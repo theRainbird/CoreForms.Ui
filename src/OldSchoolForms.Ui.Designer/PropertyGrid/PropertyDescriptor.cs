@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Reflection;
 using OldSchoolForms.Ui.Core;
+using OldSchoolForms.Ui.Design;
 
 namespace OldSchoolForms.Ui.Designer.PropertyGrid;
 
@@ -35,14 +36,27 @@ public class PropertyDescriptor
     public bool IsReadOnly => !_property.CanWrite;
 
     /// <summary>
+    /// Gets the dedicated value editor for this property, or null if the property
+    /// is edited inline.
+    /// </summary>
+    public IValueEditor? Editor { get; }
+
+    /// <summary>
+    /// Gets the object instance this property is read from and written to.
+    /// </summary>
+    internal object Target => _target;
+
+    /// <summary>
     /// Initializes a new instance.
     /// </summary>
     /// <param name="property">The reflection PropertyInfo.</param>
     /// <param name="target">The object instance to read/write values from.</param>
-    public PropertyDescriptor(PropertyInfo property, object target)
+    /// <param name="editor">The dedicated value editor for the property, if any.</param>
+    public PropertyDescriptor(PropertyInfo property, object target, IValueEditor? editor = null)
     {
         _property = property;
         _target = target;
+        Editor = editor;
 
         Category = property.GetCustomAttribute<System.ComponentModel.CategoryAttribute>()?.Category
             ?? GuessCategory(property.Name);

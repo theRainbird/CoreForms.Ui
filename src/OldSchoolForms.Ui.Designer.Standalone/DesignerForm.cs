@@ -224,6 +224,11 @@ public class DesignerForm : Form
             _statusLabel.Text = "Geändert";
         };
 
+        _propertyGrid.PropertyCommitted += (_, _) =>
+        {
+            _designSurface.Invalidate();
+        };
+
         Resize += (_, _) =>
         {
             _mainContentSplit.SplitterDistance = Math.Max(

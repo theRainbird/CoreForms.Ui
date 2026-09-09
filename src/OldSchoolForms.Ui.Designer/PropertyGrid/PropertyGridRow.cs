@@ -1,4 +1,5 @@
 using System;
+using System.Collections;
 using System.Reflection;
 using OldSchoolForms.Ui.Core;
 using OldSchoolForms.Ui.Theming;
@@ -72,6 +73,7 @@ public class PropertyGridRow
     public int SystemColorHoveredIndex => _systemColorHoveredIndex;
 
     public const int DropdownArrowWidth = 20;
+    public const int EllipsisButtonWidth = 24;
     public const int ColorSwatchSize = 18;
     public const int ColorPaletteCols = 17;
     public const int ColorPaletteMaxVisibleRows = 10;
@@ -97,6 +99,36 @@ public class PropertyGridRow
     {
         _descriptor = descriptor;
         _nameWidth = nameWidth;
+    }
+
+    /// <summary>
+    /// Handles a mouse click on this row.
+    /// </summary>
+    /// <param name="mouseX">The X coordinate of the click.</param>
+    /// <param name="mouseY">The Y coordinate of the click.</param>
+    /// <param name="valueColumnX">The X position of the value column.</param>
+    /// <param name="valueColumnWidth">The width of the value column.</param>
+    /// <summary>
+    /// Handles a click on the dedicated editor button (ellipsis) of the row, if present.
+    /// </summary>
+    /// <param name="mouseX">The X coordinate of the click.</param>
+    /// <param name="mouseY">The Y coordinate of the click.</param>
+    /// <param name="valueColumnX">The X position of the value column.</param>
+    /// <param name="valueColumnWidth">The width of the value column.</param>
+    /// <returns>True if the editor button was clicked and the editor opened.</returns>
+    public bool TryHandleEditorClick(int mouseX, int mouseY, int valueColumnX, int valueColumnWidth)
+    {
+        if (_descriptor.Editor == null || mouseX < valueColumnX)
+            return false;
+
+        if (mouseX >= valueColumnX + valueColumnWidth - EllipsisButtonWidth)
+        {
+            if (_descriptor.Target is Control targetControl)
+                _descriptor.Editor.Open(targetControl);
+            return true;
+        }
+
+        return false;
     }
 
     /// <summary>
@@ -163,6 +195,8 @@ public class PropertyGridRow
             return;
         }
 
+        DrawEllipsisButton(g, x, y, width, height, theme);
+
         var type = _descriptor.PropertyType;
 
         if (value == null)
@@ -170,6 +204,10 @@ public class PropertyGridRow
             g.DrawString("(null)", theme.DefaultFont, theme.GrayText, x + 4, y + 5);
             return;
         }
+
+        // Leave room for the ellipsis button so long value text never overlaps it.
+        int textMaxWidth = _descriptor.Editor != null ? width - EllipsisButtonWidth : width;
+        g.SetClip(new Rectangle(x, y, textMaxWidth, height));
 
         if (type == typeof(string))
         {
@@ -226,10 +264,28 @@ public class PropertyGridRow
             var d = (DockStyle)value;
             g.DrawString(d.ToString(), theme.DefaultFont, theme.ControlText, x + 4, y + 5);
         }
+        else if (_descriptor.Editor != null && value is ICollection collection)
+        {
+            g.DrawString(collection.Count.ToString(), theme.DefaultFont, theme.ControlText, x + 4, y + 5);
+        }
         else
         {
             g.DrawString(value.ToString() ?? "", theme.DefaultFont, theme.ControlText, x + 4, y + 5);
         }
+
+        g.ResetClip();
+    }
+
+    private void DrawEllipsisButton(Graphics g, int x, int y, int width, int height, Theme theme)
+    {
+        if (_descriptor.Editor == null) return;
+
+        int buttonX = x + width - EllipsisButtonWidth;
+        g.FillRectangle(theme.ControlLight, buttonX, y, EllipsisButtonWidth, height);
+        g.DrawRectangle(theme.ControlDark, buttonX, y, EllipsisButtonWidth, height, 1);
+        var textWidth = g.MeasureString(_descriptor.Editor.ButtonText, theme.DefaultFont).width;
+        g.DrawString(_descriptor.Editor.ButtonText, theme.DefaultFont, theme.ControlText,
+            buttonX + (EllipsisButtonWidth - textWidth) / 2, y + 4);
     }
 
     private static void DrawCheckBox(Graphics g, int x, int y, bool checked_, Theme theme)
