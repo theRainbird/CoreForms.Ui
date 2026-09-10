@@ -28,6 +28,14 @@ public class DragService
     private const int MinControlSize = 10;
 
     /// <summary>
+    /// Gets or sets the minimum size applied when resizing a control.
+    /// Defaults to <see cref="MinControlSize"/>; callers may raise it for
+    /// container roots (e.g. a design form) that must stay large enough to
+    /// host their title bar or a usable client area.
+    /// </summary>
+    public Size MinResizeSize { get; set; } = new Size(MinControlSize, MinControlSize);
+
+    /// <summary>
     /// Raised when a drag operation starts.
     /// </summary>
     public event EventHandler? DragStarted;
@@ -79,6 +87,13 @@ public class DragService
     {
         if (_selectionService.SelectedCount == 0) return;
 
+        // The root control (the design form or user control) may be resized but never
+        // moved, so exclude it from move drags. If only the root is selected, no drag starts.
+        var movable = _selectionService.SelectedItems
+            .Where(i => !ReferenceEquals(i.Control, _surface.RootControl))
+            .ToArray();
+        if (movable.Length == 0) return;
+
         _isDragging = true;
         _activeHandle = ResizeHandle.None;
         _dragStart = screenPoint;
@@ -86,7 +101,7 @@ public class DragService
 
         _dragItems.Clear();
         _surfaceOrigins.Clear();
-        foreach (var item in _selectionService.SelectedItems)
+        foreach (var item in movable)
         {
             item.SnapshotBounds();
             _surfaceOrigins[item] = item.Control.PointToScreen(Point.Empty);
@@ -176,16 +191,16 @@ public class DragService
             {
                 newX = original.X + dx;
                 newW = original.Width - dx;
-                if (newW < MinControlSize)
+                if (newW < MinResizeSize.Width)
                 {
-                    newX = original.X + original.Width - MinControlSize;
-                    newW = MinControlSize;
+                    newX = original.X + original.Width - MinResizeSize.Width;
+                    newW = MinResizeSize.Width;
                 }
             }
             else if (rightAnchor)
             {
                 newW = original.Width + dx;
-                if (newW < MinControlSize) newW = MinControlSize;
+                if (newW < MinResizeSize.Width) newW = MinResizeSize.Width;
             }
 
             bool topAnchor = (_activeHandle & (ResizeHandle.TopLeft | ResizeHandle.TopCenter | ResizeHandle.TopRight)) != 0;
@@ -195,16 +210,16 @@ public class DragService
             {
                 newY = original.Y + dy;
                 newH = original.Height - dy;
-                if (newH < MinControlSize)
+                if (newH < MinResizeSize.Height)
                 {
-                    newY = original.Y + original.Height - MinControlSize;
-                    newH = MinControlSize;
+                    newY = original.Y + original.Height - MinResizeSize.Height;
+                    newH = MinResizeSize.Height;
                 }
             }
             else if (bottomAnchor)
             {
                 newH = original.Height + dy;
-                if (newH < MinControlSize) newH = MinControlSize;
+                if (newH < MinResizeSize.Height) newH = MinResizeSize.Height;
             }
 
             ctrl.Bounds = new Rectangle(newX, newY, newW, newH);
@@ -242,11 +257,15 @@ public class DragService
             var desired = new Point(origin.X + dx, origin.Y + dy);
 
             // Place the control so its top-left follows the mouse in surface coordinates.
-            // Subtract the current parent's screen origin so the location is expressed in
-            // the (possibly reparented) parent's coordinate space.
+            // Subtract the current parent's screen origin and its render offset (e.g. a form
+            // title bar) so the location is expressed in the (possibly reparented) parent's
+            // client coordinate space and the control lands under the cursor.
             var parent = ctrl.Parent;
             var parentOrigin = parent != null ? parent.PointToScreen(Point.Empty) : Point.Empty;
-            ctrl.Location = new Point(desired.X - parentOrigin.X, desired.Y - parentOrigin.Y);
+            var renderOffset = parent != null ? parent.GetChildRenderOffsetPublic() : Point.Empty;
+            ctrl.Location = new Point(
+                desired.X - parentOrigin.X - renderOffset.X,
+                desired.Y - parentOrigin.Y - renderOffset.Y);
         }
     }
 

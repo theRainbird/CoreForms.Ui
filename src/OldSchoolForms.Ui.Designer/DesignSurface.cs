@@ -22,6 +22,10 @@ public class DesignSurface : ContainerControl
     private readonly ToolboxService _toolboxService;
     private readonly UndoService _undoService;
 
+    private DesignItem? _rootItem;
+    private ContainerControl? _rootControl;
+    private Point _rootOffset = Point.Empty;
+
     private Point _lastMouseDown;
     private bool _hasMouseMovedSinceDown;
     private bool _leftButtonPressed;
@@ -67,6 +71,30 @@ public class DesignSurface : ContainerControl
     /// Gets the list of all design items on the surface.
     /// </summary>
     public IReadOnlyList<DesignItem> Items => _designItems.AsReadOnly();
+
+    /// <summary>
+    /// Gets the root control that hosts the designed content — a <see cref="DesignForm"/>
+    /// or <see cref="DesignUserControl"/>. This is the container that top-level controls
+    /// are parented to. Null until <see cref="BeginDesignForm"/> or
+    /// <see cref="BeginDesignUserControl"/> is called.
+    /// </summary>
+    public ContainerControl? RootControl => _rootControl;
+
+    /// <summary>
+    /// Gets the design item wrapping <see cref="RootControl"/>, or null before a design is begun.
+    /// </summary>
+    public DesignItem? RootItem => _rootItem;
+
+    /// <summary>
+    /// Gets or sets the offset of the root control within the surface. Controls placed on the
+    /// surface are positioned relative to this offset (and the root's render offset) so that a
+    /// click lands under the cursor inside the root's client area.
+    /// </summary>
+    public Point RootOffset
+    {
+        get => _rootOffset;
+        set { _rootOffset = value; Invalidate(); }
+    }
 
     /// <summary>
     /// Gets or sets whether the alignment grid is visible.
@@ -144,18 +172,68 @@ public class DesignSurface : ContainerControl
         BackColor = Color.White;
 
         _dragService.DragStarted += (_, _) => Invalidate();
+
+        // A surface is immediately usable: start with an empty design form as the root.
+        BeginDesignForm();
     }
 
     /// <summary>
-    /// Adds a control to the design surface at the specified location.
-    /// The control is wrapped in a <see cref="DesignItem"/> and added as a child of the surface.
+    /// Begins designing a form. The current content is cleared and a fresh
+    /// <see cref="DesignForm"/> is installed as the surface root. Controls added
+    /// afterwards are parented to this form and placed in its client area.
+    /// </summary>
+    public void BeginDesignForm()
+    {
+        SetRoot(new DesignForm { Location = _rootOffset });
+    }
+
+    /// <summary>
+    /// Begins designing a user control. The current content is cleared and a fresh
+    /// <see cref="DesignUserControl"/> is installed as the surface root. Controls added
+    /// afterwards are parented to this control and placed across its full area.
+    /// </summary>
+    public void BeginDesignUserControl()
+    {
+        SetRoot(new DesignUserControl { Location = _rootOffset });
+    }
+
+    private void SetRoot(ContainerControl root)
+    {
+        // Remove every existing item and its underlying control.
+        _selectionService.DeselectAll();
+        foreach (var item in _designItems.ToArray())
+        {
+            item.Control.Parent?.Controls.Remove(item.Control);
+            _designItems.Remove(item);
+        }
+        _undoService.Clear();
+
+        Controls.Clear();
+
+        _rootControl = root;
+        Controls.Add(root);
+
+        _rootItem = new DesignItem(root);
+        _designItems.Insert(0, _rootItem);
+
+        ContentModified?.Invoke(this, EventArgs.Empty);
+        Invalidate();
+    }
+
+    /// <summary>
+    /// Adds a control to the design surface at the specified location. The control is
+    /// wrapped in a <see cref="DesignItem"/> and parented to the surface root
+    /// (<see cref="RootControl"/>), placing it in the root's client area.
     /// </summary>
     /// <param name="control">The control to add.</param>
     /// <param name="location">The location on the design surface.</param>
     /// <returns>The newly created DesignItem.</returns>
+    /// <exception cref="InvalidOperationException">Thrown when no design has been begun.</exception>
     public DesignItem AddControl(Control control, Point location)
     {
-        return RegisterItem(control, parent: null, location);
+        if (_rootControl == null)
+            throw new InvalidOperationException("No design has been begun. Call BeginDesignForm or BeginDesignUserControl first.");
+        return RegisterItem(control, parent: _rootControl, ToRootLocal(location));
     }
 
     /// <summary>
@@ -197,6 +275,21 @@ public class DesignSurface : ContainerControl
         ContentModified?.Invoke(this, EventArgs.Empty);
         Invalidate();
         return item;
+    }
+
+    /// <summary>
+    /// Converts a point expressed in surface coordinates into the root's client coordinate
+    /// space, accounting for the root's surface offset and its render offset (e.g. below a
+    /// form title bar). The returned point is suitable as a child control's <see cref="Control.Location"/>.
+    /// </summary>
+    /// <param name="surfacePoint">The point in this surface's coordinates.</param>
+    /// <returns>The corresponding point in the root's client area.</returns>
+    private Point ToRootLocal(Point surfacePoint)
+    {
+        var offset = _rootControl!.GetChildRenderOffsetPublic();
+        return new Point(
+            surfacePoint.X - _rootOffset.X - offset.X,
+            surfacePoint.Y - _rootOffset.Y - offset.Y);
     }
 
     /// <summary>
@@ -304,6 +397,11 @@ public class DesignSurface : ContainerControl
     /// <returns>The topmost DesignItem at the point, or null if none.</returns>
     public DesignItem? FindItemAt(Point point)
     {
+        // Convert once into form coordinates; PointToClient below then yields the point
+        // in any child's parent coordinate space, which is required for controls nested
+        // inside the root (or any container), not just controls directly on the surface.
+        var formPoint = this.PointToScreen(point);
+
         for (int i = _designItems.Count - 1; i >= 0; i--)
         {
             var item = _designItems[i];
@@ -312,11 +410,6 @@ public class DesignSurface : ContainerControl
 
             if (ctrl is ContainerControl container)
             {
-                // `point` is in surface-local coordinates; convert it to form coordinates
-                // before PointToClient so the offset of this surface (and any ancestors)
-                // is accounted for. Otherwise nested containers would be hit-tested against
-                // a coordinate space shifted by the surface's own position.
-                var formPoint = this.PointToScreen(point);
                 var local = container.PointToClient(formPoint);
                 if (!new Rectangle(0, 0, container.Width, container.Height).Contains(local)) continue;
 
@@ -331,7 +424,8 @@ public class DesignSurface : ContainerControl
                 return item;
             }
 
-            if (ctrl.HitTest(point))
+            var parentSpace = ctrl.PointToClient(formPoint);
+            if (ctrl.HitTest(parentSpace))
                 return item;
         }
 
@@ -429,6 +523,7 @@ public class DesignSurface : ContainerControl
         // Fix 1: Detect if clicking on a resize handle upfront to prevent
         // OnMouseUp from overriding the selection before drag starts.
         var primarySel = _selectionService.PrimarySelection;
+        UpdateResizeConstraints(primarySel);
         _pendingResizeHandle = primarySel != null
             ? _dragService.HitTestHandles(primarySel, _lastMouseDown)
             : ResizeHandle.None;
@@ -446,7 +541,9 @@ public class DesignSurface : ContainerControl
         if (container != null)
         {
             var control = _toolboxService.CreateControl(_pendingDropItem);
-            var localPoint = container.PointToClient(PointToScreen(dropPoint));
+            var client = container.PointToClient(PointToScreen(dropPoint));
+            var offset = container.GetChildRenderOffsetPublic();
+            var localPoint = new Point(client.X - offset.X, client.Y - offset.Y);
             AddControl(control, container, localPoint);
         }
         else
@@ -479,6 +576,7 @@ public class DesignSurface : ContainerControl
         {
             // Update resize cursor when hovering over handles
             var primary = _selectionService.PrimarySelection;
+            UpdateResizeConstraints(primary);
             if (primary != null)
             {
                 var handle = _dragService.HitTestHandles(primary, point);
@@ -815,5 +913,27 @@ public class DesignSurface : ContainerControl
         var form = FindForm();
         if (form != null)
             form.Cursor = null;
+    }
+
+    /// <summary>
+    /// Applies the appropriate minimum size to the drag service for the next resize.
+    /// The root (design form or user control) must remain large enough to host a usable
+    /// title bar/client area, so it gets a larger floor than ordinary controls.
+    /// </summary>
+    /// <param name="primary">The primary selection being resized, or null.</param>
+    private void UpdateResizeConstraints(DesignItem? primary)
+    {
+        if (primary?.Control is DesignForm)
+        {
+            _dragService.MinResizeSize = new Size(300, 160);
+        }
+        else if (primary?.Control is DesignUserControl)
+        {
+            _dragService.MinResizeSize = new Size(80, 60);
+        }
+        else
+        {
+            _dragService.MinResizeSize = new Size(10, 10);
+        }
     }
 }

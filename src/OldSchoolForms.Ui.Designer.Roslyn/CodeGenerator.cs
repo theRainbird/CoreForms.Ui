@@ -17,6 +17,27 @@ public class CodeGenerator
     private readonly DesignSurface _surface;
     private const string GeneratedClassName = "InitializeComponent";
 
+    // C# keywords that can never be used as a field name without escaping.
+    private static readonly HashSet<string> ReservedKeywords = new(StringComparer.Ordinal)
+    {
+        "abstract", "as", "base", "bool", "break", "byte", "case", "catch", "char", "checked",
+        "class", "const", "continue", "decimal", "default", "delegate", "do", "double", "else",
+        "enum", "event", "explicit", "extern", "false", "finally", "fixed", "float", "for",
+        "foreach", "goto", "if", "implicit", "in", "int", "interface", "internal", "is", "lock",
+        "long", "namespace", "new", "null", "object", "operator", "out", "override", "params",
+        "private", "protected", "public", "readonly", "ref", "return", "sbyte", "sealed", "short",
+        "sizeof", "stackalloc", "static", "string", "struct", "switch", "this", "throw", "true",
+        "try", "typeof", "uint", "ulong", "unchecked", "unsafe", "ushort", "using", "virtual",
+        "void", "volatile", "while", "var", "global", "dynamic", "dyn"
+    };
+
+    // Property names emitted for every control; a field sharing one of these would hide the
+    // inherited property and break the generated assignments.
+    private static readonly HashSet<string> ReservedPropertyNames = new(StringComparer.Ordinal)
+    {
+        "Location", "Size", "Text", "Name", "BackColor", "TabIndex", "TabStop", "Enabled", "Visible"
+    };
+
     /// <summary>
     /// Initializes a new instance of the <see cref="CodeGenerator"/> class.
     /// </summary>
@@ -64,12 +85,17 @@ public class CodeGenerator
 
         var subIndent = indent + "    ";
 
+        // Resolve a guaranteed-unique field name for every control once, so the four
+        // generation passes below never emit duplicate variable names.
+        var fieldNameMap = BuildFieldNameMap(className);
+
         // Field declarations
         foreach (var item in _surface.Items)
         {
+            if (item.Control == _surface.RootControl) continue;
             var control = item.Control;
             string typeName = control.GetType().Name;
-            string fieldName = GetFieldName(control);
+            string fieldName = fieldNameMap[control];
             sb.AppendLine($"{subIndent}private {typeName} {fieldName};");
         }
 
@@ -84,8 +110,9 @@ public class CodeGenerator
         // Create control instances
         foreach (var item in _surface.Items)
         {
+            if (item.Control == _surface.RootControl) continue;
             var control = item.Control;
-            string fieldName = GetFieldName(control);
+            string fieldName = fieldNameMap[control];
             string typeName = control.GetType().Name;
             sb.AppendLine($"{bodyIndent}{fieldName} = new {typeName}();");
         }
@@ -96,8 +123,9 @@ public class CodeGenerator
         // Configure each control
         foreach (var item in _surface.Items)
         {
+            if (item.Control == _surface.RootControl) continue;
             var control = item.Control;
-            string fieldName = GetFieldName(control);
+            string fieldName = fieldNameMap[control];
 
             sb.AppendLine();
             sb.AppendLine($"{bodyIndent}//");
@@ -108,7 +136,7 @@ public class CodeGenerator
         }
 
         // Controls.Add hierarchy
-        GenerateControlHierarchy(sb, bodyIndent, _surface);
+        GenerateControlHierarchy(sb, bodyIndent, _surface, fieldNameMap);
 
         sb.AppendLine($"{bodyIndent}ResumeLayout(false);");
         sb.AppendLine($"{subIndent}}}");
@@ -148,7 +176,11 @@ public class CodeGenerator
         }
     }
 
-    private static void GenerateControlHierarchy(StringBuilder sb, string indent, DesignSurface surface)
+    private static void GenerateControlHierarchy(
+        StringBuilder sb,
+        string indent,
+        DesignSurface surface,
+        IReadOnlyDictionary<Control, string> fieldNameMap)
     {
         sb.AppendLine();
         sb.AppendLine($"{indent}// Control hierarchy");
@@ -157,13 +189,14 @@ public class CodeGenerator
         // For simplicity, generate Controls.Add for all items at root level
         foreach (var item in surface.Items)
         {
+            if (item.Control == surface.RootControl) continue;
             var control = item.Control;
-            string fieldName = GetFieldName(control);
+            string fieldName = fieldNameMap[control];
             Control? parent = control.Parent;
 
-            if (parent != null && parent != surface)
+            if (parent != null && parent != surface && parent != surface.RootControl)
             {
-                string parentField = GetFieldName(parent);
+                string parentField = fieldNameMap[parent];
                 sb.AppendLine($"{indent}{parentField}.Controls.Add({fieldName});");
             }
             else
@@ -173,14 +206,97 @@ public class CodeGenerator
         }
     }
 
-    private static string GetFieldName(Control control)
+    /// <summary>
+    /// Resolves a guaranteed-unique, valid C# field name for every non-root control on the
+    /// surface. The same map is reused by all generation passes so field names never diverge
+    /// or collide between the field declarations, instantiations, property assignments and the
+    /// control hierarchy.
+    /// </summary>
+    /// <param name="className">The name of the partial class being generated, reserved so a
+    /// control can never shadow the class itself.</param>
+    /// <returns>A mapping from each designed control to its unique field name.</returns>
+    private Dictionary<Control, string> BuildFieldNameMap(string className)
     {
-        if (!string.IsNullOrEmpty(control.Name))
+        var reserved = new HashSet<string>(ReservedKeywords, StringComparer.Ordinal);
+        reserved.Add(GeneratedClassName);
+        foreach (var property in ReservedPropertyNames)
+            reserved.Add(property);
+        if (!string.IsNullOrEmpty(className))
+            reserved.Add(className);
+
+        var map = new Dictionary<Control, string>();
+        foreach (var item in _surface.Items)
+        {
+            if (item.Control == _surface.RootControl) continue;
+            map[item.Control] = BuildUniqueName(item.Control, reserved);
+        }
+        return map;
+    }
+
+    /// <summary>
+    /// Assigns the next unused name for the given control, suffixing an incrementing counter
+    /// on every collision (e.g. <c>button</c>, <c>button1</c>, <c>button2</c>).
+    /// </summary>
+    /// <param name="control">The control to name.</param>
+    /// <param name="reserved">The set of names already taken or otherwise forbidden.</param>
+    /// <returns>The unique field name for the control.</returns>
+    private static string BuildUniqueName(Control control, HashSet<string> reserved)
+    {
+        string baseName = SanitizeIdentifier(ResolveBaseName(control));
+        if (string.IsNullOrEmpty(baseName))
+            baseName = "control";
+
+        string name = baseName;
+        int counter = 1;
+        while (!reserved.Add(name))
+            name = $"{baseName}{counter++}";
+
+        return name;
+    }
+
+    /// <summary>
+    /// Determines the preferred base name for a control: its <see cref="Control.Name"/> when
+    /// set, otherwise the lower-cased type name (e.g. <c>Button</c> -&gt; <c>button</c>).
+    /// </summary>
+    /// <param name="control">The control to name.</param>
+    /// <returns>The preferred, pre-sanitization base name.</returns>
+    private static string ResolveBaseName(Control control)
+    {
+        if (!string.IsNullOrWhiteSpace(control.Name))
             return control.Name;
 
         // Generate a name based on type
-        string baseName = control.GetType().Name;
-        return char.ToLowerInvariant(baseName[0]) + baseName[1..];
+        string typeName = control.GetType().Name;
+        if (typeName.Length == 0)
+            return typeName;
+        return char.ToLowerInvariant(typeName[0]) + typeName[1..];
+    }
+
+    /// <summary>
+    /// Converts an arbitrary string into a legal C# identifier by replacing illegal characters
+    /// with underscores and prefixing an underscore when the result would otherwise start with a
+    /// digit. An empty input yields an empty string.
+    /// </summary>
+    /// <param name="name">The raw name to sanitize.</param>
+    /// <returns>A syntactically valid C# identifier, or an empty string when <paramref name="name"/>
+    /// is null or empty.</returns>
+    private static string SanitizeIdentifier(string name)
+    {
+        if (string.IsNullOrEmpty(name))
+            return string.Empty;
+
+        var chars = name.ToCharArray();
+        for (int i = 0; i < chars.Length; i++)
+        {
+            bool identifierChar = char.IsLetterOrDigit(chars[i]) || chars[i] == '_';
+            if (!identifierChar)
+                chars[i] = '_';
+        }
+
+        string result = new string(chars);
+        if (char.IsDigit(result[0]))
+            result = "_" + result;
+        return result;
     }
 
     private static string FormatPoint(Point p) => $"new Point({p.X}, {p.Y})";

@@ -745,6 +745,13 @@ if (_focused != value)
     protected internal virtual Point GetChildRenderOffset() => Point.Empty;
 
     /// <summary>
+    /// Gets the render offset applied to child controls by this parent. Public accessor for the
+    /// protected virtual <see cref="GetChildRenderOffset"/>, usable from other assemblies.
+    /// </summary>
+    /// <returns>The render offset applied to children.</returns>
+    public Point GetChildRenderOffsetPublic() => GetChildRenderOffset();
+
+    /// <summary>
     /// Gets the cumulative position of this control relative to its parent Form.
     /// Sums the X/Y coordinates of all parent controls up to the Form,
     /// including any child render offsets applied by parent controls.

@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using OldSchoolForms.Ui.Core;
+using PlatformHelper = OldSchoolForms.Ui.Platform.Platform;
 using OldSchoolForms.Ui.Designer.Services;
 using OldSchoolForms.Ui.Theming;
 using Graphics = OldSchoolForms.Ui.Rendering.Graphics;
@@ -41,6 +42,9 @@ public class PropertyGrid : ContainerControl
     private int _dropdownValueX;
     private int _dropdownRowY;
     private int _dropdownItemCount;
+
+    private bool _dragSelecting;
+    private PropertyGridRow? _dragSelectRow;
 
    private PropertyGridRow? _colorPickerRow;
     private int _colorPickerX;
@@ -176,6 +180,9 @@ public class PropertyGrid : ContainerControl
             return;
         }
 
+        _dragSelecting = false;
+        _dragSelectRow = null;
+
         int rowIndex = HitTestRow(args.Y);
 
         // Handle color picker open
@@ -300,6 +307,7 @@ public class PropertyGrid : ContainerControl
         {
             _editingRow.CommitEdit();
             _editingRow = null;
+            PropertyCommitted?.Invoke(this, EventArgs.Empty);
         }
 
         if (rowIndex >= 0 && rowIndex < _rows.Count)
@@ -315,6 +323,15 @@ public class PropertyGrid : ContainerControl
             if (row.TryHandleEditorClick(args.X, args.Y, valueX, Width - _vScrollBar.ScrollBarSize - valueX))
             {
                 RebuildRows();
+                Invalidate();
+                PropertyCommitted?.Invoke(this, EventArgs.Empty);
+                base.OnMouseDown(e);
+                return;
+            }
+
+            if (row.IsBoolProperty)
+            {
+                row.ToggleBool();
                 Invalidate();
                 PropertyCommitted?.Invoke(this, EventArgs.Empty);
                 base.OnMouseDown(e);
@@ -344,6 +361,9 @@ public class PropertyGrid : ContainerControl
             else if (row.IsEditing)
             {
                 _editingRow = row;
+                PlaceCaretOnClick(row, args, valueX);
+                _dragSelectRow = row;
+                _dragSelecting = true;
                 var form = FindForm();
                 if (form != null)
                 {
@@ -354,6 +374,27 @@ public class PropertyGrid : ContainerControl
         }
 
         base.OnMouseDown(e);
+    }
+
+    /// <summary>
+    /// Places the caret at the character under the mouse cursor when a text row is clicked.
+    /// A Shift-click extends the current selection and a double-click selects the whole word.
+    /// </summary>
+    /// <param name="row">The row that is currently being edited.</param>
+    /// <param name="args">The mouse event carrying the click position and double-click count.</param>
+    /// <param name="valueX">The X position of the value column.</param>
+    private void PlaceCaretOnClick(PropertyGridRow row, MouseEventArgs args, int valueX)
+    {
+        int index = row.CaretIndexFromX(args.X - valueX, ThemeManager.CurrentTheme.DefaultFont, 1.0f);
+
+        if (args.Clicks >= 2)
+        {
+            row.SelectWordAt(index);
+            return;
+        }
+
+        bool extend = (PlatformHelper.GetCurrentModifiers() & ModifierKeys.Shift) == ModifierKeys.Shift;
+        row.MoveCaret(index, extend);
     }
 
     internal int HitTestRow(int y)
@@ -632,12 +673,15 @@ public class PropertyGrid : ContainerControl
         }
         else if (_editingRow != null)
         {
+            bool extend = (e.Modifiers & ModifierKeys.Shift) == ModifierKeys.Shift;
+
             switch (e.KeyCode)
             {
                 case Keys.Enter:
                     _editingRow.CommitEdit();
                     _editingRow = null;
                     Invalidate();
+                    PropertyCommitted?.Invoke(this, EventArgs.Empty);
                     e.Handled = true;
                     return;
 
@@ -657,17 +701,42 @@ public class PropertyGrid : ContainerControl
                     return;
 
                 case Keys.Delete:
-                    if (_editingRow.HandleKey('\x03'))
+                    if (_editingRow.DeleteCharAfterCaret())
                     {
                         Invalidate();
                         e.Handled = true;
                     }
                     return;
 
+                case Keys.Left:
+                    _editingRow.MoveLeft(extend);
+                    Invalidate();
+                    e.Handled = true;
+                    return;
+
+                case Keys.Right:
+                    _editingRow.MoveRight(extend);
+                    Invalidate();
+                    e.Handled = true;
+                    return;
+
+                case Keys.Home:
+                    _editingRow.MoveToStart(extend);
+                    Invalidate();
+                    e.Handled = true;
+                    return;
+
+                case Keys.End:
+                    _editingRow.MoveToEnd(extend);
+                    Invalidate();
+                    e.Handled = true;
+                    return;
+
                 case Keys.Tab:
                     _editingRow.CommitEdit();
                     _editingRow = null;
                     Invalidate();
+                    PropertyCommitted?.Invoke(this, EventArgs.Empty);
                     break;
             }
         }
@@ -685,6 +754,17 @@ public class PropertyGrid : ContainerControl
                 base.OnMouseMove(e);
                 return;
             }
+        }
+
+        // Drag-select within an inline-editing row
+        if (_dragSelecting && _dragSelectRow != null && _dragSelectRow.IsEditing && e is MouseEventArgs moveArgs)
+        {
+            int index = _dragSelectRow.CaretIndexFromX(
+                moveArgs.X - NameColumnWidth,
+                ThemeManager.CurrentTheme.DefaultFont, 1.0f);
+            _dragSelectRow.MoveCaret(index, true);
+            Invalidate();
+            return;
         }
 
         // Handle color picker hover
@@ -816,6 +896,9 @@ public class PropertyGrid : ContainerControl
 
     protected override void OnMouseUp(EventArgs e)
     {
+        _dragSelecting = false;
+        _dragSelectRow = null;
+
         if (e is MouseEventArgs && (_vScrollBar.IsDragging || _vScrollBar.IsUpButtonPressed || _vScrollBar.IsDownButtonPressed))
         {
             _vScrollBar.HandleMouseUp(VScrollBarContext);
@@ -840,6 +923,7 @@ public class PropertyGrid : ContainerControl
         {
             _editingRow.CommitEdit();
             _editingRow = null;
+            PropertyCommitted?.Invoke(this, EventArgs.Empty);
         }
 
         if (_dropdownOpen)

@@ -42,17 +42,18 @@ public class DesignerContainerTests
         var button = new Button { Size = new Size(120, 40) };
         var buttonItem = surface.AddControl(button, panel, new Point(70, 70));
 
-        Assert.Same(surface, panel.Parent);
-        Assert.Null(panelItem.ParentItem);
+        Assert.Same(surface.RootControl, panel.Parent);
+        Assert.Same(surface.RootItem, panelItem.ParentItem);
         Assert.Same(panel, button.Parent);
         Assert.Same(panelItem, buttonItem.ParentItem);
         Assert.Equal(new Point(70, 70), button.Location);
 
         // The control is parented to the container exactly once and tracked once.
+        // The root (DesignForm), the panel, and the button are all tracked.
         Assert.Single(panel.Controls);
         Assert.Single(surface.Items, i => i.Control == panel);
         Assert.Single(surface.Items, i => i.Control == button);
-        Assert.Equal(2, surface.Items.Count);
+        Assert.Equal(3, surface.Items.Count);
         Assert.Same(buttonItem, surface.FindItem(button));
     }
 
@@ -98,7 +99,7 @@ public class DesignerContainerTests
         var hit = surface.FindItemAt(new Point(60, 60));
         Assert.Same(button, hit?.Control);
 
-        Assert.Null(surface.FindItemAt(new Point(5, 5)));
+        Assert.Same(surface.RootControl, surface.FindItemAt(new Point(5, 5))?.Control);
     }
 
     [Fact]
@@ -111,8 +112,8 @@ public class DesignerContainerTests
         // Inside the panel -> panel.
         Assert.Same(panel, surface.FindDropContainerAt(new Point(100, 100)));
 
-        // Outside the panel -> null.
-        Assert.Null(surface.FindDropContainerAt(new Point(5, 5)));
+        // Outside the panel (but inside the root) -> the root itself.
+        Assert.Same(surface.RootControl, surface.FindDropContainerAt(new Point(5, 5)));
     }
 
     [Fact]
@@ -129,8 +130,9 @@ public class DesignerContainerTests
 
         Assert.Empty(panel.Controls);
         Assert.Null(surface.FindItem(button));
-        Assert.Single(surface.Items);
-        Assert.Same(panel, surface.Items[0].Control);
+        // The root (DesignForm) and the surviving panel remain tracked after removing the button.
+        Assert.Equal(2, surface.Items.Count);
+        Assert.Same(panel, surface.Items.Single(i => i.Control is Panel).Control);
     }
 
     [Fact]
@@ -147,9 +149,49 @@ public class DesignerContainerTests
         surface.Drag.BeginMove(new Point(250, 50));
         surface.Drag.ContinueDrag(new Point(200, 80));
 
-        Assert.Equal(new Point(200, 80), button.Location);
+        Assert.Same(surface.RootControl, button.Parent);
         Assert.Equal(new Point(200, 80), button.PointToScreen(Point.Empty));
         Assert.False(reparented);
+
+        surface.Drag.EndDrag();
+    }
+
+    [Fact]
+    public void Drag_Root_IsNotMoved()
+    {
+        var surface = new TestableDesignSurface { SnapToGrid = false };
+        var rootItem = surface.RootItem;
+        surface.Selection.Select(rootItem);
+
+        var start = rootItem.Control.PointToScreen(Point.Empty);
+
+        // Drag on the empty form area past the move threshold.
+        surface.RaiseMouseDown(LeftMouseDown(10, 10));
+        surface.RaiseMouseMove(LeftMouseDown(250, 200));
+        surface.RaiseMouseUp(LeftMouseDown(250, 200));
+
+        // The root (design form) cannot be moved.
+        Assert.Equal(start, rootItem.Control.PointToScreen(Point.Empty));
+        Assert.False(surface.Drag.IsDragging);
+    }
+
+    [Fact]
+    public void Resize_Root_GrowsViaHandle()
+    {
+        var surface = new TestableDesignSurface { SnapToGrid = false };
+        var rootItem = surface.RootItem;
+        surface.Selection.Select(rootItem);
+
+        var bounds = surface.RootControl.Bounds;
+        var topLeft = surface.RootControl.PointToScreen(Point.Empty);
+
+        surface.Drag.BeginResize(topLeft, ResizeHandle.BottomRight);
+        surface.Drag.ContinueDrag(new Point(topLeft.X + bounds.Width + 100,
+                                            topLeft.Y + bounds.Height + 100));
+
+        Assert.True(surface.Drag.IsDragging);
+        Assert.True(surface.RootControl!.Width > bounds.Width);
+        Assert.True(surface.RootControl.Height > bounds.Height);
 
         surface.Drag.EndDrag();
     }
@@ -224,7 +266,7 @@ public class DesignerContainerTests
         surface.RaiseMouseDown(LeftMouseDown(100, 100));
 
         Assert.False(surface.IsPendingDrop);
-        Assert.Equal(2, surface.Items.Count);
+        Assert.Equal(3, surface.Items.Count);
 
         var placed = surface.Items.Single(i => i.Control is Button);
         Assert.Same(panel, placed.Control.Parent);
@@ -259,9 +301,9 @@ public class DesignerContainerTests
         surface.BeginExternalDrop(buttonItem);
         surface.RaiseMouseDown(LeftMouseDown(drop.X, drop.Y));
 
-        var ctrl = surface.Items.Single().Control;
-        // The click point is already in surface-local space, so the control lands exactly there.
-        Assert.Equal(drop, ctrl.Location);
+        var ctrl = surface.Items.Single(i => i.Control is Button).Control;
+        // The click point is in surface-local space, so the control lands exactly under the cursor.
+        Assert.Equal(drop, ctrl.PointToScreen(Point.Empty));
     }
 
     [Fact]
@@ -305,7 +347,7 @@ public class DesignerContainerTests
 
         // The outer panel must never become a child of its own descendant, which
         // would create a parent/child cycle and infinite recursion.
-        Assert.Same(surface, outer.Parent);
+        Assert.Same(surface.RootControl, outer.Parent);
         Assert.Equal(1, reparentCount);
 
         surface.Drag.EndDrag();

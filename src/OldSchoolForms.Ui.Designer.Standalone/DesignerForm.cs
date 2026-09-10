@@ -247,8 +247,19 @@ public class DesignerForm : Form
 
     private void NewForm()
     {
+        var type = NewDocumentDialog.ShowDialog();
+        if (type is null)
+            return;
+
         _designSurface.ClearAll();
-        _statusLabel.Text = "Neues Formular";
+        if (type == NewDocumentType.UserControl)
+            _designSurface.BeginDesignUserControl();
+        else
+            _designSurface.BeginDesignForm();
+
+        _statusLabel.Text = type == NewDocumentType.UserControl
+            ? "Neues Benutzersteuerelement"
+            : "Neues Formular";
         Title = "OldSchoolForms Form Designer - [Unbenannt]";
     }
 

@@ -52,8 +52,8 @@ public class DesignForm : ContainerControl
         // Draw drop shadow
         g.FillRectangle(Color.FromArgb(0, 0, 0, 30), X + 4, Y + 4, Width, Height);
 
-        // Draw form background (white)
-        g.FillRectangle(Color.White, X, Y, Width, Height);
+        // Draw form background in the form's own background color
+        g.FillRectangle(BackColor, X, Y, Width, Height);
 
         // Draw title bar
         var titleBarColor = theme.ActiveCaption;
@@ -67,8 +67,13 @@ public class DesignForm : ContainerControl
         var borderColor = Color.FromArgb(200, 200, 200);
         g.DrawRectangle(borderColor, X, Y, Width, Height, 1);
 
-        // Render child controls (designed controls go here)
+        // Render child controls (designed controls go here), shifted by the render
+        // offset so they appear below the title bar and stay aligned with hit-testing.
+        g.Save();
+        var offset = GetChildRenderOffset();
+        g.TranslateTransform(offset.X, offset.Y);
         base.Render(g);
+        g.Restore();
     }
 
     /// <summary>
@@ -76,7 +81,7 @@ public class DesignForm : ContainerControl
     /// </summary>
     protected override Rectangle GetChildClipRectangle()
     {
-        return new Rectangle(1, TitleBarHeight + 1, Width - 2, Height - TitleBarHeight - 2);
+        return new Rectangle(0, 0, Width - 2, Height - TitleBarHeight - 2);
     }
 
     /// <summary>

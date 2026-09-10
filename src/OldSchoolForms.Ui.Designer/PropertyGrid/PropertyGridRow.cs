@@ -2,6 +2,7 @@ using System;
 using System.Collections;
 using System.Reflection;
 using OldSchoolForms.Ui.Core;
+using PlatformHelper = OldSchoolForms.Ui.Platform.Platform;
 using OldSchoolForms.Ui.Theming;
 using Graphics = OldSchoolForms.Ui.Rendering.Graphics;
 
@@ -59,6 +60,7 @@ public class PropertyGridRow
     private readonly List<int> _selectedFlagIndices = new();
     private string _editBuffer = string.Empty;
     private int _caretPos;
+    private int _anchor;
 
     private bool _isColorPickerOpen;
     private int _colorPickerHoveredIndex = -1;
@@ -161,7 +163,8 @@ public class PropertyGridRow
             }
         }
 
-        StartEdit();
+        if (!_isEditing)
+            StartEdit();
         return false;
     }
 
@@ -187,6 +190,17 @@ public class PropertyGridRow
         {
             // Draw editing field
             g.FillRectangle(Color.White, x, y, width, height);
+
+            // Draw selection highlight
+            if (_anchor != _caretPos)
+            {
+                int selStart = Math.Min(_anchor, _caretPos);
+                int selEnd = Math.Max(_anchor, _caretPos);
+                int startX = x + 4 + g.MeasureString(_editBuffer[..selStart], theme.DefaultFont).width;
+                int endX = x + 4 + g.MeasureString(_editBuffer[..selEnd], theme.DefaultFont).width;
+                g.FillRectangle(theme.Highlight, startX, y + 2, endX - startX, height - 4);
+            }
+
             g.DrawString(_editBuffer, theme.DefaultFont, theme.ControlText, x + 4, y + 5);
 
             // Draw caret using actual measured width
@@ -241,13 +255,11 @@ public class PropertyGridRow
         }
         else if (type == typeof(Point))
         {
-            var p = (Point)value;
-            g.DrawString($"X={p.X}, Y={p.Y}", theme.DefaultFont, theme.ControlText, x + 4, y + 5);
+            g.DrawString(value?.ToString() ?? "", theme.DefaultFont, theme.ControlText, x + 4, y + 5);
         }
         else if (type == typeof(Size))
         {
-            var s = (Size)value;
-            g.DrawString($"W={s.Width}, H={s.Height}", theme.DefaultFont, theme.ControlText, x + 4, y + 5);
+            g.DrawString(value?.ToString() ?? "", theme.DefaultFont, theme.ControlText, x + 4, y + 5);
         }
         else if (type == typeof(Font))
         {
@@ -533,6 +545,7 @@ public class PropertyGridRow
         var value = _descriptor.GetValue();
         _editBuffer = value?.ToString() ?? "";
         _caretPos = _editBuffer.Length;
+        _anchor = _caretPos;
         _isEditing = true;
         _isEnumDropdownOpen = false;
     }
@@ -912,10 +925,62 @@ public class PropertyGridRow
                     }
                 }
             }
+            else if (_descriptor.PropertyType == typeof(bool))
+            {
+                _descriptor.SetValue(bool.TryParse(_editBuffer, out var parsed) && parsed);
+            }
+            else if (_descriptor.PropertyType == typeof(Point))
+            {
+                var point = ParsePoint(_editBuffer);
+                if (point.HasValue)
+                    _descriptor.SetValue(point.Value);
+            }
+            else if (_descriptor.PropertyType == typeof(Size))
+            {
+                var size = ParseSize(_editBuffer);
+                if (size.HasValue)
+                    _descriptor.SetValue(size.Value);
+            }
         }
         catch { }
 
         _isEditing = false;
+    }
+
+    /// <summary>
+    /// Parses a <see cref="Point"/> from its <c>[X, Y]</c> string representation.
+    /// </summary>
+    /// <param name="text">The text to parse.</param>
+    /// <returns>The parsed point, or <see langword="null"/> if the text is not a valid point.</returns>
+    private static Point? ParsePoint(string text)
+    {
+        var value = text.Trim();
+        if (value.StartsWith("[") && value.EndsWith("]"))
+            value = value.Substring(1, value.Length - 2);
+        var parts = value.Split(',');
+        if (parts.Length == 2 &&
+            int.TryParse(parts[0].Trim(), out var x) &&
+            int.TryParse(parts[1].Trim(), out var y))
+            return new Point(x, y);
+        return null;
+    }
+
+    /// <summary>
+    /// Parses a <see cref="Size"/> from its <c>[W, H]</c> string representation.
+    /// </summary>
+    /// <param name="text">The text to parse.</param>
+    /// <returns>The parsed size, or <see langword="null"/> if the text is not a valid size.</returns>
+    private static Size? ParseSize(string text)
+    {
+        var value = text.Trim();
+        if (value.StartsWith("[") && value.EndsWith("]"))
+            value = value.Substring(1, value.Length - 2);
+        var parts = value.Split(',');
+        if (parts.Length == 2 &&
+            int.TryParse(parts[0].Trim(), out var w) &&
+            int.TryParse(parts[1].Trim(), out var h))
+            return new Size(w, h);
+        return null;
     }
 
   /// <summary>
@@ -948,22 +1013,185 @@ public class PropertyGridRow
             return true;
         }
 
-        if (keyChar == '\b' && _caretPos > 0)
+        if (keyChar == '\b')
         {
-            _editBuffer = _editBuffer.Remove(_caretPos - 1, 1);
-            _caretPos--;
-            return true;
+            if (HasSelection)
+            {
+                DeleteSelection();
+                return true;
+            }
+
+            if (_caretPos > 0)
+            {
+                _editBuffer = _editBuffer.Remove(_caretPos - 1, 1);
+                _caretPos--;
+                return true;
+            }
+
+            return false;
         }
 
         if (keyChar >= 32)
         {
+            if (HasSelection) DeleteSelection();
+
             _editBuffer = _editBuffer.Insert(_caretPos, keyChar.ToString());
             _caretPos++;
+            _anchor = _caretPos;
             return true;
         }
 
         return false;
     }
+
+    /// <summary>
+    /// Gets whether a substring of the edit buffer is currently selected.
+    /// </summary>
+    public bool HasSelection => _isEditing && _anchor != _caretPos;
+
+    /// <summary>
+    /// Gets the currently selected text, or an empty string when nothing is selected.
+    /// </summary>
+    public string GetSelectedText()
+    {
+        if (!HasSelection) return string.Empty;
+
+        int start = Math.Min(_anchor, _caretPos);
+        int length = Math.Abs(_caretPos - _anchor);
+        return _editBuffer.Substring(start, length);
+    }
+
+    /// <summary>
+    /// Removes the selected text and collapses the caret to the start of the selection.
+    /// </summary>
+    public void DeleteSelection()
+    {
+        if (!HasSelection) return;
+
+        int start = Math.Min(_anchor, _caretPos);
+        int length = Math.Abs(_caretPos - _anchor);
+
+        if (start < 0) start = 0;
+        if (start > _editBuffer.Length) start = _editBuffer.Length;
+        if (start + length > _editBuffer.Length) length = _editBuffer.Length - start;
+
+        if (length > 0)
+            _editBuffer = _editBuffer.Remove(start, length);
+
+        _caretPos = start;
+        _anchor = start;
+    }
+
+    /// <summary>
+    /// Deletes the character after the caret, or the current selection if one exists.
+    /// </summary>
+    /// <returns>true if a character or selection was removed; otherwise false.</returns>
+    public bool DeleteCharAfterCaret()
+    {
+        if (!_isEditing) return false;
+
+        if (HasSelection)
+        {
+            DeleteSelection();
+            return true;
+        }
+
+        if (_caretPos < _editBuffer.Length)
+        {
+            _editBuffer = _editBuffer.Remove(_caretPos, 1);
+            return true;
+        }
+
+        return false;
+    }
+
+    /// <summary>
+    /// Moves the caret to the given index. Without selection extension any existing
+    /// selection is collapsed first; with extension the anchor stays fixed.
+    /// </summary>
+    /// <param name="position">The target caret index, clamped to the buffer length.</param>
+    /// <param name="extend">true to extend the selection from the anchor; otherwise collapse.</param>
+    public void MoveCaret(int position, bool extend)
+    {
+        if (!_isEditing) return;
+
+        if (position < 0) position = 0;
+        if (position > _editBuffer.Length) position = _editBuffer.Length;
+
+        if (!extend) _anchor = position;
+        _caretPos = position;
+    }
+
+    /// <summary>
+    /// Moves the caret one character to the left, optionally extending the selection.
+    /// </summary>
+    /// <param name="extend">true to extend the selection; otherwise collapse first.</param>
+    public void MoveLeft(bool extend) => MoveCaret(_caretPos - 1, extend);
+
+    /// <summary>
+    /// Moves the caret one character to the right, optionally extending the selection.
+    /// </summary>
+    /// <param name="extend">true to extend the selection; otherwise collapse first.</param>
+    public void MoveRight(bool extend) => MoveCaret(_caretPos + 1, extend);
+
+    /// <summary>
+    /// Moves the caret to the start of the buffer, optionally extending the selection.
+    /// </summary>
+    /// <param name="extend">true to extend the selection; otherwise collapse first.</param>
+    public void MoveToStart(bool extend) => MoveCaret(0, extend);
+
+    /// <summary>
+    /// Moves the caret to the end of the buffer, optionally extending the selection.
+    /// </summary>
+    /// <param name="extend">true to extend the selection; otherwise collapse first.</param>
+    public void MoveToEnd(bool extend) => MoveCaret(_editBuffer.Length, extend);
+
+    /// <summary>
+    /// Selects the whole word that contains the given index.
+    /// </summary>
+    /// <param name="index">The character index inside the buffer.</param>
+    public void SelectWordAt(int index)
+    {
+        if (!_isEditing) return;
+
+        if (index < 0) index = 0;
+        if (index > _editBuffer.Length) index = _editBuffer.Length;
+
+        int start = index;
+        while (start > 0 && IsWordChar(_editBuffer[start - 1])) start--;
+
+        int end = index;
+        while (end < _editBuffer.Length && IsWordChar(_editBuffer[end])) end++;
+
+        _anchor = start;
+        _caretPos = end;
+    }
+
+    /// <summary>
+    /// Maps a horizontal position within the value column to a caret index, using the
+    /// same text measurement as the rendered edit field so clicks land on the right glyph.
+    /// </summary>
+    /// <param name="localX">The X position relative to the value column's left edge.</param>
+    /// <param name="font">The font used to render the edit field.</param>
+    /// <param name="zoom">The zoom factor used to render the edit field.</param>
+    /// <returns>The caret index closest to (but not beyond) the given position.</returns>
+    public int CaretIndexFromX(int localX, Font font, float zoom)
+    {
+        int target = localX - 4; // the edit text starts 4 px inside the value column
+        if (target <= 0) return 0;
+
+        int best = 0;
+        for (int i = 1; i <= _editBuffer.Length; i++)
+        {
+            int width = PlatformHelper.MeasureText(_editBuffer.Substring(0, i), font, zoom).width;
+            if (width <= target) best = i;
+            else break;
+        }
+
+        return best;
+    }
+
+    private static bool IsWordChar(char c) => char.IsLetterOrDigit(c) || c == '_';
 
     /// <summary>
     /// Gets whether this row is currently being edited.
@@ -1057,6 +1285,24 @@ public class PropertyGridRow
     /// Gets whether this row's property type is Color.
     /// </summary>
     public bool IsColorProperty => _descriptor.PropertyType == typeof(Color);
+
+    /// <summary>
+    /// Gets whether this row represents a boolean property, which is edited by toggling
+    /// the checkbox rather than by inline text editing.
+    /// </summary>
+    public bool IsBoolProperty => _descriptor.PropertyType == typeof(bool);
+
+    /// <summary>
+    /// Toggles the boolean value of the property without switching the row into text-edit
+    /// mode. Does nothing if the property is not a boolean.
+    /// </summary>
+    public void ToggleBool()
+    {
+        if (_descriptor.PropertyType != typeof(bool)) return;
+
+        bool current = _descriptor.GetValue() is bool flag && flag;
+        _descriptor.SetValue(!current);
+    }
 
     /// <summary>
     /// Gets whether the color picker is currently open for this row.
